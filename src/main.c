@@ -67,6 +67,7 @@ int main(int argc, char **argv) {
     int dump_c = 0;        /* --dump-c */
     int no_line = 1;       /* --no-line */
     int verbose_errors = 0; /* --verbose-errors */
+    int verbose = 0;       /* -v flag */
     const char *in_path = NULL;
     const char *out_path = "a.out";
 
@@ -112,6 +113,8 @@ int main(int argc, char **argv) {
             no_line = 1;
         } else if (strcmp(argv[i], "--verbose-errors") == 0) {
             verbose_errors = 1;
+        } else if (strcmp(argv[i], "-v") == 0) {
+            verbose = 1;
         } else if (strcmp(argv[i], "-o") == 0) {
             if (i + 1 >= argc) dief("missing value after -o");
             out_path = argv[++i];
@@ -142,6 +145,7 @@ int main(int argc, char **argv) {
         fprintf(stderr, "  -Wno-extra  disable extra warnings\n");
         fprintf(stderr, "  -Werror     treat warnings as errors\n");
         fprintf(stderr, "  --byteptr   use byte-addressed pointers\n");
+        fprintf(stderr, "  -v          verbose compilation output\n");
         fprintf(stderr, "\n");
         fprintf(stderr, "  --dump-tokens  show tokenized input\n");
         fprintf(stderr, "  --dump-ast     show parsed AST\n");
@@ -156,6 +160,7 @@ int main(int argc, char **argv) {
         return 2;
     }
 
+    if (verbose) fprintf(stderr, "Reading %s...\n", in_path);
     size_t len = 0;
     char *src = read_file_all(in_path, &len);
 
@@ -171,6 +176,7 @@ int main(int argc, char **argv) {
     P.cur = mk_tok(TK_EOF, 1, 1, in_path);
     next(&P); // prime token
 
+    if (verbose) fprintf(stderr, "Lexing...\n");
     if (dump_tokens) {
         dump_token_stream(&P);
         // Always exit after dumping tokens, as combining with other dumps causes issues
@@ -180,6 +186,7 @@ int main(int argc, char **argv) {
         return 0;
     }
 
+    if (verbose) fprintf(stderr, "Parsing...\n");
     Program *prog = parse_program_ast(&P);
 
     tok_free(&P.cur);
@@ -195,9 +202,11 @@ int main(int argc, char **argv) {
         }
     }
 
+    if (verbose) fprintf(stderr, "Semantic analysis...\n");
     // Semantic analysis pass
     sem_check_program(prog, in_path);
 
+    if (verbose) fprintf(stderr, "Code generation...\n");
     // Handle different output modes
     if (emit_c_only || dump_c) {
         // -S or --dump-c: emit C to stdout

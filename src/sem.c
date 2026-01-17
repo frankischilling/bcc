@@ -520,13 +520,75 @@ static void sem_check_top(SemState *st, Top *t) {
 void sem_check_program(Program *prog, const char *filename) {
     SemState *st = sem_state_new(filename);
 
-    // First pass: collect all top-level declarations
+    // Pre-pass: collect all top-level declarations without checking expressions
     for (size_t i = 0; i < prog->tops.len; i++) {
         Top *t = prog->tops.data[i];
-        sem_check_top(st, t);
+        switch (t->kind) {
+            case TOP_GAUTO: {
+                // Global auto declarations
+                Stmt *s = t->as.gauto;
+                if (s->kind != ST_AUTO) dief("internal: TOP_GAUTO should be ST_AUTO");
+
+                for (size_t i = 0; i < s->as.autodecl.decls.len; i++) {
+                    DeclItem *item = s->as.autodecl.decls.data[i];
+
+                    if (scope_has_in_current(st->current, item->name)) {
+                        error_at_location(st->filename, s->line, s->col, ERR_REDECLARATION, item->name);
+                    }
+
+                    Symbol *sym = symbol_new(SYM_VAR, item->name, s->line, s->col);
+                    sym->as.var.has_size = (item->size != NULL);
+                    sym->as.var.size_expr = item->size;
+                    scope_add(st->current, sym);
+
+                    if (item->size) {
+                        // Don't check expressions yet
+                    }
+                }
+                break;
+            }
+            case TOP_FUNC: {
+                Func *f = t->as.fn;
+
+                // Record function name
+                vec_push(&st->function_names, sdup(f->name));
+
+                // Add function symbol to global scope
+                if (scope_has_in_current(st->current, f->name)) {
+                    error_at_location(st->filename, 0, 0, ERR_REDECLARATION, f->name);
+                }
+
+                Symbol *sym = symbol_new(SYM_FUNC, f->name, 0, 0); // line/col not meaningful for functions
+                sym->as.func.params = f->params; // shallow copy
+                scope_add(st->current, sym);
+
+                // Don't check function body yet
+                break;
+            }
+            case TOP_EXTERN_DEF: {
+                ExternItem *item = t->as.ext_def;
+
+                if (scope_has_in_current(st->current, item->name)) {
+                    dief("duplicate extern definition '%s'", item->name);
+                }
+
+                Symbol *sym = symbol_new(SYM_VAR, item->name, 0, 0); // line/col not meaningful for externs
+                sym->is_extern = 1;
+                scope_add(st->current, sym);
+
+                // Don't check expressions yet
+                break;
+            }
+            case TOP_EXTERN_DECL: {
+                ExternItem *item = t->as.ext_decl;
+                vec_push(&st->extern_names, sdup(item->name));
+                // Extern declarations don't create symbols until used
+                break;
+            }
+        }
     }
 
-    // Second pass: check all expressions and statements, collecting implicit static variables
+    // Now check all expressions and statements, collecting implicit static variables
     for (size_t i = 0; i < prog->tops.len; i++) {
         Top *t = prog->tops.data[i];
         switch (t->kind) {
@@ -536,12 +598,13 @@ void sem_check_program(Program *prog, const char *filename) {
                 break;
             }
             case TOP_GAUTO: {
-                // Global auto declarations - already checked in first pass
+                // Global auto declarations - expressions already checked in pre-pass
                 break;
             }
             case TOP_EXTERN_DEF:
             case TOP_EXTERN_DECL: {
-                // Extern declarations - already checked in first pass
+                // Extern declarations - check expressions now
+                sem_check_top(st, t);
                 break;
             }
         }

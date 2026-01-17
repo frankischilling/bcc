@@ -1502,6 +1502,25 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
 
     fputs("}\n\n", out);
 
+    // Emit function prototypes for C99 compatibility
+    for (size_t i = 0; i < prog->tops.len; i++) {
+        Top *t = (Top*)prog->tops.data[i];
+        if (t->kind == TOP_FUNC) {
+            Func *f = t->as.fn;
+            if (strcmp(f->name, "main") == 0) {
+                fprintf(out, "static word __b_user_main(");
+            } else {
+                fprintf(out, "static word %s(", f->name);
+            }
+            for (size_t p = 0; p < f->params.len; p++) {
+                if (p) fputs(", ", out);
+                fputs("word", out);
+            }
+            fputs(");\n", out);
+        }
+    }
+    fputc('\n', out);
+
     // Second pass: emit all functions
     int has_main = 0;
     for (size_t i = 0; i < prog->tops.len; i++) {
