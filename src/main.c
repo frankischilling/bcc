@@ -65,7 +65,7 @@ int main(int argc, char **argv) {
     int dump_tokens = 0;   /* --dump-tokens */
     int dump_ast = 0;      /* --dump-ast */
     int dump_c = 0;        /* --dump-c */
-    int no_line = 0;       /* --no-line */
+    int no_line = 1;       /* --no-line */
     int verbose_errors = 0; /* --verbose-errors */
     const char *in_path = NULL;
     const char *out_path = "a.out";

@@ -2,6 +2,176 @@
 
 #include "bcc.h"
 
+// ===================== String Pool for Thompson-Accurate Strings =====================
+
+typedef struct {
+    const char *str;
+    int id;
+} StringEntry;
+
+static Vec string_pool;  // Vec<StringEntry>
+
+static int get_string_id(const char *s) {
+    for (size_t i = 0; i < string_pool.len; i++) {
+        StringEntry *e = (StringEntry*)string_pool.data[i];
+        if (strcmp(e->str, s) == 0) return e->id;
+    }
+
+    StringEntry *e = xmalloc(sizeof(StringEntry));
+    e->str = sdup(s);
+    e->id = (int)string_pool.len;
+    vec_push(&string_pool, e);
+    return e->id;
+}
+
+static void emit_string_pool(FILE *out) {
+    for (size_t i = 0; i < string_pool.len; i++) {
+        StringEntry *e = (StringEntry*)string_pool.data[i];
+        const unsigned char *s = (const unsigned char*)e->str;
+
+        size_t n = 0;
+        while (s[n]) n++;                 // length excluding NUL
+
+        size_t total_bytes = n + 1;       // +1 for 004 terminator
+        size_t words_needed = (total_bytes + 1) / 2;
+
+        fprintf(out, "static const word __b_str%zu[] = {", i);
+
+        for (size_t wi = 0; wi < words_needed; wi++) {
+            size_t bi0 = wi * 2;
+            size_t bi1 = wi * 2 + 1;
+
+            unsigned char b0, b1;
+
+            if (bi0 < n)       b0 = s[bi0];
+            else if (bi0 == n) b0 = 004;
+            else               b0 = 0;
+
+            if (bi1 < n)       b1 = s[bi1];
+            else if (bi1 == n) b1 = 004;
+            else               b1 = 0;
+
+            uintptr_t w = (uintptr_t)b0 | ((uintptr_t)b1 << 8);
+
+            if (wi) fputc(',', out);
+            fprintf(out, "0x%04" PRIxPTR, w);
+        }
+
+        fprintf(out, "};\n");
+    }
+}
+
+// String collection prepass
+static void collect_strings_expr(Expr *e);
+static void collect_strings_init(Init *in);
+static void collect_strings_stmt(Stmt *s);
+
+static void collect_strings_expr(Expr *e) {
+    if (!e) return;
+    switch (e->kind) {
+        case EX_STR:
+            (void)get_string_id(e->as.str);
+            return;
+        case EX_CALL:
+            collect_strings_expr(e->as.call.callee);
+            for (size_t i = 0; i < e->as.call.args.len; i++)
+                collect_strings_expr((Expr*)e->as.call.args.data[i]);
+            return;
+        case EX_INDEX:
+            collect_strings_expr(e->as.index.base);
+            collect_strings_expr(e->as.index.idx);
+            return;
+        case EX_UNARY:
+            collect_strings_expr(e->as.unary.rhs);
+            return;
+        case EX_POST:
+            collect_strings_expr(e->as.post.lhs);
+            return;
+        case EX_BINARY:
+            collect_strings_expr(e->as.bin.lhs);
+            collect_strings_expr(e->as.bin.rhs);
+            return;
+        case EX_ASSIGN:
+            collect_strings_expr(e->as.assign.lhs);
+            collect_strings_expr(e->as.assign.rhs);
+            return;
+        case EX_TERNARY:
+            collect_strings_expr(e->as.ternary.cond);
+            collect_strings_expr(e->as.ternary.true_expr);
+            collect_strings_expr(e->as.ternary.false_expr);
+            return;
+        case EX_COMMA:
+            collect_strings_expr(e->as.comma.lhs);
+            collect_strings_expr(e->as.comma.rhs);
+            return;
+        default:
+            return;
+    }
+}
+
+static void collect_strings_init(Init *in) {
+    if (!in) return;
+    if (in->kind == INIT_EXPR) {
+        collect_strings_expr(in->as.expr);
+    } else if (in->kind == INIT_LIST) {
+        for (size_t i = 0; i < in->as.list.len; i++)
+            collect_strings_init((Init*)in->as.list.data[i]);
+    }
+}
+
+static void collect_strings_stmt(Stmt *s) {
+    if (!s) return;
+    switch (s->kind) {
+        case ST_BLOCK:
+            for (size_t i = 0; i < s->as.block.items.len; i++)
+                collect_strings_stmt((Stmt*)s->as.block.items.data[i]);
+            return;
+        case ST_IF:
+            collect_strings_expr(s->as.ifs.cond);
+            collect_strings_stmt(s->as.ifs.then_s);
+            collect_strings_stmt(s->as.ifs.else_s);
+            return;
+        case ST_WHILE:
+            collect_strings_expr(s->as.whiles.cond);
+            collect_strings_stmt(s->as.whiles.body);
+            return;
+        case ST_RETURN:
+            collect_strings_expr(s->as.ret.val);
+            return;
+        case ST_EXPR:
+            collect_strings_expr(s->as.expr.e);
+            return;
+        case ST_SWITCH:
+            collect_strings_expr(s->as.switch_.expr);
+            collect_strings_stmt(s->as.switch_.body);
+            return;
+        case ST_LABEL:
+            collect_strings_stmt(s->as.label_.stmt);
+            return;
+        case ST_CASE:
+            // if your case holds exprs, add them here
+            return;
+        default:
+            return;
+    }
+}
+
+static void collect_strings_program(Program *prog) {
+    for (size_t i = 0; i < prog->tops.len; i++) {
+        Top *t = (Top*)prog->tops.data[i];
+        if (t->kind == TOP_FUNC) {
+            collect_strings_stmt(t->as.fn->body);
+        } else if (t->kind == TOP_EXTERN_DEF) {
+            ExternItem *it = t->as.ext_def;
+            collect_strings_init(it->as.var.init);
+            // also collect from bounds if those can contain expressions
+            if (it->as.var.bound) collect_strings_expr(it->as.var.bound);
+        } else if (t->kind == TOP_GAUTO) {
+            collect_strings_stmt(t->as.gauto);
+        }
+    }
+}
+
 // ===================== C Emitter (walk AST) =====================
 
 // Convert B-style assignment operators to C-style for code generation
@@ -283,11 +453,11 @@ void emit_expr(FILE *out, Expr *e, const char *filename) {
         case EX_NUM:
             fprintf(out, "((word)%ld)", e->as.num);
             return;
-        case EX_STR:
-            fputs("B_STR(", out);
-            emit_c_string(out, e->as.str);
-            fputc(')', out);
+        case EX_STR: {
+            int id = get_string_id(e->as.str);
+            fprintf(out, "((word)((uword)&__b_str%d / sizeof(word)))", id);
             return;
+        }
         case EX_VAR: fputs(e->as.var, out); return;
 
         case EX_CALL: {
@@ -798,6 +968,11 @@ void emit_program_asm(FILE *out, Program *prog);
 
 void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr, int no_line) {
     current_byteptr = byteptr;
+    string_pool.data = NULL;
+    string_pool.len = 0;
+    string_pool.cap = 0;
+
+    collect_strings_program(prog);
     fputs(
         "#include <stdio.h>\n"
         "#include <stdlib.h>\n"
@@ -878,16 +1053,44 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
         "\n"
         "/* B library functions - compatible with Thompson's /etc/libb.a */\n"
         "/* String manipulation functions */\n"
-        "static word b_char(word s, word i) {\n"
-        "    /* Extract character at index i from string s */\n"
-        "    const unsigned char *str = (const unsigned char*)B_CPTR(s);\n"
-        "    return (word)str[(size_t)i];  /* zero-extended */\n"
+        "static inline word b_load(word addr){ return B_DEREF(addr); }\n"
+        "static inline void b_store(word addr, word v){\n"
+        "#if B_BYTEPTR\n"
+        "    *(word*)(uword)addr = v;\n"
+        "#else\n"
+        "    *(word*)(uword)((uword)addr * sizeof(word)) = v;\n"
+        "#endif\n"
         "}\n"
-        "static word b_lchar(word s, word i, word c) {\n"
-        "    /* Store character c at index i in string s */\n"
-        "    unsigned char *str = (unsigned char*)B_CPTR(s);\n"
-        "    str[(size_t)i] = (unsigned char)(c & 0xFF);\n"
+        "\n"
+        "/* B string access - compatible with C strings (byte addressing) */\n"
+        "static word b_char(word s, word i){\n"
+        "#if B_BYTEPTR\n"
+        "    const unsigned char *p = (const unsigned char*)B_CPTR(s);\n"
+        "    return (word)p[(size_t)i];\n"
+        "#else\n"
+        "    /* In word mode, s is a word address pointing to packed chars */\n"
+        "    word w = b_load((word)(s + (i >> 1)));\n"
+        "    return (i & 1) ? (word)((uword)w >> 8) & 0xFF : (word)((uword)w & 0xFF);\n"
+        "#endif\n"
+        "}\n"
+        "\n"
+        "static word b_lchar(word s, word i, word c){\n"
+        "#if B_BYTEPTR\n"
+        "    unsigned char *p = (unsigned char*)B_CPTR(s);\n"
+        "    p[(size_t)i] = (unsigned char)(c & 0xFF);\n"
         "    return c;\n"
+        "#else\n"
+        "    /* In word mode, s is a word address pointing to packed chars */\n"
+        "    word addr = (word)(s + (i >> 1));\n"
+        "    word w = b_load(addr);\n"
+        "    uword uw = (uword)w & 0xFFFF;\n"
+        "\n"
+        "    if (i & 1) uw = (uw & 0x00FF) | (((uword)c & 0xFF) << 8);\n"
+        "    else       uw = (uw & 0xFF00) |  ((uword)c & 0xFF);\n"
+        "\n"
+        "    b_store(addr, (word)uw);\n"
+        "    return c;\n"
+        "#endif\n"
         "}\n"
         "\n"
         "/* I/O functions */\n"
@@ -912,23 +1115,25 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
         "    b_putchar((word)((uword)n % (uword)base) + '0');\n"
         "}\n"
         "\n"
-        "static word b_printf(word fmt, ...) {\n"
-        "    const unsigned char *s = (const unsigned char*)B_CPTR(fmt);\n"
-        "\n"
+        "static word b_printf(word fmt, ...){\n"
         "    va_list ap;\n"
         "    va_start(ap, fmt);\n"
         "\n"
-        "    while (*s) {\n"
-        "        if (*s != '%') { b_putchar(*s++); continue; }\n"
-        "        s++;\n"
-        "        if (!*s) break;\n"
+        "    word i = 0;\n"
+        "    for (;;){\n"
+        "        word ch = b_char(fmt, i++);\n"
+        "        if (ch == 004 || ch == 0) break;  /* '*e' or NUL terminator */\n"
+        "        if (ch != '%'){ b_putchar(ch); continue; }\n"
+        "\n"
+        "        word code = b_char(fmt, i++);\n"
+        "        if (code == 004) break;\n"
         "\n"
         "        word arg = va_arg(ap, word);\n"
         "\n"
-        "        switch (*s) {\n"
+        "        switch ((int)code){\n"
         "        case 'd': {\n"
         "            int16_t v = (int16_t)arg;\n"
-        "            if (v < 0) { b_putchar('-'); v = (int16_t)-v; }\n"
+        "            if (v < 0){ b_putchar('-'); v = (int16_t)-v; }\n"
         "            if (v) b_printn_u((word)(uword)(uint16_t)v, 10);\n"
         "            else b_putchar('0');\n"
         "            break;\n"
@@ -943,16 +1148,18 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
         "            b_putchar(arg);\n"
         "            break;\n"
         "        case 's': {\n"
-        "            const unsigned char *p = (const unsigned char*)B_CPTR(arg);\n"
-        "            // In B-land strings often end with '*e' (EOT, octal 004)\n"
-        "            while (*p && *p != 004) b_putchar(*p++);\n"
+        "            word j = 0;\n"
+        "            for (;;){\n"
+        "                word sc = b_char(arg, j++);\n"
+        "                if (sc == 004 || sc == 0) break;  /* Handle both *e and NUL termination */\n"
+        "                b_putchar(sc);\n"
+        "            }\n"
         "            break;\n"
         "        }\n"
         "        default:\n"
-        "            b_putchar('%'); b_putchar(*s);\n"
+        "            b_putchar('%'); b_putchar(code);\n"
         "            break;\n"
         "        }\n"
-        "        s++;\n"
         "    }\n"
         "\n"
         "    va_end(ap);\n"
@@ -961,11 +1168,9 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
         "\n"
         "/* File I/O functions - with actual implementations */\n"
         "#include <fcntl.h>\n"
-        "static word b_open(word name, word mode) {\n"
-        "    /* B manual: open existing files, mode=0 read, non-zero write */\n"
+        "static word b_open(word name, word mode){\n"
         "    const char *p = (const char*)B_CPTR(name);\n"
-        "    int m = (int)mode;\n"
-        "    int flags = (m == 0) ? O_RDONLY : (m == 1) ? O_WRONLY : O_RDWR;\n"
+        "    int flags = ((int)mode == 0) ? O_RDONLY : O_WRONLY;\n"
         "    return (word)open(p, flags);\n"
         "}\n"
         "static word b_close(word fd) {\n"
@@ -984,7 +1189,8 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
         "    return (word)creat(p, (mode_t)mode);\n"
         "}\n"
         "static word b_seek(word fd, word offset, word whence) {\n"
-        "    return (word)lseek((int)fd, (off_t)offset, (int)whence);\n"
+        "    off_t r = lseek((int)fd, (off_t)offset, (int)whence);\n"
+        "    return (r < 0) ? (word)-1 : (word)0;\n"
         "}\n"
         "\n"
         "/* Process control functions - with actual implementations */\n"
@@ -1021,6 +1227,8 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
         "}\n"
         "\n"
         "static word b_execv(word path, word argv) {\n"
+        "    /* Note: Manual specifies execv(path, argv, count) with counted vector */\n"
+        "    /* Current implementation uses null-terminated vector for compatibility */\n"
         "    const char *p = (const char*)B_CPTR(path);\n"
         "    word *av = (word*)B_CPTR(argv);\n"
         "\n"
@@ -1047,21 +1255,20 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
         "}\n"
         "\n"
         "static word b_ctime(word tvp) {\n"
-        "    static unsigned char buf[64];\n"
+        "    static word bufw[32];               // 32 words = 64 bytes worth of chars\n"
         "    word *tv = (word*)B_CPTR(tvp);\n"
         "    time_t t = (time_t)((uint16_t)tv[0]) | ((time_t)((uint16_t)tv[1]) << 16);\n"
         "\n"
         "    const char *cs = ctime(&t);\n"
         "    if (!cs) return 0;\n"
         "\n"
-        "    // copy, then replace trailing '\\n' with '*e' (004), and ensure terminator\n"
-        "    size_t n = 0;\n"
-        "    while (cs[n] && n < sizeof(buf)-2) { buf[n] = (unsigned char)cs[n]; n++; }\n"
-        "    if (n && buf[n-1] == '\\n') buf[n-1] = 004;\n"
-        "    else buf[n++] = 004;\n"
-        "    buf[n] = 0;\n"
-        "\n"
-        "    return B_PTR((const char*)buf);\n"
+        "    size_t i = 0;\n"
+        "    while (cs[i] && cs[i] != '\\n' && i < 63) {\n"
+        "        b_lchar(B_PTR(bufw), (word)i, (word)(unsigned char)cs[i]);\n"
+        "        i++;\n"
+        "    }\n"
+        "    b_lchar(B_PTR(bufw), (word)i, 004);\n"
+        "    return B_PTR(bufw);\n"
         "}\n"
         "static word b_getuid(void) {\n"
         "    return (word)getuid();\n"
@@ -1137,28 +1344,25 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
         "\n"
         "static void __b_sigint(int sig){ (void)sig; __b_got_intr = 1; }\n"
         "\n"
-        "static word b_gtty(word fd, word ttstat) {\n"
-        "    /* Get terminal modes into three-word vector */\n"
-        "    /* Maps termios to B's 3-word sgttyb-compatible format */\n"
+        "static word b_gtty(word fd, word ttstat){\n"
         "    struct termios t;\n"
         "    if (tcgetattr((int)fd, &t) < 0) return -1;\n"
-        "    \n"
-        "    word *vec = (word*)B_PTR(ttstat);\n"
-        "    vec[0] = (word)t.c_iflag;        /* input flags */\n"
-        "    vec[1] = (word)t.c_oflag;        /* output flags */ \n"
-        "    vec[2] = (word)t.c_lflag;        /* local flags */\n"
+        "\n"
+        "    word *vec = (word*)B_CPTR(ttstat);\n"
+        "    vec[0] = (word)t.c_iflag;\n"
+        "    vec[1] = (word)t.c_oflag;\n"
+        "    vec[2] = (word)t.c_lflag;\n"
         "    return 0;\n"
         "}\n"
-        "static word b_stty(word fd, word ttstat) {\n"
-        "    /* Set terminal modes from three-word vector */\n"
-        "    /* Maps B's 3-word format to termios */\n"
+        "\n"
+        "static word b_stty(word fd, word ttstat){\n"
         "    struct termios t;\n"
         "    if (tcgetattr((int)fd, &t) < 0) return -1;\n"
-        "    \n"
-        "    word *vec = (word*)B_PTR(ttstat);\n"
-        "    t.c_iflag = (tcflag_t)vec[0];   /* input flags */\n"
-        "    t.c_oflag = (tcflag_t)vec[1];   /* output flags */\n"
-        "    t.c_lflag = (tcflag_t)vec[2];   /* local flags */\n"
+        "\n"
+        "    word *vec = (word*)B_CPTR(ttstat);\n"
+        "    t.c_iflag = (tcflag_t)vec[0];\n"
+        "    t.c_oflag = (tcflag_t)vec[1];\n"
+        "    t.c_lflag = (tcflag_t)vec[2];\n"
         "    return (word)tcsetattr((int)fd, TCSANOW, &t);\n"
         "}\n"
         "static word b_intr(word on) {\n"
@@ -1178,6 +1382,12 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
         "\n",
         out
     );
+
+    // Emit Thompson B packed strings
+    if (!current_byteptr && string_pool.len > 0) {
+        emit_string_pool(out);
+        fputc('\n', out);
+    }
 
     // First pass: emit all global declarations and storage
     for (size_t i = 0; i < prog->tops.len; i++) {
@@ -1289,6 +1499,7 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
             }
         }
     }
+
     fputs("}\n\n", out);
 
     // Second pass: emit all functions
