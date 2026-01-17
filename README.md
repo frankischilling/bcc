@@ -1,35 +1,38 @@
 # BCC - B Programming Language Compiler
 
-A faithful implementation of Ken Thompson's B programming language compiler from Bell Labs, based on the Unix v1 (1972) specification.
+A faithful implementation of Ken Thompson's B programming language compiler from Bell Labs, based on the 1969 B language specification.
 
 ## Overview
 
-BCC is a complete B compiler written in C99 that aims to be historically accurate to the original B language as designed by Ken Thompson at Bell Labs. B was the predecessor to C, developed in 1972 as a systems programming language for the early Unix operating system.
+BCC is a complete B compiler written in C99 that faithfully implements Ken Thompson's PDP-11 B language specification from 1969. B is an untyped systems programming language where everything is a machine word, with explicit operations for indirection, address-of, and pointer arithmetic.
 
 This implementation includes:
-- Full B language compiler with all language features
-- Faithful `libb.a` implementation of B's standard library subroutines
-- Support for B's unique syntax and semantics
-- Historical accuracy to the 1972 Unix v1 B specification
+- Full B language compiler matching PDP-11 B semantics
+- Complete runtime library (`libb.a`) with all original functions
+- Authentic B syntax including compound assignments (`=+`, `=-`, etc.)
+- Word-based memory model with configurable pointer addressing modes
+- Historical accuracy to the original 1969 B specification
 
 ## Features
 
 ### Core B Language Support
-- Single data type (word/integer)
-- Auto variable declarations
-- External declarations with `extrn`
-- Function definitions and calls
-- Control structures: `if`, `while`, `switch`/`case`
-- Arrays (vectors) with B-style syntax
-- Goto statements and labels
-- B-style assignment operators (`=+`, `=-`, `=*`, `=/`, etc.)
+- **Untyped language**: Single universal data type (PDP-11 word = 16 bits)
+- **Lvalue/Rvalue distinction**: Explicit address-of (`&`) and indirection (`*`) operators
+- **Auto variable declarations**: Local variables with `auto`
+- **External declarations**: Global variables with `extrn`
+- **Function definitions**: `name(args) { ... }` syntax
+- **Control structures**: `if`/`else`, `while`, `switch`/`case` (fall-through by default)
+- **Arrays (vectors)**: `name[size]` with word-addressed indexing
+- **Goto and labels**: Unrestricted control flow
+- **Truth values**: Relational/equality operators return 1 (true) or 0 (false)
 
 ### B-Specific Features
-- B-style string handling with `*e` termination
-- Character constants packed into words (1-2 characters)
-- Comma-separated initializers
-- Word-addressed pointers (with `--byteptr` option for byte addressing)
-- B's expression precedence rules
+- **Compound assignments**: `=+`, `=-`, `=*`, `=/`, `=%`, `=&`, `=|`, `=<<`, `=>>` (value op variable)
+- **String literals**: `*e` terminated (EOT marker), not null-terminated
+- **Character handling**: `char(base, offset)` and `lchar(base, offset, value)` for byte access
+- **Escape sequences**: `*n` (newline), `*t` (tab), `*e` (end), `*0` (null), `**` (asterisk)
+- **Word packing**: Multi-character constants packed into single words
+- **Pointer arithmetic**: Explicit word-based addressing with configurable modes
 
 ### Standard Library (`libb.a`)
 Complete implementation of B's runtime library including:
@@ -180,14 +183,18 @@ BCC follows a traditional multi-stage compiler architecture with the following p
 - **Comma-Separated Initializers**: B-style external variable initialization
 
 #### Expression Precedence
-B's precedence table (implemented in `precedence()` function):
+B's operator precedence follows a specific hierarchy (high to low):
 ```
-Level 8: & (bitwise AND)
-Level 7: | (bitwise OR)
-Level 6: * / % (multiplicative)
-Level 5: + - << >> (additive/shift)
-Level 4: < <= > >= (relational)
-Level 3: == != (equality)
+Postfix: () [] * & ++ --
+Unary: * & ++ --
+Multiplicative: * / %
+Additive: + -
+Shifts: << >>
+Relational: < <= > >=
+Equality: == !=
+Bitwise AND: &
+Bitwise OR: |
+Assignment: = =+ =- =* =/ =% =& =| =<< =>>
 ```
 
 #### Symbol Table Architecture
@@ -308,6 +315,14 @@ bcc/
 ├── B_LANGUAGE.md          # B programming language reference
 ├── WIKI_DATA_TYPES.md     # Data types and literals guide
 ├── WIKI_CONTROL_STRUCTURES.md  # Control structures guide
+├── WIKI_FUNCTIONS.md      # Functions guide
+├── WIKI_ARRAYS_POINTERS.md     # Arrays and pointers guide
+├── WIKI_RUNTIME_LIBRARY.md     # Runtime library guide
+├── WIKI_IO_FUNCTIONS.md        # I/O functions guide
+├── WIKI_EXAMPLES.md            # Programming examples
+├── WIKI_FILE_IO.md             # File I/O guide
+├── WIKI_STRING_OPERATIONS.md   # String operations guide
+├── WIKI_SYSTEM_CALLS.md        # System calls guide
 ├── Makefile            # Build system
 ├── bcc                 # Compiled compiler executable
 ├── src/                # Source code
@@ -460,12 +475,12 @@ BCC supports two pointer addressing modes to match different B implementations:
 
 ### Switch Statement Implementation
 
-B's switch statements are compiled to efficient C `for` loops with computed goto:
+B's switch statements have fall-through behavior by default (no break statements exist in B). Switch statements are compiled to efficient C `for` loops with computed goto:
 
 ```b
 switch (expr) {
-case 1: stmt1; break;
-case 2: stmt2; break;
+case 1: stmt1;
+case 2: stmt2;
 }
 ```
 
@@ -475,8 +490,8 @@ for (;;) {
     word __sw = expr;
     goto __bsw0_dispatch;
 
-    __bsw0_case1: /* case 1 code */ goto __bsw0_end;
-    __bsw0_case2: /* case 2 code */ goto __bsw0_end;
+    __bsw0_case1: /* case 1 code - falls through */
+    __bsw0_case2: /* case 2 code - falls through */
 
     __bsw0_dispatch:
         if (__sw == 1) goto __bsw0_case1;
@@ -561,7 +576,7 @@ getchar();  // Calls b_getchar()
 ## Development Philosophy
 
 ### Historical Fidelity
-- **Source Accuracy**: Based on 1972 Unix v1 B specification
+- **Source Accuracy**: Based on 1969 B language specification
 - **Library Compatibility**: Function signatures match original `libb.a`
 - **Error Messages**: Historic diagnostic format preserved
 - **Semantics**: B's unique evaluation rules maintained
@@ -625,20 +640,21 @@ This follows the tradition of early compiler bootstrapping, where complex system
 ### Lexical Analysis (`lexer.c`)
 
 **Token Recognition**
-- **Keywords**: `auto`, `extrn`, `if`, `else`, `while`, `return`, `goto`, `switch`, `case`
-- **Operators**: Full B operator set including compound assignments (`=+`, `=-`, etc.)
-- **Literals**: Integer constants, character constants (packed), strings (`*e` terminated)
-- **Identifiers**: Standard C-style identifiers with B-specific escape handling
+- **Keywords**: `auto`, `extrn`, `if`, `else`, `while`, `switch`, `case`, `goto`, `return`
+- **Operators**: Full B operator set including compound assignments (`=+`, `=-`, `=*`, etc.)
+- **Literals**: Integer constants, character constants (packed into words), strings (`*e` terminated)
+- **Identifiers**: Alphabetic followed by alphanumerics
+- **Comments**: Block comments `/* ... */` (inherited from BCPL)
 
 **Escape Sequences**
-B supports unique escape sequences in strings and characters:
+B supports escape sequences in strings and characters:
 - `*e`: End marker (EOT, ASCII 4)
-- `*n`: Newline
-- `*t`: Tab
-- `*0`: Null
-- `*(`, `*)`: Parentheses
-- `**`: Asterisk
-- `*'"`: Quotes
+- `*n`: Newline (ASCII 10)
+- `*t`: Tab (ASCII 9)
+- `*0`: Null (ASCII 0)
+- `*(`, `*)`: Literal parentheses
+- `**`: Literal asterisk
+- `*'"`: Literal quotes
 
 **Position Tracking**
 - Line and column counting for error reporting
@@ -648,9 +664,9 @@ B supports unique escape sequences in strings and characters:
 
 **Grammar Coverage**
 - **Expressions**: Full precedence climbing with B's operator hierarchy
-- **Statements**: Block, if/else, while, return, goto, switch/case
+- **Statements**: Block, if/else, while, switch/case, goto/label, return
 - **Declarations**: Auto variables, extern declarations, function definitions
-- **Initializers**: Scalar, vector, and B-style comma-separated lists
+- **Lvalues/Rvalues**: Proper handling of address-of (`&`) and indirection (`*`)
 
 **AST Structure**
 ```c
@@ -664,6 +680,12 @@ typedef enum {
     ST_RETURN, ST_EXPR, ST_GOTO, ST_LABEL, ST_SWITCH, ST_CASE
 } StmtKind;
 ```
+
+**Key B Semantics**
+- **Lvalue contexts**: Variables, `*expr`, `arr[index]` can be assigned to
+- **Rvalue contexts**: All expressions produce word values
+- **Address-of**: `&var` produces address (word) of variable
+- **Indirection**: `*addr` treats addr as pointer and dereferences it
 
 **Parsing Strategy**
 - **Top-Down**: Recursive descent with backtracking prevention
@@ -679,11 +701,11 @@ typedef enum {
 - **Lifetime Analysis**: Variable visibility and lifetime tracking
 - **Forward References**: Function declarations before definitions
 
-**Type System**
-- **Untyped Language**: All values are machine words
-- **Implicit Conversions**: Automatic word operations
-- **Array Handling**: Vector declarations with size expressions
-- **Function Signatures**: Parameter name collection and validation
+**B Type System**
+- **Untyped Language**: Everything is a machine word (PDP-11: 16 bits)
+- **No Type Checking**: All operations are valid on words
+- **Lvalue/Rvalue Distinction**: What can be assigned to vs. what produces values
+- **Pointer Semantics**: Addresses are just words, explicit indirection required
 
 **Static Analysis**
 - **Undeclared Variables**: Converted to implicit externs
@@ -726,16 +748,18 @@ word main(void) {
 ### Runtime Library (`libb.a` Implementation)
 
 **Core Functions**
-- **I/O**: `putchar`, `getchar`, `print`, `printf` with B-specific formatting
-- **Memory**: `alloc` for dynamic allocation
-- **Strings**: `char`, `lchar` for character access/modification
-- **System**: File I/O, process control, time functions
+- **I/O**: `putchar`, `getchar`, `printf` with `%d`, `%o`, `%c`, `%s` formatting
+- **Memory**: `alloc(size)` for dynamic word allocation
+- **Character Access**: `char(base, offset)` reads, `lchar(base, offset, value)` writes bytes
+- **File I/O**: `open`, `close`, `read`, `write`, `creat`, `seek`
+- **Process Control**: `fork`, `wait`, `execl`, `execv`
+- **System Calls**: `chdir`, `chmod`, `link`, `unlink`, etc.
 
 **B-Specific Features**
-- **Word Arithmetic**: 16-bit wrapping semantics
-- **Pointer Operations**: Abstracted through macros for word/byte modes
-- **String Handling**: `*e` termination instead of null bytes
-- **Character Packing**: Multi-character constants in single words
+- **String Handling**: `*e` (EOT) termination, not null bytes
+- **Word Semantics**: All operations work on PDP-11 word values
+- **Character Packing**: Multi-character constants packed into words
+- **Pointer Models**: Configurable word vs byte addressing modes
 
 ## Testing
 
@@ -812,7 +836,7 @@ This project is licensed under the GNU General Public License v3.0 (GPL-3.0).
 
 ## Authors
 
-Developed as a faithful recreation of Ken Thompson's original B compiler from Bell Labs, Unix v1 (1972).
+Developed as a faithful recreation of Ken Thompson's original B compiler from Bell Labs, based on the 1969 B language.
 
 ---
 
