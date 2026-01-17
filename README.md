@@ -36,8 +36,9 @@ This implementation includes:
 
 ### Standard Library (`libb.a`)
 Complete implementation of B's runtime library including:
-- I/O functions: `putchar`, `getchar`, `print`, `printf`, etc.
+- I/O functions: `putchar`, `getchar`, `print`, `printf`, `putstr`, `getstr`
 - File operations: `open`, `close`, `read`, `write`, `creat`, `seek`
+- File redirection helpers: `openr`, `openw`, `flush` for switching stdin/stdout units
 - Process control: `fork`, `wait`, `execl`, `execv`
 - System calls: `chdir`, `chmod`, `chown`, `link`, `unlink`, etc.
 - String manipulation and utility functions
@@ -105,7 +106,24 @@ print(n) {
     putchar(n + '0');
     putchar('*n');
 }
+
+// Redirect I/O to files
+// openr/openw switch getchar/putchar to new units
+copy() {
+    openr(5, "infile");
+    openw(6, "outfile");
+    auto c;
+    while ((c = getchar()) != '*e')
+        putchar(c);
+}
 ```
+
+### I/O Units (openr/openw/flush/reread)
+- One input unit (`rd.unit`) and one output unit (`wr.unit`) are active at a time; defaults are `rd.unit=0` (terminal) and `wr.unit=-1` (terminal).
+- `openr(u, "path")` / `openw(u, "path")` switch `getchar`/`getstr` or `putchar`/`putstr` to unit `u` and bind it to the given file name (empty string or negative unit resets to terminal). Units `-1..10` are supported.
+- Reopening a unit first closes any file previously on that unit; closing a unit in user code also returns the unit to the terminal.
+- `flush()` forces the current output unit to write buffered data (useful for prompts before reading on the same line).
+- `reread()` makes the next `getstr`/`getchar` read the program’s command line (call before the first read).
 
 ## Documentation
 
