@@ -92,6 +92,8 @@ static TokenKind kw_kind(const char *s) {
     if (strcmp(s, "while") == 0) return TK_WHILE;
     if (strcmp(s, "return") == 0) return TK_RETURN;
     if (strcmp(s, "extrn") == 0) return TK_EXTRN;
+    if (strcmp(s, "break") == 0) return TK_BREAK;
+    if (strcmp(s, "continue") == 0) return TK_CONTINUE;
     if (strcmp(s, "goto") == 0) return TK_GOTO;
     if (strcmp(s, "switch") == 0) return TK_SWITCH;
     if (strcmp(s, "case") == 0) return TK_CASE;
@@ -348,6 +350,8 @@ const char *tk_name(TokenKind k) {
         case TK_ELSE: return "else";
         case TK_WHILE: return "while";
         case TK_RETURN: return "return";
+        case TK_BREAK: return "break";
+        case TK_CONTINUE: return "continue";
         case TK_EXTRN: return "extrn";
         case TK_LPAREN: return "(";
         case TK_RPAREN: return ")";

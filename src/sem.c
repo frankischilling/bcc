@@ -348,6 +348,10 @@ static void sem_check_stmt(SemState *st, Stmt *s) {
                 }
             }
             break;
+        case ST_BREAK:
+        case ST_CONTINUE:
+            // Handled during codegen; no semantic checks yet
+            break;
 
         case ST_GOTO:
             // We'll check labels separately in a pass that collects all labels first

@@ -586,6 +586,20 @@ Stmt *parse_stmt(Parser *P) {
         case TK_IF:      return parse_if(P);
         case TK_WHILE:   return parse_while(P);
         case TK_RETURN:  return parse_return(P);
+        case TK_BREAK: {
+            int line = P->cur.line, col = P->cur.col;
+            next(P);
+            expect(P, TK_SEMI);
+            Stmt *s = new_stmt(ST_BREAK, line, col);
+            return s;
+        }
+        case TK_CONTINUE: {
+            int line = P->cur.line, col = P->cur.col;
+            next(P);
+            expect(P, TK_SEMI);
+            Stmt *s = new_stmt(ST_CONTINUE, line, col);
+            return s;
+        }
 
         case TK_GOTO:    return parse_goto(P);
 

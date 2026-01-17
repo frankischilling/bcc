@@ -934,6 +934,14 @@ void emit_stmt(FILE *out, Stmt *s, int indent, int is_function_body, const char 
         case ST_EXTRN:
             // extrn declarations are hints for the compiler; nothing to emit
             return;
+        case ST_BREAK:
+            emit_indent(out, indent);
+            fputs("break;\n", out);
+            return;
+        case ST_CONTINUE:
+            emit_indent(out, indent);
+            fputs("continue;\n", out);
+            return;
 
         case ST_GOTO:
             emit_indent(out, indent);

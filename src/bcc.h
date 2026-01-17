@@ -53,6 +53,8 @@ typedef enum {
     TK_ELSE,
     TK_WHILE,
     TK_RETURN,
+    TK_BREAK,
+    TK_CONTINUE,
     TK_EXTRN,
 
     // operators / punctuation
@@ -178,7 +180,7 @@ struct Expr {
 
 typedef enum {
     ST_EMPTY, ST_BLOCK, ST_AUTO, ST_IF, ST_WHILE, ST_RETURN, ST_EXPR, ST_EXTRN,
-    ST_GOTO, ST_LABEL, ST_SWITCH, ST_CASE
+    ST_BREAK, ST_CONTINUE, ST_GOTO, ST_LABEL, ST_SWITCH, ST_CASE
 } StmtKind;
 
 // Declaration item: either simple variable or vector
@@ -448,4 +450,3 @@ void dump_ast_program(Program *prog);
 int run_gcc(const char *cfile, const char *out_exe, int compile_only, int debug, int wall, int wextra, int werror);
 
 #endif // BCC_H
-
