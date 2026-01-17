@@ -21,7 +21,7 @@ This implementation includes:
 - **Auto variable declarations**: Local variables with `auto`
 - **External declarations**: Global variables with `extrn`
 - **Function definitions**: `name(args) { ... }` syntax
-- **Control structures**: `if`/`else`, `while`, `switch`/`case` (fall-through by default)
+- **Control structures**: `if`/`else`, `while`, `break`/`continue`, `switch`/`case` (fall-through by default)
 - **Arrays (vectors)**: `name[size]` with word-addressed indexing
 - **Goto and labels**: Unrestricted control flow
 - **Truth values**: Relational/equality operators return 1 (true) or 0 (false)
