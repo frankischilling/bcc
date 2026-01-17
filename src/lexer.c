@@ -24,7 +24,7 @@ static int lx_get(Lexer *L) {
 /* Parse B escape sequence (*), returns the character value */
 static int parse_escape(Lexer *L, int line, int col) {
     int e = lx_get(L);
-    if (!e) dief("unterminated escape sequence at %d:%d", line, col);
+    if (!e) error_at_location(L->filename, line, col, ERR_EXPR_SYNTAX, "unterminated escape sequence");
 
     switch (e) {
         case '0': return '\0';    /* *0 - null */
@@ -36,9 +36,12 @@ static int parse_escape(Lexer *L, int line, int col) {
         case '\'': return '\'';   /* *' - single quote */
         case '"': return '"';     /* *" - double quote */
         case 'n': return '\n';    /* *n - newline */
-        default:
-            dief("unknown escape sequence *%c at %d:%d", e, line, col);
+        default: {
+            char msg[64];
+            snprintf(msg, sizeof(msg), "unknown escape sequence *%c", e);
+            error_at_location(L->filename, line, col, ERR_EXPR_SYNTAX, msg);
             return e; /* unreachable */
+        }
     }
 }
 
@@ -53,7 +56,7 @@ void lx_skip_ws_and_comments(Lexer *L) {
             lx_get(L); lx_get(L);
             for (;;) {
                 int a = lx_peek(L);
-                if (!a) dief("unterminated /* comment");
+                if (!a) error_at_location(L->filename, L->line, L->col, ERR_COMMENT_IMBALANCE, "unterminated /* comment");
                 if (a == '*' && lx_peek2(L) == '/') { lx_get(L); lx_get(L); break; }
                 lx_get(L);
             }
@@ -110,7 +113,7 @@ Token lx_next(Lexer *L) {
     /* identifiers / keywords */
     if (isalpha(c) || c == '_') {
         size_t start = L->i;
-        while (isalnum(lx_peek(L)) || lx_peek(L) == '_') lx_get(L);
+        while (isalnum(lx_peek(L)) || lx_peek(L) == '_' || lx_peek(L) == '.') lx_get(L);
         char *s;
         int owns_lexeme;
         if (g_compilation_arena) {
@@ -160,7 +163,9 @@ Token lx_next(Lexer *L) {
             for (size_t i = 0; i < n; i++) {
                 char digit = s[i];
                 if (digit < '0' || digit > '9') {
-                    dief("bad octal digit '%c' at %d:%d", digit, line, col);
+                    char msg[64];
+                    snprintf(msg, sizeof(msg), "bad octal digit '%c'", digit);
+                    error_at_location(L->filename, line, col, ERR_EXPR_SYNTAX, msg);
                 }
                 v = v * 8 + (digit - '0');
             }
@@ -168,7 +173,7 @@ Token lx_next(Lexer *L) {
             v = strtol(s, NULL, base);
         }
         free(s); /* Always free the temporary string */
-        if (errno) dief("bad number at %d:%d", line, col);
+        if (errno) error_at_location(L->filename, line, col, ERR_EXPR_SYNTAX, "bad number");
         Token t = mk_tok(TK_NUM, line, col, L->filename);
         t.num = v;
         return t;
@@ -182,7 +187,7 @@ Token lx_next(Lexer *L) {
         if (!buf) dief("out of memory");
         for (;;) {
             int ch = lx_get(L);
-            if (!ch) dief("unterminated string at %d:%d", line, col);
+            if (!ch) error_at_location(L->filename, line, col, ERR_EXPR_SYNTAX, "unterminated string");
             if (ch == '"') break;
             if (ch == '*') {
                 ch = parse_escape(L, line, col);
@@ -221,9 +226,9 @@ Token lx_next(Lexer *L) {
         int count = 0;
         for (;;) {
             int ch = lx_get(L);
-            if (!ch) dief("unterminated character constant at %d:%d", line, col);
+            if (!ch) error_at_location(L->filename, line, col, ERR_EXPR_SYNTAX, "unterminated character constant");
             if (ch == '\'') break;
-            if (count >= 4) dief("character constant too long at %d:%d", line, col);
+            if (count >= 4) error_at_location(L->filename, line, col, ERR_EXPR_SYNTAX, "character constant too long");
 
             if (ch == '*') {
                 ch = parse_escape(L, line, col);
@@ -322,7 +327,11 @@ Token lx_next(Lexer *L) {
         case '&': return mk_tok(TK_AMP, line, col, L->filename);
         case '|': return mk_tok(TK_BAR, line, col, L->filename);
         default:
-            dief("unexpected character '%c' at %d:%d", c, line, col);
+            {
+                char msg[64];
+                snprintf(msg, sizeof(msg), "unexpected character '%c'", c);
+                error_at_location(L->filename, line, col, ERR_EXPR_SYNTAX, msg);
+            }
     }
     return mk_tok(TK_EOF, line, col, L->filename);
 }
