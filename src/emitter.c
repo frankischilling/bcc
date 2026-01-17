@@ -33,28 +33,26 @@ static void emit_string_pool(FILE *out) {
         while (s[n]) n++;                 // length excluding NUL
 
         size_t total_bytes = n + 1;       // +1 for 004 terminator
-        size_t words_needed = (total_bytes + 1) / 2;
+        size_t W = sizeof(intptr_t);       // bytes per word on this host (matches typedef)
+        size_t words_needed = (total_bytes + W - 1) / W;
 
         fprintf(out, "static const word __b_str%zu[] = {", i);
 
         for (size_t wi = 0; wi < words_needed; wi++) {
-            size_t bi0 = wi * 2;
-            size_t bi1 = wi * 2 + 1;
+            uintptr_t w = 0;
+            for (size_t bi = 0; bi < W; bi++) {
+                size_t byte_idx = wi * W + bi;
+                unsigned char b;
 
-            unsigned char b0, b1;
+                if (byte_idx < n)       b = s[byte_idx];
+                else if (byte_idx == n) b = 004;
+                else                    b = 0;
 
-            if (bi0 < n)       b0 = s[bi0];
-            else if (bi0 == n) b0 = 004;
-            else               b0 = 0;
-
-            if (bi1 < n)       b1 = s[bi1];
-            else if (bi1 == n) b1 = 004;
-            else               b1 = 0;
-
-            uintptr_t w = (uintptr_t)b0 | ((uintptr_t)b1 << 8);
+                w |= (uintptr_t)b << (8 * bi);
+            }
 
             if (wi) fputc(',', out);
-            fprintf(out, "0x%04" PRIxPTR, w);
+            fprintf(out, "0x%0*" PRIxPTR, (int)(W * 2), w);
         }
 
         fprintf(out, "};\n");
@@ -1068,9 +1066,11 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
         "    const unsigned char *p = (const unsigned char*)B_CPTR(s);\n"
         "    return (word)p[(size_t)i];\n"
         "#else\n"
-        "    /* In word mode, s is a word address pointing to packed chars */\n"
-        "    word w = b_load((word)(s + (i >> 1)));\n"
-        "    return (i & 1) ? (word)((uword)w >> 8) & 0xFF : (word)((uword)w & 0xFF);\n"
+        "    const uword W = (uword)sizeof(word);          // bytes per word on this host\n"
+        "    uword wi = (uword)i / W;\n"
+        "    uword bi = (uword)i % W;\n"
+        "    uword w  = (uword)b_load((word)(s + (word)wi));\n"
+        "    return (word)((w >> (bi * 8)) & 0xFF);\n"
         "#endif\n"
         "}\n"
         "\n"
@@ -1080,15 +1080,17 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
         "    p[(size_t)i] = (unsigned char)(c & 0xFF);\n"
         "    return c;\n"
         "#else\n"
-        "    /* In word mode, s is a word address pointing to packed chars */\n"
-        "    word addr = (word)(s + (i >> 1));\n"
-        "    word w = b_load(addr);\n"
-        "    uword uw = (uword)w & 0xFFFF;\n"
+        "    const uword W = (uword)sizeof(word);\n"
+        "    uword wi = (uword)i / W;\n"
+        "    uword bi = (uword)i % W;\n"
         "\n"
-        "    if (i & 1) uw = (uw & 0x00FF) | (((uword)c & 0xFF) << 8);\n"
-        "    else       uw = (uw & 0xFF00) |  ((uword)c & 0xFF);\n"
+        "    word addr = (word)(s + (word)wi);\n"
+        "    uword w   = (uword)b_load(addr);\n"
         "\n"
-        "    b_store(addr, (word)uw);\n"
+        "    uword mask = (uword)0xFF << (bi * 8);\n"
+        "    w = (w & ~mask) | (((uword)c & 0xFF) << (bi * 8));\n"
+        "\n"
+        "    b_store(addr, (word)w);\n"
         "    return c;\n"
         "#endif\n"
         "}\n"
