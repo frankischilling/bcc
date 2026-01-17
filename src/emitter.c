@@ -932,11 +932,7 @@ void emit_stmt(FILE *out, Stmt *s, int indent, int is_function_body, const char 
             return;
 
         case ST_EXTRN:
-            // extrn declarations - emit as extern declarations
-            for (size_t i = 0; i < s->as.extrn.names.len; i++) {
-                emit_indent(out, indent);
-                fprintf(out, "extern word %s;\n", (char*)s->as.extrn.names.data[i]);
-            }
+            // extrn declarations are hints for the compiler; nothing to emit
             return;
 
         case ST_GOTO:

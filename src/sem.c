@@ -340,7 +340,13 @@ static void sem_check_stmt(SemState *st, Stmt *s) {
             break;
 
         case ST_EXTRN:
-            // extern statements don't declare new symbols, they're just declarations
+            // extern statements: record names so we don't treat them as implicit statics
+            for (size_t i = 0; i < s->as.extrn.names.len; i++) {
+                char *name = s->as.extrn.names.data[i];
+                if (!is_extern_name(st, name)) {
+                    vec_push(&st->extern_names, sdup(name));
+                }
+            }
             break;
 
         case ST_GOTO:
@@ -589,25 +595,12 @@ void sem_check_program(Program *prog, const char *filename) {
         }
     }
 
-    // Now check all expressions and statements, collecting implicit static variables
+    // Now check function bodies, collecting implicit static variables
     for (size_t i = 0; i < prog->tops.len; i++) {
         Top *t = prog->tops.data[i];
-        switch (t->kind) {
-            case TOP_FUNC: {
-                Func *f = t->as.fn;
-                sem_check_func(st, f);
-                break;
-            }
-            case TOP_GAUTO: {
-                // Global auto declarations - expressions already checked in pre-pass
-                break;
-            }
-            case TOP_EXTERN_DEF:
-            case TOP_EXTERN_DECL: {
-                // Extern declarations - check expressions now
-                sem_check_top(st, t);
-                break;
-            }
+        if (t->kind == TOP_FUNC) {
+            Func *f = t->as.fn;
+            sem_check_func(st, f);
         }
     }
 
