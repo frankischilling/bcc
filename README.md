@@ -108,7 +108,9 @@ print(n) {
 
 This implementation is based on Dennis Ritchie's B language reference manual.
 
-**Language Reference**: See [`B_LANGUAGE.md`](B_LANGUAGE.md) for comprehensive B programming language documentation, syntax, and examples.
+**📖 B Language Wiki**: See [`WIKI_HOME.md`](WIKI_HOME.md) for the complete B programming language wiki homepage.
+
+**📚 Language Reference**: See [`B_LANGUAGE.md`](B_LANGUAGE.md) for comprehensive B language documentation, syntax, and examples.
 
 **Source Documentation**:
 - [B Reference Manual](https://www.nokia.com/bell-labs/about/dennis-m-ritchie/kbman.html)
@@ -301,8 +303,11 @@ src/
 
 ```
 bcc/
-├── README.md           # Compiler documentation
-├── B_LANGUAGE.md       # B programming language reference
+├── README.md              # Compiler documentation
+├── WIKI_HOME.md           # B programming language wiki homepage
+├── B_LANGUAGE.md          # B programming language reference
+├── WIKI_DATA_TYPES.md     # Data types and literals guide
+├── WIKI_CONTROL_STRUCTURES.md  # Control structures guide
 ├── Makefile            # Build system
 ├── bcc                 # Compiled compiler executable
 ├── src/                # Source code
