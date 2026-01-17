@@ -178,7 +178,7 @@ BCC follows a traditional multi-stage compiler architecture with the following p
 #### B-Specific Syntax Handling
 - **Assignment Operators**: `=+`, `=-`, `=*`, `=/` (value op variable)
 - **String Literals**: `*e` termination instead of null bytes
-- **Character Constants**: Packed 1-2 characters into words
+- **Character Constants**: Packed up to 4 ASCII characters into a word (right-justified, zero-filled)
 - **Array Syntax**: `name[constant]` with word-addressed semantics
 - **Comma-Separated Initializers**: B-style external variable initialization
 
