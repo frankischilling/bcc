@@ -96,7 +96,7 @@ static void sem_add_builtin_functions(SemState *st) {
     const char *builtins[] = {
         "print", "putchar", "getchar", "exit", "alloc",
         /* B library functions */
-        "char", "lchar", "getchr", "putchr", "printf", "printn", "putnum",
+        "char", "lchar", "getchr", "putchr", "getstr", "putstr", "printf", "printn", "putnum",
         "open", "close", "read", "write", "creat", "seek",
         "fork", "wait", "execl", "execv",
         "chdir", "chmod", "chown", "link", "unlink", "stat", "fstat",
