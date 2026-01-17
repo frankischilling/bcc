@@ -464,7 +464,7 @@ void emit_expr(FILE *out, Expr *e, const char *filename) {
                 const char *name = e->as.call.callee->as.var;
                 // List of builtin functions that have b_ versions
                 const char *b_funcs[] = {
-                    "char", "lchar", "getchr", "putchr", "printf", "printn", "putnum", "exit",
+                    "char", "lchar", "getchr", "putchr", "printf", "printn", "putnum", "putchar", "exit",
                     "open", "close", "read", "write", "creat", "seek",
                     "fork", "wait", "execl", "execv",
                     "chdir", "chmod", "chown", "link", "unlink", "stat", "fstat",
@@ -1024,7 +1024,16 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
         "#endif\n"
         "\n"
         "static word b_print(word x){ printf(\"%\" PRIdPTR \"\\n\", (intptr_t)x); return x; }\n"
-        "static word b_putchar(word x){ putchar((int)x); return x; }\n"
+        "static word b_putchar(word x){\n"
+        "    uword v = (uword)x;\n"
+        "    for (size_t i = 0; i < sizeof(word); i++) {\n"
+        "        unsigned char c = (unsigned char)(v & 0xFF);\n"
+        "        if (c == 0) break;\n"
+        "        putchar((int)c);\n"
+        "        v >>= 8;\n"
+        "    }\n"
+        "    return x;\n"
+        "}\n"
         "static word b_getchar(void){ return (word)getchar(); }\n"
         "static word b_exit(void){ exit(0); return 0; }\n"
         "\n"

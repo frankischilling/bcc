@@ -212,16 +212,16 @@ Token lx_next(Lexer *L) {
         return t;
     }
 
-    /* character constants (B style: 1-2 chars packed into word) */
+    /* character constants (B style: up to 4 chars packed into a word) */
     if (c == '\'') {
         lx_get(L); /* consume opening ' */
-        int chars[2] = {0, 0};
+        int chars[4] = {0, 0, 0, 0};
         int count = 0;
         for (;;) {
             int ch = lx_get(L);
             if (!ch) dief("unterminated character constant at %d:%d", line, col);
             if (ch == '\'') break;
-            if (count >= 2) dief("character constant too long at %d:%d", line, col);
+            if (count >= 4) dief("character constant too long at %d:%d", line, col);
 
             if (ch == '*') {
                 ch = parse_escape(L, line, col);
@@ -229,11 +229,11 @@ Token lx_next(Lexer *L) {
 
             chars[count++] = ch & 0xFF;
         }
-        /* Pack 1-2 characters into word (B style) */
+        /* Pack 1-4 characters into word (right-justified, zero-filled) */
         long val = chars[0];
-        if (count == 2) {
-            val |= (chars[1] << 8);
-        }
+        if (count > 1) val |= ((long)chars[1] << 8);
+        if (count > 2) val |= ((long)chars[2] << 16);
+        if (count > 3) val |= ((long)chars[3] << 24);
         Token t = mk_tok(TK_CHR, line, col, L->filename);
         t.num = val;
         return t;
@@ -404,4 +404,3 @@ const char *tk_name(TokenKind k) {
         default: return "<unknown token>";
     }
 }
-
