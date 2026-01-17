@@ -101,6 +101,7 @@ static void sem_add_builtin_functions(SemState *st) {
         "fork", "wait", "execl", "execv",
         "chdir", "chmod", "chown", "link", "unlink", "stat", "fstat",
         "time", "ctime", "getuid", "setuid", "makdir", "intr",
+        "system",
         "gtty", "stty",
         "argc", "argv",
         NULL
