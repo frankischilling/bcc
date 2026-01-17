@@ -40,8 +40,30 @@ Complete implementation of B's runtime library including:
 - File operations: `open`, `close`, `read`, `write`, `creat`, `seek`
 - File redirection helpers: `openr`, `openw`, `flush` for switching stdin/stdout units
 - Process control: `fork`, `wait`, `execl`, `execv`, `system` (shell-free, returns raw wait status; decode with `(rc >> 8) & 0377`)
+- Foreign calls: `callf` to invoke linked Fortran/GMAP/C routines by name (pass addresses; supports up to 10 args)
+- Dynamic loading: set `B_CALLF_LIB=/path/to/lib1.so:/path/to/lib2.so` so `callf` can find your Fortran/GMAP symbols via `dlsym` (also tries `name_` for Fortran)
 - System calls: `chdir`, `chmod`, `chown`, `link`, `unlink`, etc.
 - String manipulation and utility functions
+
+#### Fortran interop quickstart
+1. Write a shim (free-form Fortran), e.g. `shim.f90`:
+   ```fortran
+   subroutine sin2(x, y)
+     real(8)    :: x
+     integer(8) :: y
+     y = nint(sin(x) * 10000.0d0)
+   end
+
+   subroutine itimez(t)
+     integer(8) :: t
+     integer    :: values(8)
+     call date_and_time(values=values)
+     t = values(5)*100 + values(6)
+   end
+   ```
+2. Build: `gfortran -shared -fPIC shim.f90 -o libtssshim.so`
+3. Run B programs with the shim visible: `B_CALLF_LIB=./libtssshim.so ./your_program`
+4. Call from B with string names and addresses: `callf("sin2", &x, &y); callf("itimez", &t);`
 
 ### Compiler Options
 - `-S`: Emit C code to stdout
