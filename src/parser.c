@@ -171,13 +171,11 @@ Stmt *parse_auto_decl(Parser *P) {
 
         next(P);
 
-        // Reject bracket syntax - B uses name constant, not name[constant]
-        if (P->cur.kind == TK_LBRACK) {
-            dief("B syntax error: use 'auto name constant' not 'auto name[constant]' at %d:%d", P->cur.line, P->cur.col);
-        }
-
-        // Check for vector syntax: name constant (B style, no brackets)
-        if (P->cur.kind == TK_NUM) {
+        // Vector syntax: either legacy "name constant" or bracketed "name[constant]"
+        if (accept(P, TK_LBRACK)) {
+            item->size = parse_expr(P);
+            expect(P, TK_RBRACK);
+        } else if (P->cur.kind == TK_NUM) {
             item->size = new_expr(EX_NUM, P->cur.line, P->cur.col);
             item->size->as.num = P->cur.num;
             next(P);

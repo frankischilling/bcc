@@ -1469,13 +1469,26 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
         if (t->kind == TOP_EXTERN_DEF) {
             ExternItem *item = t->as.ext_def;
             if (item->as.var.vkind == EXTVAR_BLOB) {
+                int is_single_str =
+                    item->as.var.init &&
+                    item->as.var.init->kind == INIT_LIST &&
+                    item->as.var.init->as.list.len == 1 &&
+                    ((Init*)item->as.var.init->as.list.data[0])->kind == INIT_EXPR &&
+                    ((Init*)item->as.var.init->as.list.data[0])->as.expr &&
+                    ((Init*)item->as.var.init->as.list.data[0])->as.expr->kind == EX_STR;
+
+                if (is_single_str) {
+                    fprintf(out, "word %s;\n", item->name);
+                    continue;
+                }
+
                 // Blob external: contiguous words at &name
                 size_t base_len = (item->as.var.init && item->as.var.init->kind == INIT_LIST) ? init_list_length(item->as.var.init) : 1;
                 size_t tail     = (item->as.var.init && item->as.var.init->kind == INIT_LIST) ? edge_tail_words_top(item->as.var.init) : 0;
                 size_t total    = base_len + tail;
                 if (total == 0) total = 1;
                 fprintf(out, "static word __%s_blob[%zu];\n", item->name, total);
-                fprintf(out, "#define %s (__%s_blob[0])\n", item->name, item->name);
+                fprintf(out, "word %s;\n", item->name);
             } else if (item->as.var.vkind == EXTVAR_VECTOR) {
                 // Vector external: pointer + backing store
                 size_t init_len = (item->as.var.init && item->as.var.init->kind == INIT_LIST) ? init_list_length(item->as.var.init) : 0;
@@ -1525,10 +1538,25 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
                 fprintf(out, "    %s = ", item->name);
                 emit_ival_expr(out, item->as.var.init->as.expr, filename);
                 fputs(";\n", out);
-            } else if (item->as.var.vkind == EXTVAR_BLOB && item->as.var.init && item->as.var.init->kind == INIT_LIST) {
-                // Initialize blob elements + edge subvectors in tail
-                size_t base_len = init_list_length(item->as.var.init);
-                {
+            } else if (item->as.var.vkind == EXTVAR_BLOB) {
+                int is_single_str =
+                    item->as.var.init &&
+                    item->as.var.init->kind == INIT_LIST &&
+                    item->as.var.init->as.list.len == 1 &&
+                    ((Init*)item->as.var.init->as.list.data[0])->kind == INIT_EXPR &&
+                    ((Init*)item->as.var.init->as.list.data[0])->as.expr &&
+                    ((Init*)item->as.var.init->as.list.data[0])->as.expr->kind == EX_STR;
+                if (is_single_str) {
+                    fprintf(out, "    %s = ", item->name);
+                    emit_ival_expr(out, ((Init*)item->as.var.init->as.list.data[0])->as.expr, filename);
+                    fputs(";\n", out);
+                    continue;
+                }
+                // Set blob pointer to backing store
+                fprintf(out, "    %s = B_ADDR(__%s_blob[0]);\n", item->name, item->name);
+                // Initialize blob elements + edge subvectors in tail if present
+                if (item->as.var.init && item->as.var.init->kind == INIT_LIST) {
+                    size_t base_len = init_list_length(item->as.var.init);
                     char buf[256];
                     snprintf(buf, sizeof(buf), "__%s_blob", item->name);
                     (void)emit_edge_list_init(out, buf, 0, item->as.var.init, base_len, 2, filename);
