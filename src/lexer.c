@@ -95,6 +95,7 @@ static TokenKind kw_kind(const char *s) {
     if (strcmp(s, "goto") == 0) return TK_GOTO;
     if (strcmp(s, "switch") == 0) return TK_SWITCH;
     if (strcmp(s, "case") == 0) return TK_CASE;
+    if (strcmp(s, "default") == 0) return TK_DEFAULT;
     return TK_ID;
 }
 
@@ -286,6 +287,7 @@ Token lx_next(Lexer *L) {
 
     if (c == '<' && lx_peek2(L) == '<') { lx_get(L); lx_get(L); return mk_tok(TK_LSHIFT, line, col, L->filename); }
     if (c == '>' && lx_peek2(L) == '>') { lx_get(L); lx_get(L); return mk_tok(TK_RSHIFT, line, col, L->filename); }
+    if (c == '|' && lx_peek2(L) == '|') { lx_get(L); lx_get(L); return mk_tok(TK_BARBAR, line, col, L->filename); }
 
 
     if (c == '=' && lx_peek2(L) == '=') { lx_get(L); lx_get(L); return mk_tok(TK_EQ, line, col, L->filename); }
@@ -391,10 +393,13 @@ const char *tk_name(TokenKind k) {
         case TK_NEEQ: return "=!=";
         case TK_AMP: return "&";
         case TK_BAR: return "|";
+        case TK_BARBAR: return "||";
+
         case TK_COLON: return ":";
         case TK_GOTO: return "goto";
         case TK_SWITCH: return "switch";
         case TK_CASE: return "case";
+        case TK_DEFAULT: return "default";
 
         default: return "<unknown token>";
     }

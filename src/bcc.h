@@ -103,6 +103,7 @@ typedef enum {
     // single-char &
     TK_AMP,                // &
     TK_BAR,                // |
+    TK_BARBAR,             // ||
     TK_QUESTION,           // ?
 
     TK_COLON,              // :
@@ -110,7 +111,8 @@ typedef enum {
     // additional keywords
     TK_GOTO,
     TK_SWITCH,
-    TK_CASE
+    TK_CASE,
+    TK_DEFAULT
 } TokenKind;
 
 typedef struct {

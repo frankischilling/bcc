@@ -77,6 +77,7 @@ static int is_unary(TokenKind k) {
 
 static int precedence(TokenKind k) {
     switch (k) {
+        case TK_BARBAR: return 2;   // logical OR
         case TK_EQ:
         case TK_NE:      return 3;
         case TK_LT:
@@ -447,6 +448,7 @@ static int64_t eval_const_expr(Expr *e) {
 
         case TK_AMP: return a & b;
         case TK_BAR: return a | b;
+        case TK_BARBAR: return (a != 0) || (b != 0) ? 1 : 0;
 
         case TK_EQ: return a == b;
         case TK_NE: return a != b;
@@ -514,7 +516,8 @@ static Expr *parse_paren_or_bare_expr(Parser *P) {
 
 
 
-static Stmt *parse_case(Parser *P) {
+
+Stmt *parse_case(Parser *P) {
     int line = P->cur.line, col = P->cur.col;
     expect(P, TK_CASE);
 
@@ -531,6 +534,23 @@ static Stmt *parse_case(Parser *P) {
     s->as.case_.has_range = 0;   // No ranges in B
     s->as.case_.lo = val;
     s->as.case_.hi = val;
+    return s;
+}
+
+Stmt *parse_default(Parser *P) {
+    int line = P->cur.line, col = P->cur.col;
+    expect(P, TK_DEFAULT);
+
+    if (P->switch_depth == 0)
+        dief("default outside switch at %d:%d", line, col);
+
+    expect(P, TK_COLON);
+
+    Stmt *s = new_stmt(ST_CASE, line, col);
+    s->as.case_.relop = TK_EOF;
+    s->as.case_.has_range = 0;
+    s->as.case_.lo = -1;  // Special marker for default case
+    s->as.case_.hi = -1;
     return s;
 }
 
@@ -573,6 +593,7 @@ Stmt *parse_stmt(Parser *P) {
 
         case TK_SWITCH:  return parse_switch(P);
         case TK_CASE:    return parse_case(P);
+        case TK_DEFAULT: return parse_default(P);
 
         default: break;
     }

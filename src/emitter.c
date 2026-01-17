@@ -469,6 +469,7 @@ void emit_expr(FILE *out, Expr *e, const char *filename) {
                     "fork", "wait", "execl", "execv",
                     "chdir", "chmod", "chown", "link", "unlink", "stat", "fstat",
                     "time", "ctime", "getuid", "setuid", "makdir", "intr",
+                    "argc", "argv",
                     NULL
                 };
                 for (int i = 0; b_funcs[i]; i++) {
@@ -751,6 +752,7 @@ int try_eval_const_expr(Expr *e, long *out) {
                 case TK_NE:      *out = (a != b); return 1;
                 case TK_AMP:     *out = a & b; return 1;
                 case TK_BAR:     *out = a | b; return 1;
+                case TK_BARBAR: *out = (a != 0) || (b != 0) ? 1 : 0; return 1;
                 default: return 0;
             }
         }
@@ -1026,6 +1028,17 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
         "static word b_getchar(void){ return (word)getchar(); }\n"
         "static word b_exit(void){ exit(0); return 0; }\n"
         "\n"
+        "/* Command line argument support */\n"
+        "static int __b_argc;\n"
+        "static char **__b_argv;\n"
+        "\n"
+        "/* argv strings converted to B strings (packed words, 004 terminator) */\n"
+        "static word *__b_argvb;\n"
+        "\n"
+        "static void __b_setargs(int argc, char **argv);\n"
+        "static word b_argc(void);\n"
+        "static word b_argv(word i);\n"
+        "\n"
         "/* Helper functions for complex lvalue operations (avoid GNU C extensions) */\n"
         "static word b_preinc(word *p) { return (*p = (word)(((uword)*p + 1) & 0xFFFF)); }\n"
         "static word b_predec(word *p) { return (*p = (word)(((uword)*p - 1) & 0xFFFF)); }\n"
@@ -1093,6 +1106,43 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
         "    b_store(addr, (word)w);\n"
         "    return c;\n"
         "#endif\n"
+        "}\n"
+        "\n"
+        "/* Command line argument support implementation */\n"
+        "static word __b_pack_cstr(const char *s){\n"
+        "    size_t n = strlen(s);                 /* bytes, excluding NUL */\n"
+        "    size_t W = sizeof(word);              /* bytes per word */\n"
+        "    size_t total = n + 1;                 /* +1 for 004 terminator */\n"
+        "    size_t words = (total + W - 1) / W;\n"
+        "\n"
+        "    word bp = b_alloc((word)words);       /* B pointer to word storage */\n"
+        "\n"
+        "    /* write bytes into the B string using lchar (handles packing for B_BYTEPTR=0) */\n"
+        "    for (size_t i = 0; i < n; i++){\n"
+        "        b_lchar(bp, (word)i, (word)(unsigned char)s[i]);\n"
+        "    }\n"
+        "    b_lchar(bp, (word)n, (word)004);\n"
+        "    return bp;\n"
+        "}\n"
+        "\n"
+        "static void __b_setargs(int argc, char **argv){\n"
+        "    __b_argc = argc;\n"
+        "    __b_argv = argv;\n"
+        "\n"
+        "    __b_argvb = (word*)malloc(sizeof(word) * (size_t)argc);\n"
+        "    if (!__b_argvb) { fprintf(stderr, \"argv: out of memory\\n\"); exit(1); }\n"
+        "\n"
+        "    for (int i = 0; i < argc; i++){\n"
+        "        __b_argvb[i] = __b_pack_cstr(argv[i]);\n"
+        "    }\n"
+        "}\n"
+        "\n"
+        "static word b_argc(void) { return (word)__b_argc; }\n"
+        "\n"
+        "static word b_argv(word i) {\n"
+        "    int idx = (int)i;\n"
+        "    if (idx < 0 || idx >= __b_argc) return 0;\n"
+        "    return __b_argvb[idx];\n"
         "}\n"
         "\n"
         "/* I/O functions */\n"
@@ -1509,7 +1559,7 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
         Top *t = (Top*)prog->tops.data[i];
         if (t->kind == TOP_FUNC) {
             Func *f = t->as.fn;
-            if (strcmp(f->name, "main") == 0) {
+            if (strcmp(f->name, "main") == 0 || strcmp(f->name, "b_main") == 0) {
                 fprintf(out, "static word __b_user_main(");
             } else {
                 fprintf(out, "static word %s(", f->name);
@@ -1530,7 +1580,7 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
 
         if (t->kind == TOP_FUNC) {
             Func *f = t->as.fn;
-            if (strcmp(f->name, "main") == 0) {
+            if (strcmp(f->name, "main") == 0 || strcmp(f->name, "b_main") == 0) {
                 has_main = 1;
                 // Rename main to __b_user_main
                 fprintf(out, "word __b_user_main(");
@@ -1550,7 +1600,8 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
 
     // Emit wrapper main if user defined main
     if (has_main) {
-        fputs("int main(void){\n", out);
+        fputs("int main(int argc, char **argv){\n", out);
+        fputs("    __b_setargs(argc, argv);\n", out);
         fputs("    __b_init();\n", out);
         fputs("    return (int)__b_user_main();\n", out);
         fputs("}\n", out);
