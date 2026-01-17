@@ -106,23 +106,19 @@ print(n) {
 
 ## Documentation
 
-This implementation is based on Dennis Ritchie's B language reference manual. Key documentation sources:
+This implementation is based on Dennis Ritchie's B language reference manual.
 
+**Language Reference**: See [`B_LANGUAGE.md`](B_LANGUAGE.md) for comprehensive B programming language documentation, syntax, and examples.
+
+**Source Documentation**:
 - [B Reference Manual](https://www.nokia.com/bell-labs/about/dennis-m-ritchie/kbman.html)
 - [B Tutorial](https://www.nokia.com/bell-labs/about/dennis-m-ritchie/btut.pdf)
 - [Unix v1 Manual](https://www.nokia.com/bell-labs/about/dennis-m-ritchie/man71.pdf)
 
-### Language Features
+**Original Sources**:
+- `src/docs.MD`: Scanned original B language manual from 1972
 
-B is a simple, typeless programming language where:
-- All data is stored in "words" (machine integers)
-- Variables must be declared with `auto` or `extrn`
-- Functions are defined with parameter lists
-- Strings are represented as word arrays terminated with `*e`
-- Assignment operators are written as `=+`, `=-`, etc. (value op variable)
-- Arrays use `[]` syntax but are word-addressed by default
-
-jmik## Technical Architecture
+## Technical Architecture
 
 ### Compiler Pipeline
 
@@ -305,7 +301,8 @@ src/
 
 ```
 bcc/
-├── README.md           # This documentation
+├── README.md           # Compiler documentation
+├── B_LANGUAGE.md       # B programming language reference
 ├── Makefile            # Build system
 ├── bcc                 # Compiled compiler executable
 ├── src/                # Source code
