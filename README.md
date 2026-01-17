@@ -39,7 +39,7 @@ Complete implementation of B's runtime library including:
 - I/O functions: `putchar`, `getchar`, `print`, `printf`, `putstr`, `getstr`
 - File operations: `open`, `close`, `read`, `write`, `creat`, `seek`
 - File redirection helpers: `openr`, `openw`, `flush` for switching stdin/stdout units
-- Process control: `fork`, `wait`, `execl`, `execv`
+- Process control: `fork`, `wait`, `execl`, `execv`, `system` (shell-free, returns raw wait status; decode with `(rc >> 8) & 0377`)
 - System calls: `chdir`, `chmod`, `chown`, `link`, `unlink`, etc.
 - String manipulation and utility functions
 
