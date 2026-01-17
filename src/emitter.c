@@ -468,6 +468,17 @@ void emit_expr(FILE *out, Expr *e, const char *filename) {
             // Check if callee is a builtin function that needs b_ prefix
             if (e->as.call.callee->kind == EX_VAR) {
                 const char *name = e->as.call.callee->as.var;
+                if (strcmp(name, "callf") == 0) {
+                    size_t nargs = e->as.call.args.len;
+                    size_t extra = (nargs > 0) ? (nargs - 1) : 0; /* args after name */
+                    fprintf(out, "b_callf_dispatch(%zu", extra);
+                    for (size_t i = 0; i < nargs; i++) {
+                        fputs(", ", out);
+                        emit_expr(out, (Expr*)e->as.call.args.data[i], filename);
+                    }
+                    fputc(')', out);
+                    return;
+                }
                 // List of builtin functions that have b_ versions
                 const char *b_funcs[] = {
                     "char", "lchar", "getchr", "putchr", "getstr", "putstr", "flush", "reread", "printf", "printn", "putnum", "putchar", "exit",
@@ -476,6 +487,7 @@ void emit_expr(FILE *out, Expr *e, const char *filename) {
                     "chdir", "chmod", "chown", "link", "unlink", "stat", "fstat",
                     "time", "ctime", "getuid", "setuid", "makdir", "intr",
                     "system",
+                    "callf",
                     "argc", "argv",
                     NULL
                 };
@@ -1002,6 +1014,7 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
         "#include <termios.h>\n"
         "#include <sys/ioctl.h>\n"
         "#include <ctype.h>\n"
+        "#include <dlfcn.h>\n"
         "\n"
         "typedef intptr_t  word;\n"
         "typedef uintptr_t uword;\n"
@@ -1501,11 +1514,11 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
         "    return -1; /* Only reached on error */\n"
         "}\n"
         "\n"
-        "static word b_execv(word path, word argv) {\n"
-        "    /* Note: Manual specifies execv(path, argv, count) with counted vector */\n"
-        "    /* Current implementation uses null-terminated vector for compatibility */\n"
-        "    const char *p = (const char*)B_CPTR(path);\n"
-        "    word *av = (word*)B_CPTR(argv);\n"
+"static word b_execv(word path, word argv) {\n"
+"    /* Note: Manual specifies execv(path, argv, count) with counted vector */\n"
+"    /* Current implementation uses null-terminated vector for compatibility */\n"
+"    const char *p = (const char*)B_CPTR(path);\n"
+"    word *av = (word*)B_CPTR(argv);\n"
         "\n"
         "    char *cargv[256];\n"
         "    int i = 0;\n"
@@ -1549,6 +1562,74 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
 "    free(line);\n"
 "    if (w < 0) return -1;\n"
 "    return (word)st;\n"
+"}\n"
+"\n"
+"static word b_callf_dispatch(int nargs, word name, ...) {\n"
+"    static int __b_callf_dl_done = 0;\n"
+"    if (!__b_callf_dl_done) {\n"
+"        __b_callf_dl_done = 1;\n"
+"        const char *env = getenv(\"B_CALLF_LIB\");\n"
+"        if (env && *env) {\n"
+"            const char *p = env;\n"
+"            while (*p) {\n"
+"                const char *start = p;\n"
+"                while (*p && *p != ':') p++;\n"
+"                size_t len = (size_t)(p - start);\n"
+"                if (len) {\n"
+"                    char *path = (char*)malloc(len + 1);\n"
+"                    if (path) {\n"
+"                        memcpy(path, start, len);\n"
+"                        path[len] = '\\0';\n"
+"                        (void)dlopen(path, RTLD_NOW | RTLD_GLOBAL);\n"
+"                        free(path);\n"
+"                    }\n"
+"                }\n"
+"                if (*p == ':') p++;\n"
+"            }\n"
+"        }\n"
+"    }\n"
+"    if (nargs < 0 || nargs > 10) return -1;\n"
+"    if (name == 0) return -1;\n"
+" \n"
+"    char sym[256];\n"
+"    __b_bstr_to_cstr(name, sym, sizeof(sym));\n"
+" \n"
+"    void *fn = dlsym(RTLD_DEFAULT, sym);\n"
+"    if (!fn) {\n"
+"        size_t len = strlen(sym);\n"
+"        if (len + 2 < sizeof(sym)) {\n"
+"            sym[len] = '_'; sym[len + 1] = '\\0';\n"
+"            fn = dlsym(RTLD_DEFAULT, sym);\n"
+"            sym[len] = '\\0';\n"
+"        }\n"
+"    }\n"
+"    if (!fn) return -1;\n"
+" \n"
+"    void *args[10] = {0};\n"
+"    va_list ap;\n"
+"    va_start(ap, name);\n"
+"    for (int i = 0; i < nargs && i < 10; i++) {\n"
+"        word w = va_arg(ap, word);\n"
+"        args[i] = B_CPTR(w);\n"
+"    }\n"
+"    va_end(ap);\n"
+" \n"
+"    word r = 0;\n"
+"    switch (nargs) {\n"
+"    case 0: r = ((word (*)(void))fn)(); break;\n"
+"    case 1: r = ((word (*)(void*))fn)(args[0]); break;\n"
+"    case 2: r = ((word (*)(void*, void*))fn)(args[0], args[1]); break;\n"
+"    case 3: r = ((word (*)(void*, void*, void*))fn)(args[0], args[1], args[2]); break;\n"
+"    case 4: r = ((word (*)(void*, void*, void*, void*))fn)(args[0], args[1], args[2], args[3]); break;\n"
+"    case 5: r = ((word (*)(void*, void*, void*, void*, void*))fn)(args[0], args[1], args[2], args[3], args[4]); break;\n"
+"    case 6: r = ((word (*)(void*, void*, void*, void*, void*, void*))fn)(args[0], args[1], args[2], args[3], args[4], args[5]); break;\n"
+"    case 7: r = ((word (*)(void*, void*, void*, void*, void*, void*, void*))fn)(args[0], args[1], args[2], args[3], args[4], args[5], args[6]); break;\n"
+"    case 8: r = ((word (*)(void*, void*, void*, void*, void*, void*, void*, void*))fn)(args[0], args[1], args[2], args[3], args[4], args[5], args[6], args[7]); break;\n"
+"    case 9: r = ((word (*)(void*, void*, void*, void*, void*, void*, void*, void*, void*))fn)(args[0], args[1], args[2], args[3], args[4], args[5], args[6], args[7], args[8]); break;\n"
+"    case 10: r = ((word (*)(void*, void*, void*, void*, void*, void*, void*, void*, void*, void*))fn)(args[0], args[1], args[2], args[3], args[4], args[5], args[6], args[7], args[8], args[9]); break;\n"
+"    default: return -1;\n"
+"    }\n"
+"    return r;\n"
 "}\n"
 "\n"
 "/* System functions - with actual implementations where possible */\n"

@@ -39,6 +39,7 @@ int run_gcc(const char *cfile, const char *out_exe, int compile_only, int debug,
         argv[n++] = out_exe;
     }
     argv[n++] = cfile;
+    if (!compile_only) argv[n++] = "-ldl";
     argv[n++] = NULL;
 
     pid_t pid = fork();
