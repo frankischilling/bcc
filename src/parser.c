@@ -796,9 +796,10 @@ Expr *parse_bin_rhs(Parser *P, int min_prec, Expr *lhs) {
         lhs = b;
     }
 }
+static Expr *parse_conditional(Parser *P);
+
 Expr *parse_assignment(Parser *P) {
-    Expr *lhs = parse_unary(P);
-    lhs = parse_bin_rhs(P, 1, lhs);
+    Expr *lhs = parse_conditional(P);
 
     if (is_assign_op(P->cur.kind)) {
         TokenKind op = P->cur.kind;
@@ -817,17 +818,18 @@ Expr *parse_assignment(Parser *P) {
         return a;
     }
 
-
     return lhs;
 }
-Expr *parse_expr(Parser *P) {
-    Expr *e = parse_assignment(P);
+
+static Expr *parse_conditional(Parser *P) {
+    Expr *e = parse_unary(P);
+    e = parse_bin_rhs(P, 1, e);
 
     // Handle ternary operator: condition ? true_expr : false_expr
     if (accept(P, TK_QUESTION)) {
-        Expr *true_expr = parse_expr(P);
+        Expr *true_expr = parse_assignment(P);  // assignment expressions allowed in branches
         expect(P, TK_COLON);
-        Expr *false_expr = parse_expr(P);
+        Expr *false_expr = parse_assignment(P);
 
         Expr *ternary = new_expr(EX_TERNARY, e->line, e->col);
         ternary->as.ternary.cond = e;
@@ -835,6 +837,12 @@ Expr *parse_expr(Parser *P) {
         ternary->as.ternary.false_expr = false_expr;
         e = ternary;
     }
+
+    return e;
+}
+
+Expr *parse_expr(Parser *P) {
+    Expr *e = parse_assignment(P);
 
     while (accept(P, TK_COMMA)) {
         Expr *rhs = parse_assignment(P);
