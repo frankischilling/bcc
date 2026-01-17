@@ -464,7 +464,7 @@ void emit_expr(FILE *out, Expr *e, const char *filename) {
                 const char *name = e->as.call.callee->as.var;
                 // List of builtin functions that have b_ versions
                 const char *b_funcs[] = {
-                    "char", "lchar", "getchr", "putchr", "printf", "printn", "exit",
+                    "char", "lchar", "getchr", "putchr", "printf", "printn", "putnum", "exit",
                     "open", "close", "read", "write", "creat", "seek",
                     "fork", "wait", "execl", "execv",
                     "chdir", "chmod", "chown", "link", "unlink", "stat", "fstat",
@@ -1392,6 +1392,10 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
         "    b_printn_u(n, base);\n"
         "    return n;\n"
         "}\n"
+        "static word b_putnum(word n) {\n"
+        "    b_printn(n, (word)10);\n"
+        "    return n;\n"
+        "}\n"
         "static volatile sig_atomic_t __b_got_intr = 0;\n"
         "\n"
         "static void __b_sigint(int sig){ (void)sig; __b_got_intr = 1; }\n"
@@ -1667,4 +1671,3 @@ void emit_program_asm(FILE *out, Program *prog) {
         }
     }
 }
-
