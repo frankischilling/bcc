@@ -453,7 +453,7 @@ void emit_expr(FILE *out, Expr *e, const char *filename) {
             return;
         case EX_STR: {
             int id = get_string_id(e->as.str);
-            fprintf(out, "((word)((uword)&__b_str%d / sizeof(word)))", id);
+            fprintf(out, "B_PTR(__b_str%d)", id);
             return;
         }
         case EX_VAR: {
@@ -498,13 +498,53 @@ void emit_expr(FILE *out, Expr *e, const char *filename) {
                     }
                 }
             }
+            const char *cname = NULL;
+            int wrap_ret_ptr = 0;
+            if (e->as.call.callee->kind == EX_VAR) {
+                cname = e->as.call.callee->as.var;
+                if (strcmp(cname, "malloc") == 0 || strcmp(cname, "calloc") == 0 || strcmp(cname, "realloc") == 0) {
+                    wrap_ret_ptr = 1; // return a C pointer: convert to B pointer
+                }
+            }
+
+            if (wrap_ret_ptr) fputs("B_PTR(", out);
             emit_expr(out, e->as.call.callee, filename);
             fputc('(', out);
             for (size_t i = 0; i < e->as.call.args.len; i++) {
                 if (i) fputs(", ", out);
+
+                // Apply B_CPTR to pointer arguments for common C library functions we call from B
+                int wrap_arg_ptr = 0;
+                int scale_word_size = 0;
+                if (cname) {
+                    if (strcmp(cname, "memset") == 0 && i == 0) wrap_arg_ptr = 1;
+                    else if (strcmp(cname, "atoi") == 0 && i == 0) wrap_arg_ptr = 1;
+                    else if (strcmp(cname, "realloc") == 0 && i == 0) wrap_arg_ptr = 1;
+                    else if (strcmp(cname, "calloc") == 0 && i == 0) wrap_arg_ptr = 0; // first arg is count
+
+                    // For malloc/calloc/realloc size arguments in word-addressing mode,
+                    // scale by sizeof(word) to avoid under-allocation.
+                    if (!current_byteptr) {
+                        if ((strcmp(cname, "malloc") == 0 && i == 0) ||
+                            (strcmp(cname, "realloc") == 0 && i == 1) ||
+                            (strcmp(cname, "calloc") == 0 && i == 1)) {
+                            scale_word_size = 1;
+                        }
+                    }
+                }
+
+                if (wrap_arg_ptr) fputs("B_CPTR(", out);
+                if (scale_word_size) {
+                    fputs("(size_t)(sizeof(word) * (uword)(", out);
+                }
+
                 emit_expr(out, (Expr*)e->as.call.args.data[i], filename);
+
+                if (scale_word_size) fputs("))", out);
+                if (wrap_arg_ptr) fputc(')', out);
             }
             fputc(')', out);
+            if (wrap_ret_ptr) fputc(')', out);
             return;
         }
 
@@ -531,15 +571,15 @@ void emit_expr(FILE *out, Expr *e, const char *filename) {
                 if (e->as.unary.rhs->kind == EX_INDEX) {
                     // For &arr[i], compute the address that arr[i] would access
                     // In word addressing mode: (arr + i) * sizeof(word)
-                    // In byte addressing mode: arr + i * sizeof(word)
+                    // In byte addressing mode: arr + i
                     fputs("B_PTR(", out);
                     if (current_byteptr) {
-                        // Byte addressing: arr + i * sizeof(word)
+                        // Byte addressing: arr + i
                         fputs("(uword)(", out);
                         emit_expr(out, e->as.unary.rhs->as.index.base, filename);
                         fputs(") + (uword)(", out);
                         emit_expr(out, e->as.unary.rhs->as.index.idx, filename);
-                        fputs(") * sizeof(word)", out);
+                        fputc(')', out);
                     } else {
                         // Word addressing: (arr + i) * sizeof(word)
                         fputs("((uword)(", out);
@@ -606,29 +646,11 @@ void emit_expr(FILE *out, Expr *e, const char *filename) {
 
         case EX_BINARY: {
             TokenKind op = e->as.bin.op;
-            // For arithmetic operations that should wrap at 16 bits (B semantics)
-            if (op == TK_STAR || op == TK_PLUS || op == TK_MINUS || op == TK_LSHIFT || op == TK_RSHIFT) {
-                const char *cop;
-                switch (op) {
-                    case TK_STAR: cop = "*"; break;
-                    case TK_PLUS: cop = "+"; break;
-                    case TK_MINUS: cop = "-"; break;
-                    case TK_LSHIFT: cop = "<<"; break;
-                    case TK_RSHIFT: cop = ">>"; break;
-                    default: cop = "?"; break;
-                }
-                fputs("(word)(int16_t)((uint16_t)(", out);
-                emit_expr(out, e->as.bin.lhs, filename);
-                fprintf(out, ") %s (uint16_t)(", cop);
-                emit_expr(out, e->as.bin.rhs, filename);
-                fputs("))", out);
-            } else {
-                fputc('(', out);
-                emit_expr(out, e->as.bin.lhs, filename);
-                fprintf(out, " %s ", tk_name(op));
-                emit_expr(out, e->as.bin.rhs, filename);
-                fputc(')', out);
-            }
+            fputc('(', out);
+            emit_expr(out, e->as.bin.lhs, filename);
+            fprintf(out, " %s ", tk_name(op));
+            emit_expr(out, e->as.bin.rhs, filename);
+            fputc(')', out);
             return;
         }
 
@@ -1029,9 +1051,10 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
     fprintf(out, "#define B_BYTEPTR %d\n", byteptr ? 1 : 0);
     fputs(
         "#if B_BYTEPTR\n"
-        "  #define B_DEREF(p)   (*(word*)(uword)(p))\n"
+        "  /* Byte-addressed pointers: deref and index operate on single bytes as lvalues. */\n"
+        "  #define B_DEREF(p)   (*(unsigned char*)(uword)(p))\n"
         "  #define B_ADDR(x)    B_PTR(&(x))\n"
-        "  #define B_INDEX(a,i) (*(word*)(uword)((uword)(a) + (uword)(i)*sizeof(word)))\n"
+        "  #define B_INDEX(a,i) (*(unsigned char*)((uword)(a) + (uword)(i)))\n"
         "  #define B_PTR(p)     ((word)(uword)(p))\n"
         "#else\n"
         "  #define B_DEREF(p)   (*(word*)(uword)((uword)(p) * sizeof(word)))\n"
@@ -1133,7 +1156,7 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
         "static inline word b_load(word addr){ return B_DEREF(addr); }\n"
         "static inline void b_store(word addr, word v){\n"
         "#if B_BYTEPTR\n"
-        "    *(word*)(uword)addr = v;\n"
+        "    *(unsigned char*)(uword)addr = (unsigned char)(v & 0xFF);\n"
         "#else\n"
         "    *(word*)(uword)((uword)addr * sizeof(word)) = v;\n"
         "#endif\n"
@@ -1778,8 +1801,8 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
         out
     );
 
-    // Emit Thompson B packed strings
-    if (!current_byteptr && string_pool.len > 0) {
+    // Emit Thompson B packed strings (works for both pointer modes)
+    if (string_pool.len > 0) {
         emit_string_pool(out);
         fputc('\n', out);
     }

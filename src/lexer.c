@@ -45,6 +45,28 @@ static int parse_escape(Lexer *L, int line, int col) {
     }
 }
 
+/* Parse C-style backslash escapes inside strings/chars (compat shim) */
+static int parse_backslash_escape(Lexer *L, int line, int col) {
+    int e = lx_get(L);
+    if (!e) error_at_location(L->filename, line, col, ERR_EXPR_SYNTAX, "unterminated escape sequence");
+
+    switch (e) {
+        case '0': return '\0';
+        case 'n': return '\n';
+        case 't': return '\t';
+        case '\\': return '\\';
+        case '\'': return '\'';
+        case '"': return '"';
+        case 'r': return '\r';
+        default: {
+            char msg[64];
+            snprintf(msg, sizeof(msg), "unknown escape sequence \\%c", e);
+            error_at_location(L->filename, line, col, ERR_EXPR_SYNTAX, msg);
+            return e; /* unreachable */
+        }
+    }
+}
+
 void lx_skip_ws_and_comments(Lexer *L) {
     for (;;) {
         int c = lx_peek(L);
@@ -138,12 +160,22 @@ Token lx_next(Lexer *L) {
     if (isdigit(c)) {
         size_t start = L->i;
         int base = 10;
+        int is_hex = 0;
 
         if (c == '0') {
-            lx_get(L); /* leading '0' */
-            base = 8;
-            /* B allows octal constants to contain digits 0-9 (e.g., 09 == octal 011) */
-            while (isdigit(lx_peek(L))) lx_get(L);
+            if (lx_peek2(L) == 'x' || lx_peek2(L) == 'X') {
+                // Hexadecimal literal: 0x....
+                lx_get(L); /* 0 */
+                lx_get(L); /* x / X */
+                base = 16;
+                is_hex = 1;
+                while (isxdigit(lx_peek(L))) lx_get(L);
+            } else {
+                lx_get(L); /* leading '0' */
+                base = 8;
+                /* B allows octal constants to contain digits 0-9 (e.g., 09 == octal 011) */
+                while (isdigit(lx_peek(L))) lx_get(L);
+            }
         } else {
             while (isdigit(lx_peek(L))) lx_get(L);
         }
@@ -157,7 +189,7 @@ Token lx_next(Lexer *L) {
 
         errno = 0;
         long v;
-        if (base == 8) {
+        if (base == 8 && !is_hex) {
             /* B octal: allow digits 0-9 but interpret as octal (e.g., 09 == 011 octal == 9 decimal) */
             v = 0;
             for (size_t i = 0; i < n; i++) {
@@ -191,6 +223,10 @@ Token lx_next(Lexer *L) {
             if (ch == '"') break;
             if (ch == '*') {
                 ch = parse_escape(L, line, col);
+            }
+            else if (ch == '\\') {
+                // Accept C-style escapes for compatibility (e.g., "\n")
+                ch = parse_backslash_escape(L, line, col);
             }
             if (n + 2 > cap) {
                 cap = cap * 2 + 8;
@@ -232,6 +268,8 @@ Token lx_next(Lexer *L) {
 
             if (ch == '*') {
                 ch = parse_escape(L, line, col);
+            } else if (ch == '\\') {
+                ch = parse_backslash_escape(L, line, col);
             }
 
             chars[count++] = ch & 0xFF;
@@ -249,6 +287,23 @@ Token lx_next(Lexer *L) {
     /* 2-char operators */
     if (c == '+' && lx_peek2(L) == '+') { lx_get(L); lx_get(L); return mk_tok(TK_PLUSPLUS, line, col, L->filename); }
     if (c == '-' && lx_peek2(L) == '-') { lx_get(L); lx_get(L); return mk_tok(TK_MINUSMINUS, line, col, L->filename); }
+
+    // C-style compound assignments (op=)
+    if (c == '+' && lx_peek2(L) == '=') { lx_get(L); lx_get(L); return mk_tok(TK_PLUSEQ, line, col, L->filename); }
+    if (c == '-' && lx_peek2(L) == '=') { lx_get(L); lx_get(L); return mk_tok(TK_MINUSEQ, line, col, L->filename); }
+    if (c == '*' && lx_peek2(L) == '=') { lx_get(L); lx_get(L); return mk_tok(TK_STAREQ, line, col, L->filename); }
+    if (c == '/' && lx_peek2(L) == '=') { lx_get(L); lx_get(L); return mk_tok(TK_SLASHEQ, line, col, L->filename); }
+    if (c == '%' && lx_peek2(L) == '=') { lx_get(L); lx_get(L); return mk_tok(TK_PERCENTEQ, line, col, L->filename); }
+    if (c == '&' && lx_peek2(L) == '=') { lx_get(L); lx_get(L); return mk_tok(TK_ANDEQ, line, col, L->filename); }
+    if (c == '|' && lx_peek2(L) == '=') { lx_get(L); lx_get(L); return mk_tok(TK_OREQ, line, col, L->filename); }
+    if (c == '<' && lx_peek2(L) == '<') {
+        int third = (L->i + 2 < L->len) ? (unsigned char)L->src[L->i + 2] : 0;
+        if (third == '=') { lx_get(L); lx_get(L); lx_get(L); return mk_tok(TK_LSHIFTEQ, line, col, L->filename); }
+    }
+    if (c == '>' && lx_peek2(L) == '>') {
+        int third = (L->i + 2 < L->len) ? (unsigned char)L->src[L->i + 2] : 0;
+        if (third == '=') { lx_get(L); lx_get(L); lx_get(L); return mk_tok(TK_RSHIFTEQ, line, col, L->filename); }
+    }
 
     // B-style assignment operators: =op instead of op=
     if (c == '=') {

@@ -62,7 +62,7 @@ int main(int argc, char **argv) {
     int wall = 1;          /* -Wall (default on) */
     int wextra = 1;        /* -Wextra (default on) */
     int werror = 0;        /* -Werror */
-    int byteptr = 0;       /* --byteptr flag */
+    int byteptr = 1;       /* --byteptr flag (default on for byte-addressed programs) */
     int dump_tokens = 0;   /* --dump-tokens */
     int dump_ast = 0;      /* --dump-ast */
     int dump_c = 0;        /* --dump-c */
