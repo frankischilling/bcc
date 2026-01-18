@@ -41,6 +41,13 @@ Complete implementation of B's runtime library including:
 - File redirection helpers: `openr`, `openw`, `flush` for switching stdin/stdout units
 - Process control: `fork`, `wait`, `execl`, `execv`, `system` (shell-free, returns raw wait status; decode with `(rc >> 8) & 0377`)
 - Foreign calls: `callf` to invoke linked Fortran/GMAP/C routines by name (pass addresses; supports up to 10 args)
+
+### External Library Integration
+Link B programs with any C library:
+- **`-l LIB`**: Link with C library LIB (e.g., `-l raylib`, `-l ncurses`)
+- **`-X FLAG`**: Pass arbitrary GCC flags (e.g., `-X -O3`, `-X -I/path/to/include`)
+- **Full C Compatibility**: Direct access to modern libraries like raylib, SDL, OpenGL
+- **Custom Build Options**: Include paths, defines, optimization, and linker flags
 - Dynamic loading: set `B_CALLF_LIB=/path/to/lib1.so:/path/to/lib2.so` so `callf` can find your Fortran/GMAP symbols via `dlsym` (also tries `name_` for Fortran)
 - System calls: `chdir`, `chmod`, `chown`, `link`, `unlink`, etc.
 - String manipulation and utility functions
@@ -74,6 +81,8 @@ Complete implementation of B's runtime library including:
 - `-Wall`: Enable all warnings (default)
 - `-Werror`: Treat warnings as errors
 - `--byteptr`: Use byte-addressed pointers
+- `-l LIB`: Link with C library LIB (e.g., `-l raylib`, `-l ncurses`)
+- `-X FLAG`: Pass any FLAG directly to GCC (e.g., `-X -O3`, `-X -I/path/to/include`, `-X -DMY_DEFINE=1`)
 - `--dump-tokens`: Show tokenized input
 - `--dump-ast`: Show parsed AST
 - `--dump-c`: Emit generated C code
@@ -880,5 +889,5 @@ Developed as a faithful recreation of Ken Thompson's original B compiler from Be
 
 ---
 
-*"B was a programming language I designed in 1972 for the nascent Unix operating system... It was a stripped-down version of BCPL with no types at all."*
+*"B was a chud programming language written by and for chuds*
 - Ken Thompson
