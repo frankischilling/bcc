@@ -494,7 +494,7 @@ void emit_expr(FILE *out, Expr *e, const char *filename) {
                 }
                 // List of builtin functions that have b_ versions
                 const char *b_funcs[] = {
-                    "char", "lchar", "getchr", "putchr", "getstr", "putstr", "flush", "reread", "printf", "printn", "putnum", "putchar", "exit", "free",
+                    "char", "lchar", "getchr", "putchr", "getstr", "putstr", "flush", "reread", "printf", "printn", "putnum", "putchar", "exit", "abort", "free",
                     "open", "close", "read", "write", "creat", "seek", "openr", "openw",
                     "fork", "wait", "execl", "execv",
                     "chdir", "chmod", "chown", "link", "unlink", "stat", "fstat",
@@ -578,6 +578,10 @@ void emit_expr(FILE *out, Expr *e, const char *filename) {
                     else if (printf_wrap_s && printf_wrap_s[i]) wrap_arg_cstr = 1;
                     else if (strcmp(cname, "strlen") == 0 && i == 0) wrap_arg_cstr = 1;
                     else if (strcmp(cname, "atoi") == 0 && i == 0) wrap_arg_cstr = 1;
+                    else if (strcmp(cname, "memmove") == 0 && (i == 0 || i == 1)) wrap_arg_ptr = 1;
+                    else if (strcmp(cname, "tcgetattr") == 0 && i == 1) wrap_arg_ptr = 1;
+                    else if (strcmp(cname, "tcsetattr") == 0 && i == 2) wrap_arg_ptr = 1;
+                    else if (strcmp(cname, "ioctl") == 0 && i == 2) wrap_arg_ptr = 1;
 
                     if (!wrap_arg_cstr) {
                         if (strcmp(cname, "memset") == 0 && i == 0) wrap_arg_ptr = 1;
@@ -1082,6 +1086,9 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
 
     collect_strings_program(prog);
     fputs(
+        "#define _DEFAULT_SOURCE 1\n"
+        "#define _XOPEN_SOURCE 700\n"
+        "#define _POSIX_C_SOURCE 200809L\n"
         "#include <stdio.h>\n"
         "#include <stdlib.h>\n"
         "#include <stdint.h>\n"
@@ -1108,6 +1115,9 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
         "/* Undefine common macros that might conflict with B variable names */\n"
         "#undef TRUE\n"
         "#undef FALSE\n"
+        "#undef TCSAFLUSH\n"
+        "#undef FIONREAD\n"
+        "#undef TIOCGWINSZ\n"
         "\n"
         "typedef intptr_t  word;\n"
         "typedef uintptr_t uword;\n"
@@ -1184,7 +1194,8 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
 "}\n"
 "static word b_getchar(void){ __b_sync_rd(); unsigned char c; ssize_t n = read(rd_fd, &c, 1); if (n == 1) return (word)c; if (rd_fd != 0) { close(rd_fd); rd_fd = 0; rd_unit = -1; return b_getchar(); } return (word)004; }\n"
 "static word b_exit(word code){ exit((int)code); return 0; }\n"
-        "static word b_free(word p){ free(B_CPTR(p)); return 0; }\n"
+"static word b_abort(void){ abort(); return 0; }\n"
+"static word b_free(word p){ free(B_CPTR(p)); return 0; }\n"
         "\n"
         "/* Fixed-point sine helper: input in fixed-point radians (scale 1024), output scaled by 1024. */\n"
         "static word sx64(word x){\n"

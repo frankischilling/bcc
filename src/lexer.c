@@ -202,7 +202,10 @@ Token lx_next(Lexer *L) {
                 v = v * 8 + (digit - '0');
             }
         } else {
-            v = strtol(s, NULL, base);
+            errno = 0;
+            unsigned long long uv = strtoull(s, NULL, base);
+            if (errno == ERANGE) error_at_location(L->filename, line, col, ERR_EXPR_SYNTAX, "bad number");
+            v = (long)uv; /* wrap to target word size */
         }
         free(s); /* Always free the temporary string */
         if (errno) error_at_location(L->filename, line, col, ERR_EXPR_SYNTAX, "bad number");
