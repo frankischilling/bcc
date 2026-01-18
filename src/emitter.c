@@ -473,6 +473,11 @@ void emit_expr(FILE *out, Expr *e, const char *filename) {
         }
 
         case EX_CALL: {
+            int used_builtin_prefix = 0;
+            int printf_like = 0;
+            size_t fmt_index = 0;
+            int *printf_wrap_s = NULL;
+
             // Check if callee is a builtin function that needs b_ prefix
             if (e->as.call.callee->kind == EX_VAR) {
                 const char *name = e->as.call.callee->as.var;
@@ -502,6 +507,7 @@ void emit_expr(FILE *out, Expr *e, const char *filename) {
                 for (int i = 0; b_funcs[i]; i++) {
                     if (strcmp(name, b_funcs[i]) == 0) {
                         fputs("b_", out);
+                        used_builtin_prefix = 1;
                         break;
                     }
                 }
@@ -513,12 +519,49 @@ void emit_expr(FILE *out, Expr *e, const char *filename) {
                 if (strcmp(cname, "malloc") == 0 || strcmp(cname, "calloc") == 0 || strcmp(cname, "realloc") == 0) {
                     wrap_ret_ptr = 1; // return a C pointer: convert to B pointer
                 }
+                if (strcmp(cname, "printf") == 0 && !used_builtin_prefix) { printf_like = 1; fmt_index = 0; }
+                else if (strcmp(cname, "fprintf") == 0 || strcmp(cname, "dprintf") == 0) { printf_like = 1; fmt_index = 1; }
+                else if (strcmp(cname, "sprintf") == 0) { printf_like = 1; fmt_index = 1; }
+                else if (strcmp(cname, "snprintf") == 0) { printf_like = 1; fmt_index = 2; }
             }
 
             if (wrap_ret_ptr) fputs("B_PTR(", out);
             emit_expr(out, e->as.call.callee, filename);
             fputc('(', out);
             size_t nargs = e->as.call.args.len;
+
+            if (printf_like && fmt_index < nargs) {
+                Expr *fmt_expr = (Expr*)e->as.call.args.data[fmt_index];
+                if (fmt_expr && fmt_expr->kind == EX_STR) {
+                    const char *fmt = fmt_expr->as.str;
+                    printf_wrap_s = (int*)calloc(nargs, sizeof(int));
+                    if (printf_wrap_s) {
+                        size_t arg_pos = fmt_index + 1; /* first vararg position */
+                        for (size_t fi = 0; fmt[fi]; fi++) {
+                            if (fmt[fi] != '%') continue;
+                            fi++;
+                            if (fmt[fi] == '%') continue;
+                            while (fmt[fi] && strchr("-+ #0", fmt[fi])) fi++;
+                            if (fmt[fi] == '*') { if (arg_pos < nargs) arg_pos++; fi++; }
+                            else while (fmt[fi] && isdigit((unsigned char)fmt[fi])) fi++;
+                            if (fmt[fi] == '.') {
+                                fi++;
+                                if (fmt[fi] == '*') { if (arg_pos < nargs) arg_pos++; fi++; }
+                                else while (fmt[fi] && isdigit((unsigned char)fmt[fi])) fi++;
+                            }
+                            if (fmt[fi] == 'h' && fmt[fi+1] == 'h') fi++;
+                            else if (fmt[fi] == 'l' && fmt[fi+1] == 'l') fi++;
+                            else if (fmt[fi] == 'h' || fmt[fi] == 'l' || fmt[fi] == 'z' || fmt[fi] == 'j' || fmt[fi] == 't' || fmt[fi] == 'L') {
+                                /* single-char length modifier */ ;
+                            }
+                            if (!fmt[fi]) break;
+                            if (fmt[fi] == 's' && arg_pos < nargs) printf_wrap_s[arg_pos] = 1;
+                            arg_pos++;
+                        }
+                    }
+                }
+            }
+
             int add_exit_zero = (cname && strcmp(cname, "exit") == 0 && nargs == 0);
             if (add_exit_zero) {
                 fputs("0", out);
@@ -528,14 +571,20 @@ void emit_expr(FILE *out, Expr *e, const char *filename) {
 
                 // Apply B_CPTR to pointer arguments for common C library functions we call from B
                 int wrap_arg_ptr = 0;
+                int wrap_arg_cstr = 0;
                 int scale_word_size = 0;
                 if (cname) {
-                    if (strcmp(cname, "memset") == 0 && i == 0) wrap_arg_ptr = 1;
-                    else if (strcmp(cname, "memcpy") == 0 && (i == 0 || i == 1)) wrap_arg_ptr = 1;
-                    else if (strcmp(cname, "strlen") == 0 && i == 0) wrap_arg_ptr = 1;
-                    else if (strcmp(cname, "atoi") == 0 && i == 0) wrap_arg_ptr = 1;
-                    else if (strcmp(cname, "realloc") == 0 && i == 0) wrap_arg_ptr = 1;
-                    else if (strcmp(cname, "calloc") == 0 && i == 0) wrap_arg_ptr = 0; // first arg is count
+                    if (printf_like && i == fmt_index) wrap_arg_cstr = 1; /* format string */
+                    else if (printf_wrap_s && printf_wrap_s[i]) wrap_arg_cstr = 1;
+                    else if (strcmp(cname, "strlen") == 0 && i == 0) wrap_arg_cstr = 1;
+                    else if (strcmp(cname, "atoi") == 0 && i == 0) wrap_arg_cstr = 1;
+
+                    if (!wrap_arg_cstr) {
+                        if (strcmp(cname, "memset") == 0 && i == 0) wrap_arg_ptr = 1;
+                        else if (strcmp(cname, "memcpy") == 0 && (i == 0 || i == 1)) wrap_arg_ptr = 1;
+                        else if (strcmp(cname, "realloc") == 0 && i == 0) wrap_arg_ptr = 1;
+                        else if (strcmp(cname, "calloc") == 0 && i == 0) wrap_arg_ptr = 0; // first arg is count
+                    }
 
                     // For malloc/calloc/realloc size arguments in word-addressing mode,
                     // scale by sizeof(word) to avoid under-allocation.
@@ -548,7 +597,8 @@ void emit_expr(FILE *out, Expr *e, const char *filename) {
                     }
                 }
 
-                if (wrap_arg_ptr) fputs("B_CPTR(", out);
+                if (wrap_arg_cstr) fputs("__b_cstr(", out);
+                else if (wrap_arg_ptr) fputs("B_CPTR(", out);
                 if (scale_word_size) {
                     fputs("(size_t)(sizeof(word) * (uword)(", out);
                 }
@@ -556,10 +606,11 @@ void emit_expr(FILE *out, Expr *e, const char *filename) {
                 emit_expr(out, (Expr*)e->as.call.args.data[i], filename);
 
                 if (scale_word_size) fputs("))", out);
-                if (wrap_arg_ptr) fputc(')', out);
+                if (wrap_arg_cstr || wrap_arg_ptr) fputc(')', out);
             }
             fputc(')', out);
             if (wrap_ret_ptr) fputc(')', out);
+            if (printf_wrap_s) free(printf_wrap_s);
             return;
         }
 
@@ -1264,6 +1315,37 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
 "        buf[i++] = (char)(ch & 0xFF);\n"
 "    }\n"
 "    buf[i] = 0;\n"
+"}\n"
+"\n"
+"/* Convert a B string (004-terminated) into a temporary NUL-terminated C string */\n"
+"static const char *__b_cstr(word s){\n"
+"    static char *slots[4];\n"
+"    static size_t caps[4];\n"
+"    static int next = 0;\n"
+"\n"
+"    if (s == 0) return \"\";\n"
+"\n"
+"    size_t len = 0;\n"
+"    for (;; len++) {\n"
+"        word ch = b_char(s, (word)len);\n"
+"        if (ch == 004 || ch == 0) break;\n"
+"    }\n"
+"\n"
+"    int idx = next;\n"
+"    next = (next + 1) & 3; /* simple ring buffer to survive multiple args */\n"
+"\n"
+"    size_t need = len + 1;\n"
+"    if (need > caps[idx]) {\n"
+"        size_t ncap = need < 64 ? 64 : need;\n"
+"        char *nb = (char*)realloc(slots[idx], ncap);\n"
+"        if (!nb) { fprintf(stderr, \"cstr: out of memory\\n\"); exit(1); }\n"
+"        slots[idx] = nb;\n"
+"        caps[idx] = ncap;\n"
+"    }\n"
+"\n"
+"    for (size_t i = 0; i < len; i++) slots[idx][i] = (char)(b_char(s, (word)i) & 0xFF);\n"
+"    slots[idx][len] = 0;\n"
+"    return slots[idx];\n"
 "}\n"
 "\n"
 "/* Duplicate a B string into a freshly allocated C string */\n"
