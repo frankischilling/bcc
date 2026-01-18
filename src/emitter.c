@@ -481,7 +481,7 @@ void emit_expr(FILE *out, Expr *e, const char *filename) {
                 }
                 // List of builtin functions that have b_ versions
                 const char *b_funcs[] = {
-                    "char", "lchar", "getchr", "putchr", "getstr", "putstr", "flush", "reread", "printf", "printn", "putnum", "putchar", "exit",
+                    "char", "lchar", "getchr", "putchr", "getstr", "putstr", "flush", "reread", "printf", "printn", "putnum", "putchar", "exit", "free",
                     "open", "close", "read", "write", "creat", "seek", "openr", "openw",
                     "fork", "wait", "execl", "execv",
                     "chdir", "chmod", "chown", "link", "unlink", "stat", "fstat",
@@ -510,14 +510,21 @@ void emit_expr(FILE *out, Expr *e, const char *filename) {
             if (wrap_ret_ptr) fputs("B_PTR(", out);
             emit_expr(out, e->as.call.callee, filename);
             fputc('(', out);
-            for (size_t i = 0; i < e->as.call.args.len; i++) {
-                if (i) fputs(", ", out);
+            size_t nargs = e->as.call.args.len;
+            int add_exit_zero = (cname && strcmp(cname, "exit") == 0 && nargs == 0);
+            if (add_exit_zero) {
+                fputs("0", out);
+            }
+            for (size_t i = 0; i < nargs; i++) {
+                if (i || add_exit_zero) fputs(", ", out);
 
                 // Apply B_CPTR to pointer arguments for common C library functions we call from B
                 int wrap_arg_ptr = 0;
                 int scale_word_size = 0;
                 if (cname) {
                     if (strcmp(cname, "memset") == 0 && i == 0) wrap_arg_ptr = 1;
+                    else if (strcmp(cname, "memcpy") == 0 && (i == 0 || i == 1)) wrap_arg_ptr = 1;
+                    else if (strcmp(cname, "strlen") == 0 && i == 0) wrap_arg_ptr = 1;
                     else if (strcmp(cname, "atoi") == 0 && i == 0) wrap_arg_ptr = 1;
                     else if (strcmp(cname, "realloc") == 0 && i == 0) wrap_arg_ptr = 1;
                     else if (strcmp(cname, "calloc") == 0 && i == 0) wrap_arg_ptr = 0; // first arg is count
@@ -569,25 +576,21 @@ void emit_expr(FILE *out, Expr *e, const char *filename) {
             if (op == TK_AMP) {
                 // Special case: &arr[i] should give address of array element
                 if (e->as.unary.rhs->kind == EX_INDEX) {
-                    // For &arr[i], compute the address that arr[i] would access
-                    // In word addressing mode: (arr + i) * sizeof(word)
-                    // In byte addressing mode: arr + i
+                    // For &arr[i], compute the byte address of element i, then wrap back to a B pointer.
                     fputs("B_PTR(", out);
-                    if (current_byteptr) {
-                        // Byte addressing: arr + i
-                        fputs("(uword)(", out);
+                    fputs("((", out);
+                    if (!current_byteptr) {
+                        fputs("uword)(", out);
                         emit_expr(out, e->as.unary.rhs->as.index.base, filename);
-                        fputs(") + (uword)(", out);
-                        emit_expr(out, e->as.unary.rhs->as.index.idx, filename);
-                        fputc(')', out);
+                        fputs(") * sizeof(word)", out);
                     } else {
-                        // Word addressing: (arr + i) * sizeof(word)
-                        fputs("((uword)(", out);
+                        fputs("uword)(", out);
                         emit_expr(out, e->as.unary.rhs->as.index.base, filename);
-                        fputs(") + (uword)(", out);
-                        emit_expr(out, e->as.unary.rhs->as.index.idx, filename);
-                        fputs(")) * sizeof(word)", out);
+                        fputc(')', out);
                     }
+                    fputs(" + (uword)(", out);
+                    emit_expr(out, e->as.unary.rhs->as.index.idx, filename);
+                    fputs(") * sizeof(word))", out);
                     fputc(')', out);
                 } else {
                     fputs("B_ADDR(", out);
@@ -921,7 +924,7 @@ void emit_stmt(FILE *out, Stmt *s, int indent, int is_function_body, const char 
                 } else {
                     // Simple variable
                     emit_indent(out, indent);
-                    fprintf(out, "word %s;\n", item->name);
+                    fprintf(out, "word %s = 0;\n", item->name);
                 }
             }
             return;
@@ -1051,10 +1054,10 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
     fprintf(out, "#define B_BYTEPTR %d\n", byteptr ? 1 : 0);
     fputs(
         "#if B_BYTEPTR\n"
-        "  /* Byte-addressed pointers: deref and index operate on single bytes as lvalues. */\n"
-        "  #define B_DEREF(p)   (*(unsigned char*)(uword)(p))\n"
+        "  /* Byte-addressed pointers: addresses are bytes; array elements are word-sized. */\n"
+        "  #define B_DEREF(p)   (*(word*)(uword)(p))\n"
         "  #define B_ADDR(x)    B_PTR(&(x))\n"
-        "  #define B_INDEX(a,i) (*(unsigned char*)((uword)(a) + (uword)(i)))\n"
+        "  #define B_INDEX(a,i) (*(word*)((uword)(a) + (uword)(i) * sizeof(word)))\n"
         "  #define B_PTR(p)     ((word)(uword)(p))\n"
         "#else\n"
         "  #define B_DEREF(p)   (*(word*)(uword)((uword)(p) * sizeof(word)))\n"
@@ -1112,7 +1115,8 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
 "    return x;\n"
 "}\n"
 "static word b_getchar(void){ __b_sync_rd(); unsigned char c; ssize_t n = read(rd_fd, &c, 1); if (n == 1) return (word)c; if (rd_fd != 0) { close(rd_fd); rd_fd = 0; rd_unit = -1; return b_getchar(); } return (word)004; }\n"
-"static word b_exit(void){ exit(0); return 0; }\n"
+"static word b_exit(word code){ exit((int)code); return 0; }\n"
+"static word b_free(word p){ free(B_CPTR(p)); return 0; }\n"
         "\n"
         "/* Command line argument support */\n"
         "static int __b_argc;\n"
@@ -1129,6 +1133,19 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
 "static word b_reread(void);\n"
         "\n"
         "/* Helper functions for complex lvalue operations (avoid GNU C extensions) */\n"
+        "#if B_BYTEPTR\n"
+        "static word b_preinc(word *p) { return (*p = (word)((uword)*p + 1)); }\n"
+        "static word b_predec(word *p) { return (*p = (word)((uword)*p - 1)); }\n"
+        "static word b_postinc(word *p) { word old = *p; *p = (word)((uword)*p + 1); return old; }\n"
+        "static word b_postdec(word *p) { word old = *p; *p = (word)((uword)*p - 1); return old; }\n"
+        "static word b_add_assign(word *p, word v) { return (*p = (word)((uword)*p + (uword)v)); }\n"
+        "static word b_sub_assign(word *p, word v) { return (*p = (word)((uword)*p - (uword)v)); }\n"
+        "static word b_mul_assign(word *p, word v) { return (*p = (word)((uword)*p * (uword)v)); }\n"
+        "static word b_div_assign(word *p, word v) { return (*p = (word)((uword)*p / (uword)v)); }\n"
+        "static word b_mod_assign(word *p, word v) { return (*p = (word)((uword)*p % (uword)v)); }\n"
+        "static word b_lsh_assign(word *p, word v) { return (*p = (word)((uword)*p << (uword)v)); }\n"
+        "static word b_rsh_assign(word *p, word v) { return (*p = (word)((uword)*p >> (uword)v)); }\n"
+        "#else\n"
         "static word b_preinc(word *p) { return (*p = (word)(((uword)*p + 1) & 0xFFFF)); }\n"
         "static word b_predec(word *p) { return (*p = (word)(((uword)*p - 1) & 0xFFFF)); }\n"
         "static word b_postinc(word *p) { word old = *p; *p = (word)(((uword)*p + 1) & 0xFFFF); return old; }\n"
@@ -1140,6 +1157,7 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
         "static word b_mod_assign(word *p, word v) { return (*p = (word)(((uword)*p % (uword)v) & 0xFFFF)); }\n"
         "static word b_lsh_assign(word *p, word v) { return (*p = (word)(((uword)*p << (uword)v) & 0xFFFF)); }\n"
         "static word b_rsh_assign(word *p, word v) { return (*p = (word)(((uword)*p >> (uword)v) & 0xFFFF)); }\n"
+        "#endif\n"
         "static word b_and_assign(word *p, word v) { return (*p = (word)((uword)*p & (uword)v)); }\n"
         "static word b_or_assign(word *p, word v) { return (*p = (word)((uword)*p | (uword)v)); }\n"
         "static word b_xor_assign(word *p, word v) { return (*p = (word)((uword)*p ^ (uword)v)); }\n"
@@ -1156,7 +1174,7 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
         "static inline word b_load(word addr){ return B_DEREF(addr); }\n"
         "static inline void b_store(word addr, word v){\n"
         "#if B_BYTEPTR\n"
-        "    *(unsigned char*)(uword)addr = (unsigned char)(v & 0xFF);\n"
+        "    *(word*)(uword)addr = v;\n"
         "#else\n"
         "    *(word*)(uword)((uword)addr * sizeof(word)) = v;\n"
         "#endif\n"
@@ -1408,6 +1426,41 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
         "            uint16_t v = (uint16_t)arg;\n"
         "            if (v) b_printn_u((word)(uword)v, 8);\n"
         "            else b_putchar('0');\n"
+        "            break;\n"
+        "        }\n"
+        "        case 'u': {\n"
+        "            uword v = (uword)arg;\n"
+        "            if (v) b_printn_u((word)v, 10);\n"
+        "            else b_putchar('0');\n"
+        "            break;\n"
+        "        }\n"
+        "        case 'p': {\n"
+        "            uword v = (uword)arg;\n"
+        "            b_putchar('0'); b_putchar('x');\n"
+        "            int started = 0;\n"
+        "            for (int shift = (int)(sizeof(uword)*8 - 4); shift >= 0; shift -= 4) {\n"
+        "                int nib = (int)((v >> shift) & 0xF);\n"
+        "                if (!started && nib == 0 && shift > 0) continue;\n"
+        "                started = 1;\n"
+        "                b_putchar((word)(nib < 10 ? ('0' + nib) : ('a' + nib - 10)));\n"
+        "            }\n"
+        "            if (!started) b_putchar('0');\n"
+        "            break;\n"
+        "        }\n"
+        "        case 'z': {\n"
+        "            word mod = b_char(fmt, i++);\n"
+        "            if (mod == 'u') {\n"
+        "                uword v = (uword)arg;\n"
+        "                if (v) b_printn_u((word)v, 10);\n"
+        "                else b_putchar('0');\n"
+        "            } else if (mod == 'd') {\n"
+        "                long v = (long)arg;\n"
+        "                if (v < 0) { b_putchar('-'); v = -v; }\n"
+        "                if (v) b_printn_u((word)(uword)v, 10);\n"
+        "                else b_putchar('0');\n"
+        "            } else {\n"
+        "                b_putchar('%'); b_putchar('z'); b_putchar(mod);\n"
+        "            }\n"
         "            break;\n"
         "        }\n"
         "        case 'c':\n"
@@ -1909,14 +1962,20 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
                     fputs(";\n", out);
                     continue;
                 }
-                // Set blob pointer to backing store
-                fprintf(out, "    %s = B_ADDR(__%s_blob[0]);\n", item->name, item->name);
+                // Set blob pointer to backing store (or scalar if size 1)
+                size_t base_len = (item->as.var.init && item->as.var.init->kind == INIT_LIST) ? init_list_length(item->as.var.init) : 1;
+                size_t tail     = (item->as.var.init && item->as.var.init->kind == INIT_LIST) ? edge_tail_words_top(item->as.var.init) : 0;
+                size_t total    = base_len + tail;
                 // Initialize blob elements + edge subvectors in tail if present
                 if (item->as.var.init && item->as.var.init->kind == INIT_LIST) {
-                    size_t base_len = init_list_length(item->as.var.init);
                     char buf[256];
                     snprintf(buf, sizeof(buf), "__%s_blob", item->name);
                     (void)emit_edge_list_init(out, buf, 0, item->as.var.init, base_len, 2, filename);
+                }
+                if (total == 1 || (base_len <= 1 && tail == 0)) {
+                    fprintf(out, "    %s = __%s_blob[0];\n", item->name, item->name);
+                } else {
+                    fprintf(out, "    %s = B_ADDR(__%s_blob[0]);\n", item->name, item->name);
                 }
             } else if (item->as.var.vkind == EXTVAR_VECTOR) {
                 // Set vector pointer

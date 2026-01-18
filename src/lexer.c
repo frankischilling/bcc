@@ -267,7 +267,12 @@ Token lx_next(Lexer *L) {
             if (count >= 4) error_at_location(L->filename, line, col, ERR_EXPR_SYNTAX, "character constant too long");
 
             if (ch == '*') {
-                ch = parse_escape(L, line, col);
+                int look = lx_peek(L);
+                if (look == '\'') {
+                    /* literal '*' */
+                } else {
+                    ch = parse_escape(L, line, col);
+                }
             } else if (ch == '\\') {
                 ch = parse_backslash_escape(L, line, col);
             }
