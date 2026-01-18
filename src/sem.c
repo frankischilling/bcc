@@ -94,7 +94,7 @@ static void scope_add(Scope *scope, Symbol *sym) {
 static void sem_add_builtin_functions(SemState *st) {
     // Add runtime library functions to global scope
     const char *builtins[] = {
-        "print", "putchar", "getchar", "exit", "alloc",
+        "putchar", "getchar", "exit", "alloc",
         /* B library functions */
         "char", "lchar", "getchr", "putchr", "getstr", "putstr", "flush", "reread", "printf", "printn", "putnum",
         "open", "close", "read", "write", "creat", "seek", "openr", "openw",
@@ -222,9 +222,9 @@ static void sem_check_expr(SemState *st, Expr *e) {
                 const char *fname = e->as.call.callee->as.var;
                 Symbol *sym = scope_find(st->current, fname);
                 if (!sym) {
-                    // Not found as variable, check if it's a function or extern
-                    if (!is_function_name(st, fname) && !is_extern_name(st, fname)) {
-                        error_at_location(st->filename, e->line, e->col, ERR_UNDEFINED_NAME, fname);
+                    // Not found: assume implicit extern function
+                    if (!is_extern_name(st, fname)) {
+                        vec_push(&st->extern_names, sdup(fname));
                     }
                 } else if (sym->kind != SYM_VAR && sym->kind != SYM_FUNC) {
                     dief("'%s' is not callable at %d:%d", fname, e->line, e->col);

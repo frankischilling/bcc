@@ -77,22 +77,22 @@ static int is_unary(TokenKind k) {
 
 static int precedence(TokenKind k) {
     switch (k) {
-        case TK_BARBAR: return 2;   // logical OR
+        case TK_BARBAR: return 1;   // logical OR (lowest)
+        case TK_BAR:    return 3;   // bitwise OR
+        case TK_AMP:    return 4;   // bitwise AND
         case TK_EQ:
-        case TK_NE:      return 3;
+        case TK_NE:     return 5;   // equality
         case TK_LT:
         case TK_LE:
         case TK_GT:
-        case TK_GE:      return 4;
+        case TK_GE:     return 6;   // relational
         case TK_PLUS:
         case TK_MINUS:
         case TK_LSHIFT:
-        case TK_RSHIFT:  return 5;
+        case TK_RSHIFT: return 7;   // additive / shifts
         case TK_STAR:
         case TK_SLASH:
-        case TK_PERCENT: return 6;
-        case TK_BAR:     return 7;   // bitwise OR
-        case TK_AMP:     return 8;   // bitwise AND
+        case TK_PERCENT:return 8;   // multiplicative
         default:         return 0;
     }
 }
@@ -209,7 +209,20 @@ Func *parse_function(Parser *P) {
     }
     expect(P, TK_RPAREN);
 
-    f->body = parse_block(P);
+    // Functions can have either a block body or a single statement body
+    if (P->cur.kind == TK_LBRACE) {
+        f->body = parse_block(P);
+    } else {
+        // Single statement body - wrap in a block for AST consistency
+        int line = P->cur.line, col = P->cur.col;
+        Stmt *body = parse_stmt(P);
+        Stmt *block = new_stmt(ST_BLOCK, line, col);
+        block->as.block.items.data = NULL;
+        block->as.block.items.len = 0;
+        block->as.block.items.cap = 0;
+        vec_push(&block->as.block.items, body);
+        f->body = block;
+    }
     return f;
 }
 ExternItem *parse_extern_var_def(Parser *P){
@@ -398,14 +411,12 @@ Stmt *parse_extrn_stmt(Parser *P){
     Stmt *s = new_stmt(ST_EXTRN, line, col);
     s->as.extrn.names.data=NULL; s->as.extrn.names.len=0; s->as.extrn.names.cap=0;
 
-    if (P->cur.kind != TK_ID) dief("expected identifier after extrn at %d:%d", P->cur.line, P->cur.col);
-
+    // Parse comma-separated list of identifiers
     for(;;){
         if (P->cur.kind != TK_ID) dief("expected identifier in extrn at %d:%d", P->cur.line, P->cur.col);
         vec_push(&s->as.extrn.names, sdup(P->cur.lexeme));
         next(P);
-        if (accept(P, TK_COMMA)) continue;
-        break;
+        if (!accept(P, TK_COMMA)) break;
     }
     expect(P, TK_SEMI);
     return s;
@@ -478,7 +489,15 @@ static Stmt *parse_label(Parser *P) {
         dief("label expression must be an identifier at %d:%d", line, col);
     }
 
-    Stmt *inner = parse_stmt(P);
+    Stmt *inner;
+    // Labels can have no statement if they're just goto targets
+    if (P->cur.kind == TK_RBRACE || P->cur.kind == TK_CASE || P->cur.kind == TK_DEFAULT ||
+        (P->cur.kind == TK_ID && peek_next_kind(P) == TK_COLON)) {
+        // No statement after label - create empty statement
+        inner = new_stmt(ST_EMPTY, P->cur.line, P->cur.col);
+    } else {
+        inner = parse_stmt(P);
+    }
 
     Stmt *s = new_stmt(ST_LABEL, line, col);
     s->as.label_.name = sdup(lab->as.var);

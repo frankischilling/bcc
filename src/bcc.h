@@ -447,6 +447,6 @@ char *read_file_all(const char *path, size_t *out_len);
 char *resolve_include_path(const char *include_name, const char *current_file);
 void dump_token_stream(Parser *P);
 void dump_ast_program(Program *prog);
-int run_gcc(const char *cfile, const char *out_exe, int compile_only, int debug, int wall, int wextra, int werror);
+int run_gcc(const char *cfile, const char *out_exe, int compile_only, int debug, int wall, int wextra, int werror, Vec *extra_args);
 
 #endif // BCC_H

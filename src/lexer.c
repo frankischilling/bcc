@@ -222,9 +222,17 @@ Token lx_next(Lexer *L) {
             if (!ch) error_at_location(L->filename, line, col, ERR_EXPR_SYNTAX, "unterminated string");
             if (ch == '"') break;
             if (ch == '*') {
-                ch = parse_escape(L, line, col);
-            }
-            else if (ch == '\\') {
+                int look = lx_peek(L);
+                switch (look) {
+                    case '0': case 'e': case '(': case ')':
+                    case 't': case '*': case '\'': case '"': case 'n':
+                        ch = parse_escape(L, line, col);
+                        break;
+                    default:
+                        /* treat bare '*' as literal */
+                        break;
+                }
+            } else if (ch == '\\') {
                 // Accept C-style escapes for compatibility (e.g., "\n")
                 ch = parse_backslash_escape(L, line, col);
             }
@@ -268,10 +276,15 @@ Token lx_next(Lexer *L) {
 
             if (ch == '*') {
                 int look = lx_peek(L);
-                if (look == '\'') {
-                    /* literal '*' */
-                } else {
-                    ch = parse_escape(L, line, col);
+                switch (look) {
+                    case '\'': /* literal '*' before closing quote */ break;
+                    case '0': case 'e': case '(': case ')':
+                    case 't': case '*': case '"': case 'n':
+                        ch = parse_escape(L, line, col);
+                        break;
+                    default:
+                        /* treat as literal '*' */
+                        break;
                 }
             } else if (ch == '\\') {
                 ch = parse_backslash_escape(L, line, col);
@@ -315,7 +328,7 @@ Token lx_next(Lexer *L) {
         int next = lx_peek2(L);
         if (next == '+') { lx_get(L); lx_get(L); return mk_tok(TK_PLUSEQ, line, col, L->filename); }
         if (next == '-') { lx_get(L); lx_get(L); return mk_tok(TK_MINUSEQ, line, col, L->filename); }
-        if (next == '*') { lx_get(L); lx_get(L); return mk_tok(TK_STAREQ, line, col, L->filename); }
+        /* do not treat '=*' as '*=' to allow assignments like x = *ptr */
         if (next == '/') { lx_get(L); lx_get(L); return mk_tok(TK_SLASHEQ, line, col, L->filename); }
         if (next == '%') { lx_get(L); lx_get(L); return mk_tok(TK_PERCENTEQ, line, col, L->filename); }
         if (next == '&') { lx_get(L); lx_get(L); return mk_tok(TK_ANDEQ, line, col, L->filename); }

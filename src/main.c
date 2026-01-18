@@ -21,8 +21,8 @@ char *read_file_all(const char *path, size_t *out_len) {
 }
 
 
-int run_gcc(const char *cfile, const char *out_exe, int compile_only, int debug, int wall, int wextra, int werror) {
-    const char *argv[32];
+int run_gcc(const char *cfile, const char *out_exe, int compile_only, int debug, int wall, int wextra, int werror, Vec *extra_args) {
+    const char *argv[64];  // increased size to accommodate extra args
     int n = 0;
     argv[n++] = "gcc";
     argv[n++] = "-std=c99";
@@ -39,7 +39,15 @@ int run_gcc(const char *cfile, const char *out_exe, int compile_only, int debug,
         argv[n++] = out_exe;
     }
     argv[n++] = cfile;
-    if (!compile_only) argv[n++] = "-ldl";
+
+    // Add extra arguments
+    if (extra_args) {
+        for (size_t i = 0; i < extra_args->len; i++) {
+            argv[n++] = (const char*)extra_args->data[i];
+        }
+    }
+
+    if (!compile_only) { argv[n++] = "-ldl"; argv[n++] = "-lm"; }
     argv[n++] = NULL;
 
     pid_t pid = fork();
@@ -69,6 +77,7 @@ int main(int argc, char **argv) {
     int no_line = 1;       /* --no-line */
     int verbose_errors = 0; /* --verbose-errors */
     int verbose = 0;       /* -v flag */
+    Vec extra_gcc_args;    /* extra arguments to pass to gcc */
     const char *in_path = NULL;
     const char *out_path = "a.out";
 
@@ -77,6 +86,9 @@ int main(int argc, char **argv) {
 
     /* Initialize include paths (vec_new already zeros them) */
     /* No need to call vec_init */
+    extra_gcc_args.data = NULL;
+    extra_gcc_args.len = 0;
+    extra_gcc_args.cap = 0;
 
     /* Parse arguments */
     for (int i = 1; i < argc; i++) {
@@ -119,6 +131,18 @@ int main(int argc, char **argv) {
         } else if (strcmp(argv[i], "-o") == 0) {
             if (i + 1 >= argc) dief("missing value after -o");
             out_path = argv[++i];
+        } else if (strcmp(argv[i], "-l") == 0) {
+            if (i + 1 >= argc) dief("missing value after -l");
+            const char *lib_name = argv[++i];
+            size_t len = strlen(lib_name) + 3; // -l + lib_name + \0
+            char *lib_arg = (char*)malloc(len);
+            if (!lib_arg) dief("out of memory");
+            snprintf(lib_arg, len, "-l%s", lib_name);
+            vec_push(&extra_gcc_args, lib_arg);
+        } else if (strcmp(argv[i], "-X") == 0) {
+            if (i + 1 >= argc) dief("missing value after -X");
+            // Pass the next argument directly to gcc
+            vec_push(&extra_gcc_args, sdup(argv[++i]));
         } else if (!in_path) {
             in_path = argv[i];
         } else {
@@ -140,6 +164,8 @@ int main(int argc, char **argv) {
         fprintf(stderr, "  -E          emit C code to file\n");
         fprintf(stderr, "  --keep-c    don't delete temporary C file\n");
         fprintf(stderr, "  -g          include debug information\n");
+        fprintf(stderr, "  -l LIB      pass library to linker (can be repeated)\n");
+        fprintf(stderr, "  -X FLAG     pass FLAG directly to gcc (can be repeated)\n");
         fprintf(stderr, "  -Wall       enable all warnings (default)\n");
         fprintf(stderr, "  -Wno-all    disable all warnings\n");
         fprintf(stderr, "  -Wextra     enable extra warnings (default)\n");
@@ -267,7 +293,7 @@ int main(int argc, char **argv) {
     if (rename(tmpc_tmpl, cfile) != 0) dief("rename temp failed: %s", strerror(errno));
 
     // Compile with gcc
-    int rc = run_gcc(cfile, out_path, compile_only, debug, wall, wextra, werror);
+    int rc = run_gcc(cfile, out_path, compile_only, debug, wall, wextra, werror, &extra_gcc_args);
     if (rc != 0) {
         fprintf(stderr, "gcc failed (exit %d). Generated C kept at: %s\n", rc, cfile);
         free(cfile);
