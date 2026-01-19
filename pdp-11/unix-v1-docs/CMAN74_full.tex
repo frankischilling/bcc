@@ -1,0 +1,1382 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{enumitem}
+\usepackage{parskip}
+\usepackage{fancyhdr}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{graphicx}
+
+% Code highlighting setup
+\lstset{
+    language=C,
+    basicstyle=\ttfamily\footnotesize,
+    keywordstyle=\color{blue},
+    commentstyle=\color{green!60!black},
+    stringstyle=\color{red},
+    numbers=left,
+    numberstyle=\tiny,
+    frame=single,
+    breaklines=true,
+    showstringspaces=false,
+    backgroundcolor=\color{gray!10}
+}
+
+% Section formatting uses standard LaTeX styles
+
+% Header and footer
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{C Reference Manual (1974)}
+\fancyhead[R]{Dennis M. Ritchie}
+\fancyfoot[C]{\thepage}
+
+\begin{document}
+
+% Title Page
+\begin{titlepage}
+\centering
+\vspace*{2in}
+{\Huge\bfseries C Reference Manual (1974)\par}
+\vspace{1in}
+{\Large Dennis M. Ritchie\par}
+{\Large Bell Laboratories\par}
+{\Large January 15, 1974\par}
+{\Large TM-74-1273-1\par}
+\vspace{2in}
+{\large This document contains the complete transcription of the original C Reference Manual by Dennis M. Ritchie, based on scanned pages of the early C manual from 1974. The manual describes the C programming language as implemented on the Digital Equipment Corporation PDP-11/45 under the UNIX time-sharing system.\par}
+\vspace{0.5in}
+{\large Original source: Bell Laboratories Technical Memorandum 74-1273-1\par}
+\end{titlepage}
+
+% Table of Contents
+\tableofcontents
+\newpage
+
+% Main content begins
+\begin{verbatim}
+2349d952-0a52-4a5d-804a-7551a0a07c4c-0.jpg
+2349d952-0a52-4a5d-804a-7551a0a07c4c-1.jpg
+...
+2349d952-0a52-4a5d-804a-7551a0a07c4c-32.jpg
+\end{verbatim}
+
+Transcription status: Page 1 transcribed. Below are page anchors to paste OCR or hand-transcribed text.
+
+\section{Page 1: Cover Sheet}
+
+\textit{handwritten in upper-left margin: "2+"}
+
+\textbf{Bell Laboratories} \\
+\textbf{Cover Sheet for Technical Memorandum}
+
+The information contained herein is for the use of employees of Bell Laboratories and is not for publication. (See GEI 13.2.3)
+
+\textbf{Title:} C Reference Manual \\
+\textbf{Date:} January 15, 1974
+
+\textbf{TM:} 74-1273-1
+
+\textbf{Other Keywords:} Compiler, Languages
+
+\begin{tabular}{|l|l|l|l|l|}
+\hline
+\textbf{Author} & \textbf{Location} & \textbf{Extension} & \textbf{Charging Case} & \textbf{Filing Case} \\
+\hline
+D.M. Ritchie & MH 2C-517 & 3770 & 39199 & 39199-11 \\
+\hline
+\end{tabular}
+
+\subsection{ABSTRACT}
+
+C is a new computer language designed for both non-numerical and numerical applications. The fundamental types of objects with which it deals are characters, integers, and single- and double-precision numbers, but the language also provides multidimensional arrays, structures containing data of mixed type, and pointers to data of all types.
+
+C is based on an earlier language B, from which it differs mainly in the introduction of the notions of types and of structures. This paper is a reference manual for the original implementation of C on the Digital Equipment Corporation PDP-11/45 under the UNIX time-sharing system. The language is also available on the HIS 6000 and IBM S/370.
+
+\begin{tabular}{|l|l|l|l|}
+\hline
+\textbf{Pages} & \textbf{Text:} 25 & \textbf{Other:} 5 & \textbf{Total:} 30 \\
+\hline
+\textbf{No. Figures:} 0 & \textbf{No. Tables:} 0 & \textbf{No. Refs.:} 6 & \\
+\hline
+\end{tabular}
+
+F-932C (6-73) \\
+\textbf{SEE REVERSE SIDE FOR DISTRIBUTION LIST}
+
+\newpage
+
+\section{Page 2: Distribution List}
+
+\textbf{BELL TELEPHONE LABORATORIES, INC.} \\
+\textbf{TM-74-1273-1}
+
+\subsection{DISTRIBUTION}
+\textit{(REFER GEI 13.3-3)}
+
+\textbf{COMPLETE MEMORANDUM TO} \\
+CORRESPONDENCE FILES
+
+\textbf{OFFICIAL FILE COPY} \\
+PLUS ONE COPY FOR \\
+EACH ADDITIONAL FILING \\
+CASE REFERENCED
+
+\textbf{DATE FILE COPY} \\
+(FORM F-132C)
+
+\textbf{10 REFERENCE COPIES}
+
+\subsubsection{Distribution Recipients (Complete Memorandum):}
+
+\begin{itemize}
+\item AHO, A V
+\item AMBKUSTE, MISS M E
+\item BARTLETT, WADE S
+\item FILLINGTON, MISS M J
+\item PILAN, MRS IRMA B
+\item FOYER, L FAY
+\item FOYE, A W
+\item BROWN, A STANLEY
+\item CHEN, STEPHEN
+\item CHOROW, MARK W
+\item CLAYTON, J P
+\item COOPER, THOMAS H
+\item LEVINE, JERRY L
+\item DAVIS, R L JR
+\item DICKMAN, R J
+\item ELLIS, ALLEN M
+\item FLETCHER, HERBERT I
+\item FRANK, MISS A J
+\item FRANK, H G
+\item TUFFMAN, K GLENN
+\item WEAKY, A
+\item GEYLING, F T
+\item GOLDSTEIN, A JAY
+\item GRAHAM, P L
+\item GROSS, ARTHUR G
+\item HAIGHT, F C
+\item HALL, ANDREW D JR
+\item HAMILTON, PATRICIA
+\item HARDING, K W
+\item HANNA, N P*
+\item HARKNESS, MRS CAROL J
+\item HULMAN, JAMES P
+\item IPPOLITI, O C
+\item IVIE, EVAN L
+\item JESSUP, RICHARD F
+\item JOHNSON, STEPHEN C
+\item KIESP, W M
+\item KERNIGHAN, BRIAN W
+\item LUNEPER, GOTTFRIED W R
+\item MARANZANO, JOSEPH (middle initial unclear)
+\item MC GILL, ROBERT
+\item MC GONEGAL, MISS C A
+\item MC ILROY, M DOUGLAS
+\item McDONALD, H S*
+\item MENNINGER, R E
+\item MILLS, MISS ARLINE L
+\item MORGAN, S P
+\item MORRIS, ROBERT
+\item MIGLIA, PATRICIA M
+\item OSSANNA, J F JR
+\item PERITSKY, MARTIN M
+\end{itemize}
+
+\textbf{COMPLETE MEMORANDUM TO} (continued):
+
+\begin{itemize}
+\item PETERSON, RALPH W
+\item PILLA, MICHAEL A
+\item PINSKY, ELLIOT M
+\item PRIM, ROBERT C*
+\item RALEIGH, THOMAS W
+\item ROBERTS, CHARLES S
+\item RODIHAN, MRS PATRICIA A
+\item RODRIGUEZ, ERNESTO J
+\item ROSLER, LAWRENCE
+\item SEARS, H C
+\item SEMMELMAN, C L
+\item SNYDER, MRS DOROTHEA E
+\item SPANG, THOMAS C
+\item SPIRES, R J
+\item STEVENSON, H P
+\item STROHECKER, CARY A
+\item TERRY, M E
+\item THOMPSON, K
+\item THOMPSON, M-L
+\item TRACY, MRS C E
+\item TUTEMAN, DAVID M
+\item VAN HAUSEN, J DAVID
+\item WALSH, MISS I A
+\item WARNE, JACK I
+\item WASSERMAN, MRS Z
+\item WATSCH, C S
+\item WEBBER, SUSAN A
+\item WEXELPLAT, RICHARD Z
+\item WILSON, DONALD E
+\item WOLFE, ROBERT M
+\item WRIGHT, MS LINDA S
+\item YACOSELLIS, ROBERT E
+\item YAMIN, MRS E E
+\end{itemize}
+
+\textbf{84 NAMES}
+
+\subsection{COVER SHEET ONLY TO}
+\textbf{CORRESPONDENCE FILES} \\
+\textbf{4 COPIES PLUS ONE} \\
+\textbf{COPY FOR EACH FILING} \\
+\textbf{CASE}
+
+\subsubsection{Cover Sheet Recipients:}
+
+\begin{itemize}
+\item ABRAHAM, STUART A
+\item ACKERMAN, A F
+\item AHRENS, RAINER B
+\item ALCALAY, DAVID
+\item ALMQUIST, R P
+\item AMPO, I
+\item ANDERSON, MRS C M
+\item ANDERSON, MS K J
+\item ARMSTRONG, DOUGLAS B
+\item ARNOLD, GEORGE W
+\item ARNOLD, S L
+\item ATAL, P S
+\item AXON, S L
+\item BADURA, DENNIS C
+\item BAKER, B S
+\item BASEIL, RICHARD J
+\item BAUER, MISS H A
+\item BAUGH, C R
+\end{itemize}
+
+\textbf{COVER SHEET ONLY TO} (three-column list):
+
+\begin{itemize}
+\item BECKETT, J T
+\item BERGLAND, G DAVID
+\item BERNSTEIN, LAWRENCE
+\item BEYER, JEAN-DAVID
+\item BICKFORD, N E
+\item BILINSKI, D J
+\item BILOWS, RICHARD M
+\item BIRCHALL, R E
+\item BISHOP, MISS V L
+\item BLIN (spelling unclear), JAMES C
+\item BLUE, J L
+\item BLY, JOSEPH A
+\item BOCKUS, P J
+\item BODEN, P J
+\item BOHACHEVSKY, I O
+\item BONANNI, LORENZO E
+\item BORKIN, S A
+\item BRADLEY, K E
+\item BRANDT, RICHARD E
+\item BREITHAUPT, ALLAN R
+\item BRILLHART, F ROBERT
+\item BROWN, WILLIAM R
+\item BUCHSBAUM, S (middle initial unclear)
+\item BULLEY, RAYMOND W
+\item BURG, J W
+\item BURNETTE, W A
+\item BURROWS, T A
+\item BURR, STEFAN (final initial unclear)
+\item BUTLER, DAVID E
+\item BOWY, D E
+\item CAMPBELL, J E
+\item CAMPBELL, STEPHEN T
+\item CANADAY, (first name/initial unclear) J
+\item CARAWAY, F E
+\item CASPERS, MRS BARBARA E
+\item CASTELLANO, MRS M A
+\item CAVINESS, (given name/initial unclear)
+\item CHAMBERS, J M
+\item CHAMBERS, MRS J C
+\item CHANG, HERBERT Y
+\item CHEN, EDWARD
+\item CHERRY, MS I L
+\item CHRISTIANSON, E D
+\item CHRIST, C W JR
+\item CICON, J P
+\item CLIFFORD, ROBERT M
+\item COBEN, ROBERT M
+\item COHEN, HARVEY
+\item COLEY, J W
+\item COLE, LOUIS N
+\item COLTON, JOHN A
+\item COOK, THOMAS J
+\item COOPER, A E
+\item COSTANTINO, B B
+\item COSTELLO, PETER E
+\item COULTER, J REGINALD
+\item CRAWFORD, J F
+\item CUTLER, C CHAFIN
+\item D ANDREA, MRS LOUISE A
+\item DAVIDSON, CHARLES L
+\item DE LEEUW, C
+\item DETRANO, MRS M K
+\item DEUTSCH, DAVID N
+\item DIMMICK, JAMES O
+\item DIRKSEN, J E
+\item DOLLOTTA, (initial unclear)
+\item DOMPIERRE, J A
+\item DRAKE, A J L
+\item DRISCOLL, PATRICK J
+\item DUDLEY, MRS E H
+\item DUFFY, FRANCIS P
+\item EHLINGER, JAMES C
+\item EIGEN, D
+\item EITELBACH, DAVID L
+\item ELLIOTT, R J
+\item ELY, T C
+\item ERDLE, K A
+\item ESSERMAN, ALAN R
+\item ESTERIK, R G
+\item FABISCH, MICHAEL P
+\item FELDMAN, STUART I
+\item FERGUSON, K
+\item GLIUZZA (spelling unclear), MISS M E
+\item FINUCANE, JOHN J
+\item FISCHER, H B
+\item FLUHR, ZACHARY C
+\item FONG, KENNETH T
+\item FORT, JAMES W
+\item FOUNTOUKIDIS, A
+\item FOWLKES, T B
+\item FOX, PHYLLIS
+\item FOY, J C
+\item FRANK, H G
+\item FRANK, RUDOLPH J
+\item FROST, H BONNELL
+\item FULTON, ALAN W
+\item GABBE, JOHN C
+\item GARCIA, R F
+\item GATES, G K
+\item GAYRON, L J
+\item GAY, FRANCIS A
+\item GEPNER, JAMES R
+\item GIBB, KENNETH R
+\item GILBERT, MRS HINDA S
+\item GILLETTE, DEAN
+\item GIMPEL, JAMES F
+\item GITHENS, JOHN A
+\item GLUCK, F
+\item GNANDESIKAN, R (spelling unclear)
+\item GOGUEN, MS NANCY
+\item GOLABEK, MISS R
+\item GORMAN, JAMES E
+\item GRAMPP, F T
+\item GRAVENAM, R F
+\item GRAYSON, C F JR
+\item GREENBAUM, H J
+\item GREENHALGH, H WAIN
+\item GREENSPAN, S J
+\item GUERRIERO, JOSEPH R
+\item GUNDERMAN, R
+\item GUTSCHERA, K D
+\item HAFER, E H
+\item HALL, MILTON S JR
+\item HALL, H G
+\item HANSEN, R J
+\item HARRISON, NEAL T
+\item HARR, JOHN A (scan damaged)
+\item HARUTA, K
+\item HASS, RONALD J (scan damaged)
+\item HASZ, EDWARD C (scan damaged)
+\item HATHAWAY, MRS J A
+\item HAUSE, A D
+\item HAWKINS, DONALD (final initial unclear)
+\item HEATH, SIDNEY F III
+\item HEID, RICHARD W
+\item HEMMETER, (given name unclear)
+\item HENIG, MRS FRANCES J
+\item HERBST, ROBERT T
+\item HERGENHAN, C B (spelling unclear)
+\item HEFFMAN, KENNETH P (spelling unclear)
+\item HEACOCK, JOHN W (scan damaged)
+\item HESS, WALTER S
+\item HOEHN, MRS MARIE (final initial unclear)
+\item HONIG, L
+\item HOFFERT, J J (spelling unclear)
+\item HORNESKI, THOMAS E (scan damaged)
+\item HOYLE, WILLIAM F
+\item HO, MEI J (scan damaged)
+\item HUDSON, E T
+\item HUMMEL, J J
+\item HUMMEL, CHARLES F (scan damaged)
+\item HYMAN, S
+\item IFFLAND, FREDERICK J
+\item IRVINE, M M
+\item JACKOWSKI, D J
+\item JACOBS, H S
+\item JAMES, DENNIS E (scan damaged)
+\item JARVIS, JOHN F
+\item JENSEN, PAUL D
+\item JESSOP, HARVEY H
+\item JUDICE, CHARLES W
+\item KACHIGAN, PERRY W (scan damaged)
+\item KACHURIAN, JOSEPH (scan damaged)
+\item KAISER, J F
+\item KAPLAN, M M
+\item KAYEL, I G
+\item KEANE, E R
+\item KELLY, L J
+\item KEMP, C (final initial unclear)
+\item KENNEDY, ROBERT A
+\item KERR, S A
+\item KERTZ, DENIS R
+\item KILMER, JOHN C JR
+\item KNOWLTON, KENNETH
+\item KNOTSON, DONALD B (scan damaged)
+\item KNODSON, DEAN O
+\item KORNEGAY, R L
+\item KOSMAN, ROBERT A
+\item KREIDER, DANIEL N
+\item KROPF, PHILIP J
+\item KRUSIAK, JOSEPH E
+\item LAYTON, H J JR
+\item LAYTON, RICHARD L
+\item LEE, DENIS (final initial unclear)
+\item LEGENELUSSEY, S (spelling unclear)
+\item LEHRMAN, WILLIAM
+\item LESK, MICHAEL E
+\item LEWIS, F P
+\item LICHT, J S
+\end{itemize}
+
+... \textbf{395 TOTAL}
+
+* NAMED BY AUTHOR > CITED AS REFERENCE SOURCE
+
+\subsection{MERCURY DISTRIBUTION}
+
+\textbf{COMPLETE MEMO TO:} \\
+127-SUP \\
+CCPPL - COMPUTING/PROGRAMMING LANGUAGES/GENERAL PURPOSE
+
+\textbf{COVER SHEET TO:} \\
+12-TIR   13-CIR   127 \\
+CCPPL - COMPUTING/PROGRAMMING LANGUAGES, PROCESSORS/SURVEY PAPERS ONLY
+
+\subsection{DISTRIBUTION INSTRUCTIONS}
+
+\textbf{TO GET A COMPLETE COPY:} \\
+1. BE SURE YOUR CORRECT ADDRESS IS GIVEN ON THE OTHER SIDE. \\
+2. FOLD THIS SHEET IN HALF WITH THIS SIDE OUT AND STAPLE. \\
+3. CIRCLE THE ADDRESS AT RIGHT. USE NO ENVELOPE.
+
+\textbf{RITCHIE, D. M.} \\
+\textbf{MH 2C-517} \\
+\textbf{TM-74-1273-1} \\
+\textbf{TOTAL PAGES 33}
+
+PLEASE SEND A COMPLETE COPY TO THE ADDRESS SHOWN ON THE \\
+OTHER SIDE. \\
+NO ENVELOPE WILL BE NEEDED IF YOU SIMPLY STAPLE THIS COVER \\
+SHEET TO THE COMPLETE COPY. \\
+IF COPIES ARE NO LONGER AVAILABLE PLEASE FORWARD THIS \\
+REQUEST TO THE CORRESPONDENCE FILES.
+
+\newpage
+
+\section{Page 4: C Reference Manual - Introduction and Lexical Conventions}
+
+\textit{Subject:} C Reference Manual \\
+\textit{handwritten: "file 39199-11" (uncertain)}
+
+\textbf{Bell Laboratories} \\
+\textbf{Date-} January 15, 1974 \\
+\textbf{From-} D. M. Ritchie \\
+\textbf{TM-} 74-1273-1
+
+\subsection{MEMORANDUM FOR FILE}
+
+\section{1. Introduction}
+
+C is a computer language based on the earlier language B [1]. The languages and their compilers differ in two major ways: C introduces the notion of types, and defines appropriate extra syntax and semantics; also, C on the PDP-11 is a true compiler, producing machine code where B produced interpretive code.
+
+Most of the software for the UNIX time-sharing system [2] is written in C, as is the operating system itself. C is also available on the HIS 6070 computer at Murray Hill and on the IBM System/370 at Holmdel [3]. This paper is a manual only for the C language itself as implemented on the PDP-11. However, hints are given occasionally in the text of implementation-dependent features.
+
+The UNIX Programmer's Manual [4] describes the library routines available to C programs under UNIX, and also the procedures for compiling programs under that system. "The GCOS C Library" by Lesk and Barres [5] describes routines available under that system as well as compilation procedures. Many of these routines, particularly the ones having to do with I/O, are also provided under UNIX. Finally, "Programming in C- A Tutorial," by B. W. Kernighan [6], is as useful as promised by its title and the author's previous introductions to allegedly impenetrable subjects.
+
+\section{2. Lexical conventions}
+
+There are six kinds of tokens: identifiers, keywords, constants, strings, expression operators, and other separators. In general blanks, tabs, new-lines, and comments as described below are ignored except as they serve to separate tokens. At least one of these characters is required to separate otherwise adjacent identifiers, constants, and certain operator-pairs.
+
+If the input stream has been parsed into tokens up to a given character, the next token is taken to include the longest string of characters which could possibly constitute a token.
+
+\subsection{2.1 Comments}
+
+The characters /* introduce a comment, which terminates with the characters */.
+
+\subsection{2.2 Identifiers (Names)}
+
+An identifier is a sequence of letters and digits; the first character must be alphabetic. The underscore "\_" counts as alphabetic. Upper and lower case letters are considered different. No more than the first eight characters are significant, and only the first seven for external identifiers.
+
+\subsection{2.3 Keywords}
+
+The following identifiers are reserved for use as keywords, and may not be used otherwise:
+
+\textbf{Data Types and Storage Classes:} \\
+int, char, float, double, struct, auto, extern, register, static, goto, return, sizeof
+
+\textbf{Control Flow:} \\
+break, continue, if, else, for, do, while, switch, case, default, entry
+
+The entry keyword is not currently implemented by any compiler but is reserved for future use.
+
+\section{2.4 Constants}
+
+There are several kinds of constants, as follows:
+
+\subsection{2.4.1 Integer constants}
+
+An integer constant is a sequence of digits. An integer is taken to be octal if it begins with 0, decimal otherwise. The digits 8 and 9 have octal value 10 and 11 respectively.
+
+\subsection{2.4.2 Character constants}
+
+A character constant is 1 or 2 characters enclosed in single quotes '. Within a character constant, a single quote must be preceded by a back-slash \textbackslash '. Certain non-graphic characters, and \textbackslash itself, may be escaped according to the following table:
+
+\begin{tabular}{|l|l|}
+\hline
+\textbf{Escape Sequence} & \textbf{Character} \\
+\hline
+\textbackslash b & BS (backspace) \\
+\hline
+\textbackslash n & NL (newline) \\
+\hline
+\textbackslash r & CR (carriage return) \\
+\hline
+\textbackslash t & HT (horizontal tab) \\
+\hline
+\textbackslash ddd & Character with octal value ddd \\
+\hline
+\textbackslash\textbackslash & Backslash \\
+\hline
+\end{tabular}
+
+The escape \textbackslash ddd consists of the backslash followed by 1, 2, or 3 octal digits which are taken to specify the value of the desired character. A special case of this construction is \textbackslash 0 (not followed by a digit) which indicates a null character.
+
+Character constants behave exactly like integers (not, in particular, like objects of character type). In conformity with the addressing structure of the PDP-11, a character constant of length 1 has the code for the given character in the low-order byte and 0 in the high-order byte; a character constant of length 2 has the code for the first character in the low byte and that for the second character in the high-order byte. Character constants with more than one character are inherently machine-dependent and should be avoided.
+
+\subsection{2.4.3 Floating constants}
+
+A floating constant consists of an integer part, a decimal point, a fraction part, an e, and an optionally signed integer exponent. The integer and fraction parts both consist of a sequence of digits. Either the integer part or the fraction part (not both) may be missing; either the decimal point or the e and the exponent (not both) may be missing. Every floating constant is taken to be double-precision.
+
+\section{2.5 Strings}
+
+A string is a sequence of characters surrounded by double quotes ". A string has the type array-of-characters (see below) and refers to an area of storage initialized with the given characters. The compiler places a null byte (\textbackslash 0) at the end of each string so that programs which scan the string can find its end. In a string, the character " must be preceded by a \textbackslash; in addition, the same escapes as described for character constants may be used.
+
+\newpage
+
+\section{Page 6: Syntax notation, Names, Objects, and Conversions}
+
+\section{3. Syntax notation}
+
+In the syntax notation used in this manual, syntactic categories are indicated by \textit{italic} type, and literal words and characters in gothic. Alternatives are listed on separate lines. An optional terminal or non-terminal symbol is indicated by the subscript "opt," so that
+
+\texttt{\{ expression\textsubscript{opt} \}}
+
+would indicate an optional expression in braces.
+
+\section{4. What's in a Name?}
+
+C bases the interpretation of an identifier upon two attributes of the identifier: its \textit{storage class} and its \textit{type}. The storage class determines the location and lifetime of the storage associated with an identifier; the type determines the meaning of the values found in the identifier's storage.
+
+There are four declarable storage classes: automatic, static, external, and register. Automatic variables are local to each invocation of a function, and are discarded on return; static variables are local to a function, but retain their values independently of invocations of the function; external variables are independent of any function. Register variables are stored in the fast registers of the machine; like automatic variables they are local to each function and disappear on return.
+
+C supports four fundamental types of objects: characters, integers, single-, and double-precision floating-point numbers.
+
+Characters (declared, and hereinafter called, char) are chosen from the ASCII set; they occupy the right-most seven bits of an 8-bit byte. It is also possible to interpret chars as signed, 2's-complement 8-bit numbers.
+
+Integers (int) are represented in 16-bit 2's complement notation.
+
+Single precision floating point (float) quantities have magnitude in the range approximately 10\textsuperscript{-38} or 0; their precision is 24 bits or about seven decimal digits.
+
+Double-precision floating-point (double) quantities have the same range as floats and a precision of 56 bits or about 17 decimal digits.
+
+Besides the four fundamental types there is a conceptually infinite class of derived types constructed from the fundamental types in the following ways:
+
+\begin{itemize}
+\item arrays of objects of most types;
+\item functions which return objects of a given type;
+\item pointers to objects of a given type;
+\item structures containing objects of various types.
+\end{itemize}
+
+In general these methods of constructing objects can be applied recursively.
+
+\section{5. Objects and lvalues}
+
+An object is a manipulatable region of storage; an lvalue is an expression referring to an object. An obvious example of an lvalue expression is an identifier. There are operators which yield lvalues; for example, if E is an expression of pointer type, then *E is an lvalue expression referring to the object to which E points. The name "lvalue" comes from the assignment expression "E1 = E2" in which the left operand E1 must be an lvalue expression. The discussion of each operator below indicates whether it expects lvalue operands and whether it yields an lvalue.
+
+\section{6. Conversions}
+
+A number of operators may, depending on their operands, cause conversion of the value of an operand from one type to another. This section explains the result to be expected from such conversions.
+
+\subsection{6.1 Characters and integers}
+
+A char object may be used anywhere an int may be. In all cases the char is converted to an int by propagating its sign through the upper 8 bits of the resultant integer. This is consistent with the two's complement representation used for both characters and integers. (However, the sign-propagation feature disappears in other implementations.)
+
+\subsection{6.2 Float and double}
+
+All floating arithmetic in C is carried out in double-precision: whenever a float appears in an expression it is lengthened to double by zero-padding its fraction. When a double must be converted to float, for example by an assignment, the double is rounded before truncation to float length.
+
+\subsection{6.3 Float and double: integer and character}
+
+All ints and chars may be converted without loss of significance to float or double. Conversion of float or double to int or char takes place with truncation towards 0. Erroneous results can be expected if the magnitude of the result exceeds 32,767 (for int) or 127 (for char).
+
+\subsection{6.4 Pointers and integers}
+
+Integers and pointers may be added and compared; in such a case the int is converted as specified in the discussion of the addition operator. Two pointers to objects of the same type may be subtracted; in this case the result is converted to an integer as specified in the discussion of the subtraction operator.
+
+\section{7. Expressions}
+
+The precedence of expression operators is the same as the order of the major subsections of this section (highest precedence first). Thus the expressions referred to as the operands of + (§7.4) are those expressions defined in §§7.1—7.3. Within each subsection, the operators have the same precedence. Left- or right-associativity is specified in each subsection for the operators discussed therein. The precedence and associativity of all the expression operators is summarized in an appendix.
+
+Otherwise the order of evaluation of expressions is undefined. In particular the compiler considers itself free to compute subexpressions in the order it believes most efficient, even if the subexpressions involve side effects.
+
+\subsection{7.1 Primary expressions}
+
+Primary expressions involving ., ->, subscripting, and function calls group left to right.
+
+\subsubsection{7.1.1 identifier}
+
+An identifier is a primary expression, provided it has been suitably declared as discussed below. Its type is specified by its declaration. However, if the type of the identifier is "array of ...", then the value of the identifier-expression is a pointer to the first object in the array, and the type of the expression is "pointer to ...". Moreover, an array identifier is not an lvalue expression.
+
+Likewise, an identifier which is declared "function returning ...", when used except in the function-name position of a call, is converted to "pointer to function returning ...".
+
+\subsubsection{7.1.2 constant}
+
+A decimal, octal, character, or floating constant is a primary expression. Its type is int in the first three cases, double in the last.
+
+\subsubsection{7.1.3 string}
+
+A string is a primary expression. Its type is originally "array of char"; but following the same rule as in §7.1.1 for identifiers, this is modified to "pointer to char" and the result is a pointer to the first character in the string.
+
+\subsubsection{7.1.4 ( expression )}
+
+A parenthesized expression is a primary expression whose type and value are identical to those of the unadorned expression. The presence of parentheses does not affect whether the expression is an lvalue.
+
+\subsubsection{7.1.5 *primary-expression* [ expression ]}
+
+A primary expression followed by an expression in square brackets is a primary expression. The intuitive meaning is that of a subscript. Usually, the primary expression has type "pointer to ...", the subscript expression is int, and the type of the result is "...". The expression "E1[E2]" is identical (by definition) to "*(E1)+(E2)". All the clues needed to understand this notation are contained in this section together with the discussions in §§ 7.1.1, 7.2.1, and 7.4.1 on identifiers, *, and + respectively; §14.3 below summarizes the implications.
+
+\subsubsection{7.1.6 *primary-expression* ( expression-list\textsubscript{opt} )}
+
+A function call is a primary expression followed by parentheses containing a possibly empty, comma-separated list of expressions which constitute the actual arguments to the function. The primary expression must be of type "function returning ...", and the result of the function call is of type "...".
+
+As indicated below, a hitherto unseen identifier followed immediately by a left parenthesis is contextually declared to represent a function returning an integer; thus in the most common case integer-valued functions need not be declared.
+
+Any actual arguments of type float are converted to double before the call; any of type char are converted to int.
+
+In preparing for the call to a function, a copy is made of each actual parameter; thus, all argument-passing in C is strictly by value. A function may change the values of its formal parameters, but these changes cannot possibly affect the values of the actual parameters. On the other hand, it is perfectly possible to pass a pointer on the understanding that the function may change the value of the object to which the pointer points.
+
+Recursive calls to any function are permissible.
+
+\subsubsection{7.1.7 *primary-lvalue* . *member-of-structure*}
+
+An lvalue expression followed by a dot followed by the name of a member of a structure is a primary expression. The object referred to by the lvalue is assumed to have the same form as the structure containing the structure member. The result of the expression is an lvalue appropriately offset from the origin of the given lvalue whose type is that of the named structure member. The given lvalue is not required to have any particular type.
+
+Structures are discussed in §8.5.
+
+\subsubsection{7.1.8 *primary-expression* -> *member-of-structure*}
+
+The primary-expression is assumed to be a pointer which points to an object of the same form as the structure of which the member-of-structure is a part. The result is an lvalue appropriately offset from the origin of the pointed-to structure whose type is that of the named structure member. The type of the primary-expression need not in fact be pointer; it is sufficient that it be a pointer, character, or integer.
+
+Except for the relaxation of the requirement that E1 be of pointer type, the expression "E1->MOS" is exactly equivalent to "(*E1).MOS".
+
+\subsection{7.2 Unary operators}
+
+Expressions with unary operators group right-to-left.
+
+\subsubsection{7.2.1 * expression}
+
+The unary * operator means \textit{indirection}: the expression must be a pointer, and the result is an lvalue referring to the object to which the expression points. If the type of the expression is "pointer to ...", the type of the result is "...".
+
+\subsubsection{7.2.2 \& lvalue-expression}
+
+The result of the unary \& operator is a pointer to the object referred to by the lvalue-expression. If the type of the lvalue-expression is "...", the type of the result is "pointer to ...".
+
+\subsubsection{7.2.3 - expression}
+
+The result is the negative of the expression, and has the same type. The type of the expression must be char, int, float, or double.
+
+\subsubsection{7.2.4 ! expression}
+
+The result of the logical negation operator ! is 1 if the value of the expression is 0, 0 if the value of the expression is non-zero. The type of the result is int. This operator is applicable only to ints or chars.
+
+\subsubsection{7.2.5 \textasciitilde expression}
+
+The \textasciitilde operator yields the one's complement of its operand. The type of the expression must be int or char, and the result is int.
+
+\subsubsection{7.2.6 ++ lvalue-expression}
+
+The object referred to by the lvalue expression is incremented. The value is the new value of the lvalue expression and the type is the type of the lvalue. If the expression is int or char, it is incremented by 1; if it is a pointer to an object, it is incremented by the length of the object. ++ is applicable only to these types. (Not, for example, to float or double.)
+
+\subsubsection{7.2.7 -- lvalue-expression}
+
+The object referred to by the lvalue expression is decremented analogously to the ++ operator.
+
+\subsubsection{7.2.8 lvalue-expression ++}
+
+The result is the value of the object referred to by the lvalue expression. After the result is noted the object referred to by the lvalue is incremented in the same manner as for the prefix ++ operator: by 1 for an int or char, by the length of the pointed-to object for a pointer. The type of the result is the same as the type of the lvalue-expression.
+
+\subsubsection{7.2.9 lvalue-expression --}
+
+The result of the expression is the value of the object referred to by the lvalue expression. After the result is noted, the object referred to by the lvalue expression is decremented in a way analogous to the postfix ++ operator.
+
+\subsubsection{7.2.10 sizeof expression}
+
+The sizeof operator yields the size, in bytes, of its operand. When applied to an array, the result is the total number of bytes in the array. The size is determined from the declarations of the objects in the expression. This expression is semantically an integer constant and may be used anywhere a constant is required. Its major use is in communication with routines like storage allocators and I/O systems.
+
+\subsection{7.3 Multiplicative operators}
+
+The multiplicative operators *, /, and \% group left-to-right.
+
+\subsubsection{7.3.1 expression * expression}
+
+The binary * operator indicates multiplication. If both operands are int or char, the result is int; if one is int or char and one float or double, the former is converted to double and the result is double; if both are float or double, the result is double. No other combinations are allowed.
+
+\subsubsection{7.3.2 expression / expression}
+
+The binary / operator indicates division. The same type considerations as for multiplication apply.
+
+\subsubsection{7.3.3 expression \% expression}
+
+The binary \% operator yields the remainder from the division of the first expression by the second. Both operands must be int or char, and the result is int. In the current implementation, the remainder has the same sign as the dividend.
+
+\subsection{7.4 Additive operators}
+
+The additive operators + and - group left-to-right.
+
+\subsubsection{7.4.1 expression + expression}
+
+The result is the sum of the expressions. If both operands are int or char, the result is int. If both are float or double, the result is double. If one is char or int and one is float or double, the former is converted to double and the result is double. If an int or char is added to a pointer, the former is converted by multiplying it by the length of the object to which the pointer points and the result is a pointer of the same type as the original pointer. Thus if P is a pointer to an object, the expression "P+1" is a pointer to another object of the same type as the first and immediately following it in storage.
+
+No other type combinations are allowed.
+
+\subsubsection{7.4.2 expression - expression}
+
+The result is the difference of the operands. If both operands are int, char, float, or double, the same-type considerations as for + apply. If an int or char is subtracted from a pointer, the former is converted in the same way as explained under + above.
+
+If two pointers to objects of the same type are subtracted, the result is converted (by division by the length of the object) to an int representing the number of objects separating the pointed-to objects. This conversion will in general give unexpected results unless the pointers point to objects in the same array, since pointers, even to objects of the same type, do not necessarily differ by a multiple of the object-length.
+
+\subsection{7.5 Shift operators}
+
+The shift operators << and >> group left-to-right.
+
+\subsubsection{7.5.1 expression << expression}
+
+\subsubsection{7.5.2 expression >> expression}
+
+Both operands must be int or char, and the result is int. The second operand should be non-negative. The value of "E1<<E2" is E1 (interpreted as a bit pattern 16 bits long) left-shifted E2 bits; vacated bits are 0-filled. The value of "E1>>E2" is E1 (interpreted as a two's complement, 16-bit quantity) arithmetically right-shifted E2 bit positions. Vacated bits are filled by a copy of the sign bit of E1. [Note: the use of arithmetic rather than logical shift does not survive transportation between machines.]
+
+\subsection{7.6 Relational operators}
+
+The relational operators group left-to-right, but this fact is not very useful; "a<b<c" does not mean what it seems to.
+
+\subsubsection{7.6.1 expression < expression}
+
+\subsubsection{7.6.2 expression > expression}
+
+\subsubsection{7.6.3 expression <= expression}
+
+\subsubsection{7.6.4 expression >= expression}
+
+The operators < (less than), > (greater than), <= (less than or equal to) and >= (greater than or equal to) all yield 0 if the specified relation is false and 1 if it is true. Operand conversion is exactly the same as for the - operator except that pointers of any kind may be compared; the result in this case depends on the relative locations in storage of the pointed-to objects. It does not seem to be very meaningful to compare pointers with integers other than 0.
+
+\subsection{7.7 Equality operators}
+
+\subsubsection{7.7.1 expression == expression}
+
+\subsubsection{7.7.2 expression != expression}
+
+The == (equal to) and the != (not equal to) operators are exactly analogous to the relational operators except for their lower precedence. (Thus "a<b == c<d" is 1 whenever a<b and c<d have the same truth-value).
+
+\subsubsection{7.8 expression \& expression}
+
+The \& operator groups left-to-right. Both operands must be int or char; the result is an int which is the bit-wise logical and function of the operands.
+
+\subsubsection{7.9 expression \textasciicircum expression}
+
+The \textasciicircum operator groups left-to-right. The operands must be int or char; the result is an int which is the bit-wise exclusive or function of its operands.
+
+\subsubsection{7.10 expression | expression}
+
+The | operator groups left-to-right. Both operands must be int or char; the result is an int which is the bit-wise inclusive or of its operands.
+
+\subsubsection{7.11 expression \&\& expression}
+
+The \&\& operator returns 1 if both its operands are non-zero, 0 otherwise. Unlike \&, \&\& guarantees left-to-right evaluation; moreover the second operand is not evaluated if the first operand is 0. The operands need not have the same type, but each must have one of the fundamental types or be a pointer.
+
+\subsubsection{7.12 expression || expression}
+
+The || operator returns 1 if either of its operands is non-zero, and 0 otherwise. Unlike |, || guarantees left-to-right evaluation; moreover, the second operand is not evaluated if the value of the first operand is non-zero. The operands need not have the same type, but each must have one of the fundamental types or be a pointer.
+
+\subsubsection{7.13 expression ? expression : expression}
+
+Conditional expressions group left-to-right. The first expression is evaluated and if it is non-zero, the result is the value of the second expression, otherwise that of third expression. If the types of the second and third operand are the same, the result has their common type; otherwise the same conversion rules as for + apply. Only one of the second and third expressions is evaluated.
+
+\subsection{7.14 Assignment operators}
+
+There are a number of assignment operators, all of which group right-to-left. All require an lvalue as their left operand, and the type of an assignment expression is that of its left operand. The value is the value stored in the left operand after the assignment has taken place.
+
+\subsubsection{7.14.1 lvalue = expression}
+
+The value of the expression replaces that of the object referred to by the lvalue. The operands need not have the same type, but both must be int, char, float, double, or pointer. If neither operand is a pointer, the assignment takes place as expected, possibly preceded by conversion of the expression on the right.
+
+When both operands are int or pointers of any kind, no conversion ever takes place; the value of the expression is simply stored into the object referred to by the lvalue. Thus it is possible to generate pointers which will cause addressing exceptions when used.
+
+\subsubsection{7.14.2 lvalue =+ expression}
+
+\subsubsection{7.14.3 lvalue =- expression}
+
+\subsubsection{7.14.4 lvalue =* expression}
+
+\subsubsection{7.14.5 lvalue =/ expression}
+
+\subsubsection{7.14.6 lvalue =\% expression}
+
+\subsubsection{7.14.7 lvalue =>> expression}
+
+\subsubsection{7.14.8 lvalue =<< expression}
+
+\subsubsection{7.14.9 lvalue =\& expression}
+
+\subsubsection{7.14.10 lvalue =| expression}
+
+\subsubsection{7.14.11 lvalue =$\hat{}$ expression}
+
+The behavior of an expression of the form "E1 =op E2" may be inferred by taking it as equivalent to "E1 = E1 op E2"; however, E1 is evaluated only once. Moreover, expressions like "i =+ p" in which a pointer is added to an integer, are forbidden.
+
+\subsection{7.15 expression , expression}
+
+A pair of expressions separated by a comma is evaluated left-to-right and the value of the left expression is discarded. The type and value of the result are the type and value of the right operand. This operator groups left-to-right. It should be avoided in situations where comma is given a special meaning, for example in actual arguments to function calls (§7.1.6) and lists of initializers (§10.2).
+
+\newpage
+
+\section{8. Declarations}
+
+Declarations are used within function definitions to specify the interpretation which C gives to each identifier; they do not necessarily reserve storage associated with the identifier. Declarations have the form
+
+\begin{verbatim}
+declaration:
+     decl-specifiers declarator-list_opt ;
+\end{verbatim}
+
+The declarators in the declarator-list contain the identifiers being declared. The decl-specifiers consist of at most one type-specifier and at most one storage class specifier.
+
+\begin{verbatim}
+decl-specifiers:
+     type-specifier
+     sc-specifier
+     type-specifier sc-specifier
+     sc-specifier type-specifier
+\end{verbatim}
+
+\subsection{8.1 Storage class specifiers}
+
+The sc-specifiers are:
+
+\begin{verbatim}
+sc-specifier:
+     auto
+     static
+     extern
+     register
+\end{verbatim}
+
+The auto, static, and register declarations also serve as definitions in that they cause an appropriate amount of storage to be reserved. In the extern case there must be an external definition for the given identifiers somewhere outside the function in which they are declared.
+
+There are some severe restrictions on register identifiers; there can be at most 3 register identifiers in any function, and the type of a register identifier can only be int, char, or pointer (not float, double, structure, function, or array). Also the address-of operator \& cannot be applied to such identifiers. Except for these restrictions (in return for which one is rewarded with faster, smaller code), register identifiers behave as if they were automatic. In fact implementations of C are free to treat register as synonymous with auto.
+
+If the sc-specifier is missing from a declaration, it is generally taken to be auto.
+
+\subsection{8.2 Type specifiers}
+
+The type-specifiers are
+
+\begin{verbatim}
+type-specifier:
+     int
+     char
+     float
+     double
+     struct { type-decl-list }
+     struct identifier { type-decl-list }
+     struct identifier
+\end{verbatim}
+
+The struct specifier is discussed in §8.5. If the type-specifier is missing from a declaration, it is generally taken to be int.
+
+\subsection{8.3 Declarators}
+
+The declarator-list appearing in a declaration is a comma-separated sequence of declarators.
+
+\begin{verbatim}
+declarator-list:
+     declarator
+     declarator , declarator-list
+\end{verbatim}
+
+The specifiers in the declaration indicate the type and storage class of the objects to which the declarators refer. Declarators have the syntax:
+
+\begin{verbatim}
+declarator:
+     identifier
+     * declarator
+     declarator ( )
+     declarator [ constant-expression ]
+     ( declarator )
+\end{verbatim}
+
+The grouping in this definition is the same as in expressions.
+
+\subsection{8.4 Meaning of declarators}
+
+Each declarator is taken to be an assertion that when a construction of the same form as the declarator appears in an expression, it yields an object of the indicated type and storage class. Each declarator contains exactly one identifier; it is this identifier that is declared.
+
+If an unadorned identifier appears as a declarator, then it has the type indicated by the specifier heading the declaration.
+
+If a declarator has the form
+
+\begin{verbatim}
+* D
+\end{verbatim}
+
+for D a declarator, then the contained identifier has the type "pointer to ...", where "..." is the type which the identifier would have had if the declarator had been simply D.
+
+If a declarator has the form
+
+\begin{verbatim}
+D ( )
+\end{verbatim}
+
+then the contained identifier has the type "function returning ...", where "..." is the type which the identifier would have had if the declarator had been simply D.
+
+A declarator may have the form
+
+\begin{verbatim}
+D[constant-expression]
+\end{verbatim}
+
+or
+
+\begin{verbatim}
+D[ ]
+\end{verbatim}
+
+In the first case the constant expression is an expression whose value is determinable at compile time, and whose type is int. In the second the constant 1 is used: (Constant expressions are defined precisely in §15.) Such a declarator makes the contained identifier have type "array." If the unadorned declarator D would specify a non-array of type "...", then the declarator "D[i]" yields a 1-dimensional array with rank i of objects of type "...". If the unadorned declarator D would specify an n-dimensional array with rank $i_1 \times i_2 \times \dots \times i_n$, then the declarator "D[$i_{n+1}$]" yields an (n+1)-dimensional array with rank $i_1 \times i_2 \times \dots \times i_n \times i_{n+1}$.
+
+An array may be constructed from one of the basic types, from a pointer, from a structure, or from another array (to generate a multi-dimensional array).
+
+Finally, parentheses in declarators do not alter the type of the contained identifier except insofar as they alter the binding of the components of the declarator.
+
+Not all the possibilities allowed by the syntax above are actually permitted. The restrictions are as follows: functions may not return arrays, structures or functions, although they may return pointers to such things; there are no arrays of functions, although there may be arrays of pointers to functions. Likewise a structure may not contain a function, but it may contain a pointer to a function.
+
+As an example, the declaration
+
+\begin{verbatim}
+int i, *ip, f( ), *fp( ), (*pf)( );
+\end{verbatim}
+
+declares an integer i, a pointer ip to an integer, a function f returning an integer, a function fp returning a pointer to an integer, and a pointer pf to a function which returns an integer. Also
+
+\begin{verbatim}
+float fa[17], *afp[17];
+\end{verbatim}
+
+declares an array of float numbers and an array of pointers to float numbers. Finally,
+
+\begin{verbatim}
+static int x3d[3][5][7];
+\end{verbatim}
+
+declares a static three-dimensional array of integers, with rank 3×5×7. In complete detail, x3d is an array of three items; each item is an array of five arrays; each of the latter arrays is an array of seven integers. Any of the expressions "x3d", "x3d[i]", "x3d[i][j]", "x3d[i][j][k]" may reasonably appear in an expression. The first three have type "array", the last has type int.
+
+\subsection{8.5 Structure declarations}
+
+Recall that one of the forms for a structure specifier is
+
+\begin{verbatim}
+struct { type-decl-list }
+\end{verbatim}
+
+The type-decl-list is a sequence of type declarations for the members of the structure:
+
+\begin{verbatim}
+type-decl-list:
+     type-declaration
+     type-declaration type-decl-list
+\end{verbatim}
+
+A type declaration is just a declaration which does not mention a storage class (the storage class "member of structure" here being understood by context).
+
+\begin{verbatim}
+type-declaration:
+     type-specifier declarator-list ;
+\end{verbatim}
+
+Within the structure, the objects declared have addresses which increase as their declarations are read left-to-right. Each component of a structure begins on an addressing boundary appropriate to its type. On the PDP-11 the only requirement is that non-characters begin on a word boundary; therefore, there may be 1-byte, unnamed holes in a structure, and all structures have an even length in bytes.
+
+Another form of structure specifier is
+
+\begin{verbatim}
+struct identifier { type-decl-list }
+\end{verbatim}
+
+This form is the same as the one just discussed, except that the identifier is remembered as the structure tag of the structure specified by the list. A subsequent declaration may then be given using the structure tag but without the list, as in the third form of structure specifier:
+
+\begin{verbatim}
+struct identifier
+\end{verbatim}
+
+Structure tags allow definition of self-referential structures; they also permit the long part of the declaration to be given once and used several times. It is however absurd to declare a structure which contains an instance of itself, as distinct from a pointer to an instance of itself.
+
+A simple example of a structure declaration, taken from §16.2 where its use is illustrated more fully, is
+
+\begin{lstlisting}[language=C]
+struct tnode {
+    char tword[20];
+    int count;
+    struct tnode *left;
+    struct tnode *right;
+};
+\end{lstlisting}
+
+which contains an array of 20 characters, an integer, and two pointers to similar structures. Once this declaration has been given, the following declaration makes sense:
+
+\begin{lstlisting}[language=C]
+struct tnode s, *sp;
+\end{lstlisting}
+
+which declares s to be a structure of the given sort and sp to be a pointer to a structure of the given sort.
+
+The name of structure members and structure tags may be the same as ordinary variables, since a distinction can be made by context. However, names of tags and members must be distinct. The same member name can appear in different structures only if the two members are of the same type and if their origin with respect to their structure is the same; thus separate structures can share a common initial segment.
+
+\newpage
+
+\section{10. External definitions}
+
+A C program consists of a sequence of external definitions. External definitions may be given for functions, for simple variables, and for arrays. They are used both to declare and to reserve storage for objects. An external definition declares an identifier to have storage class extern and a specified type. The type-specifier (§8.2) may be empty, in which case the type is taken to be int.
+
+\subsection{10.1 External function definitions}
+
+Function definitions have the form
+
+\begin{verbatim}
+function-definition:
+     type-specifier_opt function-declarator function-body
+\end{verbatim}
+
+A function declarator is similar to a declarator for a "function returning --" except that it lists the formal parameters of the function being defined.
+
+\begin{verbatim}
+function-declarator:
+     declarator ( parameter-list_opt )
+
+parameter-list:
+     identifier
+     identifier , parameter-list
+\end{verbatim}
+
+The function-body has the form
+
+\begin{verbatim}
+function-body:
+     type-decl-list function-statement
+\end{verbatim}
+
+The purpose of the type-decl-list is to give the types of the formal parameters. No other identifiers should be declared in this list, and formal parameters should be declared only here.
+
+The function-statement is just a compound statement which may have declarations at the start.
+
+\begin{verbatim}
+function-statement:
+     { declaration-list_opt statement-list }
+\end{verbatim}
+
+A simple example of a complete function definition is
+
+\begin{lstlisting}[language=C]
+int max(a, b, c)
+int a, b, c;
+{
+    int m;
+    m = (a > b)? a : b;
+    return(m > c? m : c);
+}
+\end{lstlisting}
+
+Here "int" is the type-specifier; "max(a, b, c)" is the function-declarator; "int a, b, c;" is the type-decl-list for the formal parameters; "\{ ... \}" is the function-statement.
+
+C converts all float actual parameters to double, so formal parameters declared float have their declaration adjusted to read double. Also, since a reference to an array in any context (in particular as an actual parameter) is taken to mean a pointer to the first element of the array, declarations of formal parameters declared "array of ..." are adjusted to read "pointer to ...". Finally, because neither structures nor functions can be passed to a function, it is useless to declare a formal parameter to be a structure or function (pointers to structures or functions are of course permitted).
+
+A free return statement is supplied at the end of each function definition, so running off the end causes control, but no value, to be returned to the caller.
+
+\subsection{10.2 External data definitions}
+
+An external data definition has the form
+
+\begin{verbatim}
+data-definition:
+     extern_opt type-specifier_opt init-declarator-list_opt ;
+\end{verbatim}
+
+The optional extern specifier is discussed in §11.2. If given, the init-declarator-list is a comma-separated list of declarators each of which may be followed by an initializer for the declarator.
+
+\begin{verbatim}
+init-declarator-list:
+     init-declarator
+     init-declarator , init-declarator-list
+
+init-declarator:
+     declarator initializer_opt
+\end{verbatim}
+
+Each initializer represents the initial value for the corresponding object being defined (and declared).
+
+\begin{verbatim}
+initializer:
+     constant
+     { constant-expression-list }
+
+constant-expression-list:
+     constant-expression
+     constant-expression , constant-expression-list
+\end{verbatim}
+
+Thus an initializer consists of a constant-valued expression, or comma-separated list of expressions, inside braces. The braces may be dropped when the expression is just a plain constant. The exact meaning of a constant expression is discussed in §15. The expression list is used to initialize arrays; see below.
+
+The type of the identifier being defined should be compatible with the type of the initializer: a double constant may initialize a float or double identifier; a non-floating-point expression may initialize an int, char, or pointer.
+
+An initializer for an array may contain a comma-separated list of compile-time expressions. The length of the array is taken to be the maximum of the number of expressions in the list and the square-bracketed constant in the array's declarator. This constant may be missing, in which case 1 is used. The expressions initialize successive members of the array starting at the origin (subscript 0) of the array. The acceptable expressions for an array of type "array of ..." are the same as those for type "...". As a special case, a single string may be given as the initializer for an array of chars; in this case, the characters in the string are taken as the initializing values.
+
+Structures can be initialized, but this operation is incompletely implemented and machine-dependent. Basically the structure is regarded as a sequence of words and the initializers are placed into those words. Structure initialization, using a comma-separated list in braces, is safe if all the members of the structure are integers or pointers but is otherwise ill-advised.
+
+The initial value of any externally-defined object not explicitly initialized is guaranteed to be 0.
+
+\newpage
+
+% Add references section
+\section{References}
+
+\begin{enumerate}
+\item Johnson, S. C., and Kernighan, B. W. "The Programming Language B." Comp. Sci. Tech. Rep. \#8., Bell Laboratories, 1972.
+
+\item Ritchie, D. M., and Thompson, K. L. "The UNIX Time-sharing System." C. ACM 7, 17, July, 1974, pp. 365-375.
+
+\item Peterson, T. G., and Lesk, M. E. "A User's Guide to the C Language on the IBM 370." Internal Memorandum, Bell Laboratories, 1974.
+
+\item Thompson, K. L., and Ritchie, D. M. UNIX Programmer's Manual. Bell Laboratories, 1972.
+
+\item Lesk, M. E., and Barres, B. A. "The GCOS C Library." Internal memorandum, Bell Laboratories, 1974.
+
+\item Kernighan, B. W. "Programming in C- A Tutorial." Unpublished internal memorandum, Bell Laboratories, 1974.
+\end{enumerate}
+
+% Add complete grammar appendix
+\appendix
+\section{Appendix 1: Syntax Summary}
+
+\subsection{1. Expressions}
+
+\begin{verbatim}
+expression:
+     primary
+     * expression
+     & expression
+     - expression
+     ! expression
+     ~ expression
+     ++ lvalue
+     -- lvalue
+     lvalue ++
+     lvalue --
+     sizeof expression
+     expression binop expression
+     expression ? expression : expression
+     lvalue asgnop expression
+     expression , expression
+
+primary:
+     identifier
+     constant
+     string
+     ( expression )
+     primary ( expression-list_opt )
+     primary [ expression ]
+     lvalue . identifier
+     primary -> identifier
+
+lvalue:
+     identifier
+     primary [ expression ]
+     lvalue . identifier
+     primary -> identifier
+     * expression
+     ( lvalue )
+\end{verbatim}
+
+The primary-expression operators () [] . -> have highest priority and group left-to-right. The unary operators \& - ! \textasciitilde\ ++ -- sizeof have priority below the primary operators but higher than any binary operator, and group right-to-left. Binary operators and the conditional operator all group left-to-right, and have priority decreasing as indicated:
+
+\begin{verbatim}
+binop:
+     * /  %
+     +  -
+     >>  <<
+     <  >  <=  >=
+     ==  !=
+     &
+     ^
+     |
+     &&
+     ||
+     ? :
+\end{verbatim}
+
+Assignment operators all have the same priority, and all group right-to-left.
+
+\begin{verbatim}
+asgnop:
+     =  =+  =-  =* =/  =%  =>>  =<<  =&  =^  =|
+\end{verbatim}
+
+The comma operator has the lowest priority, and groups left-to-right.
+
+\subsection{2. Declarations}
+
+\begin{verbatim}
+declaration:
+     decl-specifiers declarator-list_opt ;
+
+decl-specifiers:
+     type-specifier
+     sc-specifier
+     type-specifier sc-specifier
+     sc-specifier type-specifier
+
+sc-specifier:
+     auto
+     static
+     extern
+     register
+
+type-specifier:
+     int
+     char
+     float
+     double
+     struct { type-decl-list }
+     struct identifier { type-decl-list }
+     struct identifier
+
+declarator-list:
+     declarator
+     declarator , declarator-list
+
+declarator:
+     identifier
+     * declarator
+     declarator ( )
+     declarator [ constant-expression_opt ]
+     ( declarator )
+
+type-decl-list:
+     type-declaration
+     type-declaration type-decl-list
+
+type-declaration:
+     type-specifier declarator-list ;
+\end{verbatim}
+
+\subsection{3. Statements}
+
+\begin{verbatim}
+statement:
+     expression ;
+     { statement-list }
+     if ( expression ) statement
+     if ( expression ) statement else statement
+     while ( expression ) statement
+     for ( expression_opt ; expression_opt ; expression_opt ) statement
+     switch ( expression ) statement
+     case constant-expression : statement
+     default : statement
+     break ;
+     continue ;
+     return ;
+     return ( expression ) ;
+     goto expression ;
+     identifier : statement
+     ;
+
+statement-list:
+     statement
+     statement statement-list
+\end{verbatim}
+
+\subsection{4. External definitions}
+
+\begin{verbatim}
+program:
+     external-definition
+     external-definition program
+
+external-definition:
+     function-definition
+     data-definition
+
+function-definition:
+     type-specifier_opt function-declarator function-body
+
+function-declarator:
+     declarator ( parameter-list_opt )
+
+parameter-list:
+     identifier
+     identifier , parameter-list
+
+function-body:
+     type-decl-list function-statement
+
+function-statement:
+     { declaration-list_opt statement-list }
+
+data-definition:
+     extern_opt type-specifier_opt init-declarator-list_opt ;
+
+init-declarator-list:
+     init-declarator
+     init-declarator , init-declarator-list
+
+init-declarator:
+     declarator initializer_opt
+
+initializer:
+     constant
+     { constant-expression-list }
+
+constant-expression-list:
+     constant-expression
+     constant-expression , constant-expression-list
+
+constant-expression:
+     expression
+\end{verbatim}
+
+\subsection{5. Preprocessor}
+
+\begin{verbatim}
+# define identifier token-string
+# include "filename"
+\end{verbatim}
+
+\end{document}
