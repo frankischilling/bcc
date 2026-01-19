@@ -1828,31 +1828,377 @@ struct tnode *alloc( )
     return(spacep++);
 }
 
-/*
+/* The uncalled routine which puts a node on the free list. */
+free(p)
+struct tnode *p;
+{
+    p->left = freep;
+    freep = p;
+}
+
+To illustrate a slightly different technique of handling the same problem, we will repeat fragments of this example with the tree nodes treated explicitly as members of an array. The fundamental change is to deal with the subscript of the array member under discussion, instead of a pointer to it. The struct declaration becomes
+
+```c
+struct tnode {
+    char tword[wsize];
+    int count;
+    int left;
+    int right;
+};
 ```
 
----
+and alloc becomes
 
-## Remaining Pages
+```c
+alloc()
+{
+    int t;
 
-## Remaining Pages
-- Page 14: `2349d952-0a52-4a5d-804a-7551a0a07c4c-13.jpg`
-- Page 15: `2349d952-0a52-4a5d-804a-7551a0a07c4c-14.jpg`
-- Page 16: `2349d952-0a52-4a5d-804a-7551a0a07c4c-15.jpg`
-- Page 17: `2349d952-0a52-4a5d-804a-7551a0a07c4c-16.jpg`
-- Page 18: `2349d952-0a52-4a5d-804a-7551a0a07c4c-17.jpg`
-- Page 19: `2349d952-0a52-4a5d-804a-7551a0a07c4c-18.jpg`
-- Page 20: `2349d952-0a52-4a5d-804a-7551a0a07c4c-19.jpg`
-- Page 21: `2349d952-0a52-4a5d-804a-7551a0a07c4c-20.jpg`
-- Page 22: `2349d952-0a52-4a5d-804a-7551a0a07c4c-21.jpg`
-- Page 23: `2349d952-0a52-4a5d-804a-7551a0a07c4c-22.jpg`
-- Page 24: `2349d952-0a52-4a5d-804a-7551a0a07c4c-23.jpg`
-- Page 25: `2349d952-0a52-4a5d-804a-7551a0a07c4c-24.jpg`
-- Page 26: `2349d952-0a52-4a5d-804a-7551a0a07c4c-25.jpg`
-- Page 27: `2349d952-0a52-4a5d-804a-7551a0a07c4c-26.jpg`
-- Page 28: `2349d952-0a52-4a5d-804a-7551a0a07c4c-27.jpg`
-- Page 29: `2349d952-0a52-4a5d-804a-7551a0a07c4c-28.jpg`
-- Page 30: `2349d952-0a52-4a5d-804a-7551a0a07c4c-29.jpg`
-- Page 31: `2349d952-0a52-4a5d-804a-7551a0a07c4c-30.jpg`
-- Page 32: `2349d952-0a52-4a5d-804a-7551a0a07c4c-31.jpg`
-- Page 33: `2349d952-0a52-4a5d-804a-7551a0a07c4c-32.jpg`
+    t = --nnodes;
+    if (t<=0) {
+        printf("Out of space\n");
+        exit();
+    }
+    return(t);
+}
+```
+
+The free stuff has disappeared because if we deal with exclusively with subscripts some sort of map has to be kept, which is too much trouble.
+
+Now the tree routine returns a subscript also, and it becomes:
+
+```c
+tree(p, word)
+char word[];
+{
+    int cond;
+
+    if (p==0) {
+        p = alloc();
+        copy(word, space[p].tword);
+        space[p].count = 1;
+        space[p].right = space[p].left = 0;
+        return(p);
+    }
+    if ((cond=compar(space[p].tword, word)) == 0) {
+        space[p].count++;
+        return(p);
+    }
+    if (cond<0)
+        space[p].left = tree(space[p].left, word);
+    else
+        space[p].right = tree(space[p].right, word);
+    return(p);
+}
+```
+
+The other routines are changed similarly. It must be pointed out that this version is noticeably less efficient than the first because of the multiplications which must be done to compute an offset in space corresponding to the subscripts.
+
+The observation that subscripts (like "a[i]") are less efficient than pointer indirection (like "*ap") holds true independently of whether or not structures are involved. There are of course many situations where subscripts are indispensable, and others where the loss in efficiency is worth a gain in clarity.
+
+## 16.3 Formatted output
+
+Here is a simplified version of the printf routine, which is available in the C library. It accepts a string (character array) as first argument, and prints subsequent arguments according to specifications contained in this format string. Most characters in the string are simply copied to the output; two-character sequences beginning with "%" specify that the next argument should be printed in a style as follows:
+
+- `%d` - decimal number
+- `%o` - octal number
+- `%c` - ASCII character, or 2 characters if upper character is not null
+- `%s` - string (null-terminated array of characters)
+- `%f` - floating-point number
+
+The actual parameters for each function call are laid out contiguously in increasing storage locations; therefore, a function with a variable number of arguments may take the address of (say) its first argument, and access the remaining arguments by use of subscripting (regarding the arguments as an array) or by indirection combined with pointer incrementation.
+
+If in such a situation the arguments have mixed types, or if in general one wishes to insist that an lvalue should be treated as having a given type, then struct declarations like those illustrated below will be useful. It should be evident, though, that such techniques are implementation dependent.
+
+Printf depends as well on the fact that char and float arguments are widened respectively to int and double, so there are effectively only two sizes of arguments to deal with. Printf calls the library routines putchar to write out single characters and fltoa to dispose of floating-point numbers.
+
+```c
+printf(fmt, args)
+char fmt[];
+{
+    char *s;
+    struct { char **charpp; };
+    struct { double *doublep; };
+    int *ap, x, c;
+
+    ap = &args;                      /* argument pointer */
+    for(;;){
+        while((c = *fmt++) != '%'){
+            if(c == '\0')
+                return;
+            putchar(c);
+        }
+        switch (c = *fmt++) {
+        /* decimal */
+        case 'd':
+            x = *ap++;
+            if(x < 0) {
+                x = -x;
+                if(x<0) {            /* is - infinity */
+                    printf("-32768");
+                    continue;
+                }
+            putchar('-');
+        }
+        printd(x);
+        continue;
+    /* octal */
+    case 'o':
+        printo(*ap++);
+        continue;
+    /* float, double */
+    case 'f':
+        /* let ftoa do the real work */
+        ftoa(*ap.doublep++);
+        continue;
+    /* character */
+    case 'c':
+        putchar(*ap++);
+        continue;
+    /* string */
+    case 's':
+        s = *ap.charpp++;
+        while(c = *s++)
+            putchar(c);
+        continue;
+    }
+    putchar(c);
+}
+}
+/*
+ * Print n in decimal; n must be non-negative
+ */
+printd(n)
+{
+    int a;
+    if (a=n/10)
+        printd(a);
+    putchar(n%10 + '0');
+}
+/*
+ * Print n in octal, with exactly 1 leading 0
+ */
+printo(n)
+{
+    if (n)
+        printo( (n>>3) &017777);
+    putchar((n&07)+'0');
+}
+```
+
+**MH-1273-DMR-**
+
+**D. M. Ritchie**
+
+**Att:**
+**References**
+**Appendix 1**
+
+## References
+
+1. Johnson, S. C., and Kernighan, B. W. "The Programming Language B." Comp. Sci. Tech. Rep. #8., Bell Laboratories, 1972.
+
+2. Ritchie, D. M., and Thompson, K. L. "The UNIX Time-sharing System." C. ACM 7, 17, July, 1974, pp. 365-375.
+
+3. Peterson, T. G., and Lesk, M. E. "A User's Guide to the C Language on the IBM 370." Internal Memorandum, Bell Laboratories, 1974.
+
+4. Thompson, K. L., and Ritchie, D. M. UNIX Programmer's Manual. Bell Laboratories, 1972.
+
+5. Lesk, M. E., and Barres, B. A. "The GCOS C Library." Internal memorandum, Bell Laboratories, 1974.
+
+6. Kernighan, B. W. "Programming in C- A Tutorial." Unpublished internal memorandum, Bell Laboratories, 1974.
+
+## Appendix 1: Syntax Summary
+
+### 1. Expressions
+
+```
+expression:
+     primary
+     * expression
+     & expression
+     - expression
+     ! expression
+     ~ expression
+     ++ lvalue
+     -- lvalue
+     lvalue ++
+     lvalue --
+     sizeof expression
+     expression binop expression
+     expression ? expression : expression
+     lvalue asgnop expression
+     expression , expression
+
+primary:
+     identifier
+     constant
+     string
+     ( expression )
+     primary ( expression-list_opt )
+     primary [ expression ]
+     lvalue . identifier
+     primary -> identifier
+
+lvalue:
+     identifier
+     primary [ expression ]
+     lvalue . identifier
+     primary -> identifier
+     * expression
+     ( lvalue )
+```
+
+The primary-expression operators `() [] . ->` have highest priority and group left-to-right. The unary operators `& - ! ~ ++ -- sizeof` have priority below the primary operators but higher than any binary operator, and group right-to-left. Binary operators and the conditional operator all group left-to-right, and have priority decreasing as indicated:
+
+```
+binop:
+     * /  %
+     +  -
+     >>  <<
+     <  >  <=  >=
+     ==  !=
+     &
+     ^
+     |
+     &&
+     ||
+     ? :
+```
+
+Assignment operators all have the same priority, and all group right-to-left.
+
+```
+asgnop:
+     =  =+  =-  =* =/  =%  =>>  =<<  =&  =^  =|
+```
+
+The comma operator has the lowest priority, and groups left-to-right.
+
+## 2. Declarations
+
+```
+declaration:
+     decl-specifiers declarator-list_opt ;
+
+decl-specifiers:
+     type-specifier
+     sc-specifier
+     type-specifier sc-specifier
+     sc-specifier type-specifier
+
+sc-specifier:
+     auto
+     static
+     extern
+     register
+
+type-specifier:
+     int
+     char
+     float
+     double
+     struct { type-decl-list }
+     struct identifier { type-decl-list }
+     struct identifier
+
+declarator-list:
+     declarator
+     declarator , declarator-list
+
+declarator:
+     identifier
+     * declarator
+     declarator ( )
+     declarator [ constant-expression_opt ]
+     ( declarator )
+
+type-decl-list:
+     type-declaration
+     type-declaration type-decl-list
+
+type-declaration:
+     type-specifier declarator-list ;
+```
+
+## 3. Statements
+
+```
+statement:
+     expression ;
+     { statement-list }
+     if ( expression ) statement
+     if ( expression ) statement else statement
+     while ( expression ) statement
+     for ( expression_opt ; expression_opt ; expression_opt ) statement
+     switch ( expression ) statement
+     case constant-expression : statement
+     default : statement
+     break ;
+     continue ;
+     return ;
+     return ( expression ) ;
+     goto expression ;
+     identifier : statement
+     ;
+
+statement-list:
+     statement
+     statement statement-list
+```
+
+## 4. External definitions
+
+```
+program:
+     external-definition
+     external-definition program
+
+external-definition:
+     function-definition
+     data-definition
+
+function-definition:
+     type-specifier_opt function-declarator function-body
+
+function-declarator:
+     declarator ( parameter-list_opt )
+
+parameter-list:
+     identifier
+     identifier , parameter-list
+
+function-body:
+     type-decl-list function-statement
+
+function-statement:
+     { declaration-list_opt statement-list }
+
+data-definition:
+     extern_opt type-specifier_opt init-declarator-list_opt ;
+
+init-declarator-list:
+     init-declarator
+     init-declarator , init-declarator-list
+
+init-declarator:
+     declarator initializer_opt
+
+initializer:
+     constant
+     { constant-expression-list }
+
+constant-expression-list:
+     constant-expression
+     constant-expression , constant-expression-list
+
+constant-expression:
+     expression
+```
+
+## 5. Preprocessor
+
+```
+# define identifier token-string
+# include "filename"
+```
