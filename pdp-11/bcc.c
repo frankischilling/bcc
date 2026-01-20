@@ -1,4 +1,69 @@
-// PDP-11 B compiler 
+/* B Compiler - THOMPSON_B_PDP11_1972 Dialect (kbman/btut)
+ *
+ * Targets: Compile the language used in kbman/btut examples and what early libb.a-style programs expect.
+ *
+ * CORE MODEL:
+ * - Typeless word language (PDP-11 word = 16 bits)
+ * - Arrays are word vectors; pointers/indexing are word-based
+ * - Strings are sequences of characters terminated by *e (EOT / ASCII 4)
+ * - Escape introducer is * (not \)
+ *
+ * LEXICAL:
+ * - Comments: / * ... * /
+ * - Identifiers: [A-Za-z_][A-Za-z0-9_]*
+ * - Numbers: decimal; leading 0 = octal
+ * - Character constants: '...' with *n *t *e *0 etc; packed into word(s) as needed
+ * - String constants: "..." with * escapes, compiler ensures *e termination
+ *
+ * DECLARATIONS & PROGRAM STRUCTURE:
+ * - auto locals (and vectors auto v[10];)
+ * - extrn for externals (usable inside functions as in btut examples)
+ * - Function definitions: name(a,b){ ... }
+ * - Top-level external initializers like: v[10] 'hi!', 1, 2, 3, 0777; s1 "hello";
+ *
+ * STATEMENTS:
+ * - expression statements
+ * - blocks { ... }
+ * - if (...) ... [else ...]
+ * - while (...) ...
+ * - goto label; and label: statement;
+ * - switch (...) { case K: ... default: ... }
+ * - break (at least for switch; you can later decide whether you want loop-break too)
+ *
+ * EXPRESSIONS/OPERATORS:
+ * - Unary: - ! * & ++ --
+ * - Binary: + - * / % << >> & | < <= > >= == !=
+ * - Assignment: = =+ =- =* =/ =% =& =| =<< =>>
+ * - Conditional: ?:
+ * - Logical composition is done with & and | (no && / ||, no short-circuit promise)
+ *
+ * EXPLICIT NON-GOALS (for now):
+ * - No types, no structs, no floats
+ * - No for, no do/while
+ * - No && / ||
+ * - Anything beyond btut/kbman goes into an "Extensions" doc behind a flag
+ *
+ * BASELINE DIALECT FEATURES:
+ * - Keywords: auto, extrn, if, else, while, goto, switch, case, default, break, return
+ * - Operators: = + - * / % & | << >> < <= > >= == !=
+ * - Assignment ops: = =+ =- =* =/ =% =& =| =<< =>>
+ * - Unary: ++ --
+ * - Conditional: ?:
+ * - Character constants with escapes (*n *t *e etc.)
+ * - String constants (terminate with *e)
+ * - Decimal/octal numbers, identifiers
+ * - Comments: / * * /
+ * - Functions with parameters
+ *
+ * EXTENSIONS (not in baseline, future work):
+ * - Relational assignments (=< => etc.)
+ * - Advanced operators beyond kbman/btut
+ *
+ * Unix V1 Runtime Contract:
+ * 1. Single-byte I/O only: read(0, &c, 1) / write(1, &c, 1)
+ * 2. Identifier storage as int name[] (one char per word), NOT char*
+ * 3. Use putnm() + nmeq() for string operations only
+ */
 
 buf(op, i, v)
 {
@@ -103,15 +168,11 @@ getch()
 		peekc(1, 0);
 		return(c);
 	}
-	if(bufp(0, 0) >= bufn(0, 0)) {
-		n = read(0, buf(2, 0, 0), 512);
-		bufn(1, n);
-		bufp(1, 0);
-		if(n <= 0)
-			return(-1);
-	}
-	c = buf(0, bufp(0, 0), 0);
-	bufp(1, bufp(0, 0) + 1);
+
+	n = read(0, &c, 1);
+	if(n <= 0)
+		return(-1);
+
 	return(c & 0377);
 }
 
@@ -122,24 +183,14 @@ ungetch(c)
 
 flush()
 {
-	int n;
-
-	n = obufp(0, 0);
-	if(n > 0) {
-		write(1, obuf(2, 0, 0), n);
-		obufp(1, 0);
-	}
 }
 
 putch(c)
 {
-	int p;
+	int x;
 
-	p = obufp(0, 0);
-	obuf(1, p, c);
-	obufp(1, p + 1);
-	if(p + 1 >= 512 | c == 012)
-		flush();
+	x = c;
+	write(1, &x, 1);
 }
 
 putstr(s)
@@ -231,14 +282,40 @@ char a[], b[];
 	return(a[0] == b[0]);
 }
 
-keyw(s)
+putnm(s)
+int s[];
 {
-	if(streq(s, "auto")) return(28);
-	if(streq(s, "extrn")) return(29);
-	if(streq(s, "if")) return(30);
-	if(streq(s, "else")) return(31);
-	if(streq(s, "while")) return(32);
-	if(streq(s, "return")) return(33);
+	while(s[0]) {
+		putch(s[0]);
+		s = s + 1;
+	}
+}
+
+nmeq(a, b)
+int a[];
+char b[];
+{
+	while(((b[0] == 0) == 0) & (a[0] == (b[0] & 0377))) {
+		a = a + 1;
+		b = b + 1;
+	}
+	return(a[0] == (b[0] & 0377));
+}
+
+keyw(s)
+int s[];
+{
+	if(nmeq(s, "auto")) return(28);
+	if(nmeq(s, "extrn")) return(29);
+	if(nmeq(s, "if")) return(30);
+	if(nmeq(s, "else")) return(31);
+	if(nmeq(s, "while")) return(32);
+	if(nmeq(s, "return")) return(33);
+	if(nmeq(s, "goto")) return(35);
+	if(nmeq(s, "switch")) return(36);
+	if(nmeq(s, "case")) return(37);
+	if(nmeq(s, "default")) return(38);
+	if(nmeq(s, "break")) return(39);
 	return(1);
 }
 
@@ -381,9 +458,24 @@ strdone:
 	if(c == 051) { tok(1, 9); return(9); }
 	if(c == 0133) { tok(1, 10); return(10); }
 	if(c == 0135) { tok(1, 11); return(11); }
-	if(c == 054) { tok(1, 12); return(12); }
-	if(c == 053) { tok(1, 14); return(14); }
-	if(c == 055) { tok(1, 15); return(15); }
+	if(c == 054) { tok(1, 12); return(12); }   /* , */
+	if(c == 072) { tok(1, 40); return(40); }   /* : */
+	if(c == 077) { tok(1, 41); return(41); }   /* ? */
+
+	if(c == 053) {                             /* + or ++ */
+		c2 = getch();
+		if(c2 == 053) { tok(1, 42); return(42); }  /* ++ */
+		ungetch(c2);
+		tok(1, 14);
+		return(14);
+	}
+	if(c == 055) {                             /* - or -- */
+		c2 = getch();
+		if(c2 == 055) { tok(1, 43); return(43); }  /* -- */
+		ungetch(c2);
+		tok(1, 15);
+		return(15);
+	}
 	if(c == 052) { tok(1, 16); return(16); }
 	if(c == 045) { tok(1, 18); return(18); }
 	if(c == 046) { tok(1, 19); return(19); }
@@ -447,7 +539,7 @@ main()
 		putnum(t);
 		if(t == 1 | t == 4) {
 			putstr(" name=");
-			putstr(tokname(2, 0, 0));
+			putnm(tokname(2, 0, 0));
 		}
 		if(t == 2 | t == 3) {
 			putstr(" num=");
