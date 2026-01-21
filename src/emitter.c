@@ -648,7 +648,6 @@ void emit_expr(FILE *out, Expr *e, const char *filename) {
                 };
                 for (int i = 0; b_funcs[i]; i++) {
                     if (strcmp(name, b_funcs[i]) == 0) {
-                        fputs("b_", out);
                         used_builtin_prefix = 1;
                         break;
                     }
@@ -668,7 +667,12 @@ void emit_expr(FILE *out, Expr *e, const char *filename) {
             }
 
             if (wrap_ret_ptr) fputs("B_PTR(", out);
-            emit_expr(out, e->as.call.callee, filename);
+            /* For builtin functions, emit b_<name> directly to avoid double-mangling */
+            if (used_builtin_prefix && e->as.call.callee->kind == EX_VAR) {
+                fprintf(out, "b_%s", e->as.call.callee->as.var);
+            } else {
+                emit_expr(out, e->as.call.callee, filename);
+            }
             fputc('(', out);
             size_t nargs = e->as.call.args.len;
 
