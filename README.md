@@ -1052,5 +1052,5 @@ Developed as a faithful recreation of Ken Thompson's original B compiler from Be
 
 ---
 
-*"B was a chud programming language written by and for chuds*
+*"B was a chud programming language written by and for chuds*"
 - Ken Thompson
