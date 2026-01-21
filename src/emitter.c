@@ -851,18 +851,17 @@ void emit_expr(FILE *out, Expr *e, const char *filename) {
                 return;
             }
 
-            /* Wrap unary negation with WVAL() for proper word semantics */
-            int needs_wrap = (op == TK_MINUS) && (current_word_bits != 0);
-            if (needs_wrap) {
-                fputs("WVAL(", out);
-            }
-            fputc('(', out);
-            fputs(tk_name(op), out);
-            fputc('(', out);
-            emit_expr(out, e->as.unary.rhs, filename);
-            fputs("))", out);
-            if (needs_wrap) {
+            /* Use safe WNEG macro for unary negation to avoid signed overflow UB */
+            if (op == TK_MINUS && current_word_bits != 0) {
+                fputs("WNEG(", out);
+                emit_expr(out, e->as.unary.rhs, filename);
                 fputc(')', out);
+            } else {
+                fputc('(', out);
+                fputs(tk_name(op), out);
+                fputc('(', out);
+                emit_expr(out, e->as.unary.rhs, filename);
+                fputs("))", out);
             }
             return;
         }
@@ -889,20 +888,33 @@ void emit_expr(FILE *out, Expr *e, const char *filename) {
 
         case EX_BINARY: {
             TokenKind op = e->as.bin.op;
-            /* Wrap arithmetic operations with WVAL() for proper word semantics */
-            int needs_wrap = (op == TK_PLUS || op == TK_MINUS || op == TK_STAR ||
-                              op == TK_SLASH || op == TK_PERCENT ||
-                              op == TK_LSHIFT || op == TK_RSHIFT ||
-                              op == TK_AMP || op == TK_BAR);
-            if (needs_wrap && current_word_bits != 0) {
-                fputs("WVAL(", out);
+            /* Use safe W* macros to avoid host-C undefined behavior */
+            const char *wmacro = NULL;
+            if (current_word_bits != 0) {
+                switch (op) {
+                case TK_PLUS:   wmacro = "WADD"; break;
+                case TK_MINUS:  wmacro = "WSUB"; break;
+                case TK_STAR:   wmacro = "WMUL"; break;
+                case TK_SLASH:  wmacro = "WDIV"; break;
+                case TK_PERCENT: wmacro = "WMOD"; break;
+                case TK_LSHIFT: wmacro = "WSHL"; break;
+                case TK_RSHIFT: wmacro = "WSHR"; break;
+                case TK_AMP:    wmacro = "WAND"; break;
+                case TK_BAR:    wmacro = "WOR"; break;
+                default: break;
+                }
             }
-            fputc('(', out);
-            emit_expr(out, e->as.bin.lhs, filename);
-            fprintf(out, " %s ", tk_name(op));
-            emit_expr(out, e->as.bin.rhs, filename);
-            fputc(')', out);
-            if (needs_wrap && current_word_bits != 0) {
+            if (wmacro) {
+                fprintf(out, "%s(", wmacro);
+                emit_expr(out, e->as.bin.lhs, filename);
+                fputs(", ", out);
+                emit_expr(out, e->as.bin.rhs, filename);
+                fputc(')', out);
+            } else {
+                fputc('(', out);
+                emit_expr(out, e->as.bin.lhs, filename);
+                fprintf(out, " %s ", tk_name(op));
+                emit_expr(out, e->as.bin.rhs, filename);
                 fputc(')', out);
             }
             return;
@@ -1349,13 +1361,34 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
         "#if WORD_BITS == 16\n"
         "  #define WORD_MASK 0xFFFFU\n"
         "  #define WVAL(x) ((word)(int16_t)((x) & WORD_MASK))\n"
+        "  #define SHIFT_MASK 15\n"
         "#elif WORD_BITS == 32\n"
         "  #define WORD_MASK 0xFFFFFFFFU\n"
         "  #define WVAL(x) ((word)(int32_t)((x) & WORD_MASK))\n"
+        "  #define SHIFT_MASK 31\n"
         "#else\n"
         "  #define WORD_MASK (~(uword)0)\n"
         "  #define WVAL(x) (x)\n"
+        "  #define SHIFT_MASK ((int)(sizeof(word)*8 - 1))\n"
         "#endif\n"
+        "\n"
+        "/*\n"
+        " * Safe arithmetic macros - avoid host-C undefined behavior:\n"
+        " *   - All arithmetic done in unsigned to prevent signed overflow UB\n"
+        " *   - Shift counts masked to valid range to prevent shift >= width UB\n"
+        " *   - Results wrapped with WVAL() for proper word semantics\n"
+        " */\n"
+        "#define WADD(a,b) WVAL((uword)(a) + (uword)(b))\n"
+        "#define WSUB(a,b) WVAL((uword)(a) - (uword)(b))\n"
+        "#define WMUL(a,b) WVAL((uword)(a) * (uword)(b))\n"
+        "#define WDIV(a,b) WVAL((uword)(a) / (uword)(b))\n"
+        "#define WMOD(a,b) WVAL((uword)(a) % (uword)(b))\n"
+        "#define WSHL(a,n) WVAL(((uword)(a) & WORD_MASK) << ((uword)(n) & SHIFT_MASK))\n"
+        "#define WSHR(a,n) WVAL(((uword)(a) & WORD_MASK) >> ((uword)(n) & SHIFT_MASK))\n"
+        "#define WAND(a,b) WVAL((uword)(a) & (uword)(b))\n"
+        "#define WOR(a,b)  WVAL((uword)(a) | (uword)(b))\n"
+        "#define WXOR(a,b) WVAL((uword)(a) ^ (uword)(b))\n"
+        "#define WNEG(a)   WVAL(-(uword)(a))\n"
         "\n",
         out
     );
@@ -1441,21 +1474,21 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
 "static word b_reread(void);\n"
         "\n"
         "/* Helper functions for complex lvalue operations (avoid GNU C extensions) */\n"
-        "/* All use WVAL() to wrap results according to WORD_BITS setting */\n"
-        "static word b_preinc(word *p) { return (*p = WVAL((uword)*p + 1)); }\n"
-        "static word b_predec(word *p) { return (*p = WVAL((uword)*p - 1)); }\n"
-        "static word b_postinc(word *p) { word old = WVAL(*p); *p = WVAL((uword)*p + 1); return old; }\n"
-        "static word b_postdec(word *p) { word old = WVAL(*p); *p = WVAL((uword)*p - 1); return old; }\n"
-        "static word b_add_assign(word *p, word v) { return (*p = WVAL((uword)*p + (uword)v)); }\n"
-        "static word b_sub_assign(word *p, word v) { return (*p = WVAL((uword)*p - (uword)v)); }\n"
-        "static word b_mul_assign(word *p, word v) { return (*p = WVAL((uword)*p * (uword)v)); }\n"
-        "static word b_div_assign(word *p, word v) { return (*p = WVAL((uword)*p / (uword)v)); }\n"
-        "static word b_mod_assign(word *p, word v) { return (*p = WVAL((uword)*p % (uword)v)); }\n"
-        "static word b_lsh_assign(word *p, word v) { return (*p = WVAL((uword)*p << (uword)v)); }\n"
-        "static word b_rsh_assign(word *p, word v) { return (*p = WVAL((uword)*p >> (uword)v)); }\n"
-        "static word b_and_assign(word *p, word v) { return (*p = WVAL((uword)*p & (uword)v)); }\n"
-        "static word b_or_assign(word *p, word v) { return (*p = WVAL((uword)*p | (uword)v)); }\n"
-        "static word b_xor_assign(word *p, word v) { return (*p = WVAL((uword)*p ^ (uword)v)); }\n"
+        "/* All use safe W* macros to avoid host-C undefined behavior */\n"
+        "static word b_preinc(word *p) { return (*p = WADD(*p, 1)); }\n"
+        "static word b_predec(word *p) { return (*p = WSUB(*p, 1)); }\n"
+        "static word b_postinc(word *p) { word old = WVAL(*p); *p = WADD(*p, 1); return old; }\n"
+        "static word b_postdec(word *p) { word old = WVAL(*p); *p = WSUB(*p, 1); return old; }\n"
+        "static word b_add_assign(word *p, word v) { return (*p = WADD(*p, v)); }\n"
+        "static word b_sub_assign(word *p, word v) { return (*p = WSUB(*p, v)); }\n"
+        "static word b_mul_assign(word *p, word v) { return (*p = WMUL(*p, v)); }\n"
+        "static word b_div_assign(word *p, word v) { return (*p = WDIV(*p, v)); }\n"
+        "static word b_mod_assign(word *p, word v) { return (*p = WMOD(*p, v)); }\n"
+        "static word b_lsh_assign(word *p, word v) { return (*p = WSHL(*p, v)); }\n"
+        "static word b_rsh_assign(word *p, word v) { return (*p = WSHR(*p, v)); }\n"
+        "static word b_and_assign(word *p, word v) { return (*p = WAND(*p, v)); }\n"
+        "static word b_or_assign(word *p, word v) { return (*p = WOR(*p, v)); }\n"
+        "static word b_xor_assign(word *p, word v) { return (*p = WXOR(*p, v)); }\n"
         "\n"
         "static word b_alloc(word nwords){\n"
         "    size_t bytes = (size_t)nwords * sizeof(word);\n"

@@ -168,6 +168,7 @@ These tests compile and execute programs, verifying exit codes and/or output.
 | `switch_test.b` | Switch statement | 3 |
 | `ternary.b` | Ternary operator | 10 |
 | `while_sum.b` | While loop summation | 55 |
+| `word_semantics.b` | Word arithmetic edge cases | 0 |
 
 **Example: `arithmetic.b`**
 ```b
@@ -507,6 +508,7 @@ cat tests/run/mytest.b.c
 | Strings | ✓ | ✓ | |
 | Comments | ✓ | | |
 | Multi-file | | | ✓ |
+| Word semantics | | ✓ | |
 
 ### Runtime Functions Tested
 
@@ -516,6 +518,85 @@ cat tests/run/mytest.b.c
 | `getchar()` | Partial |
 | `printf()` | Partial |
 | `print()` | ✓ |
+
+---
+
+## Word Semantics Tests
+
+### Specialized Test Script
+
+A dedicated test script validates word arithmetic edge cases across different modes:
+
+```bash
+./tests/test_word_semantics.sh
+```
+
+### Test Coverage
+
+The word semantics tests verify that the compiler handles arithmetic edge cases correctly, avoiding host-C undefined behavior:
+
+| Test Case | 16-bit | 32-bit | Host |
+|-----------|--------|--------|------|
+| Large shift counts (masked) | ✓ | ✓ | ✓ |
+| `1 << 15` = -32768 | ✓ | | |
+| `1 << 31` = -2147483648 | | ✓ | |
+| `-1 >> 1` = positive (logical) | ✓ | | |
+| Overflow wrapping | ✓ | ✓ | |
+| Negation of MIN value | ✓ | | |
+| Compound shift assignments | ✓ | ✓ | ✓ |
+| Bitwise AND/OR | ✓ | ✓ | ✓ |
+
+### Basic Word Semantics Test
+
+The `run/word_semantics.b` test validates basic arithmetic operations:
+
+```b
+/* Tests: shifts, bitwise ops, arithmetic, compound assignments */
+main() {
+    auto a, b, r;
+    
+    /* Shift operations */
+    a = 1;
+    r = a << 4;           /* Should be 16 */
+    if (r != 16) return(2);
+    
+    /* Bitwise operations */
+    a = 255;
+    b = 15;
+    r = a & b;            /* Should be 15 */
+    if (r != 15) return(4);
+    
+    /* Compound shift assignments */
+    a = 1;
+    a =<< 3;              /* Should be 8 */
+    if (a != 8) return(8);
+    
+    return(0);
+}
+```
+
+### 16-bit Mode Tests
+
+Run specific 16-bit tests:
+
+```bash
+# Test overflow wrapping
+./bcc --word=16 test.b -o test
+
+# In 16-bit mode:
+# 32767 + 1 = -32768 (overflow wrap)
+# 1 << 15 = -32768 (sign bit set)
+# -1 >> 1 = 32767 (logical right shift)
+```
+
+### Safety Guarantees
+
+The word semantics implementation guarantees:
+
+1. **No undefined behavior**: All operations are well-defined in the generated C
+2. **Deterministic results**: Same output on all platforms/compilers
+3. **Historical accuracy**: Matches PDP-11 B behavior in 16-bit mode
+4. **Large shift protection**: Shift counts masked to valid range
 
 ---
 

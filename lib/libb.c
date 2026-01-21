@@ -887,20 +887,21 @@ word sx64(word x) {
 
 /* ===== Helper Functions for Complex Lvalue Operations ===== */
 
-word b_preinc(word *p) { return (*p = WVAL((uword)*p + 1)); }
-word b_predec(word *p) { return (*p = WVAL((uword)*p - 1)); }
-word b_postinc(word *p) { word old = WVAL(*p); *p = WVAL((uword)*p + 1); return old; }
-word b_postdec(word *p) { word old = WVAL(*p); *p = WVAL((uword)*p - 1); return old; }
-word b_add_assign(word *p, word v) { return (*p = WVAL((uword)*p + (uword)v)); }
-word b_sub_assign(word *p, word v) { return (*p = WVAL((uword)*p - (uword)v)); }
-word b_mul_assign(word *p, word v) { return (*p = WVAL((uword)*p * (uword)v)); }
-word b_div_assign(word *p, word v) { return (*p = WVAL((uword)*p / (uword)v)); }
-word b_mod_assign(word *p, word v) { return (*p = WVAL((uword)*p % (uword)v)); }
-word b_lsh_assign(word *p, word v) { return (*p = WVAL((uword)*p << (uword)v)); }
-word b_rsh_assign(word *p, word v) { return (*p = WVAL((uword)*p >> (uword)v)); }
-word b_and_assign(word *p, word v) { return (*p = WVAL((uword)*p & (uword)v)); }
-word b_or_assign(word *p, word v) { return (*p = WVAL((uword)*p | (uword)v)); }
-word b_xor_assign(word *p, word v) { return (*p = WVAL((uword)*p ^ (uword)v)); }
+/* All helper functions use safe W* macros to avoid host-C undefined behavior */
+word b_preinc(word *p) { return (*p = WADD(*p, 1)); }
+word b_predec(word *p) { return (*p = WSUB(*p, 1)); }
+word b_postinc(word *p) { word old = WVAL(*p); *p = WADD(*p, 1); return old; }
+word b_postdec(word *p) { word old = WVAL(*p); *p = WSUB(*p, 1); return old; }
+word b_add_assign(word *p, word v) { return (*p = WADD(*p, v)); }
+word b_sub_assign(word *p, word v) { return (*p = WSUB(*p, v)); }
+word b_mul_assign(word *p, word v) { return (*p = WMUL(*p, v)); }
+word b_div_assign(word *p, word v) { return (*p = WDIV(*p, v)); }
+word b_mod_assign(word *p, word v) { return (*p = WMOD(*p, v)); }
+word b_lsh_assign(word *p, word v) { return (*p = WSHL(*p, v)); }
+word b_rsh_assign(word *p, word v) { return (*p = WSHR(*p, v)); }
+word b_and_assign(word *p, word v) { return (*p = WAND(*p, v)); }
+word b_or_assign(word *p, word v) { return (*p = WOR(*p, v)); }
+word b_xor_assign(word *p, word v) { return (*p = WXOR(*p, v)); }
 
 /* ===== Initialization ===== */
 

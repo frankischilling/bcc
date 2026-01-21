@@ -434,6 +434,35 @@ sx64(65535);    // Returns -1 (0xFFFF sign-extended)
 - Algorithms expecting 16-bit overflow behavior
 - Porting PDP-11 B programs to modern systems
 
+### Safe Arithmetic Macros (Internal)
+
+When using `--word=16` or `--word=32` mode, the compiler generates safe arithmetic that avoids host-C undefined behavior. These macros are used internally:
+
+| Macro | Operation | Description |
+|-------|-----------|-------------|
+| `WADD(a,b)` | `a + b` | Safe addition (unsigned, then wrap) |
+| `WSUB(a,b)` | `a - b` | Safe subtraction |
+| `WMUL(a,b)` | `a * b` | Safe multiplication |
+| `WDIV(a,b)` | `a / b` | Unsigned division |
+| `WMOD(a,b)` | `a % b` | Unsigned modulo |
+| `WSHL(a,n)` | `a << n` | Safe left shift (masked count) |
+| `WSHR(a,n)` | `a >> n` | Safe right shift (logical, masked) |
+| `WNEG(a)` | `-a` | Safe unary negation |
+
+**Safety Features:**
+- **No signed overflow UB**: All arithmetic uses unsigned intermediates
+- **No shift >= width UB**: Shift counts are masked (& 15 for 16-bit, & 31 for 32-bit)
+- **Proper logical shifts**: Right shifts are logical (fill with zeros), not arithmetic
+- **Correct word-width behavior**: Operands masked before shifts for accurate emulation
+
+**Example edge cases (16-bit mode):**
+```
+-1 >> 1     → 32767  (0xFFFF >> 1 = 0x7FFF)
+1 << 15     → -32768 (sign bit set)
+1 << 20     → 16     (20 & 15 = 4, so 1 << 4)
+32767 + 1   → -32768 (overflow wrap)
+```
+
 ---
 
 ## Terminal Control

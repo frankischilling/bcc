@@ -66,13 +66,34 @@ typedef uintptr_t uword;
 #if WORD_BITS == 16
   #define WORD_MASK 0xFFFFU
   #define WVAL(x) ((word)(int16_t)((x) & WORD_MASK))
+  #define SHIFT_MASK 15
 #elif WORD_BITS == 32
   #define WORD_MASK 0xFFFFFFFFU
   #define WVAL(x) ((word)(int32_t)((x) & WORD_MASK))
+  #define SHIFT_MASK 31
 #else
   #define WORD_MASK (~(uword)0)
   #define WVAL(x) (x)
+  #define SHIFT_MASK ((int)(sizeof(word)*8 - 1))
 #endif
+
+/*
+ * Safe arithmetic macros - avoid host-C undefined behavior:
+ *   - All arithmetic done in unsigned to prevent signed overflow UB
+ *   - Shift counts masked to valid range to prevent shift >= width UB
+ *   - Results wrapped with WVAL() for proper word semantics
+ */
+#define WADD(a,b) WVAL((uword)(a) + (uword)(b))
+#define WSUB(a,b) WVAL((uword)(a) - (uword)(b))
+#define WMUL(a,b) WVAL((uword)(a) * (uword)(b))
+#define WDIV(a,b) WVAL((uword)(a) / (uword)(b))
+#define WMOD(a,b) WVAL((uword)(a) % (uword)(b))
+#define WSHL(a,n) WVAL(((uword)(a) & WORD_MASK) << ((uword)(n) & SHIFT_MASK))
+#define WSHR(a,n) WVAL(((uword)(a) & WORD_MASK) >> ((uword)(n) & SHIFT_MASK))
+#define WAND(a,b) WVAL((uword)(a) & (uword)(b))
+#define WOR(a,b)  WVAL((uword)(a) | (uword)(b))
+#define WXOR(a,b) WVAL((uword)(a) ^ (uword)(b))
+#define WNEG(a)   WVAL(-(uword)(a))
 
 /*
  * Pointer model macros:

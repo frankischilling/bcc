@@ -65,6 +65,31 @@ The `bcc` compiler supports multiple word semantics via the `--word` flag:
 - **Porting PDP-11 B code**: Use `--word=16`
 - **Programs relying on overflow behavior**: Use appropriate `--word=N`
 
+### Safe Arithmetic (16-bit/32-bit modes)
+
+When using `--word=16` or `--word=32`, the compiler generates code using safe arithmetic macros that prevent **undefined behavior** in the host C compiler:
+
+**Safety guarantees:**
+- **No signed overflow UB**: Arithmetic uses unsigned intermediates
+- **No shift UB**: Shift counts are masked to valid range (0-15 or 0-31)
+- **Logical right shifts**: `-1 >> 1` gives `32767` in 16-bit mode (not `-1`)
+- **Deterministic behavior**: Same results on all platforms
+
+**Edge cases handled correctly:**
+```
+1 << 15      → -32768  (16-bit: sign bit set)
+1 << 20      → 16      (16-bit: shift masked to 4)
+-1 >> 1     → 32767   (16-bit: logical right shift)
+32767 + 1   → -32768  (16-bit: overflow wrap)
+-(-32768)   → -32768  (16-bit: negation of MIN)
+```
+
+**Testing word semantics:**
+```bash
+# Run specialized word semantics tests
+./tests/test_word_semantics.sh
+```
+
 ---
 
 ## Numeric Literals

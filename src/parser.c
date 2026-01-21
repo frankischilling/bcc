@@ -75,24 +75,88 @@ static int is_unary(TokenKind k) {
             k == TK_PLUSPLUS || k == TK_MINUSMINUS);
 }
 
+/*
+ * ============================================================================
+ * B OPERATOR PRECEDENCE TABLE (Thompson B 1972)
+ * ============================================================================
+ *
+ * This table defines the canonical operator precedence for the B language.
+ * Based on the 1972 B Reference Manual and validated against known B behavior.
+ *
+ * PRECEDENCE (highest to lowest):
+ * --------------------------------
+ *
+ * Level | Operators              | Associativity | Description
+ * ------|------------------------|---------------|---------------------------
+ *  15   | ()  []  f()            | left-to-right | Grouping, indexing, call
+ *  14   | ++  --  (postfix)      | left-to-right | Postfix increment/decrement
+ *  13   | ++  --  (prefix)       | right-to-left | Prefix increment/decrement
+ *       | -  !  *  &             | right-to-left | Unary minus, NOT, deref, addr
+ *  12   | *  /  %                | left-to-right | Multiplicative
+ *  11   | +  -                   | left-to-right | Additive
+ *  10   | <<  >>                 | left-to-right | Shift
+ *   9   | <  <=  >  >=           | left-to-right | Relational
+ *   8   | ==  !=                 | left-to-right | Equality
+ *   7   | &                      | left-to-right | Bitwise AND
+ *   6   | |                      | left-to-right | Bitwise OR
+ *   5   | ||                     | left-to-right | Logical OR (no && in B!)
+ *   4   | ?:                     | right-to-left | Conditional (ternary)
+ *   3   | =  =+  =-  =*  =/  =%  | right-to-left | Assignment and compound
+ *       | =<<  =>>  =&  =|      |               |
+ *   2   | ,                      | left-to-right | Comma (sequence)
+ *
+ * NOTES:
+ * - B has NO logical AND (&&) operator - use nested conditionals or bitwise &
+ * - Compound assignments are B-style: x =+ 1 (not x += 1)
+ * - Assignment is right-associative: a = b = c means a = (b = c)
+ * - Relational operators return 1 (true) or 0 (false)
+ * - All operators work on machine words (no type distinctions)
+ *
+ * EVALUATION ORDER:
+ * - Binary operators evaluate left operand first, then right
+ * - Function arguments: left-to-right (B convention, unspecified in original)
+ * - Side effects (++, --, assignment) complete before sequence points
+ *
+ * DIFFERENCES FROM C:
+ * - No && operator (C added it)
+ * - Compound assignments: B uses =op, C uses op=
+ * - B shifts at same level as + - (C puts shifts below relational)
+ * - B has no sizeof, cast, or -> operators
+ * ============================================================================
+ */
+
 static int precedence(TokenKind k) {
     switch (k) {
-        case TK_BARBAR: return 1;   // logical OR (lowest)
-        case TK_BAR:    return 3;   // bitwise OR
-        case TK_AMP:    return 4;   // bitwise AND
+        /* Level 5: Logical OR (lowest binary precedence) */
+        case TK_BARBAR: return 1;
+
+        /* Level 6: Bitwise OR */
+        case TK_BAR:    return 3;
+
+        /* Level 7: Bitwise AND */
+        case TK_AMP:    return 4;
+
+        /* Level 8: Equality */
         case TK_EQ:
-        case TK_NE:     return 5;   // equality
+        case TK_NE:     return 5;
+
+        /* Level 9: Relational */
         case TK_LT:
         case TK_LE:
         case TK_GT:
-        case TK_GE:     return 6;   // relational
+        case TK_GE:     return 6;
+
+        /* Level 10-11: Additive and Shift (B groups these together) */
         case TK_PLUS:
         case TK_MINUS:
         case TK_LSHIFT:
-        case TK_RSHIFT: return 7;   // additive / shifts
+        case TK_RSHIFT: return 7;
+
+        /* Level 12: Multiplicative (highest binary precedence) */
         case TK_STAR:
         case TK_SLASH:
-        case TK_PERCENT:return 8;   // multiplicative
+        case TK_PERCENT:return 8;
+
         default:         return 0;
     }
 }
