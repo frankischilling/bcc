@@ -103,6 +103,46 @@ Link B programs with any C library:
 - `--no-line`: Disable #line directives
 - `--verbose-errors`: Use descriptive error messages instead of 2-letter codes
 
+### Strict Mode
+
+BCC defaults to accepting modern conveniences (hex literals, `//` comments, C-style `+=`). Use `--strict` to enforce authentic 1969 Thompson B syntax.
+
+**Flags:**
+- `--strict`: Disable all modern extensions (strict B72 mode)
+- `--pedantic`: Error on non-standard syntax (use with `--strict`)
+
+**Extensions Disabled by `--strict`:**
+
+| Feature | Modern | Strict | Use Instead |
+|---------|--------|--------|-------------|
+| Hex literals (`0x10`) | ✓ | ✗ | Octal `020` or decimal |
+| Line comments (`//`) | ✓ | ✗ | Block comments `/* */` |
+| Backslash escapes (`\n`) | ✓ | ✗ | B escapes `*n` |
+| C-style compound (`+=`) | ✓ | ✗ | B-style `=+` |
+
+**Why Strict Mode Exists:**
+
+B predates C, and the syntax differs in important ways:
+- B uses `=+` where C uses `+=` (order was reversed when C was created)
+- B uses `*n` escapes where C uses `\n` (asterisk, not backslash)
+- B had no hex literals (octal was standard on PDP machines)
+- B only had `/* */` comments (`//` came from C++)
+
+**Examples:**
+```bash
+# Default: accept all syntax
+./bcc program.b -o program
+
+# Strict mode: silently ignore extensions
+./bcc --strict program.b -o program
+
+# Pedantic: error on any extension
+./bcc --strict --pedantic program.b -o program
+```
+
+**Historical Note:**
+The B language syntax was stable across Unix V1 (1971), Thompson's B72 Reference Manual (1972), and Unix V6 (1975). The differences between these were mainly implementation details (threaded interpreter vs native code, library availability), not syntax. `--strict` enforces the canonical B72 specification.
+
 ## Installation
 
 ### Prerequisites

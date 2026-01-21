@@ -341,6 +341,11 @@ int main(int argc, char **argv) {
             } else {
                 dief("--word must be 16, 32, or host");
             }
+        } else if (strcmp(argv[i], "--strict") == 0) {
+            g_strict = 1;
+            g_extensions = EXT_NONE;  /* Disable all extensions */
+        } else if (strcmp(argv[i], "--pedantic") == 0) {
+            g_pedantic = 1;  /* Error on any extension use */
         } else if (strcmp(argv[i], "--dump-tokens") == 0) {
             dump_tokens = 1;
         } else if (strcmp(argv[i], "--dump-ast") == 0) {
@@ -408,6 +413,16 @@ int main(int argc, char **argv) {
         fprintf(stderr, "              16-bit mode wraps arithmetic like PDP-11\n");
         fprintf(stderr, "  -v          verbose compilation output\n");
         fprintf(stderr, "  --inline-runtime  embed runtime in each C file (old behavior)\n");
+        fprintf(stderr, "\n");
+        fprintf(stderr, "Strictness:\n");
+        fprintf(stderr, "  --strict        strict B72 mode: disable all modern extensions\n");
+        fprintf(stderr, "  --pedantic      error on any non-standard syntax (use with --strict)\n");
+        fprintf(stderr, "\n");
+        fprintf(stderr, "Extensions disabled by --strict:\n");
+        fprintf(stderr, "  - Hex literals (0x...)       use octal instead\n");
+        fprintf(stderr, "  - Line comments (//)         use /* */ instead\n");
+        fprintf(stderr, "  - Backslash escapes (\\n)     use *n instead\n");
+        fprintf(stderr, "  - C-style compound (+=)      use =+ instead\n");
         fprintf(stderr, "\n");
         fprintf(stderr, "  --dump-tokens  show tokenized input\n");
         fprintf(stderr, "  --dump-ast     show parsed AST\n");

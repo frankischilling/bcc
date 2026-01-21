@@ -438,6 +438,25 @@ extern Vec g_include_paths;
 extern Vec g_included_files;
 extern Vec g_parsing_files;
 
+// ===================== Dialect and Extension Flags =====================
+
+// Extension flags (bitfield)
+typedef enum {
+    EXT_NONE            = 0,
+    EXT_HEX_LITERALS    = 1 << 0,  // 0x... hex literals
+    EXT_LINE_COMMENTS   = 1 << 1,  // // comments
+    EXT_BACKSLASH_ESC   = 1 << 2,  // \n, \t, etc. escapes
+    EXT_C_COMPOUND_ASGN = 1 << 3,  // +=, -=, etc. (C-style)
+    EXT_ALL             = 0xFFFF,  // All extensions
+} BExtensions;
+
+extern int g_strict;              // If true, use strict B72 mode (no extensions)
+extern unsigned g_extensions;     // Enabled extensions (bitfield)
+extern int g_pedantic;            // If true, error on any extension use
+
+// Helper to check if an extension is enabled
+#define EXT_ENABLED(ext) ((g_extensions & (ext)) != 0)
+
 // Developer flags
 extern int g_no_line;
 extern int g_verbose_errors;

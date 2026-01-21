@@ -18,6 +18,11 @@ Vec g_parsing_files;
 int g_no_line = 0;
 int g_verbose_errors = 0;
 
+// Dialect and extension flags
+int g_strict = 0;                     // Default: modern mode (extensions allowed)
+unsigned g_extensions = EXT_ALL;      // Default: all extensions enabled
+int g_pedantic = 0;                   // Default: don't error on extensions
+
 // Resolve an include path, checking:
 // 1. As given (absolute or relative to cwd)
 // 2. Relative to current file's directory

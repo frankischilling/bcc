@@ -45,8 +45,18 @@ static int parse_escape(Lexer *L, int line, int col) {
     }
 }
 
-/* Parse C-style backslash escapes inside strings/chars (compat shim) */
+/* Parse C-style backslash escapes inside strings/chars (extension) */
 static int parse_backslash_escape(Lexer *L, int line, int col) {
+    /* Check if backslash escapes are enabled */
+    if (!EXT_ENABLED(EXT_BACKSLASH_ESC)) {
+        if (g_pedantic) {
+            error_at_location(L->filename, line, col, ERR_EXPR_SYNTAX,
+                "backslash escapes are not allowed in strict B mode (use --extensions or *-escapes)");
+        }
+        /* If not pedantic, just return the backslash as literal */
+        return '\\';
+    }
+
     int e = lx_get(L);
     if (!e) error_at_location(L->filename, line, col, ERR_EXPR_SYNTAX, "unterminated escape sequence");
 
@@ -87,6 +97,14 @@ void lx_skip_ws_and_comments(Lexer *L) {
 
         /* C++ style line comment (extension for compatibility) */
         if (c == '/' && lx_peek2(L) == '/') {
+            if (!EXT_ENABLED(EXT_LINE_COMMENTS)) {
+                if (g_pedantic) {
+                    error_at_location(L->filename, L->line, L->col, ERR_EXPR_SYNTAX,
+                        "// comments are not allowed in strict B mode (use --extensions or /* */)");
+                }
+                /* If not pedantic, treat as division operators */
+                break;
+            }
             lx_get(L); lx_get(L);  /* consume // */
             while ((c = lx_peek(L)) && c != '\n') {
                 lx_get(L);
@@ -164,7 +182,18 @@ Token lx_next(Lexer *L) {
 
         if (c == '0') {
             if (lx_peek2(L) == 'x' || lx_peek2(L) == 'X') {
-                // Hexadecimal literal: 0x....
+                // Hexadecimal literal: 0x.... (extension)
+                if (!EXT_ENABLED(EXT_HEX_LITERALS)) {
+                    if (g_pedantic) {
+                        error_at_location(L->filename, line, col, ERR_EXPR_SYNTAX,
+                            "hexadecimal literals are not allowed in strict B mode (use --extensions or octal)");
+                    }
+                    /* If not pedantic, treat 0x as octal 0 followed by identifier x */
+                    lx_get(L); /* consume just the 0 */
+                    Token t = mk_tok(TK_NUM, line, col, L->filename);
+                    t.num = 0;
+                    return t;
+                }
                 lx_get(L); /* 0 */
                 lx_get(L); /* x / X */
                 base = 16;
@@ -309,21 +338,29 @@ Token lx_next(Lexer *L) {
     if (c == '+' && lx_peek2(L) == '+') { lx_get(L); lx_get(L); return mk_tok(TK_PLUSPLUS, line, col, L->filename); }
     if (c == '-' && lx_peek2(L) == '-') { lx_get(L); lx_get(L); return mk_tok(TK_MINUSMINUS, line, col, L->filename); }
 
-    // C-style compound assignments (op=)
-    if (c == '+' && lx_peek2(L) == '=') { lx_get(L); lx_get(L); return mk_tok(TK_PLUSEQ, line, col, L->filename); }
-    if (c == '-' && lx_peek2(L) == '=') { lx_get(L); lx_get(L); return mk_tok(TK_MINUSEQ, line, col, L->filename); }
-    if (c == '*' && lx_peek2(L) == '=') { lx_get(L); lx_get(L); return mk_tok(TK_STAREQ, line, col, L->filename); }
-    if (c == '/' && lx_peek2(L) == '=') { lx_get(L); lx_get(L); return mk_tok(TK_SLASHEQ, line, col, L->filename); }
-    if (c == '%' && lx_peek2(L) == '=') { lx_get(L); lx_get(L); return mk_tok(TK_PERCENTEQ, line, col, L->filename); }
-    if (c == '&' && lx_peek2(L) == '=') { lx_get(L); lx_get(L); return mk_tok(TK_ANDEQ, line, col, L->filename); }
-    if (c == '|' && lx_peek2(L) == '=') { lx_get(L); lx_get(L); return mk_tok(TK_OREQ, line, col, L->filename); }
-    if (c == '<' && lx_peek2(L) == '<') {
-        int third = (L->i + 2 < L->len) ? (unsigned char)L->src[L->i + 2] : 0;
-        if (third == '=') { lx_get(L); lx_get(L); lx_get(L); return mk_tok(TK_LSHIFTEQ, line, col, L->filename); }
-    }
-    if (c == '>' && lx_peek2(L) == '>') {
-        int third = (L->i + 2 < L->len) ? (unsigned char)L->src[L->i + 2] : 0;
-        if (third == '=') { lx_get(L); lx_get(L); lx_get(L); return mk_tok(TK_RSHIFTEQ, line, col, L->filename); }
+    // C-style compound assignments (op=) -- extension
+    if (EXT_ENABLED(EXT_C_COMPOUND_ASGN)) {
+        if (c == '+' && lx_peek2(L) == '=') { lx_get(L); lx_get(L); return mk_tok(TK_PLUSEQ, line, col, L->filename); }
+        if (c == '-' && lx_peek2(L) == '=') { lx_get(L); lx_get(L); return mk_tok(TK_MINUSEQ, line, col, L->filename); }
+        if (c == '*' && lx_peek2(L) == '=') { lx_get(L); lx_get(L); return mk_tok(TK_STAREQ, line, col, L->filename); }
+        if (c == '/' && lx_peek2(L) == '=') { lx_get(L); lx_get(L); return mk_tok(TK_SLASHEQ, line, col, L->filename); }
+        if (c == '%' && lx_peek2(L) == '=') { lx_get(L); lx_get(L); return mk_tok(TK_PERCENTEQ, line, col, L->filename); }
+        if (c == '&' && lx_peek2(L) == '=') { lx_get(L); lx_get(L); return mk_tok(TK_ANDEQ, line, col, L->filename); }
+        if (c == '|' && lx_peek2(L) == '=') { lx_get(L); lx_get(L); return mk_tok(TK_OREQ, line, col, L->filename); }
+        if (c == '<' && lx_peek2(L) == '<') {
+            int third = (L->i + 2 < L->len) ? (unsigned char)L->src[L->i + 2] : 0;
+            if (third == '=') { lx_get(L); lx_get(L); lx_get(L); return mk_tok(TK_LSHIFTEQ, line, col, L->filename); }
+        }
+        if (c == '>' && lx_peek2(L) == '>') {
+            int third = (L->i + 2 < L->len) ? (unsigned char)L->src[L->i + 2] : 0;
+            if (third == '=') { lx_get(L); lx_get(L); lx_get(L); return mk_tok(TK_RSHIFTEQ, line, col, L->filename); }
+        }
+    } else if (g_pedantic) {
+        // Check for C-style compound assignments and error
+        if ((c == '+' || c == '-' || c == '*' || c == '/' || c == '%' || c == '&' || c == '|') && lx_peek2(L) == '=') {
+            error_at_location(L->filename, line, col, ERR_EXPR_SYNTAX,
+                "C-style compound assignments (op=) are not allowed in strict B mode (use =op)");
+        }
     }
 
     // B-style assignment operators: =op instead of op=
