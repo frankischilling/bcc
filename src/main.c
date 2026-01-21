@@ -20,9 +20,13 @@ char *read_file_all(const char *path, size_t *out_len) {
     return buf;
 }
 
+/* Run gcc with multiple C files for linking */
+int run_gcc_multi(Vec *cfiles, const char *out_exe, int compile_only, int debug, int wall, int wextra, int werror, Vec *extra_args) {
+    /* Dynamic argv: flags + cfiles + extra_args + libs + NULL */
+    size_t max_args = 32 + cfiles->len + (extra_args ? extra_args->len : 0);
+    const char **argv = (const char**)malloc(max_args * sizeof(char*));
+    if (!argv) dief("out of memory");
 
-int run_gcc(const char *cfile, const char *out_exe, int compile_only, int debug, int wall, int wextra, int werror, Vec *extra_args) {
-    const char *argv[64];  // increased size to accommodate extra args
     int n = 0;
     argv[n++] = "gcc";
     argv[n++] = "-std=c99";
@@ -38,9 +42,13 @@ int run_gcc(const char *cfile, const char *out_exe, int compile_only, int debug,
         argv[n++] = "-o";
         argv[n++] = out_exe;
     }
-    argv[n++] = cfile;
 
-    // Add extra arguments
+    /* Add all C files */
+    for (size_t i = 0; i < cfiles->len; i++) {
+        argv[n++] = (const char*)cfiles->data[i];
+    }
+
+    /* Add extra arguments */
     if (extra_args) {
         for (size_t i = 0; i < extra_args->len; i++) {
             argv[n++] = (const char*)extra_args->data[i];
@@ -51,13 +59,104 @@ int run_gcc(const char *cfile, const char *out_exe, int compile_only, int debug,
     argv[n++] = NULL;
 
     pid_t pid = fork();
-    if (pid < 0) return 1;
+    if (pid < 0) { free(argv); return 1; }
     if (pid == 0) { execvp("gcc", (char *const*)argv); _exit(127); }
 
     int st = 0;
-    if (waitpid(pid, &st, 0) < 0) return 1;
+    if (waitpid(pid, &st, 0) < 0) { free(argv); return 1; }
+    free(argv);
     if (WIFEXITED(st)) return WEXITSTATUS(st);
     return 1;
+}
+
+/* Compile a single .b file to C, returning the path to the generated .c file */
+char *compile_b_to_c(const char *in_path, int byteptr, int no_line, int verbose,
+                     int dump_tokens, int dump_ast, int dump_c,
+                     int emit_c, const char *emit_c_path) {
+    if (verbose) fprintf(stderr, "Reading %s...\n", in_path);
+    size_t len = 0;
+    char *src = read_file_all(in_path, &len);
+
+    Parser P;
+    memset(&P, 0, sizeof(P));
+    P.L.src = src;
+    P.L.len = len;
+    P.L.i = 0;
+    P.L.line = 1;
+    P.L.col = 1;
+    P.L.filename = in_path;
+    P.source = src;
+    P.cur = mk_tok(TK_EOF, 1, 1, in_path);
+    next(&P);
+
+    if (verbose) fprintf(stderr, "Lexing...\n");
+    if (dump_tokens) {
+        dump_token_stream(&P);
+        free(src);
+        return NULL;
+    }
+
+    if (verbose) fprintf(stderr, "Parsing...\n");
+    Program *prog = parse_program_ast(&P);
+    tok_free(&P.cur);
+
+    if (dump_ast) {
+        dump_ast_program(prog);
+        if (!dump_c) {
+            free(src);
+            return NULL;
+        }
+    }
+
+    if (verbose) fprintf(stderr, "Semantic analysis...\n");
+    sem_check_program(prog, in_path);
+
+    if (verbose) fprintf(stderr, "Code generation...\n");
+
+    /* Determine output C file path */
+    char *cfile;
+    FILE *out;
+
+    if (emit_c && emit_c_path) {
+        /* --emit-c: use specified path (e.g., foo.b -> foo.b.c) */
+        /* Use strdup not sdup - cfile will be free'd later */
+        cfile = strdup(emit_c_path);
+        if (!cfile) dief("out of memory");
+        out = fopen(cfile, "w");
+        if (!out) dief("cannot open '%s': %s", cfile, strerror(errno));
+    } else {
+        /* Generate temp file */
+        char tmpc_tmpl[] = "/tmp/bcc_XXXXXX";
+        int fd = mkstemp(tmpc_tmpl);
+        if (fd < 0) dief("mkstemp failed: %s", strerror(errno));
+        out = fdopen(fd, "wb");
+        if (!out) dief("fdopen failed");
+
+        /* Rename to .c extension */
+        cfile = (char*)malloc(strlen(tmpc_tmpl) + 3);
+        if (!cfile) dief("out of memory");
+        sprintf(cfile, "%s.c", tmpc_tmpl);
+        fclose(out);
+        if (rename(tmpc_tmpl, cfile) != 0) dief("rename temp failed: %s", strerror(errno));
+        out = fopen(cfile, "w");
+        if (!out) dief("cannot reopen '%s': %s", cfile, strerror(errno));
+    }
+
+    emit_program_c(out, prog, in_path, byteptr, no_line);
+    fclose(out);
+
+    if (dump_c) {
+        /* Also dump to stdout if requested */
+        FILE *f = fopen(cfile, "r");
+        if (f) {
+            int ch;
+            while ((ch = fgetc(f)) != EOF) putchar(ch);
+            fclose(f);
+        }
+    }
+
+    free(src);
+    return cfile;
 }
 
 int main(int argc, char **argv) {
@@ -66,6 +165,7 @@ int main(int argc, char **argv) {
     int compile_only = 0;  /* -c flag */
     int emit_c_to_file = 0; /* -E flag */
     int keep_c = 0;        /* --keep-c flag */
+    int emit_c = 0;        /* --emit-c flag (a.b -> a.b.c naming) */
     int debug = 0;         /* -g flag */
     int wall = 1;          /* -Wall (default on) */
     int wextra = 1;        /* -Wextra (default on) */
@@ -78,17 +178,15 @@ int main(int argc, char **argv) {
     int verbose_errors = 0; /* --verbose-errors */
     int verbose = 0;       /* -v flag */
     Vec extra_gcc_args;    /* extra arguments to pass to gcc */
-    const char *in_path = NULL;
-    const char *out_path = "a.out";
+    Vec in_paths;          /* input .b files */
+    const char *out_path = NULL;
 
     /* Initialize compilation arena */
     g_compilation_arena = arena_new();
 
-    /* Initialize include paths (vec_new already zeros them) */
-    /* No need to call vec_init */
-    extra_gcc_args.data = NULL;
-    extra_gcc_args.len = 0;
-    extra_gcc_args.cap = 0;
+    /* Initialize vectors */
+    memset(&extra_gcc_args, 0, sizeof(extra_gcc_args));
+    memset(&in_paths, 0, sizeof(in_paths));
 
     /* Parse arguments */
     for (int i = 1; i < argc; i++) {
@@ -102,6 +200,9 @@ int main(int argc, char **argv) {
             emit_c_to_file = 1;
         } else if (strcmp(argv[i], "--keep-c") == 0) {
             keep_c = 1;
+        } else if (strcmp(argv[i], "--emit-c") == 0) {
+            emit_c = 1;
+            keep_c = 1; /* --emit-c implies keeping the C files */
         } else if (strcmp(argv[i], "-g") == 0) {
             debug = 1;
         } else if (strcmp(argv[i], "-Wall") == 0) {
@@ -134,19 +235,19 @@ int main(int argc, char **argv) {
         } else if (strcmp(argv[i], "-l") == 0) {
             if (i + 1 >= argc) dief("missing value after -l");
             const char *lib_name = argv[++i];
-            size_t len = strlen(lib_name) + 3; // -l + lib_name + \0
+            size_t len = strlen(lib_name) + 3;
             char *lib_arg = (char*)malloc(len);
             if (!lib_arg) dief("out of memory");
             snprintf(lib_arg, len, "-l%s", lib_name);
             vec_push(&extra_gcc_args, lib_arg);
         } else if (strcmp(argv[i], "-X") == 0) {
             if (i + 1 >= argc) dief("missing value after -X");
-            // Pass the next argument directly to gcc
             vec_push(&extra_gcc_args, sdup(argv[++i]));
-        } else if (!in_path) {
-            in_path = argv[i];
+        } else if (argv[i][0] == '-') {
+            dief("unknown option: %s", argv[i]);
         } else {
-            dief("unknown extra argument: %s", argv[i]);
+            /* Input file */
+            vec_push(&in_paths, argv[i]);
         }
     }
 
@@ -154,15 +255,20 @@ int main(int argc, char **argv) {
     g_no_line = no_line;
     g_verbose_errors = verbose_errors;
 
-    if (!in_path) {
+    if (in_paths.len == 0) {
         fprintf(stderr, "usage:\n");
-        fprintf(stderr, "  %s [options] input.b [-o out]\n", argv[0]);
+        fprintf(stderr, "  %s [options] input.b ... [-o out]\n", argv[0]);
+        fprintf(stderr, "\n");
+        fprintf(stderr, "Multi-file compilation:\n");
+        fprintf(stderr, "  %s a.b b.b c.b -o prog    compile and link multiple .b files\n", argv[0]);
+        fprintf(stderr, "\n");
         fprintf(stderr, "options:\n");
-        fprintf(stderr, "  -S          emit C code to stdout\n");
-        fprintf(stderr, "  --asm       emit assembly code to stdout\n");
-        fprintf(stderr, "  -c          compile to object file\n");
-        fprintf(stderr, "  -E          emit C code to file\n");
-        fprintf(stderr, "  --keep-c    don't delete temporary C file\n");
+        fprintf(stderr, "  -S          emit C code to stdout (single file only)\n");
+        fprintf(stderr, "  --asm       emit assembly code to stdout (single file only)\n");
+        fprintf(stderr, "  -c          compile to object file(s), don't link\n");
+        fprintf(stderr, "  -E          emit C code to file (single file only)\n");
+        fprintf(stderr, "  --keep-c    keep generated C files\n");
+        fprintf(stderr, "  --emit-c    use a.b -> a.b.c naming for C files (implies --keep-c)\n");
         fprintf(stderr, "  -g          include debug information\n");
         fprintf(stderr, "  -l LIB      pass library to linker (can be repeated)\n");
         fprintf(stderr, "  -X FLAG     pass FLAG directly to gcc (can be repeated)\n");
@@ -180,145 +286,156 @@ int main(int argc, char **argv) {
         fprintf(stderr, "  --no-line      disable #line directives\n");
         fprintf(stderr, "  --verbose-errors use verbose error messages instead of 2-letter codes\n");
 
-        /* Cleanup compilation arena */
         arena_free(g_compilation_arena);
         g_compilation_arena = NULL;
-
         return 2;
     }
 
-    if (verbose) fprintf(stderr, "Reading %s...\n", in_path);
-    size_t len = 0;
-    char *src = read_file_all(in_path, &len);
-
-    Parser P;
-    memset(&P, 0, sizeof(P));
-    P.L.src = src;
-    P.L.len = len;
-    P.L.i = 0;
-    P.L.line = 1;
-    P.L.col = 1;
-    P.L.filename = in_path;
-    P.source = src;
-    P.cur = mk_tok(TK_EOF, 1, 1, in_path);
-    next(&P); // prime token
-
-    if (verbose) fprintf(stderr, "Lexing...\n");
-    if (dump_tokens) {
-        dump_token_stream(&P);
-        // Always exit after dumping tokens, as combining with other dumps causes issues
-        free(src);
-        arena_free(g_compilation_arena);
-        g_compilation_arena = NULL;
-        return 0;
+    /* Default output path */
+    if (!out_path) {
+        out_path = "a.out";
     }
 
-    if (verbose) fprintf(stderr, "Parsing...\n");
-    Program *prog = parse_program_ast(&P);
-
-    tok_free(&P.cur);
-
-    if (dump_ast) {
-        dump_ast_program(prog);
-        if (!dump_c) {
-            // If only dumping AST, exit early
-            free(src);
-            arena_free(g_compilation_arena);
-            g_compilation_arena = NULL;
-            return 0;
+    /* Single-file special modes that emit to stdout */
+    if (emit_c_only || emit_asm_only) {
+        if (in_paths.len > 1) {
+            dief("-S and --asm only work with a single input file");
         }
-    }
+        const char *in_path = (const char*)in_paths.data[0];
 
-    if (verbose) fprintf(stderr, "Semantic analysis...\n");
-    // Semantic analysis pass
-    sem_check_program(prog, in_path);
+        size_t len = 0;
+        char *src = read_file_all(in_path, &len);
 
-    if (verbose) fprintf(stderr, "Code generation...\n");
-    // Handle different output modes
-    if (emit_c_only || dump_c) {
-        // -S or --dump-c: emit C to stdout
-        emit_program_c(stdout, prog, in_path, byteptr, no_line);
+        Parser P;
+        memset(&P, 0, sizeof(P));
+        P.L.src = src;
+        P.L.len = len;
+        P.L.i = 0;
+        P.L.line = 1;
+        P.L.col = 1;
+        P.L.filename = in_path;
+        P.source = src;
+        P.cur = mk_tok(TK_EOF, 1, 1, in_path);
+        next(&P);
+
+        Program *prog = parse_program_ast(&P);
+        tok_free(&P.cur);
+        sem_check_program(prog, in_path);
+
         if (emit_c_only) {
-            free(src);
-            // Cleanup compilation arena
-            arena_free(g_compilation_arena);
-            g_compilation_arena = NULL;
-            return 0;
+            emit_program_c(stdout, prog, in_path, byteptr, no_line);
+        } else {
+            emit_program_asm(stdout, prog);
         }
-        // If --dump-c, continue with compilation
-    }
 
-    if (emit_asm_only) {
-        // --asm: emit assembly to stdout
-        emit_program_asm(stdout, prog);
         free(src);
-
-        // Cleanup compilation arena
         arena_free(g_compilation_arena);
         g_compilation_arena = NULL;
-
         return 0;
     }
 
+    /* Single-file -E mode */
     if (emit_c_to_file) {
-        // -E: emit C to file
+        if (in_paths.len > 1) {
+            dief("-E only works with a single input file");
+        }
+        const char *in_path = (const char*)in_paths.data[0];
+
+        size_t len = 0;
+        char *src = read_file_all(in_path, &len);
+
+        Parser P;
+        memset(&P, 0, sizeof(P));
+        P.L.src = src;
+        P.L.len = len;
+        P.L.i = 0;
+        P.L.line = 1;
+        P.L.col = 1;
+        P.L.filename = in_path;
+        P.source = src;
+        P.cur = mk_tok(TK_EOF, 1, 1, in_path);
+        next(&P);
+
+        Program *prog = parse_program_ast(&P);
+        tok_free(&P.cur);
+        sem_check_program(prog, in_path);
+
         FILE *out = fopen(out_path, "w");
-        if (!out) dief("cannot open output file '%s': %s", out_path, strerror(errno));
+        if (!out) dief("cannot open '%s': %s", out_path, strerror(errno));
         emit_program_c(out, prog, in_path, byteptr, no_line);
         fclose(out);
-        free(src);
 
-        // Cleanup compilation arena
+        free(src);
         arena_free(g_compilation_arena);
         g_compilation_arena = NULL;
-
         return 0;
     }
 
-    // Emit to temp file
-    char tmpc_tmpl[] = "/tmp/bcc_out_XXXXXX";
-    int fd = mkstemp(tmpc_tmpl);
-    if (fd < 0) dief("mkstemp failed: %s", strerror(errno));
+    /* Multi-file compilation */
+    Vec cfiles;
+    memset(&cfiles, 0, sizeof(cfiles));
 
-    FILE *out = fdopen(fd, "wb");
-    if (!out) dief("fdopen failed");
+    for (size_t i = 0; i < in_paths.len; i++) {
+        const char *in_path = (const char*)in_paths.data[i];
 
-    emit_program_c(out, prog, in_path, byteptr, no_line);
-    fclose(out);
+        /* Determine C output path */
+        char *emit_c_path = NULL;
+        if (emit_c) {
+            /* a.b -> a.b.c */
+            size_t plen = strlen(in_path);
+            emit_c_path = (char*)malloc(plen + 3);
+            if (!emit_c_path) dief("out of memory");
+            sprintf(emit_c_path, "%s.c", in_path);
+        }
 
-    // Rename temp to .c so gcc has nicer behavior
-    char *cfile = (char*)malloc(strlen(tmpc_tmpl) + 3);
-    if (!cfile) dief("out of memory");
-    sprintf(cfile, "%s.c", tmpc_tmpl);
-    if (rename(tmpc_tmpl, cfile) != 0) dief("rename temp failed: %s", strerror(errno));
+        char *cfile = compile_b_to_c(in_path, byteptr, no_line, verbose,
+                                     dump_tokens, dump_ast, dump_c,
+                                     emit_c, emit_c_path);
 
-    // Compile with gcc
-    int rc = run_gcc(cfile, out_path, compile_only, debug, wall, wextra, werror, &extra_gcc_args);
+        if (emit_c_path) free(emit_c_path);
+
+        if (!cfile) {
+            /* compile_b_to_c returns NULL for --dump-tokens/--dump-ast without --dump-c */
+            arena_free(g_compilation_arena);
+            g_compilation_arena = NULL;
+            return 0;
+        }
+
+        vec_push(&cfiles, cfile);
+        if (verbose) fprintf(stderr, "Compiled %s -> %s\n", in_path, cfile);
+    }
+
+    /* Link all C files with gcc */
+    if (verbose) fprintf(stderr, "Linking %zu file(s)...\n", cfiles.len);
+
+    int rc = run_gcc_multi(&cfiles, out_path, compile_only, debug, wall, wextra, werror, &extra_gcc_args);
+
     if (rc != 0) {
-        fprintf(stderr, "gcc failed (exit %d). Generated C kept at: %s\n", rc, cfile);
-        free(cfile);
-        free(src);
-
-        // Cleanup compilation arena
+        fprintf(stderr, "gcc failed (exit %d)\n", rc);
+        if (!keep_c) {
+            fprintf(stderr, "Generated C files:\n");
+            for (size_t i = 0; i < cfiles.len; i++) {
+                fprintf(stderr, "  %s\n", (char*)cfiles.data[i]);
+            }
+        }
+        /* Don't clean up C files on failure so user can inspect */
         arena_free(g_compilation_arena);
         g_compilation_arena = NULL;
-
         return 1;
     }
 
-    // Clean up temp file unless --keep-c was specified
-    if (!keep_c) {
-        unlink(cfile);
-    } else {
-        fprintf(stderr, "Generated C kept at: %s\n", cfile);
+    /* Clean up temp C files unless --keep-c */
+    for (size_t i = 0; i < cfiles.len; i++) {
+        char *cfile = (char*)cfiles.data[i];
+        if (!keep_c) {
+            unlink(cfile);
+        } else if (verbose) {
+            fprintf(stderr, "Kept: %s\n", cfile);
+        }
+        free(cfile);
     }
 
-    free(cfile);
-    free(src);
-
-    // Cleanup compilation arena
     arena_free(g_compilation_arena);
     g_compilation_arena = NULL;
-
     return 0;
 }

@@ -197,14 +197,9 @@ static void emit_name(FILE *out, const char *name) {
     fputs(get_mangled_name(name), out);
 }
 
-// Clear the name map (call at start of each compilation)
+// Clear the name map (call at start of each compilation unit)
+// Note: entries are arena-allocated, so we just reset the length
 static void clear_name_map(void) {
-    for (size_t i = 0; i < name_map.len; i++) {
-        NameEntry *e = (NameEntry*)name_map.data[i];
-        free((void*)e->original);
-        free(e->mangled);
-        free(e);
-    }
     name_map.len = 0;
 }
 
@@ -640,7 +635,7 @@ void emit_expr(FILE *out, Expr *e, const char *filename) {
                 }
                 // List of builtin functions that have b_ versions
                 const char *b_funcs[] = {
-                    "char", "lchar", "getchr", "putchr", "getstr", "putstr", "flush", "reread", "printf", "printn", "putnum", "putchar", "exit", "abort", "free",
+                    "char", "lchar", "getchr", "putchr", "getstr", "putstr", "flush", "reread", "printf", "print", "printn", "putnum", "putchar", "exit", "abort", "free",
                     "open", "close", "read", "write", "creat", "seek", "openr", "openw",
                     "fork", "wait", "execl", "execv",
                     "chdir", "chmod", "chown", "link", "unlink", "stat", "fstat",
@@ -1823,7 +1818,7 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
         "static word b_fork(void) {\n"
         "    return (word)fork();\n"
         "}\n"
-        "word __b_wait_status;\n"
+        "static word __b_wait_status;\n"
         "\n"
         "static word b_wait(void) {\n"
         "    int st = 0;\n"
@@ -2281,7 +2276,8 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
             if (strcmp(f->name, "main") == 0 || strcmp(f->name, "b_main") == 0) {
                 fprintf(out, "static word __b_user_main(");
             } else {
-                fputs("static word ", out);
+                /* No 'static' - functions need external linkage for multi-file */
+                fputs("word ", out);
                 emit_name(out, f->name);
                 fputc('(', out);
             }
