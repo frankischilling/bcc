@@ -29,7 +29,7 @@ This implementation includes:
 ### B-Specific Features
 - **Compound assignments**: `=+`, `=-`, `=*`, `=/`, `=%`, `=&`, `=|`, `=<<`, `=>>` (value op variable)
 - **String literals**: `*e` terminated (EOT marker), not null-terminated
-- **Character handling**: `char(base, offset)` and `lchar(base, offset, value)` for byte access
+- **Character handling**: `char(base, offset)` and `lchar(base, offset, value)` for byte access (endian-neutral)
 - **Escape sequences**: `*n` (newline), `*t` (tab), `*e` (end), `*0` (null), `**` (asterisk)
 - **Word packing**: Multi-character constants packed into single words
 - **Pointer arithmetic**: Explicit word-based addressing with configurable modes
@@ -604,6 +604,27 @@ Select the arithmetic word size and wraparound behavior with `--word`.
 - Emulates 32-bit word semantics
 - Arithmetic wraps at 32-bit boundaries
 - Useful for code written with 32-bit assumptions
+
+### Endianness and Byte Packing
+
+In word-addressed mode (no `--byteptr`), `char()` and `lchar()` pack bytes into words:
+
+**Byte Packing Convention:**
+- Byte 0 is stored at the least-significant position (LSB)
+- This matches PDP-11 (little-endian) conventions
+- The shift-based implementation operates on word *values*, not memory layout
+
+**Cross-Architecture Behavior:**
+- The implementation is endian-neutral for word operations
+- `char(s, 0)` always returns the LSB of the word, regardless of host endianness
+- A compile-time warning is emitted on big-endian systems when using word-addressed mode
+
+**Important Note:**
+Mixing direct memory access (like C's `*(char*)ptr`) with B's `char()`/`lchar()` will produce different results on big-endian hosts. Always use `char()`/`lchar()` for portable byte access in B programs.
+
+**Recommendation:**
+- Use `--byteptr` (byte-addressed mode) for maximum portability
+- Word-addressed mode works correctly on little-endian systems (x86, ARM, most modern systems)
 
 ### Switch Statement Implementation
 
