@@ -378,7 +378,7 @@ Init *new_init(InitKind k, int line, int col);
 
 // ===================== Emitter =====================
 
-void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr, int no_line);
+void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr, int no_line, int word_bits);
 void emit_program_asm(FILE *out, Program *prog);
 void emit_expr(FILE *out, Expr *e, const char *filename);
 void emit_ival_expr(FILE *out, Expr *e, const char *filename);

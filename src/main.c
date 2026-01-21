@@ -72,7 +72,7 @@ int run_gcc_multi(Vec *cfiles, const char *out_exe, int compile_only, int debug,
 /* Compile a single .b file to C, returning the path to the generated .c file */
 char *compile_b_to_c(const char *in_path, int byteptr, int no_line, int verbose,
                      int dump_tokens, int dump_ast, int dump_c,
-                     int emit_c, const char *emit_c_path) {
+                     int emit_c, const char *emit_c_path, int word_bits) {
     if (verbose) fprintf(stderr, "Reading %s...\n", in_path);
     size_t len = 0;
     char *src = read_file_all(in_path, &len);
@@ -142,7 +142,7 @@ char *compile_b_to_c(const char *in_path, int byteptr, int no_line, int verbose,
         if (!out) dief("cannot reopen '%s': %s", cfile, strerror(errno));
     }
 
-    emit_program_c(out, prog, in_path, byteptr, no_line);
+    emit_program_c(out, prog, in_path, byteptr, no_line, word_bits);
     fclose(out);
 
     if (dump_c) {
@@ -177,6 +177,7 @@ int main(int argc, char **argv) {
     int no_line = 1;       /* --no-line */
     int verbose_errors = 0; /* --verbose-errors */
     int verbose = 0;       /* -v flag */
+    int word_bits = 0;     /* --word=16|32|host (0 means host native) */
     Vec extra_gcc_args;    /* extra arguments to pass to gcc */
     Vec in_paths;          /* input .b files */
     const char *out_path = NULL;
@@ -217,6 +218,17 @@ int main(int argc, char **argv) {
             werror = 1;
         } else if (strcmp(argv[i], "--byteptr") == 0) {
             byteptr = 1;
+        } else if (strncmp(argv[i], "--word=", 7) == 0) {
+            const char *val = argv[i] + 7;
+            if (strcmp(val, "16") == 0) {
+                word_bits = 16;
+            } else if (strcmp(val, "32") == 0) {
+                word_bits = 32;
+            } else if (strcmp(val, "host") == 0) {
+                word_bits = 0;
+            } else {
+                dief("--word must be 16, 32, or host");
+            }
         } else if (strcmp(argv[i], "--dump-tokens") == 0) {
             dump_tokens = 1;
         } else if (strcmp(argv[i], "--dump-ast") == 0) {
@@ -278,6 +290,8 @@ int main(int argc, char **argv) {
         fprintf(stderr, "  -Wno-extra  disable extra warnings\n");
         fprintf(stderr, "  -Werror     treat warnings as errors\n");
         fprintf(stderr, "  --byteptr   use byte-addressed pointers\n");
+        fprintf(stderr, "  --word=N    word size: 16, 32, or host (default: host)\n");
+        fprintf(stderr, "              16-bit mode wraps arithmetic like PDP-11\n");
         fprintf(stderr, "  -v          verbose compilation output\n");
         fprintf(stderr, "\n");
         fprintf(stderr, "  --dump-tokens  show tokenized input\n");
@@ -323,7 +337,7 @@ int main(int argc, char **argv) {
         sem_check_program(prog, in_path);
 
         if (emit_c_only) {
-            emit_program_c(stdout, prog, in_path, byteptr, no_line);
+            emit_program_c(stdout, prog, in_path, byteptr, no_line, word_bits);
         } else {
             emit_program_asm(stdout, prog);
         }
@@ -362,7 +376,7 @@ int main(int argc, char **argv) {
 
         FILE *out = fopen(out_path, "w");
         if (!out) dief("cannot open '%s': %s", out_path, strerror(errno));
-        emit_program_c(out, prog, in_path, byteptr, no_line);
+        emit_program_c(out, prog, in_path, byteptr, no_line, word_bits);
         fclose(out);
 
         free(src);
@@ -390,7 +404,7 @@ int main(int argc, char **argv) {
 
         char *cfile = compile_b_to_c(in_path, byteptr, no_line, verbose,
                                      dump_tokens, dump_ast, dump_c,
-                                     emit_c, emit_c_path);
+                                     emit_c, emit_c_path, word_bits);
 
         if (emit_c_path) free(emit_c_path);
 

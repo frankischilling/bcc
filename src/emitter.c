@@ -357,6 +357,7 @@ void emit_c_string(FILE *out, const char *s) {
 }
 
 static int current_byteptr;
+static int current_word_bits;
 void emit_expr(FILE *out, Expr *e, const char *filename);
 
 static int stmt_is_block(const Stmt *s) {
@@ -640,7 +641,7 @@ void emit_expr(FILE *out, Expr *e, const char *filename) {
                     "fork", "wait", "execl", "execv",
                     "chdir", "chmod", "chown", "link", "unlink", "stat", "fstat",
                     "time", "ctime", "getuid", "setuid", "makdir", "intr",
-                    "system",
+                    "system", "usleep",
                     "callf",
                     "argc", "argv",
                     NULL
@@ -772,6 +773,33 @@ void emit_expr(FILE *out, Expr *e, const char *filename) {
             TokenKind op = e->as.unary.op;
 
             if (op == TK_STAR) {
+                /* Check if this is string character access: *(string + offset) or *(offset + string) */
+                Expr *rhs = e->as.unary.rhs;
+                if (rhs->kind == EX_BINARY && rhs->as.bin.op == TK_PLUS) {
+                    Expr *lhs_inner = rhs->as.bin.lhs;
+                    Expr *rhs_inner = rhs->as.bin.rhs;
+                    Expr *str_expr = NULL;
+                    Expr *idx_expr = NULL;
+
+                    if (lhs_inner->kind == EX_STR) {
+                        str_expr = lhs_inner;
+                        idx_expr = rhs_inner;
+                    } else if (rhs_inner->kind == EX_STR) {
+                        str_expr = rhs_inner;
+                        idx_expr = lhs_inner;
+                    }
+
+                    if (str_expr) {
+                        /* Use b_char() for string character access */
+                        fputs("b_char(", out);
+                        emit_expr(out, str_expr, filename);
+                        fputs(", ", out);
+                        emit_expr(out, idx_expr, filename);
+                        fputc(')', out);
+                        return;
+                    }
+                }
+                /* Default: word dereference */
                 fputs("B_DEREF(", out);
                 emit_expr(out, e->as.unary.rhs, filename);
                 fputc(')', out);
@@ -807,8 +835,8 @@ void emit_expr(FILE *out, Expr *e, const char *filename) {
             /* keep the rest normal, but parenthesize to avoid precedence surprises */
             if (op == TK_PLUSPLUS || op == TK_MINUSMINUS) {
                 Expr *rhs = e->as.unary.rhs;
-                if (is_complex_lvalue(rhs)) {
-                    // Use helper function to avoid double evaluation
+                /* Use helper function for complex lvalues OR when in non-host mode (for proper wrapping) */
+                if (is_complex_lvalue(rhs) || current_word_bits != 0) {
                     fputs("b_", out);
                     fputs(op == TK_PLUSPLUS ? "preinc" : "predec", out);
                     fputs("(&(", out);
@@ -823,11 +851,19 @@ void emit_expr(FILE *out, Expr *e, const char *filename) {
                 return;
             }
 
+            /* Wrap unary negation with WVAL() for proper word semantics */
+            int needs_wrap = (op == TK_MINUS) && (current_word_bits != 0);
+            if (needs_wrap) {
+                fputs("WVAL(", out);
+            }
             fputc('(', out);
             fputs(tk_name(op), out);
             fputc('(', out);
             emit_expr(out, e->as.unary.rhs, filename);
             fputs("))", out);
+            if (needs_wrap) {
+                fputc(')', out);
+            }
             return;
         }
 
@@ -835,8 +871,8 @@ void emit_expr(FILE *out, Expr *e, const char *filename) {
             // postfix ops
             TokenKind op = e->as.post.op;
             Expr *lhs = e->as.post.lhs;
-            if (is_complex_lvalue(lhs)) {
-                // Use helper function to avoid double evaluation
+            /* Use helper function for complex lvalues OR when in non-host mode (for proper wrapping) */
+            if (is_complex_lvalue(lhs) || current_word_bits != 0) {
                 fputs("b_", out);
                 fputs(op == TK_PLUSPLUS ? "postinc" : "postdec", out);
                 fputs("(&(", out);
@@ -853,11 +889,22 @@ void emit_expr(FILE *out, Expr *e, const char *filename) {
 
         case EX_BINARY: {
             TokenKind op = e->as.bin.op;
+            /* Wrap arithmetic operations with WVAL() for proper word semantics */
+            int needs_wrap = (op == TK_PLUS || op == TK_MINUS || op == TK_STAR ||
+                              op == TK_SLASH || op == TK_PERCENT ||
+                              op == TK_LSHIFT || op == TK_RSHIFT ||
+                              op == TK_AMP || op == TK_BAR);
+            if (needs_wrap && current_word_bits != 0) {
+                fputs("WVAL(", out);
+            }
             fputc('(', out);
             emit_expr(out, e->as.bin.lhs, filename);
             fprintf(out, " %s ", tk_name(op));
             emit_expr(out, e->as.bin.rhs, filename);
             fputc(')', out);
+            if (needs_wrap && current_word_bits != 0) {
+                fputc(')', out);
+            }
             return;
         }
 
@@ -889,8 +936,10 @@ void emit_expr(FILE *out, Expr *e, const char *filename) {
                 return;
             }
 
-            // For compound assignments on complex lvalues, use helper function to avoid double evaluation
-            if (op != TK_ASSIGN && is_complex_lvalue(lhs)) {
+            // For compound assignments, use helper function when:
+            // - complex lvalue (to avoid double evaluation), OR
+            // - non-host mode (to ensure proper word wrapping)
+            if (op != TK_ASSIGN && (is_complex_lvalue(lhs) || current_word_bits != 0)) {
                 const char *helper_name = NULL;
                 switch (op) {
                 case TK_PLUSEQ: helper_name = "add_assign"; break;
@@ -1220,8 +1269,9 @@ void emit_stmt(FILE *out, Stmt *s, int indent, int is_function_body, const char 
 // Forward declaration for assembly emitter
 void emit_program_asm(FILE *out, Program *prog);
 
-void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr, int no_line) {
+void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr, int no_line, int word_bits) {
     current_byteptr = byteptr;
+    current_word_bits = word_bits;
     string_pool.data = NULL;
     string_pool.len = 0;
     string_pool.cap = 0;
@@ -1275,6 +1325,28 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
         out
     );
     fprintf(out, "#define B_BYTEPTR %d\n", byteptr ? 1 : 0);
+    fprintf(out, "#define WORD_BITS %d\n", word_bits);
+    fputs(
+        "/*\n"
+        "  Word size emulation:\n"
+        "    WORD_BITS=0   -> host native (no wrapping)\n"
+        "    WORD_BITS=16  -> wrap arithmetic like PDP-11 16-bit words\n"
+        "    WORD_BITS=32  -> wrap arithmetic at 32 bits\n"
+        "  WVAL(x) sign-extends to word width after masking.\n"
+        "*/\n"
+        "#if WORD_BITS == 16\n"
+        "  #define WORD_MASK 0xFFFFU\n"
+        "  #define WVAL(x) ((word)(int16_t)((x) & WORD_MASK))\n"
+        "#elif WORD_BITS == 32\n"
+        "  #define WORD_MASK 0xFFFFFFFFU\n"
+        "  #define WVAL(x) ((word)(int32_t)((x) & WORD_MASK))\n"
+        "#else\n"
+        "  #define WORD_MASK (~(uword)0)\n"
+        "  #define WVAL(x) (x)\n"
+        "#endif\n"
+        "\n",
+        out
+    );
     fputs(
         "#if B_BYTEPTR\n"
         "  /* Byte-addressed pointers: addresses are bytes; array elements are word-sized. */\n"
@@ -1337,11 +1409,9 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
 "static word b_abort(void){ abort(); return 0; }\n"
 "static word b_free(word p){ free(B_CPTR(p)); return 0; }\n"
         "\n"
-        "/* Fixed-point sine helper: input in fixed-point radians (scale 1024), output scaled by 1024. */\n"
+        "/* Sign-extend 16-bit value to full word size. Used by 16-bit B programs on 64-bit hosts. */\n"
         "static word sx64(word x){\n"
-        "    double ang = (double)x / 1024.0;\n"
-        "    double s = sin(ang);\n"
-        "    return (word)lrint(s * 1024.0);\n"
+        "    return (word)(int16_t)(x & 0xFFFF);\n"
         "}\n"
         "\n"
         "/* Command line argument support */\n"
@@ -1359,34 +1429,21 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
 "static word b_reread(void);\n"
         "\n"
         "/* Helper functions for complex lvalue operations (avoid GNU C extensions) */\n"
-        "#if B_BYTEPTR\n"
-        "static word b_preinc(word *p) { return (*p = (word)((uword)*p + 1)); }\n"
-        "static word b_predec(word *p) { return (*p = (word)((uword)*p - 1)); }\n"
-        "static word b_postinc(word *p) { word old = *p; *p = (word)((uword)*p + 1); return old; }\n"
-        "static word b_postdec(word *p) { word old = *p; *p = (word)((uword)*p - 1); return old; }\n"
-        "static word b_add_assign(word *p, word v) { return (*p = (word)((uword)*p + (uword)v)); }\n"
-        "static word b_sub_assign(word *p, word v) { return (*p = (word)((uword)*p - (uword)v)); }\n"
-        "static word b_mul_assign(word *p, word v) { return (*p = (word)((uword)*p * (uword)v)); }\n"
-        "static word b_div_assign(word *p, word v) { return (*p = (word)((uword)*p / (uword)v)); }\n"
-        "static word b_mod_assign(word *p, word v) { return (*p = (word)((uword)*p % (uword)v)); }\n"
-        "static word b_lsh_assign(word *p, word v) { return (*p = (word)((uword)*p << (uword)v)); }\n"
-        "static word b_rsh_assign(word *p, word v) { return (*p = (word)((uword)*p >> (uword)v)); }\n"
-        "#else\n"
-        "static word b_preinc(word *p) { return (*p = (word)(((uword)*p + 1) & 0xFFFF)); }\n"
-        "static word b_predec(word *p) { return (*p = (word)(((uword)*p - 1) & 0xFFFF)); }\n"
-        "static word b_postinc(word *p) { word old = *p; *p = (word)(((uword)*p + 1) & 0xFFFF); return old; }\n"
-        "static word b_postdec(word *p) { word old = *p; *p = (word)(((uword)*p - 1) & 0xFFFF); return old; }\n"
-        "static word b_add_assign(word *p, word v) { return (*p = (word)(((uword)*p + (uword)v) & 0xFFFF)); }\n"
-        "static word b_sub_assign(word *p, word v) { return (*p = (word)(((uword)*p - (uword)v) & 0xFFFF)); }\n"
-        "static word b_mul_assign(word *p, word v) { return (*p = (word)(((uword)*p * (uword)v) & 0xFFFF)); }\n"
-        "static word b_div_assign(word *p, word v) { return (*p = (word)(((uword)*p / (uword)v) & 0xFFFF)); }\n"
-        "static word b_mod_assign(word *p, word v) { return (*p = (word)(((uword)*p % (uword)v) & 0xFFFF)); }\n"
-        "static word b_lsh_assign(word *p, word v) { return (*p = (word)(((uword)*p << (uword)v) & 0xFFFF)); }\n"
-        "static word b_rsh_assign(word *p, word v) { return (*p = (word)(((uword)*p >> (uword)v) & 0xFFFF)); }\n"
-        "#endif\n"
-        "static word b_and_assign(word *p, word v) { return (*p = (word)((uword)*p & (uword)v)); }\n"
-        "static word b_or_assign(word *p, word v) { return (*p = (word)((uword)*p | (uword)v)); }\n"
-        "static word b_xor_assign(word *p, word v) { return (*p = (word)((uword)*p ^ (uword)v)); }\n"
+        "/* All use WVAL() to wrap results according to WORD_BITS setting */\n"
+        "static word b_preinc(word *p) { return (*p = WVAL((uword)*p + 1)); }\n"
+        "static word b_predec(word *p) { return (*p = WVAL((uword)*p - 1)); }\n"
+        "static word b_postinc(word *p) { word old = WVAL(*p); *p = WVAL((uword)*p + 1); return old; }\n"
+        "static word b_postdec(word *p) { word old = WVAL(*p); *p = WVAL((uword)*p - 1); return old; }\n"
+        "static word b_add_assign(word *p, word v) { return (*p = WVAL((uword)*p + (uword)v)); }\n"
+        "static word b_sub_assign(word *p, word v) { return (*p = WVAL((uword)*p - (uword)v)); }\n"
+        "static word b_mul_assign(word *p, word v) { return (*p = WVAL((uword)*p * (uword)v)); }\n"
+        "static word b_div_assign(word *p, word v) { return (*p = WVAL((uword)*p / (uword)v)); }\n"
+        "static word b_mod_assign(word *p, word v) { return (*p = WVAL((uword)*p % (uword)v)); }\n"
+        "static word b_lsh_assign(word *p, word v) { return (*p = WVAL((uword)*p << (uword)v)); }\n"
+        "static word b_rsh_assign(word *p, word v) { return (*p = WVAL((uword)*p >> (uword)v)); }\n"
+        "static word b_and_assign(word *p, word v) { return (*p = WVAL((uword)*p & (uword)v)); }\n"
+        "static word b_or_assign(word *p, word v) { return (*p = WVAL((uword)*p | (uword)v)); }\n"
+        "static word b_xor_assign(word *p, word v) { return (*p = WVAL((uword)*p ^ (uword)v)); }\n"
         "\n"
         "static word b_alloc(word nwords){\n"
         "    size_t bytes = (size_t)nwords * sizeof(word);\n"
@@ -1673,14 +1730,30 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
         "\n"
         "        switch ((int)code){\n"
         "        case 'd': {\n"
+        "#if WORD_BITS == 16\n"
         "            int16_t v = (int16_t)arg;\n"
         "            if (v < 0){ b_putchar('-'); v = (int16_t)-v; }\n"
         "            if (v) b_printn_u((word)(uword)(uint16_t)v, 10);\n"
+        "#elif WORD_BITS == 32\n"
+        "            int32_t v = (int32_t)arg;\n"
+        "            if (v < 0){ b_putchar('-'); v = -v; }\n"
+        "            if (v) b_printn_u((word)(uword)(uint32_t)v, 10);\n"
+        "#else\n"
+        "            word v = arg;\n"
+        "            if (v < 0){ b_putchar('-'); v = -v; }\n"
+        "            if (v) b_printn_u((word)(uword)v, 10);\n"
+        "#endif\n"
         "            else b_putchar('0');\n"
         "            break;\n"
         "        }\n"
         "        case 'o': {\n"
+        "#if WORD_BITS == 16\n"
         "            uint16_t v = (uint16_t)arg;\n"
+        "#elif WORD_BITS == 32\n"
+        "            uint32_t v = (uint32_t)arg;\n"
+        "#else\n"
+        "            uword v = (uword)arg;\n"
+        "#endif\n"
         "            if (v) b_printn_u((word)(uword)v, 8);\n"
         "            else b_putchar('0');\n"
         "            break;\n"
@@ -1895,6 +1968,11 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
 "    free(line);\n"
 "    if (w < 0) return -1;\n"
 "    return (word)st;\n"
+"}\n"
+"\n"
+"static word b_usleep(word usec) {\n"
+"    usleep((useconds_t)usec);\n"
+"    return 0;\n"
 "}\n"
 "\n"
 "static word b_callf_dispatch(int nargs, word name, ...) {\n"

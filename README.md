@@ -47,6 +47,8 @@ Complete implementation of B's runtime library (using libc) including:
 - File operations: `open`, `close`, `read`, `write`, `creat`, `seek`
 - File redirection helpers: `openr`, `openw`, `flush` for switching stdin/stdout units
 - Process control: `fork`, `wait`, `execl`, `execv`, `system` (shell-free, returns raw wait status; decode with `(rc >> 8) & 0377`)
+- Time/delay: `usleep(microseconds)` for delays and animations
+- Math helpers: `sx64(x)` sign-extends lower 16 bits to full word (for 16-bit algorithm compatibility)
 - Foreign calls: `callf` to invoke linked Fortran/GMAP/C routines by name (pass addresses; supports up to 10 args)
 
 ### External Library Integration
@@ -88,6 +90,7 @@ Link B programs with any C library:
 - `-Wall`: Enable all warnings (default)
 - `-Werror`: Treat warnings as errors
 - `--byteptr`: Use byte-addressed pointers
+- `--word={host|16|32}`: Select word size/semantics (see Word Semantics Modes; mainly for historical compatibility)
 - `--keep-c`: Don't delete temporary C files after compilation
 - `--emit-c`: Generate C files with nice names (file.b → file.b.c)
 - `-v`: Verbose compilation output
@@ -580,6 +583,28 @@ BCC supports two pointer addressing modes to match different B implementations:
 - Array access: `arr[i]` → `*((word*)arr + i)`
 - Matches modern C pointer semantics
 
+### Word Semantics Modes
+
+Select the arithmetic word size and wraparound behavior with `--word`.  
+**Note:** These modes exist primarily for compatibility with historical B code; for new programs, the default `--word=host` is recommended.
+
+#### `--word=host` (default)
+- Uses native host word size (typically 64-bit)
+- No arithmetic wraparound
+- Fastest option; programs relying on 16-bit wrap may behave differently
+
+#### `--word=16`
+- Emulates PDP-11 16-bit word semantics
+- Arithmetic wraps at 16-bit (-32768..32767)
+- Examples: `32767 + 1` → `-32768`; `-32768 - 1` → `32767`
+- Bitwise ops mask to 16 bits
+- Use for historical B programs expecting PDP-11 behavior
+
+#### `--word=32`
+- Emulates 32-bit word semantics
+- Arithmetic wraps at 32-bit boundaries
+- Useful for code written with 32-bit assumptions
+
 ### Switch Statement Implementation
 
 B's switch statements have fall-through behavior by default (no break statements exist in B). Switch statements are compiled to efficient C `for` loops with computed goto:
@@ -861,6 +886,10 @@ word main(void) {
 - **File I/O**: `open`, `close`, `read`, `write`, `creat`, `seek`
 - **Process Control**: `fork`, `wait`, `execl`, `execv`
 - **System Calls**: `chdir`, `chmod`, `link`, `unlink`, etc.
+- **Time/Delay**: `usleep(microseconds)` for timing and animations
+
+**Math/Compatibility Helpers**
+- **`sx64(x)`**: Sign-extend lower 16 bits to full word size. Essential for porting 16-bit algorithms to 64-bit hosts. Example: `sx64(-58368)` returns `7168` (the 16-bit representation sign-extended).
 
 **B-Specific Features**
 - **String Handling**: `*e` (EOT) termination, not null bytes
@@ -880,6 +909,23 @@ The compiler includes comprehensive test files:
   - `lib.b` provides `fact`, `fib`, and `is_prime`
   - `main.b` calls them and prints results
   - Build/run: `./bcc lib.b main.b -o myapp && ./myapp`
+
+### Example Programs
+The `examples/` directory contains several B programs:
+- `hello.b`: Classic hello world
+- `fib.b`: Fibonacci sequence
+- `fizzbuzz.b`: FizzBuzz challenge
+- `mandelbrot.b`: ASCII Mandelbrot fractal
+- `donut.b`: Spinning 3D ASCII donut animation (uses `sx64`, `usleep`)
+- `gol.b`: Conway's Game of Life
+- `snake.b`: Snake game
+- `brainfuck.b`: Brainfuck interpreter
+- `raylib.b`: Graphics with raylib library
+
+Run an example:
+```bash
+./bcc examples/donut.b -o donut && ./donut
+```
 
 ### Testing Methodology
 - **Unit Testing**: Individual language features

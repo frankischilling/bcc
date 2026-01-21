@@ -85,7 +85,7 @@ void lx_skip_ws_and_comments(Lexer *L) {
             continue;
         }
 
-        /* C++-style comment */
+        /* C++ style line comment (extension for compatibility) */
         if (c == '/' && lx_peek2(L) == '/') {
             lx_get(L); lx_get(L);  /* consume // */
             while ((c = lx_peek(L)) && c != '\n') {
