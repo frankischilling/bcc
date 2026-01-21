@@ -1,0 +1,16 @@
+AST:
+Top level 0:
+  FUNC main
+  BLOCK
+    AUTO
+    EXPR
+      ASSIGN =
+        VAR x
+        BINARY +
+          NUM 1
+          BINARY *
+            NUM 2
+            NUM 3
+    RETURN
+      VAR x
+

@@ -1,0 +1,3 @@
+/* Empty main function */
+main() {
+}

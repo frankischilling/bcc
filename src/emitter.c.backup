@@ -1,0 +1,2157 @@
+// emitter.c - C code emitter
+
+#include "bcc.h"
+
+// ===================== String Pool for Thompson-Accurate Strings =====================
+
+typedef struct {
+    const char *str;
+    int id;
+} StringEntry;
+
+static Vec string_pool;  // Vec<StringEntry>
+
+static int get_string_id(const char *s) {
+    for (size_t i = 0; i < string_pool.len; i++) {
+        StringEntry *e = (StringEntry*)string_pool.data[i];
+        if (strcmp(e->str, s) == 0) return e->id;
+    }
+
+    StringEntry *e = xmalloc(sizeof(StringEntry));
+    e->str = sdup(s);
+    e->id = (int)string_pool.len;
+    vec_push(&string_pool, e);
+    return e->id;
+}
+
+static void emit_string_pool(FILE *out) {
+    for (size_t i = 0; i < string_pool.len; i++) {
+        StringEntry *e = (StringEntry*)string_pool.data[i];
+        const unsigned char *s = (const unsigned char*)e->str;
+
+        size_t n = 0;
+        while (s[n]) n++;                 // length excluding NUL
+
+        size_t total_bytes = n + 1;       // +1 for 004 terminator
+        size_t W = sizeof(intptr_t);       // bytes per bword on this host (matches typedef)
+        size_t words_needed = (total_bytes + W - 1) / W;
+
+        fprintf(out, "static const bword __b_str%zu[] = {", i);
+
+        for (size_t wi = 0; wi < words_needed; wi++) {
+            uintptr_t w = 0;
+            for (size_t bi = 0; bi < W; bi++) {
+                size_t byte_idx = wi * W + bi;
+                unsigned char b;
+
+                if (byte_idx < n)       b = s[byte_idx];
+                else if (byte_idx == n) b = 004;
+                else                    b = 0;
+
+                w |= (uintptr_t)b << (8 * bi);
+            }
+
+            if (wi) fputc(',', out);
+            fprintf(out, "0x%0*" PRIxPTR, (int)(W * 2), w);
+        }
+
+        fprintf(out, "};\n");
+    }
+}
+
+// String collection prepass
+static void collect_strings_expr(Expr *e);
+static void collect_strings_init(Init *in);
+static void collect_strings_stmt(Stmt *s);
+
+static void collect_strings_expr(Expr *e) {
+    if (!e) return;
+    switch (e->kind) {
+        case EX_STR:
+            (void)get_string_id(e->as.str);
+            return;
+        case EX_CALL:
+            collect_strings_expr(e->as.call.callee);
+            for (size_t i = 0; i < e->as.call.args.len; i++)
+                collect_strings_expr((Expr*)e->as.call.args.data[i]);
+            return;
+        case EX_INDEX:
+            collect_strings_expr(e->as.index.base);
+            collect_strings_expr(e->as.index.idx);
+            return;
+        case EX_UNARY:
+            collect_strings_expr(e->as.unary.rhs);
+            return;
+        case EX_POST:
+            collect_strings_expr(e->as.post.lhs);
+            return;
+        case EX_BINARY:
+            collect_strings_expr(e->as.bin.lhs);
+            collect_strings_expr(e->as.bin.rhs);
+            return;
+        case EX_ASSIGN:
+            collect_strings_expr(e->as.assign.lhs);
+            collect_strings_expr(e->as.assign.rhs);
+            return;
+        case EX_TERNARY:
+            collect_strings_expr(e->as.ternary.cond);
+            collect_strings_expr(e->as.ternary.true_expr);
+            collect_strings_expr(e->as.ternary.false_expr);
+            return;
+        case EX_COMMA:
+            collect_strings_expr(e->as.comma.lhs);
+            collect_strings_expr(e->as.comma.rhs);
+            return;
+        default:
+            return;
+    }
+}
+
+static void collect_strings_init(Init *in) {
+    if (!in) return;
+    if (in->kind == INIT_EXPR) {
+        collect_strings_expr(in->as.expr);
+    } else if (in->kind == INIT_LIST) {
+        for (size_t i = 0; i < in->as.list.len; i++)
+            collect_strings_init((Init*)in->as.list.data[i]);
+    }
+}
+
+static void collect_strings_stmt(Stmt *s) {
+    if (!s) return;
+    switch (s->kind) {
+        case ST_BLOCK:
+            for (size_t i = 0; i < s->as.block.items.len; i++)
+                collect_strings_stmt((Stmt*)s->as.block.items.data[i]);
+            return;
+        case ST_IF:
+            collect_strings_expr(s->as.ifs.cond);
+            collect_strings_stmt(s->as.ifs.then_s);
+            collect_strings_stmt(s->as.ifs.else_s);
+            return;
+        case ST_WHILE:
+            collect_strings_expr(s->as.whiles.cond);
+            collect_strings_stmt(s->as.whiles.body);
+            return;
+        case ST_RETURN:
+            collect_strings_expr(s->as.ret.val);
+            return;
+        case ST_EXPR:
+            collect_strings_expr(s->as.expr.e);
+            return;
+        case ST_SWITCH:
+            collect_strings_expr(s->as.switch_.expr);
+            collect_strings_stmt(s->as.switch_.body);
+            return;
+        case ST_LABEL:
+            collect_strings_stmt(s->as.label_.stmt);
+            return;
+        case ST_CASE:
+            // if your case holds exprs, add them here
+            return;
+        default:
+            return;
+    }
+}
+
+static void collect_strings_program(Program *prog) {
+    for (size_t i = 0; i < prog->tops.len; i++) {
+        Top *t = (Top*)prog->tops.data[i];
+        if (t->kind == TOP_FUNC) {
+            collect_strings_stmt(t->as.fn->body);
+        } else if (t->kind == TOP_EXTERN_DEF) {
+            ExternItem *it = t->as.ext_def;
+            collect_strings_init(it->as.var.init);
+            // also collect from bounds if those can contain expressions
+            if (it->as.var.bound) collect_strings_expr(it->as.var.bound);
+        } else if (t->kind == TOP_GAUTO) {
+            collect_strings_stmt(t->as.gauto);
+        }
+    }
+}
+
+// ===================== C Emitter (walk AST) =====================
+
+// Convert B-style assignment operators to C-style for code generation
+static const char *assignment_op_to_c(TokenKind op) {
+    switch (op) {
+        case TK_ASSIGN: return "=";
+        case TK_PLUSEQ: return "+=";
+        case TK_MINUSEQ: return "-=";
+        case TK_STAREQ: return "*=";
+        case TK_SLASHEQ: return "/=";
+        case TK_PERCENTEQ: return "%=";
+        case TK_LSHIFTEQ: return "<<=";
+        case TK_RSHIFTEQ: return ">>=";
+        case TK_ANDEQ: return "&=";
+        case TK_OREQ: return "|=";
+        default: return tk_name(op);
+    }
+}
+
+void emit_indent(FILE *out, int n) {
+    for (int i = 0; i < n; i++) fputs("  ", out);
+}
+
+void emit_line_directive(FILE *out, int line, const char *filename) {
+    if (!g_no_line && filename) {
+        fprintf(out, "#line %d \"%s\"\n", line, filename);
+    }
+}
+
+void emit_c_string(FILE *out, const char *s) {
+    fputc('"', out);
+    for (const unsigned char *p = (const unsigned char*)s; *p; p++) {
+        unsigned char c = *p;
+        if (c == '\\' || c == '"') { fputc('\\', out); fputc(c, out); }
+        else if (c == '\n') fputs("\\n", out);
+        else if (c == '\t') fputs("\\t", out);
+        else if (c < 32) fprintf(out, "\\x%02x", c);
+        else fputc(c, out);
+    }
+    fputc('"', out);
+}
+
+static int current_byteptr;
+void emit_expr(FILE *out, Expr *e, const char *filename);
+
+static int stmt_is_block(const Stmt *s) {
+    return s && s->kind == ST_BLOCK;
+}
+
+// Check if expression is a complex lvalue (indexing or dereference, not simple variable)
+static int is_complex_lvalue(Expr *e) {
+    if (!e) return 0;
+    return e->kind == EX_INDEX || (e->kind == EX_UNARY && e->as.unary.op == TK_STAR);
+}
+
+typedef enum { CTRL_LOOP, CTRL_SWITCH } CtrlKind;
+
+typedef struct CtrlFrame {
+    CtrlKind kind;
+    const char *switch_end;   // only valid for CTRL_SWITCH
+    struct CtrlFrame *prev;
+} CtrlFrame;
+
+static CtrlFrame *g_ctrl = NULL;
+
+
+typedef struct {
+    Stmt *node;
+    char *label;
+} CaseMap;
+
+static int g_switch_id = 0;
+
+static const char *lookup_case_label(Vec *maps, Stmt *node) {
+    for (size_t i = 0; i < maps->len; i++) {
+        CaseMap *m = maps->data[i];
+        if (m->node == node) return m->label;
+    }
+    return NULL;
+}
+
+static void collect_cases(Stmt *s, Vec *cases) {
+    if (!s) return;
+
+    switch (s->kind) {
+        case ST_SWITCH:
+            // do not descend into nested switches
+            return;
+
+        case ST_CASE:
+            vec_push(cases, s);
+            // case statements don't have bodies to collect from
+            return;
+
+        case ST_LABEL:
+            collect_cases(s->as.label_.stmt, cases);
+            return;
+
+        case ST_BLOCK:
+            for (size_t i = 0; i < s->as.block.items.len; i++)
+                collect_cases(s->as.block.items.data[i], cases);
+            return;
+
+        case ST_IF:
+            collect_cases(s->as.ifs.then_s, cases);
+            collect_cases(s->as.ifs.else_s, cases);
+            return;
+
+        case ST_WHILE:
+            collect_cases(s->as.whiles.body, cases);
+            return;
+
+        default:
+            return;
+    }
+}
+
+// Switch-body emitter (so case/default emit internal labels)
+static void emit_stmt_switchctx(FILE *out, Stmt *s, int indent, Vec *maps, const char *filename);
+
+static void emit_stmt_switchctx(FILE *out, Stmt *s, int indent, Vec *maps, const char *filename) {
+    if (!s) return;
+
+    switch (s->kind) {
+        case ST_CASE: {
+            const char *lab = lookup_case_label(maps, s);
+            emit_indent(out, indent);
+            fprintf(out, "%s:\n", lab);
+            emit_indent(out, indent + 1);
+            fputs(";\n", out);
+            // case statements don't have bodies to emit
+            return;
+        }
+
+        case ST_LABEL:
+            emit_indent(out, indent);
+            fprintf(out, "%s:\n", s->as.label_.name);
+            emit_indent(out, indent + 1);
+            fputs(";\n", out);
+            emit_stmt_switchctx(out, s->as.label_.stmt, indent + 1, maps, filename);
+            return;
+
+        case ST_BLOCK:
+            emit_indent(out, indent);
+            fputs("{\n", out);
+            for (size_t i = 0; i < s->as.block.items.len; i++)
+                emit_stmt_switchctx(out, s->as.block.items.data[i], indent + 1, maps, filename);
+            emit_indent(out, indent);
+            fputs("}\n", out);
+            return;
+
+        case ST_IF:
+            emit_indent(out, indent);
+            fputs("if (", out);
+            emit_expr(out, s->as.ifs.cond, filename);
+            fputs(")\n", out);
+            emit_stmt_switchctx(out, s->as.ifs.then_s,
+                                stmt_is_block(s->as.ifs.then_s) ? indent : indent + 1, maps, filename);
+            if (s->as.ifs.else_s) {
+                emit_indent(out, indent);
+                fputs("else\n", out);
+                emit_stmt_switchctx(out, s->as.ifs.else_s,
+                                    stmt_is_block(s->as.ifs.else_s) ? indent : indent + 1, maps, filename);
+            }
+            return;
+
+        case ST_WHILE:
+            emit_indent(out, indent);
+            fputs("while (", out);
+            emit_expr(out, s->as.whiles.cond, filename);
+            fputs(")\n", out);
+            emit_stmt_switchctx(out, s->as.whiles.body,
+                                stmt_is_block(s->as.whiles.body) ? indent : indent + 1, maps, filename);
+            return;
+
+        case ST_SWITCH:
+            // nested switches: let normal emitter handle them
+            emit_stmt(out, s, indent, 0, filename);
+            return;
+
+        default:
+            emit_stmt(out, s, indent, 0, filename);
+            return;
+    }
+}
+
+static void emit_switch(FILE *out, Stmt *s, int indent, const char *filename) {
+    int sid = ++g_switch_id;
+    // fprintf(stderr, "DEBUG: emit_switch sid=%d\n", sid);
+
+    Vec *cases = vec_new();
+    Vec *maps  = vec_new();
+
+    collect_cases(s->as.switch_.body, cases);
+
+    // assign labels
+    for (size_t i = 0; i < cases->len; i++) {
+        CaseMap *m = xmalloc(sizeof(*m));
+        m->node = cases->data[i];
+        char buf[128];
+        snprintf(buf, sizeof(buf), "__bsw%d_case%zu", sid, i);
+        size_t label_len = strlen(buf);
+        m->label = arena_xstrdup_range(g_compilation_arena, buf, 0, label_len);
+        //fprintf(stderr, "DEBUG: created label '%s' for case %zu, sid=%d\n", m->label, i, sid);
+        vec_push(maps, m);
+    }
+
+    emit_indent(out, indent);
+    fputs("for(;;) {\n", out);
+
+    emit_indent(out, indent + 1);
+    fputs("bword __sw = ", out);
+    emit_expr(out, s->as.switch_.expr, filename);
+    fputs(";\n", out);
+
+        char end_label_buf[64];
+        snprintf(end_label_buf, sizeof(end_label_buf), "__bsw%d_end", sid);
+        char *end_label = end_label_buf;
+
+    emit_indent(out, indent + 1);
+    fprintf(out, "goto __bsw%d_dispatch;\n", sid);
+
+    // body (contains labels)
+    CtrlFrame frame = { CTRL_SWITCH, end_label, g_ctrl };
+    g_ctrl = &frame;
+    emit_stmt_switchctx(out, s->as.switch_.body, indent + 1, maps, filename);
+    g_ctrl = frame.prev;
+
+    emit_indent(out, indent + 1);
+    fprintf(out, "goto __bsw%d_end;\n", sid);
+
+    emit_indent(out, indent + 1);
+    fprintf(out, "__bsw%d_dispatch:\n", sid);
+
+    // dispatch in source order
+    for (size_t i = 0; i < cases->len; i++) {
+        Stmt *cs = cases->data[i];
+        const char *lab = lookup_case_label(maps, cs);
+
+        emit_indent(out, indent + 2);
+        fputs("if (", out);
+
+        if (cs->as.case_.relop != TK_EOF) {
+            // bound case: < <= > >=
+            const char *op = NULL;
+            switch (cs->as.case_.relop) {
+            case TK_LT: op = "<"; break;
+            case TK_LE: op = "<="; break;
+            case TK_GT: op = ">"; break;
+            case TK_GE: op = ">="; break;
+            default: op = "??"; break;
+            }
+            fprintf(out, "__sw %s (%" PRId64 "", op, (int64_t)cs->as.case_.lo);
+        } else if (cs->as.case_.has_range) {
+            fprintf(out,
+                "(__sw >= (%" PRId64 " && __sw <= (%" PRId64 ")",
+                (int64_t)cs->as.case_.lo, (int64_t)cs->as.case_.hi);
+        } else {
+            fprintf(out, "__sw == (%" PRId64 "", (int64_t)cs->as.case_.lo);
+        }
+
+        fputs(") goto ", out);
+        fputs(lab, out);
+        fputs(";\n", out);
+    }
+
+    // no-match: go to end
+    emit_indent(out, indent + 2);
+    fprintf(out, "goto __bsw%d_end;\n", sid);
+
+    emit_indent(out, indent + 1);
+    fprintf(out, "__bsw%d_end:\n", sid);
+
+    emit_indent(out, indent + 2);
+    fputs("break;\n", out);
+
+    emit_indent(out, indent);
+    fputs("}\n", out);
+}
+
+
+
+void emit_expr(FILE *out, Expr *e, const char *filename) {
+    // Don't emit line directives in the middle of expressions
+    // They should only be at statement boundaries
+    switch (e->kind) {
+        case EX_NUM:
+            fprintf(out, "((%ld)", e->as.num);
+            return;
+        case EX_STR: {
+            int id = get_string_id(e->as.str);
+            fprintf(out, "B_PTR(__b_str%d)", id);
+            return;
+        }
+        case EX_VAR: {
+            const char *v = e->as.var;
+            if (strcmp(v, "rd.unit") == 0) { fputs("rd_unit", out); return; }
+            if (strcmp(v, "wr.unit") == 0) { fputs("wr_unit", out); return; }
+            fputs(v, out);
+            return;
+        }
+
+        case EX_CALL: {
+            // Check if callee is a builtin function that needs b_ prefix
+            if (e->as.call.callee->kind == EX_VAR) {
+                const char *name = e->as.call.callee->as.var;
+                if (strcmp(name, "callf") == 0) {
+                    size_t nargs = e->as.call.args.len;
+                    size_t extra = (nargs > 0) ? (nargs - 1) : 0; /* args after name */
+                    fprintf(out, "b_callf_dispatch(%zu", extra);
+                    for (size_t i = 0; i < nargs; i++) {
+                        fputs(", ", out);
+                        emit_expr(out, (Expr*)e->as.call.args.data[i], filename);
+                    }
+                    fputc(')', out);
+                    return;
+                }
+                // List of builtin functions that have b_ versions
+                const char *b_funcs[] = {
+                    "char", "lchar", "getchr", "putchr", "getstr", "putstr", "flush", "reread", "printf", "printn", "putnum", "putchar", "exit", "free",
+                    "open", "close", "read", "write", "creat", "seek", "openr", "openw",
+                    "fork", "wait", "execl", "execv",
+                    "chdir", "chmod", "chown", "link", "unlink", "stat", "fstat",
+                    "time", "ctime", "getuid", "setuid", "makdir", "intr",
+                    "system",
+                    "callf",
+                    "argc", "argv",
+                    NULL
+                };
+                for (int i = 0; b_funcs[i]; i++) {
+                    if (strcmp(name, b_funcs[i]) == 0) {
+                        fputs("b_", out);
+                        break;
+                    }
+                }
+            }
+            const char *cname = NULL;
+            int wrap_ret_ptr = 0;
+            if (e->as.call.callee->kind == EX_VAR) {
+                cname = e->as.call.callee->as.var;
+                if (strcmp(cname, "malloc") == 0 || strcmp(cname, "calloc") == 0 || strcmp(cname, "realloc") == 0) {
+                    wrap_ret_ptr = 1; // return a C pointer: convert to B pointer
+                }
+            }
+
+            if (wrap_ret_ptr) fputs("B_PTR(", out);
+            emit_expr(out, e->as.call.callee, filename);
+            fputc('(', out);
+            size_t nargs = e->as.call.args.len;
+            int add_exit_zero = (cname && strcmp(cname, "exit") == 0 && nargs == 0);
+            if (add_exit_zero) {
+                fputs("0", out);
+            }
+            for (size_t i = 0; i < nargs; i++) {
+                if (i || add_exit_zero) fputs(", ", out);
+
+                // Apply B_CPTR to pointer arguments for common C library functions we call from B
+                int wrap_arg_ptr = 0;
+                int scale_word_size = 0;
+                if (cname) {
+                    if (strcmp(cname, "memset") == 0 && i == 0) wrap_arg_ptr = 1;
+                    else if (strcmp(cname, "memcpy") == 0 && (i == 0 || i == 1)) wrap_arg_ptr = 1;
+                    else if (strcmp(cname, "strlen") == 0 && i == 0) wrap_arg_ptr = 1;
+                    else if (strcmp(cname, "atoi") == 0 && i == 0) wrap_arg_ptr = 1;
+                    else if (strcmp(cname, "realloc") == 0 && i == 0) wrap_arg_ptr = 1;
+                    else if (strcmp(cname, "calloc") == 0 && i == 0) wrap_arg_ptr = 0; // first arg is count
+
+                    // For malloc/calloc/realloc size arguments in bword-addressing mode,
+                    // scale by sizeof( to avoid under-allocation.
+                    if (!current_byteptr) {
+                        if ((strcmp(cname, "malloc") == 0 && i == 0) ||
+                            (strcmp(cname, "realloc") == 0 && i == 1) ||
+                            (strcmp(cname, "calloc") == 0 && i == 1)) {
+                            scale_word_size = 1;
+                        }
+                    }
+                }
+
+                if (wrap_arg_ptr) fputs("B_CPTR(", out);
+                if (scale_word_size) {
+                    fputs("(size_t)(sizeof( * (uword)(", out);
+                }
+
+                emit_expr(out, (Expr*)e->as.call.args.data[i], filename);
+
+                if (scale_word_size) fputs("))", out);
+                if (wrap_arg_ptr) fputc(')', out);
+            }
+            fputc(')', out);
+            if (wrap_ret_ptr) fputc(')', out);
+            return;
+        }
+
+        case EX_INDEX: {
+            fputs("B_INDEX(", out);
+            emit_expr(out, e->as.index.base, filename);
+            fputs(", ", out);
+            emit_expr(out, e->as.index.idx, filename);
+            fputc(')', out);
+            return;
+        }
+
+        case EX_UNARY: {
+            TokenKind op = e->as.unary.op;
+
+            if (op == TK_STAR) {
+                fputs("B_DEREF(", out);
+                emit_expr(out, e->as.unary.rhs, filename);
+                fputc(')', out);
+                return;
+            }
+            if (op == TK_AMP) {
+                // Special case: &arr[i] should give address of array element
+                if (e->as.unary.rhs->kind == EX_INDEX) {
+                    // For &arr[i], compute the byte address of element i, then wrap back to a B pointer.
+                    fputs("B_PTR(", out);
+                    fputs("((", out);
+                    if (!current_byteptr) {
+                        fputs("uword)(", out);
+                        emit_expr(out, e->as.unary.rhs->as.index.base, filename);
+                        fputs(") * sizeof(", out);
+                    } else {
+                        fputs("uword)(", out);
+                        emit_expr(out, e->as.unary.rhs->as.index.base, filename);
+                        fputc(')', out);
+                    }
+                    fputs(" + (uword)(", out);
+                    emit_expr(out, e->as.unary.rhs->as.index.idx, filename);
+                    fputs(") * sizeof()", out);
+                    fputc(')', out);
+                } else {
+                    fputs("B_ADDR(", out);
+                    emit_expr(out, e->as.unary.rhs, filename);
+                    fputc(')', out);
+                }
+                return;
+            }
+
+            /* keep the rest normal, but parenthesize to avoid precedence surprises */
+            if (op == TK_PLUSPLUS || op == TK_MINUSMINUS) {
+                Expr *rhs = e->as.unary.rhs;
+                if (is_complex_lvalue(rhs)) {
+                    // Use helper function to avoid double evaluation
+                    fputs("b_", out);
+                    fputs(op == TK_PLUSPLUS ? "preinc" : "predec", out);
+                    fputs("(&(", out);
+                    emit_expr(out, rhs, filename);
+                    fputs("))", out);
+                } else {
+                    fputs(tk_name(op), out);
+                    fputc('(', out);
+                    emit_expr(out, rhs, filename);
+                    fputc(')', out);
+                }
+                return;
+            }
+
+            fputc('(', out);
+            fputs(tk_name(op), out);
+            fputc('(', out);
+            emit_expr(out, e->as.unary.rhs, filename);
+            fputs("))", out);
+            return;
+        }
+
+        case EX_POST: {
+            // postfix ops
+            TokenKind op = e->as.post.op;
+            Expr *lhs = e->as.post.lhs;
+            if (is_complex_lvalue(lhs)) {
+                // Use helper function to avoid double evaluation
+                fputs("b_", out);
+                fputs(op == TK_PLUSPLUS ? "postinc" : "postdec", out);
+                fputs("(&(", out);
+                emit_expr(out, lhs, filename);
+                fputs("))", out);
+            } else {
+                fputc('(', out);
+                emit_expr(out, lhs, filename);
+                fputs(tk_name(op), out);
+                fputc(')', out);
+            }
+            return;
+        }
+
+        case EX_BINARY: {
+            TokenKind op = e->as.bin.op;
+            fputc('(', out);
+            emit_expr(out, e->as.bin.lhs, filename);
+            fprintf(out, " %s ", tk_name(op));
+            emit_expr(out, e->as.bin.rhs, filename);
+            fputc(')', out);
+            return;
+        }
+
+        case EX_ASSIGN: {
+            TokenKind op = e->as.assign.op;
+            Expr *lhs = e->as.assign.lhs;
+            Expr *rhs = e->as.assign.rhs;
+
+            // Handle relational assignments: x =< y becomes x = (x < y), etc.
+            TokenKind rel_op = TK_EOF;  // invalid default
+            switch (op) {
+            case TK_LTEQ: rel_op = TK_LT; break;
+            case TK_LEEQ: rel_op = TK_LE; break;
+            case TK_GTEQ: rel_op = TK_GT; break;
+            case TK_GEEQ: rel_op = TK_GE; break;
+            case TK_EQEQ: rel_op = TK_EQ; break;
+            case TK_NEEQ: rel_op = TK_NE; break;
+            default: break;
+            }
+            if (rel_op != TK_EOF) {
+                // Relational assignment: lhs = (lhs rel_op rhs)
+                fputc('(', out);
+                emit_expr(out, lhs, filename);
+                fputs(" = (", out);
+                emit_expr(out, lhs, filename);
+                fprintf(out, " %s ", tk_name(rel_op));
+                emit_expr(out, rhs, filename);
+                fputs("))", out);
+                return;
+            }
+
+            // For compound assignments on complex lvalues, use helper function to avoid double evaluation
+            if (op != TK_ASSIGN && is_complex_lvalue(lhs)) {
+                const char *helper_name = NULL;
+                switch (op) {
+                case TK_PLUSEQ: helper_name = "add_assign"; break;
+                case TK_MINUSEQ: helper_name = "sub_assign"; break;
+                case TK_STAREQ: helper_name = "mul_assign"; break;
+                case TK_SLASHEQ: helper_name = "div_assign"; break;
+                case TK_PERCENTEQ: helper_name = "mod_assign"; break;
+                case TK_LSHIFTEQ: helper_name = "lsh_assign"; break;
+                case TK_RSHIFTEQ: helper_name = "rsh_assign"; break;
+                case TK_ANDEQ: helper_name = "and_assign"; break;
+                case TK_OREQ: helper_name = "or_assign"; break;
+                default: break;
+                }
+                if (helper_name) {
+                    fputs("b_", out);
+                    fputs(helper_name, out);
+                    fputs("(&(", out);
+                    emit_expr(out, lhs, filename);
+                    fputs("), ", out);
+                    emit_expr(out, rhs, filename);
+                    fputc(')', out);
+                } else {
+                    // Fallback for any missing helpers
+                    fputc('(', out);
+                    emit_expr(out, lhs, filename);
+                    fprintf(out, " %s ", assignment_op_to_c(op));
+                    emit_expr(out, rhs, filename);
+                    fputc(')', out);
+                }
+            } else {
+                fputc('(', out);
+                emit_expr(out, lhs, filename);
+                fprintf(out, " %s ", assignment_op_to_c(op));
+                emit_expr(out, rhs, filename);
+                fputc(')', out);
+            }
+            return;
+        }
+
+        case EX_TERNARY:
+            fputc('(', out);
+            emit_expr(out, e->as.ternary.cond, filename);
+            fputs(" ? ", out);
+            emit_expr(out, e->as.ternary.true_expr, filename);
+            fputs(" : ", out);
+            emit_expr(out, e->as.ternary.false_expr, filename);
+            fputc(')', out);
+            return;
+
+        case EX_COMMA:
+            fputc('(', out);
+            emit_expr(out, e->as.comma.lhs, filename);
+            fputs(", ", out);
+            emit_expr(out, e->as.comma.rhs, filename);
+            fputc(')', out);
+            return;
+    }
+}
+
+void emit_ival_expr(FILE *out, Expr *e, const char *filename){
+    if (e->kind == EX_VAR) {
+        fputs("B_ADDR(", out);
+        fputs(e->as.var, out);
+        fputc(')', out);
+        return;
+    }
+    // everything else uses your normal emit_expr
+    emit_expr(out, e, filename);
+}
+
+size_t init_list_length(Init *in) {
+    if (!in || in->kind != INIT_LIST) return 0;
+    return in->as.list.len;
+}
+
+// ---- constant folding (small but useful) ----
+int try_eval_const_expr(Expr *e, long *out) {
+    if (!e) return 0;
+    switch (e->kind) {
+        case EX_NUM:
+            *out = e->as.num;
+            return 1;
+        case EX_UNARY: {
+            long v = 0;
+            if (!try_eval_const_expr(e->as.unary.rhs, &v)) return 0;
+            switch (e->as.unary.op) {
+                case TK_MINUS: *out = -v; return 1;
+                case TK_BANG:  *out = (!v); return 1;
+                default: return 0; // *, &, ++, -- not foldable here
+            }
+        }
+        case EX_BINARY: {
+            long a = 0, b = 0;
+            if (!try_eval_const_expr(e->as.bin.lhs, &a)) return 0;
+            if (!try_eval_const_expr(e->as.bin.rhs, &b)) return 0;
+            switch (e->as.bin.op) {
+                case TK_PLUS:    *out = (long)((unsigned long)a + (unsigned long)b); return 1;
+                case TK_MINUS:   *out = (long)((unsigned long)a - (unsigned long)b); return 1;
+                case TK_STAR:    *out = (long)((unsigned long)a * (unsigned long)b); return 1;
+                case TK_SLASH:   if (b == 0) return 0; *out = a / b; return 1;
+                case TK_PERCENT: if (b == 0) return 0; *out = a % b; return 1;
+                case TK_LT:      *out = (a <  b); return 1;
+                case TK_LE:      *out = (a <= b); return 1;
+                case TK_GT:      *out = (a >  b); return 1;
+                case TK_GE:      *out = (a >= b); return 1;
+                case TK_EQ:      *out = (a == b); return 1;
+                case TK_NE:      *out = (a != b); return 1;
+                case TK_AMP:     *out = a & b; return 1;
+                case TK_BAR:     *out = a | b; return 1;
+                case TK_BARBAR: *out = (a != 0) || (b != 0) ? 1 : 0; return 1;
+                default: return 0;
+            }
+        }
+        case EX_COMMA: {
+            // fold comma by folding RHS (after folding LHS for validity)
+            long tmp = 0;
+            if (!try_eval_const_expr(e->as.comma.lhs, &tmp)) return 0;
+            return try_eval_const_expr(e->as.comma.rhs, out);
+        }
+        default:
+            return 0;
+    }
+}
+
+// ---- edge vectors (nested { ... } inside initializers) ----
+size_t nested_base_len(Init *list) {
+    // Nested edge vectors need a real address even if empty: reserve 1 bword.
+    if (!list || list->kind != INIT_LIST) return 0;
+    return list->as.list.len ? list->as.list.len : 1;
+}
+
+size_t edge_words_total(Init *list) {
+    // Total words needed to represent this list as a subvector, including all nested subvectors.
+    if (!list || list->kind != INIT_LIST) return 0;
+    size_t total = nested_base_len(list);
+    for (size_t i = 0; i < list->as.list.len; i++) {
+        Init *e = (Init*)list->as.list.data[i];
+        if (e && e->kind == INIT_LIST) total += edge_words_total(e);
+    }
+    return total;
+}
+
+size_t edge_tail_words_top(Init *root) {
+    // Tail words needed beyond the root list slots: sum of nested subvector allocations.
+    if (!root || root->kind != INIT_LIST) return 0;
+    size_t tail = 0;
+    for (size_t i = 0; i < root->as.list.len; i++) {
+        Init *e = (Init*)root->as.list.data[i];
+        if (e && e->kind == INIT_LIST) tail += edge_words_total(e);
+    }
+    return tail;
+}
+
+size_t emit_edge_list_init(FILE *out, const char *arr,
+                                  size_t base, Init *list,
+                                  size_t cursor, int indent, const char *filename) {
+    if (!list || list->kind != INIT_LIST) return cursor;
+    for (size_t j = 0; j < list->as.list.len; j++) {
+        Init *elem = (Init*)list->as.list.data[j];
+        if (!elem) continue;
+
+        if (elem->kind == INIT_EXPR) {
+            emit_indent(out, indent);
+            fprintf(out, "%s[%zu] = ", arr, base + j);
+            emit_ival_expr(out, elem->as.expr, filename);
+            fputs(";\n", out);
+        } else if (elem->kind == INIT_LIST) {
+            size_t sub_base = cursor;
+            size_t sub_bl   = nested_base_len(elem);
+
+            // parent slot gets pointer to the subvector start
+            emit_indent(out, indent);
+            fprintf(out, "%s[%zu] = B_ADDR(%s[%zu]);\n", arr, base + j, arr, sub_base);
+
+            // recursively init the subvector in-place; its own tail starts after its base len
+            size_t sub_cursor = sub_base + sub_bl;
+            cursor = emit_edge_list_init(out, arr, sub_base, elem, sub_cursor, indent, filename);
+
+            // ensure we advance by the full reserved size (esp. empty lists)
+            size_t need_end = sub_base + edge_words_total(elem);
+            if (cursor < need_end) cursor = need_end;
+        }
+    }
+    return cursor;
+}
+
+void emit_stmt(FILE *out, Stmt *s, int indent, int is_function_body, const char *filename);
+
+void emit_stmt(FILE *out, Stmt *s, int indent, int is_function_body, const char *filename) {
+    emit_line_directive(out, s->line, filename);
+    switch (s->kind) {
+        case ST_EMPTY:
+            emit_indent(out, indent); fputs(";\n", out); return;
+
+        case ST_BLOCK: {
+            emit_indent(out, indent); fputs("{\n", out);
+            for (size_t i = 0; i < s->as.block.items.len; i++) {
+                int is_last_in_function = is_function_body && (i == s->as.block.items.len - 1);
+                Stmt *stmt = (Stmt*)s->as.block.items.data[i];
+                if (is_last_in_function && stmt->kind == ST_EXPR) {
+                    // Implicit return: last expression in function body
+                    emit_line_directive(out, stmt->line, filename);
+                    emit_indent(out, indent + 1);
+                    fputs("return ", out);
+                    emit_expr(out, stmt->as.expr.e, filename);
+                    fputs(";\n", out);
+                } else {
+                    // Pass is_function_body to the last statement so implicit returns work in nested constructs
+                    int stmt_is_function_body = is_last_in_function ? is_function_body : 0;
+                    emit_stmt(out, stmt, indent + 1, stmt_is_function_body, filename);
+                }
+            }
+            emit_indent(out, indent); fputs("}\n", out);
+            return;
+        }
+
+        case ST_AUTO: {
+            for (size_t i = 0; i < s->as.autodecl.decls.len; i++) {
+                DeclItem *item = (DeclItem*)s->as.autodecl.decls.data[i];
+
+                if (item->size) {
+                    // Vector: emit backing storage
+                    emit_indent(out, indent);
+                    fprintf(out, "bword __%s_store[(", item->name);
+                    emit_expr(out, item->size, filename);
+                    fprintf(out, ") + 1];\n"); // B bound is last index
+
+                    // Emit pointer variable
+                    emit_indent(out, indent);
+                    fprintf(out, "bword %s;\n", item->name);
+
+                    // Emit initialization (will be moved to init function later)
+                    emit_indent(out, indent);
+                    fprintf(out, "%s = B_ADDR(__%s_store[0]);\n", item->name, item->name);
+                } else {
+                    // Simple variable
+                    emit_indent(out, indent);
+                    fprintf(out, "bword %s = 0;\n", item->name);
+                }
+            }
+            return;
+        }
+
+        case ST_IF: {
+            emit_indent(out, indent); fputs("if (", out);
+            emit_expr(out, s->as.ifs.cond, filename);
+            fputs(")\n", out);
+
+            // If this if is the last statement in a function and has no else,
+            // treat the then branch as if it's in a function body for implicit returns
+            int then_is_function_body = is_function_body && !s->as.ifs.else_s;
+            int then_ind = stmt_is_block(s->as.ifs.then_s) ? indent : indent + 1;
+            emit_stmt(out, s->as.ifs.then_s, then_ind, then_is_function_body, filename);
+
+            if (s->as.ifs.else_s) {
+                emit_indent(out, indent); fputs("else\n", out);
+                int else_ind = stmt_is_block(s->as.ifs.else_s) ? indent : indent + 1;
+                emit_stmt(out, s->as.ifs.else_s, else_ind, 0, filename);
+            }
+            return;
+        }
+
+        case ST_WHILE: {
+            emit_indent(out, indent); fputs("while (", out);
+            emit_expr(out, s->as.whiles.cond, filename);
+            fputs(")\n", out);
+
+            int body_ind = stmt_is_block(s->as.whiles.body) ? indent : indent + 1;
+            emit_stmt(out, s->as.whiles.body, body_ind, 0, filename);
+            return;
+        }
+
+        case ST_RETURN:
+            emit_indent(out, indent); fputs("return", out);
+            if (s->as.ret.val) { fputc(' ', out); emit_expr(out, s->as.ret.val, filename); }
+            fputs(";\n", out);
+            return;
+
+        case ST_EXPR:
+            emit_indent(out, indent);
+            if (is_function_body) {
+                // Implicit return: expression in function body position
+                fputs("return ", out);
+            }
+            emit_expr(out, s->as.expr.e, filename);
+            fputs(";\n", out);
+            return;
+
+        case ST_EXTRN:
+            // extrn declarations are hints for the compiler; nothing to emit
+            return;
+        case ST_BREAK:
+            emit_indent(out, indent);
+            fputs("break;\n", out);
+            return;
+        case ST_CONTINUE:
+            emit_indent(out, indent);
+            fputs("continue;\n", out);
+            return;
+
+        case ST_GOTO:
+            emit_indent(out, indent);
+            fprintf(out, "goto %s;\n", s->as.goto_.target);
+            return;
+
+        case ST_SWITCH:
+            emit_switch(out, s, indent, filename);
+            return;
+
+        case ST_LABEL:
+            emit_indent(out, indent);
+            fprintf(out, "%s:\n", s->as.label_.name);
+            emit_indent(out, indent + 1);
+            fputs(";\n", out);
+            emit_stmt(out, s->as.label_.stmt, indent + 1, 0, filename);
+            return;
+
+        case ST_CASE:
+            // Case statements should normally be handled by switch context, but in complex
+            // nesting like Duff's device, they might reach here. For now, just skip them.
+            // The labels will be emitted by the switch context emitter.
+            return;
+    }
+}
+
+// Forward declaration for assembly emitter
+void emit_program_asm(FILE *out, Program *prog);
+
+void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr, int no_line) {
+    current_byteptr = byteptr;
+    string_pool.data = NULL;
+    string_pool.len = 0;
+    string_pool.cap = 0;
+
+    collect_strings_program(prog);
+    fputs(
+        "#include <stdio.h>\n"
+        "#include <stdlib.h>\n"
+        "#include <stdint.h>\n"
+        "#include <inttypes.h>\n"
+        "#include <stdarg.h>\n"
+        "#include <string.h>\n"
+        "#include <time.h>\n"
+        "#include <unistd.h>\n"
+        "#include <sys/stat.h>\n"
+        "#include <sys/types.h>\n"
+        "#include <fcntl.h>\n"
+        "#include <unistd.h>\n"
+        "#include <sys/wait.h>\n"
+        "#include <signal.h>\n"
+        "#include <termios.h>\n"
+        "#include <sys/ioctl.h>\n"
+        "#include <ctype.h>\n"
+        "#include <dlfcn.h>\n"
+        "#include <math.h>\n"
+        "#include <stddef.h>\n"
+        "#include <ncurses.h>\n"
+        "#include <panel.h>\n"
+        "\n"
+        "/* Undefine common macros that might conflict with B variable names */\n"
+        "#undef TRUE\n"
+        "#undef FALSE\n"
+        "\n"
+        "typedef intptr_t  bword;\n"
+        "typedef uintptr_t uword;\n"
+        "\n"
+        "/*\n"
+        "  Pointer model:\n"
+        "    B_BYTEPTR=1  -> pointers are byte addresses (matches your formulas)\n"
+        "    B_BYTEPTR=0  -> pointers are bword addresses (closer to Thompson B: E1[E2]==*(E1+E2))\n"
+        "*/\n",
+        out
+    );
+    fprintf(out, "#define B_BYTEPTR %d\n", byteptr ? 1 : 0);
+    fputs(
+        "#if B_BYTEPTR\n"
+        "  /* Byte-addressed pointers: addresses are bytes; array elements are bword-sized. */\n"
+        "  #define B_DEREF(p)   (*(bword*)(uword)(p))\n"
+        "  #define B_ADDR(x)    B_PTR(&(x))\n"
+        "  #define B_INDEX(a,i) (*(bword*)((uword)(a) + (uword)(i) * sizeof(bword)))\n"
+        "  #define B_PTR(p)     ((bword)(uword)(p))\n"
+        "#else\n"
+        "  #define B_DEREF(p)   (*(bword*)(uword)((uword)(p) * sizeof(bword)))\n"
+        "  #define B_ADDR(x)    B_PTR(&(x))\n"
+        "  #define B_INDEX(a,i) B_DEREF((a) + (i))\n"
+        "  #define B_PTR(p)     ((bword)((uword)(p) / sizeof(bword)))\n"
+        "#endif\n"
+        "\n"
+        "#define B_STR(s)     B_PTR((const char*)(s))\n"
+        "\n"
+        "/* Convert B pointer ( to C pointer */\n"
+        "#if B_BYTEPTR\n"
+        "  #define B_CPTR(p) ((void*)(uword)(p))\n"
+        "#else\n"
+        "  #define B_CPTR(p) ((void*)((uword)(p) * sizeof())\n"
+        "#endif\n"
+        "\n"
+"static int rd_fd = 0;  /* current input fd */\n"
+"static int wr_fd = 1;  /* current output fd */\n"
+"static bword rd_unit = 0; /* exposed to B if needed */\n"
+"static bword wr_unit = (bword)-1;\n"
+"static void __b_sync_rd(void){\n"
+"    if (rd_unit < 0) {\n"
+"        if (rd_fd != 0 && rd_fd > 2) close(rd_fd);\n"
+"        rd_fd = 0;\n"
+"    } else if (rd_fd != (int)rd_unit) {\n"
+"        rd_fd = (int)rd_unit;\n"
+"    }\n"
+"}\n"
+"static void __b_sync_wr(void){\n"
+"    if (wr_unit < 0) {\n"
+"        if (wr_fd != 1 && wr_fd > 2) close(wr_fd);\n"
+"        wr_fd = 1;\n"
+"    } else if (wr_fd != (int)wr_unit) {\n"
+"        wr_fd = (int)wr_unit;\n"
+"    }\n"
+"}\n"
+"static bword b_print(bword x){\n"
+"    __b_sync_wr();\n"
+"    char buf[64];\n"
+"    int n = snprintf(buf, sizeof(buf), \"%\" PRIdPTR \"\\n\", (intptr_t)x);\n"
+"    if (n > 0) (void)write(wr_fd, buf, (size_t)n);\n"
+"    return x;\n"
+"}\n"
+        "\n"
+"static bword b_putchar(bword x){\n"
+"    __b_sync_wr();\n"
+"    uword v = (uword)x;\n"
+"    for (size_t i = 0; i < sizeof(; i++) {\n"
+"        unsigned char c = (unsigned char)(v & 0xFF);\n"
+"        if (c == 0) break;\n"
+"        (void)write(wr_fd, &c, 1);\n"
+"        v >>= 8;\n"
+"    }\n"
+"    return x;\n"
+"}\n"
+"static bword b_getchar(void){ __b_sync_rd(); unsigned char c; ssize_t n = read(rd_fd, &c, 1); if (n == 1) return (c; if (rd_fd != 0) { close(rd_fd); rd_fd = 0; rd_unit = -1; return b_getchar(); } return (004; }\n"
+"static bword b_exit(code){ exit((int)code); return 0; }\n"
+        "static bword b_free(p){ free(B_CPTR(p)); return 0; }\n"
+        "\n"
+        "/* Fixed-point sine helper: input in fixed-point radians (scale 1024), output scaled by 1024. */\n"
+        "static bword sx64(x){\n"
+        "    double ang = (double)x / 1024.0;\n"
+        "    double s = sin(ang);\n"
+        "    return (lrint(s * 1024.0);\n"
+        "}\n"
+        "\n"
+        "/* Command line argument support */\n"
+        "static int __b_argc;\n"
+        "static char **__b_argv;\n"
+        "\n"
+        "/* argv strings converted to B strings (packed words, 004 terminator) */\n"
+        "static bword *__b_argvb;\n"
+        "\n"
+        "static void __b_setargs(int argc, char **argv);\n"
+        "static bword b_argc(void);\n"
+"static bword b_argv(i);\n"
+"\n"
+"/* Command line reread buffer */\n"
+"static bword b_reread(void);\n"
+        "\n"
+        "/* Helper functions for complex lvalue operations (avoid GNU C extensions) */\n"
+        "#if B_BYTEPTR\n"
+        "static bword b_preinc(*p) { return (*p = (((uword)*p + 1)); }\n"
+        "static bword b_predec(*p) { return (*p = (((uword)*p - 1)); }\n"
+        "static bword b_postinc(*p) { bword old = *p; *p = (((uword)*p + 1); return old; }\n"
+        "static bword b_postdec(*p) { bword old = *p; *p = (((uword)*p - 1); return old; }\n"
+        "static bword b_add_assign(*p, bword v) { return (*p = (((uword)*p + (uword)v)); }\n"
+        "static bword b_sub_assign(*p, bword v) { return (*p = (((uword)*p - (uword)v)); }\n"
+        "static bword b_mul_assign(*p, bword v) { return (*p = (((uword)*p * (uword)v)); }\n"
+        "static bword b_div_assign(*p, bword v) { return (*p = (((uword)*p / (uword)v)); }\n"
+        "static bword b_mod_assign(*p, bword v) { return (*p = (((uword)*p % (uword)v)); }\n"
+        "static bword b_lsh_assign(*p, bword v) { return (*p = (((uword)*p << (uword)v)); }\n"
+        "static bword b_rsh_assign(*p, bword v) { return (*p = (((uword)*p >> (uword)v)); }\n"
+        "#else\n"
+        "static bword b_preinc(*p) { return (*p = ((((uword)*p + 1) & 0xFFFF)); }\n"
+        "static bword b_predec(*p) { return (*p = ((((uword)*p - 1) & 0xFFFF)); }\n"
+        "static bword b_postinc(*p) { bword old = *p; *p = ((((uword)*p + 1) & 0xFFFF); return old; }\n"
+        "static bword b_postdec(*p) { bword old = *p; *p = ((((uword)*p - 1) & 0xFFFF); return old; }\n"
+        "static bword b_add_assign(*p, bword v) { return (*p = ((((uword)*p + (uword)v) & 0xFFFF)); }\n"
+        "static bword b_sub_assign(*p, bword v) { return (*p = ((((uword)*p - (uword)v) & 0xFFFF)); }\n"
+        "static bword b_mul_assign(*p, bword v) { return (*p = ((((uword)*p * (uword)v) & 0xFFFF)); }\n"
+        "static bword b_div_assign(*p, bword v) { return (*p = ((((uword)*p / (uword)v) & 0xFFFF)); }\n"
+        "static bword b_mod_assign(*p, bword v) { return (*p = ((((uword)*p % (uword)v) & 0xFFFF)); }\n"
+        "static bword b_lsh_assign(*p, bword v) { return (*p = ((((uword)*p << (uword)v) & 0xFFFF)); }\n"
+        "static bword b_rsh_assign(*p, bword v) { return (*p = ((((uword)*p >> (uword)v) & 0xFFFF)); }\n"
+        "#endif\n"
+        "static bword b_and_assign(*p, bword v) { return (*p = (((uword)*p & (uword)v)); }\n"
+        "static bword b_or_assign(*p, bword v) { return (*p = (((uword)*p | (uword)v)); }\n"
+        "static bword b_xor_assign(*p, bword v) { return (*p = (((uword)*p ^ (uword)v)); }\n"
+        "\n"
+        "static bword b_alloc(nwords){\n"
+        "    size_t bytes = (size_t)nwords * sizeof(;\n"
+        "    void *p = malloc(bytes);\n"
+        "    if (!p) { fprintf(stderr, \"alloc: out of memory\\n\"); exit(1); }\n"
+        "    return B_PTR(p);\n"
+        "}\n"
+        "\n"
+        "/* B library functions - compatible with Thompson's /etc/libb.a */\n"
+        "/* String manipulation functions */\n"
+        "static inline bword b_load(addr){ return B_DEREF(addr); }\n"
+        "static inline void b_store(addr, bword v){\n"
+        "#if B_BYTEPTR\n"
+        "    *(bword*)(uword)addr = v;\n"
+        "#else\n"
+        "    *(bword*)(uword)((uword)addr * sizeof() = v;\n"
+        "#endif\n"
+        "}\n"
+        "\n"
+        "/* B string access - compatible with C strings (byte addressing) */\n"
+        "static bword b_char(s, bword i){\n"
+        "#if B_BYTEPTR\n"
+        "    const unsigned char *p = (const unsigned char*)B_CPTR(s);\n"
+        "    return (p[(size_t)i];\n"
+        "#else\n"
+        "    const uword W = (uword)sizeof(;          // bytes per bword on this host\n"
+        "    uword wi = (uword)i / W;\n"
+        "    uword bi = (uword)i % W;\n"
+        "    uword w  = (uword)b_load(((s + (wi));\n"
+        "    return (((w >> (bi * 8)) & 0xFF);\n"
+        "#endif\n"
+        "}\n"
+        "\n"
+        "static bword b_lchar(s, bword i, bword c){\n"
+        "#if B_BYTEPTR\n"
+        "    unsigned char *p = (unsigned char*)B_CPTR(s);\n"
+        "    p[(size_t)i] = (unsigned char)(c & 0xFF);\n"
+        "    return c;\n"
+        "#else\n"
+        "    const uword W = (uword)sizeof(;\n"
+        "    uword wi = (uword)i / W;\n"
+        "    uword bi = (uword)i % W;\n"
+        "\n"
+        "    bword addr = ((s + (wi);\n"
+        "    uword w   = (uword)b_load(addr);\n"
+        "\n"
+        "    uword mask = (uword)0xFF << (bi * 8);\n"
+        "    w = (w & ~mask) | (((uword)c & 0xFF) << (bi * 8));\n"
+        "\n"
+        "    b_store(addr, (w);\n"
+        "    return c;\n"
+        "#endif\n"
+        "}\n"
+        "\n"
+        "/* Command line argument support implementation */\n"
+"static bword __b_pack_cstr(const char *s){\n"
+"    size_t n = strlen(s);                 /* bytes, excluding NUL */\n"
+"    size_t W = sizeof(;              /* bytes per bword */\n"
+"    size_t total = n + 1;                 /* +1 for 004 terminator */\n"
+"    size_t words = (total + W - 1) / W;\n"
+        "\n"
+        "    bword bp = b_alloc((words);       /* B pointer to bword storage */\n"
+        "\n"
+        "    /* write bytes into the B string using lchar (handles packing for B_BYTEPTR=0) */\n"
+        "    for (size_t i = 0; i < n; i++){\n"
+        "        b_lchar(bp, (i, ((unsigned char)s[i]);\n"
+        "    }\n"
+"    b_lchar(bp, (n, (004);\n"
+"    return bp;\n"
+"}\n"
+"\n"
+"static void __b_bstr_to_cstr(s, char *buf, size_t max){\n"
+"    size_t i = 0;\n"
+"    while (i + 1 < max) {\n"
+"        bword ch = b_char(s, (i);\n"
+"        if (ch == 004 || ch == 0) break;\n"
+"        buf[i++] = (char)(ch & 0xFF);\n"
+"    }\n"
+"    buf[i] = 0;\n"
+"}\n"
+"\n"
+"/* Duplicate a B string into a freshly allocated C string */\n"
+"static char *__b_dup_bstr(s){\n"
+"    size_t cap = 64;\n"
+"    char *buf = (char*)malloc(cap);\n"
+"    if (!buf) { fprintf(stderr, \"system: out of memory\\n\"); exit(1); }\n"
+"\n"
+"    size_t i = 0;\n"
+"    for (;;) {\n"
+"        bword ch = b_char(s, (i);\n"
+"        if (ch == 004 || ch == 0) break;\n"
+"        if (i + 1 >= cap) {\n"
+"            size_t ncap = cap * 2;\n"
+"            char *nbuf = (char*)realloc(buf, ncap);\n"
+"            if (!nbuf) { free(buf); fprintf(stderr, \"system: out of memory\\n\"); exit(1); }\n"
+"            buf = nbuf;\n"
+"            cap = ncap;\n"
+"        }\n"
+"        buf[i++] = (char)(ch & 0xFF);\n"
+"    }\n"
+"    buf[i] = 0;\n"
+"    return buf;\n"
+"}\n"
+        "\n"
+        "static void __b_setargs(int argc, char **argv){\n"
+        "    __b_argc = argc;\n"
+        "    __b_argv = argv;\n"
+        "\n"
+        "    __b_argvb = (bword*)malloc(sizeof( * (size_t)argc);\n"
+        "    if (!__b_argvb) { fprintf(stderr, \"argv: out of memory\\n\"); exit(1); }\n"
+        "\n"
+        "    for (int i = 0; i < argc; i++){\n"
+        "        __b_argvb[i] = __b_pack_cstr(argv[i]);\n"
+        "    }\n"
+        "}\n"
+        "\n"
+        "static bword b_argc(void) { return (__b_argc; }\n"
+        "\n"
+"static bword b_argv(i) {\n"
+"    int idx = (int)i;\n"
+"    if (idx < 0 || idx >= __b_argc) return 0;\n"
+"    return __b_argvb[idx];\n"
+"}\n"
+"\n"
+"static bword b_reread(void) {\n"
+"    /* If no args, nothing to reread */\n"
+"    if (__b_argc <= 1) {\n"
+"        return 0;\n"
+"    }\n"
+"\n"
+"    /* Compute total length of joined argv[0..] with spaces + newline */\n"
+"    size_t total = 1; /* for trailing newline */\n"
+"    for (int i = 0; i < __b_argc; i++) {\n"
+"        total += strlen(__b_argv[i]);\n"
+"        if (i + 1 < __b_argc) total += 1; /* space */\n"
+"    }\n"
+"    \n"
+"    char *buf = (char*)malloc(total + 1);\n"
+"    if (!buf) { fprintf(stderr, \"reread: out of memory\\n\"); exit(1); }\n"
+"    \n"
+"    size_t pos = 0;\n"
+"    for (int i = 0; i < __b_argc; i++) {\n"
+"        size_t len = strlen(__b_argv[i]);\n"
+"        memcpy(buf + pos, __b_argv[i], len);\n"
+"        pos += len;\n"
+"        if (i + 1 < __b_argc) buf[pos++] = ' ';\n"
+"    }\n"
+"    buf[pos++] = '\\n';\n"
+"    buf[pos] = '\\0';\n"
+"    \n"
+"    int p[2];\n"
+"    if (pipe(p) != 0) { free(buf); fprintf(stderr, \"reread: pipe failed\\n\"); exit(1); }\n"
+"    ssize_t wn = write(p[1], buf, pos);\n"
+"    (void)wn;\n"
+"    close(p[1]);\n"
+"    free(buf);\n"
+"    \n"
+"    /* Close previous rd fd if it wasn't the terminal */\n"
+"    if (rd_fd != 0 && rd_fd != p[0]) close(rd_fd);\n"
+"    rd_fd = p[0];\n"
+"    rd_unit = (0;\n"
+"    __b_sync_rd();\n"
+"    return 0;\n"
+"}\n"
+        "\n"
+        "/* I/O functions */\n"
+"static bword b_getchr(void) {\n"
+"    __b_sync_rd();\n"
+"    unsigned char c;\n"
+"    ssize_t n = read(rd_fd, &c, 1);\n"
+"    if (n == 1) return (c;\n"
+"    if (rd_fd != 0) {\n"
+"        close(rd_fd);\n"
+"        rd_fd = 0;\n"
+"        rd_unit = -1;\n"
+"        return b_getchr();\n"
+"    }\n"
+"    return (004; /* Return *e on EOF */\n"
+"}\n"
+"static bword b_putchr(w) {\n"
+"    __b_sync_wr();\n"
+"    unsigned char c = (unsigned char)(w & 0xFF);\n"
+"    (void)write(wr_fd, &c, 1);\n"
+"    return w;\n"
+"}\n"
+"static bword b_putstr(s) {\n"
+"    __b_sync_wr();\n"
+"    bword i = 0;\n"
+"    for (;;) {\n"
+"        bword ch = b_char(s, i++);\n"
+"        if (ch == 004 || ch == 0) break;\n"
+"        b_putchar(ch);\n"
+        "    }\n"
+        "    return s;\n"
+        "}\n"
+"static bword b_getstr(buf) {\n"
+"    __b_sync_rd();\n"
+"    size_t i = 0;\n"
+"    unsigned char c;\n"
+"    for (;;) {\n"
+"        ssize_t n = read(rd_fd, &c, 1);\n"
+"        if (n == 1 && c != '\\n' && c != '\\r') {\n"
+"            b_lchar(buf, (i, (c);\n"
+"            i++;\n"
+"            continue;\n"
+"        }\n"
+"        if (n == 1) break; /* newline */\n"
+"        if (rd_fd != 0) {\n"
+"            close(rd_fd);\n"
+"            rd_fd = 0;\n"
+"            rd_unit = -1;\n"
+"            continue; /* retry on terminal */\n"
+"        }\n"
+"        break; /* EOF */\n"
+"    }\n"
+"    b_lchar(buf, (i, (004);\n"
+"    return buf;\n"
+"}\n"
+"static bword b_flush(void){\n"
+"    __b_sync_wr();\n"
+"    if (wr_fd == 1) {\n"
+"        fflush(stdout);\n"
+"    } else {\n"
+"        fsync(wr_fd);\n"
+"    }\n"
+        "    return 0;\n"
+        "}\n"
+        "\n"
+        "#include <stdarg.h>\n"
+        "\n"
+        "/* Print number in specified base (from B manual) */\n"
+        "static void b_printn_u(n, bword base) {\n"
+        "    // recursion like old implementations\n"
+        "    bword a = (((uword)n / (uword)base);\n"
+        "    if (a) b_printn_u(a, base);\n"
+        "    b_putchar((((uword)n % (uword)base) + '0');\n"
+        "}\n"
+        "\n"
+        "static bword b_printf(fmt, ...){\n"
+        "    va_list ap;\n"
+        "    va_start(ap, fmt);\n"
+        "\n"
+        "    bword i = 0;\n"
+        "    for (;;){\n"
+        "        bword ch = b_char(fmt, i++);\n"
+        "        if (ch == 004 || ch == 0) break;  /* '*e' or NUL terminator */\n"
+        "        if (ch != '%'){ b_putchar(ch); continue; }\n"
+        "\n"
+        "        bword code = b_char(fmt, i++);\n"
+        "        if (code == 004) break;\n"
+        "\n"
+        "        bword arg = va_arg(ap, bword);\n"
+        "\n"
+        "        switch ((int)code){\n"
+        "        case 'd': {\n"
+        "            int16_t v = (int16_t)arg;\n"
+        "            if (v < 0){ b_putchar('-'); v = (int16_t)-v; }\n"
+        "            if (v) b_printn_u(((uword)(uint16_t)v, 10);\n"
+        "            else b_putchar('0');\n"
+        "            break;\n"
+        "        }\n"
+        "        case 'o': {\n"
+        "            uint16_t v = (uint16_t)arg;\n"
+        "            if (v) b_printn_u(((uword)v, 8);\n"
+        "            else b_putchar('0');\n"
+        "            break;\n"
+        "        }\n"
+        "        case 'u': {\n"
+        "            uword v = (uword)arg;\n"
+        "            if (v) b_printn_u((v, 10);\n"
+        "            else b_putchar('0');\n"
+        "            break;\n"
+        "        }\n"
+        "        case 'p': {\n"
+        "            uword v = (uword)arg;\n"
+        "            b_putchar('0'); b_putchar('x');\n"
+        "            int started = 0;\n"
+        "            for (int shift = (int)(sizeof(uword)*8 - 4); shift >= 0; shift -= 4) {\n"
+        "                int nib = (int)((v >> shift) & 0xF);\n"
+        "                if (!started && nib == 0 && shift > 0) continue;\n"
+        "                started = 1;\n"
+        "                b_putchar(((nib < 10 ? ('0' + nib) : ('a' + nib - 10)));\n"
+        "            }\n"
+        "            if (!started) b_putchar('0');\n"
+        "            break;\n"
+        "        }\n"
+        "        case 'z': {\n"
+        "            bword mod = b_char(fmt, i++);\n"
+        "            if (mod == 'u') {\n"
+        "                uword v = (uword)arg;\n"
+        "                if (v) b_printn_u((v, 10);\n"
+        "                else b_putchar('0');\n"
+        "            } else if (mod == 'd') {\n"
+        "                long v = (long)arg;\n"
+        "                if (v < 0) { b_putchar('-'); v = -v; }\n"
+        "                if (v) b_printn_u(((uword)v, 10);\n"
+        "                else b_putchar('0');\n"
+        "            } else {\n"
+        "                b_putchar('%'); b_putchar('z'); b_putchar(mod);\n"
+        "            }\n"
+        "            break;\n"
+        "        }\n"
+        "        case 'c':\n"
+        "            b_putchar(arg);\n"
+        "            break;\n"
+        "        case 's': {\n"
+        "            bword j = 0;\n"
+        "            for (;;){\n"
+        "                bword sc = b_char(arg, j++);\n"
+        "                if (sc == 004 || sc == 0) break;  /* Handle both *e and NUL termination */\n"
+        "                b_putchar(sc);\n"
+        "            }\n"
+        "            break;\n"
+        "        }\n"
+        "        default:\n"
+        "            b_putchar('%'); b_putchar(code);\n"
+        "            break;\n"
+        "        }\n"
+        "    }\n"
+        "\n"
+        "    va_end(ap);\n"
+        "    return 0;\n"
+        "}\n"
+        "\n"
+        "/* File I/O functions - with actual implementations */\n"
+        "#include <fcntl.h>\n"
+"static bword b_open(name, bword mode){\n"
+"    const char *p = (const char*)B_CPTR(name);\n"
+"    int flags = ((int)mode == 0) ? O_RDONLY : O_WRONLY;\n"
+"    return (open(p, flags);\n"
+"}\n"
+"static bword b_openr(fd, bword name){\n"
+"    char buf[512];\n"
+"    __b_bstr_to_cstr(name, buf, sizeof(buf));\n"
+"    int target = (int)fd;\n"
+"    if (target < 0 || buf[0] == '\\0') {\n"
+"        rd_fd = 0; rd_unit = -1; return 0;\n"
+"    }\n"
+"    int newfd = open(buf, O_RDONLY);\n"
+"    if (rd_fd != 0 && rd_fd != target) close(rd_fd);\n"
+"    if (newfd < 0) { rd_fd = -1; rd_unit = (target; return -1; }\n"
+"    if (newfd != target) {\n"
+"        if (dup2(newfd, target) < 0) { close(newfd); return -1; }\n"
+"        close(newfd);\n"
+"        newfd = target;\n"
+"    }\n"
+"    rd_fd = newfd;\n"
+"    rd_unit = (target;\n"
+"    return (newfd;\n"
+"}\n"
+"static bword b_openw(fd, bword name){\n"
+"    char buf[512];\n"
+"    __b_bstr_to_cstr(name, buf, sizeof(buf));\n"
+"    int target = (int)fd;\n"
+"    if (target < 0 || buf[0] == '\\0') {\n"
+"        wr_fd = 1; wr_unit = -1; return 1;\n"
+"    }\n"
+"    int newfd = open(buf, O_WRONLY | O_CREAT | O_TRUNC, 0666);\n"
+"    if (newfd < 0) return -1;\n"
+"    if (wr_fd != 1 && wr_fd != target && wr_fd != newfd) close(wr_fd);\n"
+"    if (newfd != target) {\n"
+"        if (dup2(newfd, target) < 0) { close(newfd); return -1; }\n"
+"        close(newfd);\n"
+"        newfd = target;\n"
+"    }\n"
+"    wr_fd = newfd;\n"
+"    wr_unit = (target;\n"
+"    return (newfd;\n"
+"}\n"
+"static bword b_close(fd) {\n"
+"    int cfd = (int)fd;\n"
+"    bword r = (close(cfd);\n"
+"    if (r == 0) {\n"
+"        if (cfd == rd_fd || cfd == (int)rd_unit) { rd_fd = 0; rd_unit = -1; }\n"
+"        if (cfd == wr_fd || cfd == (int)wr_unit) { wr_fd = 1; wr_unit = -1; }\n"
+"    }\n"
+"    return r;\n"
+"}\n"
+"static bword b_read(fd, bword buf, bword n) {\n"
+"    char *p = (char*)B_CPTR(buf);\n"
+"    if ((size_t)n < sizeof() memset(p, 0, sizeof();\n"
+"    return (read((int)fd, p, (size_t)n);\n"
+"}\n"
+        "static bword b_write(fd, bword buf, bword n) {\n"
+        "    const char *p = (const char*)B_CPTR(buf);\n"
+        "    return (write((int)fd, p, (size_t)n);\n"
+        "}\n"
+        "static bword b_creat(name, bword mode) {\n"
+        "    const char *p = (const char*)B_CPTR(name);\n"
+        "    return (creat(p, (mode_t)mode);\n"
+        "}\n"
+        "static bword b_seek(fd, bword offset, bword whence) {\n"
+        "    off_t r = lseek((int)fd, (off_t)offset, (int)whence);\n"
+        "    return (r < 0) ? (-1 : (0;\n"
+        "}\n"
+        "\n"
+        "/* Process control functions - with actual implementations */\n"
+        "static bword b_fork(void) {\n"
+        "    return (fork();\n"
+        "}\n"
+        "bword __b_wait_status;\n"
+        "\n"
+        "static bword b_wait(void) {\n"
+        "    int st = 0;\n"
+        "    pid_t pid = wait(&st);\n"
+        "    __b_wait_status = (st;\n"
+        "    return (pid;\n"
+        "}\n"
+        "static bword b_execl(path, ...) {\n"
+        "    const char *p = (const char*)B_CPTR(path);\n"
+        "\n"
+        "    char *argv[64];\n"
+        "    int i = 0;\n"
+        "    argv[i++] = (char*)p;\n"
+        "\n"
+        "    va_list ap;\n"
+        "    va_start(ap, path);\n"
+        "    for (; i < 63; ) {\n"
+        "        bword w = va_arg(ap, bword);\n"
+        "        if (w == 0) break;\n"
+        "        argv[i++] = (char*)B_CPTR(w);\n"
+        "    }\n"
+        "    va_end(ap);\n"
+        "\n"
+        "    argv[i] = NULL;\n"
+        "    execv(p, argv);\n"
+        "    return -1; /* Only reached on error */\n"
+        "}\n"
+        "\n"
+"static bword b_execv(path, bword argv) {\n"
+"    /* Note: Manual specifies execv(path, argv, count) with counted vector */\n"
+"    /* Current implementation uses null-terminated vector for compatibility */\n"
+"    const char *p = (const char*)B_CPTR(path);\n"
+"    bword *av = (bword*)B_CPTR(argv);\n"
+        "\n"
+        "    char *cargv[256];\n"
+        "    int i = 0;\n"
+        "    for (; i < 255 && av[i] != 0; i++) cargv[i] = (char*)B_CPTR(av[i]);\n"
+"    cargv[i] = NULL;\n"
+"\n"
+"    execv(p, cargv);\n"
+"    return -1; /* Only reached on error */\n"
+"}\n"
+"\n"
+"static bword b_system(cmd) {\n"
+"    /* TSS-style: treat the string as a literal command line (no shell expansion) */\n"
+"    char *line = __b_dup_bstr(cmd);\n"
+"    if (!line) return -1;\n"
+"\n"
+"    char *argv[128];\n"
+"    size_t argc = 0;\n"
+"    char *p = line;\n"
+"\n"
+"    while (*p) {\n"
+"        while (*p && isspace((unsigned char)*p)) p++;\n"
+"        if (!*p) break;\n"
+"        if (argc + 1 >= sizeof(argv)/sizeof(argv[0])) { free(line); return -1; }\n"
+"        argv[argc++] = p;\n"
+"        while (*p && !isspace((unsigned char)*p)) p++;\n"
+"        if (*p) { *p = 0; p++; }\n"
+"    }\n"
+"\n"
+"    if (argc == 0) { free(line); return -1; }\n"
+"    argv[argc] = NULL;\n"
+"\n"
+"    pid_t pid = fork();\n"
+"    if (pid == 0) {\n"
+"        execvp(argv[0], argv);\n"
+"        _exit(127);\n"
+"    }\n"
+"    if (pid < 0) { free(line); return -1; }\n"
+"\n"
+"    int st = 0;\n"
+"    pid_t w = waitpid(pid, &st, 0);\n"
+"    free(line);\n"
+"    if (w < 0) return -1;\n"
+"    return (st;\n"
+"}\n"
+"\n"
+"static bword b_callf_dispatch(int nargs, bword name, ...) {\n"
+"    static int __b_callf_dl_done = 0;\n"
+"    if (!__b_callf_dl_done) {\n"
+"        __b_callf_dl_done = 1;\n"
+"        const char *env = getenv(\"B_CALLF_LIB\");\n"
+"        if (env && *env) {\n"
+"            const char *p = env;\n"
+"            while (*p) {\n"
+"                const char *start = p;\n"
+"                while (*p && *p != ':') p++;\n"
+"                size_t len = (size_t)(p - start);\n"
+"                if (len) {\n"
+"                    char *path = (char*)malloc(len + 1);\n"
+"                    if (path) {\n"
+"                        memcpy(path, start, len);\n"
+"                        path[len] = '\\0';\n"
+"                        (void)dlopen(path, RTLD_NOW | RTLD_GLOBAL);\n"
+"                        free(path);\n"
+"                    }\n"
+"                }\n"
+"                if (*p == ':') p++;\n"
+"            }\n"
+"        }\n"
+"    }\n"
+"    if (nargs < 0 || nargs > 10) return -1;\n"
+"    if (name == 0) return -1;\n"
+" \n"
+"    char sym[256];\n"
+"    __b_bstr_to_cstr(name, sym, sizeof(sym));\n"
+" \n"
+"    void *fn = dlsym(RTLD_DEFAULT, sym);\n"
+"    if (!fn) {\n"
+"        size_t len = strlen(sym);\n"
+"        if (len + 2 < sizeof(sym)) {\n"
+"            sym[len] = '_'; sym[len + 1] = '\\0';\n"
+"            fn = dlsym(RTLD_DEFAULT, sym);\n"
+"            sym[len] = '\\0';\n"
+"        }\n"
+"    }\n"
+"    if (!fn) return -1;\n"
+" \n"
+"    void *args[10] = {0};\n"
+"    va_list ap;\n"
+"    va_start(ap, name);\n"
+"    for (int i = 0; i < nargs && i < 10; i++) {\n"
+"        bword w = va_arg(ap, bword);\n"
+"        args[i] = B_CPTR(w);\n"
+"    }\n"
+"    va_end(ap);\n"
+" \n"
+"    bword r = 0;\n"
+"    switch (nargs) {\n"
+"    case 0: r = (((*)(void))fn)(); break;\n"
+"    case 1: r = (((*)(void*))fn)(args[0]); break;\n"
+"    case 2: r = (((*)(void*, void*))fn)(args[0], args[1]); break;\n"
+"    case 3: r = (((*)(void*, void*, void*))fn)(args[0], args[1], args[2]); break;\n"
+"    case 4: r = (((*)(void*, void*, void*, void*))fn)(args[0], args[1], args[2], args[3]); break;\n"
+"    case 5: r = (((*)(void*, void*, void*, void*, void*))fn)(args[0], args[1], args[2], args[3], args[4]); break;\n"
+"    case 6: r = (((*)(void*, void*, void*, void*, void*, void*))fn)(args[0], args[1], args[2], args[3], args[4], args[5]); break;\n"
+"    case 7: r = (((*)(void*, void*, void*, void*, void*, void*, void*))fn)(args[0], args[1], args[2], args[3], args[4], args[5], args[6]); break;\n"
+"    case 8: r = (((*)(void*, void*, void*, void*, void*, void*, void*, void*))fn)(args[0], args[1], args[2], args[3], args[4], args[5], args[6], args[7]); break;\n"
+"    case 9: r = (((*)(void*, void*, void*, void*, void*, void*, void*, void*, void*))fn)(args[0], args[1], args[2], args[3], args[4], args[5], args[6], args[7], args[8]); break;\n"
+"    case 10: r = (((*)(void*, void*, void*, void*, void*, void*, void*, void*, void*, void*))fn)(args[0], args[1], args[2], args[3], args[4], args[5], args[6], args[7], args[8], args[9]); break;\n"
+"    default: return -1;\n"
+"    }\n"
+"    return r;\n"
+"}\n"
+"\n"
+"/* System functions - with actual implementations where possible */\n"
+"static bword b_time(tvp) {\n"
+"    time_t now = time(NULL);\n"
+"    if (tvp) {\n"
+        "        uint16_t lo = (uint16_t)(now & 0xFFFF);\n"
+        "        uint16_t hi = (uint16_t)((now >> 16) & 0xFFFF);\n"
+        "        bword *tv = (bword*)B_CPTR(tvp);\n"
+        "        tv[0] = ((uword)lo;\n"
+        "        tv[1] = ((uword)hi;\n"
+        "    }\n"
+        "    return 0;\n"
+        "}\n"
+        "\n"
+        "static bword b_ctime(tvp) {\n"
+        "    static bword bufw[32];               // 32 words = 64 bytes worth of chars\n"
+        "    bword *tv = (bword*)B_CPTR(tvp);\n"
+        "    time_t t = (time_t)((uint16_t)tv[0]) | ((time_t)((uint16_t)tv[1]) << 16);\n"
+        "\n"
+        "    const char *cs = ctime(&t);\n"
+        "    if (!cs) return 0;\n"
+        "\n"
+        "    size_t i = 0;\n"
+        "    while (cs[i] && cs[i] != '\\n' && i < 63) {\n"
+        "        b_lchar(B_PTR(bufw), (i, ((unsigned char)cs[i]);\n"
+        "        i++;\n"
+        "    }\n"
+        "    b_lchar(B_PTR(bufw), (i, 004);\n"
+        "    return B_PTR(bufw);\n"
+        "}\n"
+        "static bword b_getuid(void) {\n"
+        "    return (getuid();\n"
+        "}\n"
+        "static bword b_chdir(path) {\n"
+        "    const char *p = (const char*)B_CPTR(path);\n"
+        "    return (chdir(p);\n"
+        "}\n"
+        "static bword b_unlink(path) {\n"
+        "    const char *p = (const char*)B_CPTR(path);\n"
+        "    return (unlink(p);\n"
+        "}\n"
+        "\n"
+        "/* System functions with actual implementations */\n"
+        "static bword b_chmod(path, bword mode) {\n"
+        "    const char *p = (const char*)B_CPTR(path);\n"
+        "    return (chmod(p, (mode_t)mode);\n"
+        "}\n"
+        "static bword b_chown(path, bword owner) {\n"
+        "    const char *p = (const char*)B_CPTR(path);\n"
+        "    return (chown(p, (uid_t)owner, (gid_t)-1);\n"
+        "}\n"
+        "static bword b_link(old, bword new) {\n"
+        "    const char *o = (const char*)B_CPTR(old);\n"
+        "    const char *n = (const char*)B_CPTR(new);\n"
+        "    return (link(o, n);\n"
+        "}\n"
+        "static bword b_stat(path, bword bufp) {\n"
+        "    const char *p = (const char*)B_CPTR(path);\n"
+        "    struct stat st;\n"
+        "    if (stat(p, &st) != 0) return -1;\n"
+        "    if (bufp) {\n"
+        "        unsigned char *b = (unsigned char*)B_CPTR(bufp);\n"
+        "        for (int i = 0; i < 20*sizeof(; i++) b[i] = 0;\n"
+        "        size_t n = sizeof(st);\n"
+        "        if (n > 20*sizeof() n = 20*sizeof(;\n"
+        "        memcpy(b, &st, n);\n"
+        "    }\n"
+        "    return 0;\n"
+        "}\n"
+        "\n"
+        "static bword b_fstat(fd, bword bufp) {\n"
+        "    struct stat st;\n"
+        "    if (fstat((int)fd, &st) != 0) return -1;\n"
+        "    if (bufp) {\n"
+        "        unsigned char *b = (unsigned char*)B_CPTR(bufp);\n"
+        "        for (int i = 0; i < 20*sizeof(; i++) b[i] = 0;\n"
+        "        size_t n = sizeof(st);\n"
+        "        if (n > 20*sizeof() n = 20*sizeof(;\n"
+        "        memcpy(b, &st, n);\n"
+        "    }\n"
+        "    return 0;\n"
+        "}\n"
+        "static bword b_setuid(uid) {\n"
+        "    return (setuid((uid_t)uid);\n"
+        "}\n"
+        "static bword b_makdir(path, bword mode) {\n"
+        "    const char *p = (const char*)B_CPTR(path);\n"
+        "    return (mkdir(p, (mode_t)mode);\n"
+        "}\n"
+        "\n"
+        "/* printn(number, base) - print number in specified base (from B manual) */\n"
+        "static bword b_printn(n, bword base) {\n"
+        "    // Handle negative numbers for decimal only\n"
+        "    if (base == 10 && (int16_t)n < 0) {\n"
+        "        b_putchar('-');\n"
+        "        n = ((-(int16_t)n);\n"
+        "    }\n"
+        "    b_printn_u(n, base);\n"
+        "    return n;\n"
+        "}\n"
+        "static bword b_putnum(n) {\n"
+        "    b_printn(n, (10);\n"
+        "    return n;\n"
+        "}\n"
+        "static volatile sig_atomic_t __b_got_intr = 0;\n"
+        "\n"
+        "static void __b_sigint(int sig){ (void)sig; __b_got_intr = 1; }\n"
+        "\n"
+        "static bword b_gtty(fd, bword ttstat){\n"
+        "    struct termios t;\n"
+        "    if (tcgetattr((int)fd, &t) < 0) return -1;\n"
+        "\n"
+        "    bword *vec = (bword*)B_CPTR(ttstat);\n"
+        "    vec[0] = (t.c_iflag;\n"
+        "    vec[1] = (t.c_oflag;\n"
+        "    vec[2] = (t.c_lflag;\n"
+        "    return 0;\n"
+        "}\n"
+        "\n"
+        "static bword b_stty(fd, bword ttstat){\n"
+        "    struct termios t;\n"
+        "    if (tcgetattr((int)fd, &t) < 0) return -1;\n"
+        "\n"
+        "    bword *vec = (bword*)B_CPTR(ttstat);\n"
+        "    t.c_iflag = (tcflag_t)vec[0];\n"
+        "    t.c_oflag = (tcflag_t)vec[1];\n"
+        "    t.c_lflag = (tcflag_t)vec[2];\n"
+        "    return (tcsetattr((int)fd, TCSANOW, &t);\n"
+        "}\n"
+        "static bword b_intr(on) {\n"
+        "    /* Set up interrupt handling */\n"
+        "    /* on != 0: catch interrupts, on == 0: restore default */\n"
+        "    if (on) {\n"
+        "        __b_got_intr = 0;\n"
+        "        if (signal(SIGINT, __b_sigint) == SIG_ERR) return -1;\n"
+        "    } else {\n"
+        "        if (signal(SIGINT, SIG_DFL) == SIG_ERR) return -1;\n"
+        "    }\n"
+        "    return 0;\n"
+        "}\n"
+        "\n"
+        "/* Builtin aliases for B source */\n"
+        "\n",
+        out
+    );
+
+    // Emit Thompson B packed strings (works for both pointer modes)
+    if (string_pool.len > 0) {
+        emit_string_pool(out);
+        fputc('\n', out);
+    }
+
+    // First pass: emit all global declarations and storage
+    for (size_t i = 0; i < prog->tops.len; i++) {
+        Top *t = (Top*)prog->tops.data[i];
+
+        if (t->kind == TOP_GAUTO) {
+            emit_stmt(out, t->as.gauto, 0, 0, filename); // not a function body
+            fputc('\n', out);
+            continue;
+        }
+
+        if (t->kind == TOP_EXTERN_DECL) {
+            ExternItem *item = t->as.ext_decl;
+            fprintf(out, "extern bword %s;\n", item->name);
+            continue;
+        }
+
+        if (t->kind == TOP_EXTERN_DEF) {
+            ExternItem *item = t->as.ext_def;
+            if (item->as.var.vkind == EXTVAR_BLOB) {
+                int is_single_str =
+                    item->as.var.init &&
+                    item->as.var.init->kind == INIT_LIST &&
+                    item->as.var.init->as.list.len == 1 &&
+                    ((Init*)item->as.var.init->as.list.data[0])->kind == INIT_EXPR &&
+                    ((Init*)item->as.var.init->as.list.data[0])->as.expr &&
+                    ((Init*)item->as.var.init->as.list.data[0])->as.expr->kind == EX_STR;
+
+                if (is_single_str) {
+                    fprintf(out, "bword %s;\n", item->name);
+                    continue;
+                }
+
+                // Blob external: contiguous words at &name
+                size_t base_len = (item->as.var.init && item->as.var.init->kind == INIT_LIST) ? init_list_length(item->as.var.init) : 1;
+                size_t tail     = (item->as.var.init && item->as.var.init->kind == INIT_LIST) ? edge_tail_words_top(item->as.var.init) : 0;
+                size_t total    = base_len + tail;
+                if (total == 0) total = 1;
+                fprintf(out, "static bword __%s_blob[%zu];\n", item->name, total);
+                fprintf(out, "bword %s;\n", item->name);
+            } else if (item->as.var.vkind == EXTVAR_VECTOR) {
+                // Vector external: pointer + backing store
+                size_t init_len = (item->as.var.init && item->as.var.init->kind == INIT_LIST) ? init_list_length(item->as.var.init) : 0;
+                size_t outer_len = 1;
+
+                if (item->as.var.has_empty) {
+                    outer_len = init_len ? init_len : 1;
+                } else if (item->as.var.bound) {
+                    long bv = 0;
+                    if (try_eval_const_expr(item->as.var.bound, &bv)) {
+                        if (bv < 0) bv = 0;
+                        outer_len = (size_t)(bv + 1);
+                    } else {
+                        outer_len = init_len ? init_len : 1;
+                    }
+                    if (init_len > outer_len) outer_len = init_len;
+                } else {
+                    outer_len = init_len ? init_len : 1;
+                }
+
+                size_t tail = (item->as.var.init && item->as.var.init->kind == INIT_LIST) ? edge_tail_words_top(item->as.var.init) : 0;
+                size_t total = outer_len + tail;
+                if (total == 0) total = 1;
+
+                fprintf(out, "static bword __%s_store[%zu];\n", item->name, total);
+                fprintf(out, "bword %s;\n", item->name);
+            } else {
+                // Scalar external
+                if (item->is_implicit_static) {
+                    fprintf(out, "static bword %s;\n", item->name);
+                } else {
+                    fprintf(out, "bword %s;\n", item->name);
+                }
+            }
+            continue;
+        }
+    }
+
+    // Emit __b_init function
+    fputs("static void __b_init(void) {\n", out);
+    fputs("    setvbuf(stdout, NULL, _IONBF, 0);\n", out);
+    for (size_t i = 0; i < prog->tops.len; i++) {
+        Top *t = (Top*)prog->tops.data[i];
+        if (t->kind == TOP_EXTERN_DEF) {
+            ExternItem *item = t->as.ext_def;
+            
+            if (item->as.var.vkind == EXTVAR_SCALAR && item->as.var.init && item->as.var.init->kind == INIT_EXPR) {
+                fprintf(out, "    %s = ", item->name);
+                emit_ival_expr(out, item->as.var.init->as.expr, filename);
+                fputs(";\n", out);
+            } else if (item->as.var.vkind == EXTVAR_BLOB) {
+                int is_single_str =
+                    item->as.var.init &&
+                    item->as.var.init->kind == INIT_LIST &&
+                    item->as.var.init->as.list.len == 1 &&
+                    ((Init*)item->as.var.init->as.list.data[0])->kind == INIT_EXPR &&
+                    ((Init*)item->as.var.init->as.list.data[0])->as.expr &&
+                    ((Init*)item->as.var.init->as.list.data[0])->as.expr->kind == EX_STR;
+                if (is_single_str) {
+                    fprintf(out, "    %s = ", item->name);
+                    emit_ival_expr(out, ((Init*)item->as.var.init->as.list.data[0])->as.expr, filename);
+                    fputs(";\n", out);
+                    continue;
+                }
+                // Set blob pointer to backing store (or scalar if size 1)
+                size_t base_len = (item->as.var.init && item->as.var.init->kind == INIT_LIST) ? init_list_length(item->as.var.init) : 1;
+                size_t tail     = (item->as.var.init && item->as.var.init->kind == INIT_LIST) ? edge_tail_words_top(item->as.var.init) : 0;
+                size_t total    = base_len + tail;
+                // Initialize blob elements + edge subvectors in tail if present
+                if (item->as.var.init && item->as.var.init->kind == INIT_LIST) {
+                    char buf[256];
+                    snprintf(buf, sizeof(buf), "__%s_blob", item->name);
+                    (void)emit_edge_list_init(out, buf, 0, item->as.var.init, base_len, 2, filename);
+                }
+                if (total == 1 || (base_len <= 1 && tail == 0)) {
+                    fprintf(out, "    %s = __%s_blob[0];\n", item->name, item->name);
+                } else {
+                    fprintf(out, "    %s = B_ADDR(__%s_blob[0]);\n", item->name, item->name);
+                }
+            } else if (item->as.var.vkind == EXTVAR_VECTOR) {
+                // Set vector pointer
+                fprintf(out, "    %s = B_ADDR(__%s_store[0]);\n", item->name, item->name);
+                // Initialize vector elements if present
+                if (item->as.var.init && item->as.var.init->kind == INIT_LIST) {
+                    // outer_len is where the tail cursor starts (reserved outer slots)
+                    size_t init_len = init_list_length(item->as.var.init);
+                    size_t outer_len = 1;
+                    if (item->as.var.has_empty) outer_len = init_len ? init_len : 1;
+                    else if (item->as.var.bound) {
+                        long bv = 0;
+                        if (try_eval_const_expr(item->as.var.bound, &bv)) {
+                            if (bv < 0) bv = 0;
+                            outer_len = (size_t)(bv + 1);
+                        } else outer_len = init_len ? init_len : 1;
+                        if (init_len > outer_len) outer_len = init_len;
+                    } else outer_len = init_len ? init_len : 1;
+
+                    {
+                        char buf[256];
+                        snprintf(buf, sizeof(buf), "__%s_store", item->name);
+                        (void)emit_edge_list_init(out, buf, 0, item->as.var.init, outer_len, 2, filename);
+                    }
+                }
+            }
+        }
+    }
+
+    fputs("}\n\n", out);
+
+    // Emit function prototypes for C99 compatibility
+    for (size_t i = 0; i < prog->tops.len; i++) {
+        Top *t = (Top*)prog->tops.data[i];
+        if (t->kind == TOP_FUNC) {
+            Func *f = t->as.fn;
+            if (strcmp(f->name, "main") == 0 || strcmp(f->name, "b_main") == 0) {
+                fprintf(out, "static bword __b_user_main(");
+            } else {
+                fprintf(out, "static bword %s(", f->name);
+            }
+            for (size_t p = 0; p < f->params.len; p++) {
+                if (p) fputs(", ", out);
+                fputs("bword", out);
+            }
+            fputs(");\n", out);
+        }
+    }
+    fputc('\n', out);
+
+    // Second pass: emit all functions
+    int has_main = 0;
+    size_t main_param_count = 0;
+    for (size_t i = 0; i < prog->tops.len; i++) {
+        Top *t = (Top*)prog->tops.data[i];
+
+        if (t->kind == TOP_FUNC) {
+            Func *f = t->as.fn;
+            if (strcmp(f->name, "main") == 0 || strcmp(f->name, "b_main") == 0) {
+                has_main = 1;
+                main_param_count = f->params.len;
+                // Rename main to __b_user_main
+                fprintf(out, "bword __b_user_main(");
+            } else {
+                fprintf(out, "bword %s(", f->name);
+            }
+            for (size_t p = 0; p < f->params.len; p++) {
+                if (p) fputs(", ", out);
+                fprintf(out, "bword %s", (char*)f->params.data[p]);
+            }
+            fputs(")\n", out);
+            emit_stmt(out, f->body, 0, 1, filename); // function body
+            fputc('\n', out);
+            continue;
+        }
+    }
+
+    // Emit wrapper main if user defined main
+    if (has_main) {
+        fputs("int main(int argc, char **argv){\n", out);
+        fputs("    __b_setargs(argc, argv);\n", out);
+        fputs("    __b_init();\n", out);
+        if (main_param_count == 0) {
+            fputs("    return (int)__b_user_main();\n", out);
+        } else if (main_param_count == 1) {
+            fputs("    return (int)__b_user_main((argc);\n", out);
+        } else if (main_param_count == 2) {
+            fputs("    return (int)__b_user_main((argc, B_PTR(__b_argvb));\n", out);
+        } else {
+            // For more parameters, we don't support yet
+            fputs("    return (int)__b_user_main();\n", out);
+        }
+        fputs("}\n", out);
+    }
+}
+
+// ===================== Assembly Emitter (experimental) =====================
+
+static int asm_label_id = 0;
+
+static void emit_asm_label(FILE *out, const char *prefix) {
+    fprintf(out, ".L%s%d:\n", prefix, asm_label_id++);
+}
+
+void emit_program_asm(FILE *out, Program *prog) {
+    // Generate x86_64 assembly in GAS syntax
+    fprintf(out, "# B compiler - generated assembly\n");
+    fprintf(out, ".intel_syntax noprefix\n");
+    fprintf(out, ".data\n");
+
+    // Global variables would go here, but for now we skip them
+
+    fprintf(out, ".text\n");
+    fprintf(out, ".global main\n");
+
+    // Find and emit functions
+    for (size_t i = 0; i < prog->tops.len; i++) {
+        Top *t = prog->tops.data[i];
+        if (t->kind == TOP_FUNC) {
+            Func *f = t->as.fn;
+
+            // Function label
+            if (strcmp(f->name, "main") == 0) {
+                fprintf(out, "main:\n");
+            } else {
+                fprintf(out, "%s:\n", f->name);
+            }
+
+            // Function prologue
+            fprintf(out, "    push rbp\n");
+            fprintf(out, "    mov rbp, rsp\n");
+
+            // Allocate space for locals (simplified - assume 8 bytes per local)
+            // In a real implementation, we'd track local variables properly
+            fprintf(out, "    sub rsp, 8\n");
+
+            // Emit function body (very basic)
+            if (f->body && f->body->kind == ST_BLOCK) {
+                for (size_t j = 0; j < f->body->as.block.items.len; j++) {
+                    Stmt *stmt = f->body->as.block.items.data[j];
+                    if (stmt->kind == ST_RETURN && stmt->as.ret.val) {
+                        // Very basic return handling
+                        fprintf(out, "    mov rax, %ld\n", stmt->as.ret.val->as.num);
+                        break; // For now, just handle the first return
+                    }
+                }
+            }
+
+            // Function epilogue
+            fprintf(out, "    leave\n");
+            fprintf(out, "    ret\n");
+            fprintf(out, "\n");
+        }
+    }
+}

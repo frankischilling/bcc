@@ -876,6 +876,10 @@ The compiler includes comprehensive test files:
 - `bitwise_test.b`: Bitwise operator validation
 - `switch_test.b`: Switch/case statement testing
 - Various example programs demonstrating B idioms
+- **Multi-file sample**: `lib.b` + `main.b`
+  - `lib.b` provides `fact`, `fib`, and `is_prime`
+  - `main.b` calls them and prints results
+  - Build/run: `./bcc lib.b main.b -o myapp && ./myapp`
 
 ### Testing Methodology
 - **Unit Testing**: Individual language features
