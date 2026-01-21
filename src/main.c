@@ -1,6 +1,37 @@
 /* main.c - main driver and file I/O */
 
 #include "bcc.h"
+#include <libgen.h>  /* For dirname() */
+#include <sys/stat.h>  /* For stat() */
+
+/* Path to libb installation - derived from executable location */
+static char g_libb_dir[4096] = {0};
+
+/* Get directory containing the bcc executable */
+static void init_libb_path(const char *argv0) {
+    /* Try /proc/self/exe first (Linux) */
+    char exe_path[4096];
+    ssize_t len = readlink("/proc/self/exe", exe_path, sizeof(exe_path) - 1);
+    if (len > 0) {
+        exe_path[len] = '\0';
+        char *dir = dirname(exe_path);
+        snprintf(g_libb_dir, sizeof(g_libb_dir), "%s/lib", dir);
+        return;
+    }
+
+    /* Fall back to argv[0] */
+    if (argv0 && argv0[0]) {
+        char buf[4096];
+        strncpy(buf, argv0, sizeof(buf) - 1);
+        buf[sizeof(buf) - 1] = '\0';
+        char *dir = dirname(buf);
+        snprintf(g_libb_dir, sizeof(g_libb_dir), "%s/lib", dir);
+        return;
+    }
+
+    /* Default to current directory */
+    strcpy(g_libb_dir, "./lib");
+}
 
 char *read_file_all(const char *path, size_t *out_len) {
     FILE *f = fopen(path, "rb");
@@ -20,10 +51,71 @@ char *read_file_all(const char *path, size_t *out_len) {
     return buf;
 }
 
+/* Compile libb.c to libb.o if needed, returns path to libb.o */
+static char *compile_libb(int verbose, int byteptr, int word_bits) {
+    static char libb_o_path[4096];
+    char libb_c_path[4096];
+    
+    snprintf(libb_c_path, sizeof(libb_c_path), "%s/libb.c", g_libb_dir);
+    snprintf(libb_o_path, sizeof(libb_o_path), "/tmp/bcc_libb_%d_%d.o", byteptr, word_bits);
+    
+    /* Check if libb.c exists */
+    if (access(libb_c_path, R_OK) != 0) {
+        dief("libb.c not found at %s", libb_c_path);
+    }
+    
+    /* Check if we need to recompile (simple timestamp check) */
+    struct stat src_stat, obj_stat;
+    int need_compile = 1;
+    if (stat(libb_c_path, &src_stat) == 0 && stat(libb_o_path, &obj_stat) == 0) {
+        if (obj_stat.st_mtime >= src_stat.st_mtime) {
+            need_compile = 0;
+        }
+    }
+    
+    if (need_compile) {
+        if (verbose) fprintf(stderr, "Compiling runtime library...\n");
+        
+        char include_flag[4096];
+        char byteptr_flag[64];
+        char wordbits_flag[64];
+        
+        snprintf(include_flag, sizeof(include_flag), "-I%s", g_libb_dir);
+        snprintf(byteptr_flag, sizeof(byteptr_flag), "-DB_BYTEPTR=%d", byteptr ? 1 : 0);
+        snprintf(wordbits_flag, sizeof(wordbits_flag), "-DWORD_BITS=%d", word_bits);
+        
+        const char *argv[] = {
+            "gcc", "-std=c99", "-O2", "-c",
+            include_flag, byteptr_flag, wordbits_flag,
+            libb_c_path, "-o", libb_o_path, NULL
+        };
+        
+        pid_t pid = fork();
+        if (pid < 0) dief("fork failed");
+        if (pid == 0) { execvp("gcc", (char *const*)argv); _exit(127); }
+        
+        int st = 0;
+        if (waitpid(pid, &st, 0) < 0 || !WIFEXITED(st) || WEXITSTATUS(st) != 0) {
+            dief("Failed to compile libb.c");
+        }
+    }
+    
+    return libb_o_path;
+}
+
 /* Run gcc with multiple C files for linking */
-int run_gcc_multi(Vec *cfiles, const char *out_exe, int compile_only, int debug, int wall, int wextra, int werror, Vec *extra_args) {
-    /* Dynamic argv: flags + cfiles + extra_args + libs + NULL */
-    size_t max_args = 32 + cfiles->len + (extra_args ? extra_args->len : 0);
+int run_gcc_multi(Vec *cfiles, const char *out_exe, int compile_only, int debug, int wall, int wextra, int werror, Vec *extra_args, int use_libb, int byteptr, int word_bits, int verbose) {
+    char *libb_o = NULL;
+    char include_flag[4096];
+    
+    if (use_libb && !compile_only) {
+        libb_o = compile_libb(verbose, byteptr, word_bits);
+    }
+    
+    snprintf(include_flag, sizeof(include_flag), "-I%s", g_libb_dir);
+    
+    /* Dynamic argv: flags + cfiles + extra_args + libs + libb.o + NULL */
+    size_t max_args = 40 + cfiles->len + (extra_args ? extra_args->len : 0);
     const char **argv = (const char**)malloc(max_args * sizeof(char*));
     if (!argv) dief("out of memory");
 
@@ -35,6 +127,11 @@ int run_gcc_multi(Vec *cfiles, const char *out_exe, int compile_only, int debug,
     if (wextra) argv[n++] = "-Wextra";
     if (werror) argv[n++] = "-Werror";
     if (debug)  argv[n++] = "-g";
+    
+    /* Add include path for libb.h */
+    if (use_libb) {
+        argv[n++] = include_flag;
+    }
 
     if (compile_only) {
         argv[n++] = "-c";
@@ -47,6 +144,11 @@ int run_gcc_multi(Vec *cfiles, const char *out_exe, int compile_only, int debug,
     for (size_t i = 0; i < cfiles->len; i++) {
         argv[n++] = (const char*)cfiles->data[i];
     }
+    
+    /* Add libb.o when linking */
+    if (libb_o && !compile_only) {
+        argv[n++] = libb_o;
+    }
 
     /* Add extra arguments */
     if (extra_args) {
@@ -57,6 +159,12 @@ int run_gcc_multi(Vec *cfiles, const char *out_exe, int compile_only, int debug,
 
     if (!compile_only) { argv[n++] = "-ldl"; argv[n++] = "-lm"; }
     argv[n++] = NULL;
+    
+    if (verbose) {
+        fprintf(stderr, "Running:");
+        for (int i = 0; argv[i]; i++) fprintf(stderr, " %s", argv[i]);
+        fprintf(stderr, "\n");
+    }
 
     pid_t pid = fork();
     if (pid < 0) { free(argv); return 1; }
@@ -72,7 +180,7 @@ int run_gcc_multi(Vec *cfiles, const char *out_exe, int compile_only, int debug,
 /* Compile a single .b file to C, returning the path to the generated .c file */
 char *compile_b_to_c(const char *in_path, int byteptr, int no_line, int verbose,
                      int dump_tokens, int dump_ast, int dump_c,
-                     int emit_c, const char *emit_c_path, int word_bits) {
+                     int emit_c, const char *emit_c_path, int word_bits, int use_libb) {
     if (verbose) fprintf(stderr, "Reading %s...\n", in_path);
     size_t len = 0;
     char *src = read_file_all(in_path, &len);
@@ -142,7 +250,7 @@ char *compile_b_to_c(const char *in_path, int byteptr, int no_line, int verbose,
         if (!out) dief("cannot reopen '%s': %s", cfile, strerror(errno));
     }
 
-    emit_program_c(out, prog, in_path, byteptr, no_line, word_bits);
+    emit_program_c_ext(out, prog, in_path, byteptr, no_line, word_bits, use_libb);
     fclose(out);
 
     if (dump_c) {
@@ -178,9 +286,13 @@ int main(int argc, char **argv) {
     int verbose_errors = 0; /* --verbose-errors */
     int verbose = 0;       /* -v flag */
     int word_bits = 0;     /* --word=16|32|host (0 means host native) */
+    int use_libb = 1;      /* use external libb (default on for multi-file) */
     Vec extra_gcc_args;    /* extra arguments to pass to gcc */
     Vec in_paths;          /* input .b files */
     const char *out_path = NULL;
+
+    /* Initialize libb path based on executable location */
+    init_libb_path(argv[0]);
 
     /* Initialize compilation arena */
     g_compilation_arena = arena_new();
@@ -241,6 +353,8 @@ int main(int argc, char **argv) {
             verbose_errors = 1;
         } else if (strcmp(argv[i], "-v") == 0) {
             verbose = 1;
+        } else if (strcmp(argv[i], "--inline-runtime") == 0) {
+            use_libb = 0;
         } else if (strcmp(argv[i], "-o") == 0) {
             if (i + 1 >= argc) dief("missing value after -o");
             out_path = argv[++i];
@@ -293,6 +407,7 @@ int main(int argc, char **argv) {
         fprintf(stderr, "  --word=N    word size: 16, 32, or host (default: host)\n");
         fprintf(stderr, "              16-bit mode wraps arithmetic like PDP-11\n");
         fprintf(stderr, "  -v          verbose compilation output\n");
+        fprintf(stderr, "  --inline-runtime  embed runtime in each C file (old behavior)\n");
         fprintf(stderr, "\n");
         fprintf(stderr, "  --dump-tokens  show tokenized input\n");
         fprintf(stderr, "  --dump-ast     show parsed AST\n");
@@ -404,7 +519,7 @@ int main(int argc, char **argv) {
 
         char *cfile = compile_b_to_c(in_path, byteptr, no_line, verbose,
                                      dump_tokens, dump_ast, dump_c,
-                                     emit_c, emit_c_path, word_bits);
+                                     emit_c, emit_c_path, word_bits, use_libb);
 
         if (emit_c_path) free(emit_c_path);
 
@@ -422,7 +537,7 @@ int main(int argc, char **argv) {
     /* Link all C files with gcc */
     if (verbose) fprintf(stderr, "Linking %zu file(s)...\n", cfiles.len);
 
-    int rc = run_gcc_multi(&cfiles, out_path, compile_only, debug, wall, wextra, werror, &extra_gcc_args);
+    int rc = run_gcc_multi(&cfiles, out_path, compile_only, debug, wall, wextra, werror, &extra_gcc_args, use_libb, byteptr, word_bits, verbose);
 
     if (rc != 0) {
         fprintf(stderr, "gcc failed (exit %d)\n", rc);

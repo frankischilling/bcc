@@ -379,6 +379,14 @@ Init *new_init(InitKind k, int line, int col);
 // ===================== Emitter =====================
 
 void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr, int no_line, int word_bits);
+ 
+// New emitter with external runtime library support
+// use_libb: 0=inline runtime, 1=use external libb
+// libb_include_path: path to directory containing libb.h (for -I flag)
+void emit_program_c_ext(FILE *out, Program *prog, const char *filename, int byteptr, int no_line, int word_bits, int use_libb);
+
+// Path to libb installation (set by main.c based on executable location)
+extern const char *g_libb_path;
 void emit_program_asm(FILE *out, Program *prog);
 void emit_expr(FILE *out, Expr *e, const char *filename);
 void emit_ival_expr(FILE *out, Expr *e, const char *filename);

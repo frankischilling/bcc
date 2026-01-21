@@ -84,8 +84,8 @@ Link B programs with any C library:
 ### Compiler Options
 - `-S`: Emit C code to stdout
 - `--asm`: Emit assembly code to stdout
-- `-c`: Compile to object file
-- `-E`: Emit C code to file
+- `-c`: Compile to object file(s) without linking
+- `-E`: Emit C code to file (preprocessed output)
 - `-g`: Include debug information
 - `-Wall`: Enable all warnings (default)
 - `-Werror`: Treat warnings as errors
@@ -93,6 +93,7 @@ Link B programs with any C library:
 - `--word={host|16|32}`: Select word size/semantics (see Word Semantics Modes; mainly for historical compatibility)
 - `--keep-c`: Don't delete temporary C files after compilation
 - `--emit-c`: Generate C files with nice names (file.b → file.b.c)
+- `--inline-runtime`: Embed runtime in each generated C file (old behavior)
 - `-v`: Verbose compilation output
 - `-l LIB`: Link with C library LIB (e.g., `-l raylib`, `-l ncurses`)
 - `-X FLAG`: Pass any FLAG directly to GCC (e.g., `-X -O3`, `-X -I/path/to/include`, `-X -DMY_DEFINE=1`)
@@ -789,6 +790,39 @@ This follows the tradition of early compiler bootstrapping, where complex system
 - Profile memory usage for large programs
 
 ## Implementation Details
+
+### Runtime Library Architecture
+
+BCC uses a separate runtime library (`lib/libb.c`) that is compiled once and linked with all B programs:
+
+**Directory Structure:**
+```
+bcc/
+├── src/           # Compiler source code
+│   ├── main.c     # Driver and compilation pipeline
+│   ├── emitter.c  # C code generation
+│   └── ...
+├── lib/           # Runtime library
+│   ├── libb.h     # Runtime declarations (included by generated C)
+│   └── libb.c     # Runtime implementation (compiled separately)
+```
+
+**Compilation Pipeline:**
+1. Each `.b` file is compiled to a `.c` file that includes `libb.h`
+2. `libb.c` is compiled once to `libb.o` with matching `B_BYTEPTR` and `WORD_BITS` settings
+3. All generated `.c` files and `libb.o` are linked together
+
+**Benefits:**
+- **Smaller generated files**: Each `.c` file only contains the user's B code, not the full runtime
+- **Faster compilation**: Runtime is compiled once, not for every file
+- **True multi-file support**: No duplicate symbol conflicts
+- **Easier debugging**: Generated C is cleaner and easier to inspect
+
+**Backward Compatibility:**
+Use `--inline-runtime` to embed the runtime in each generated file (old behavior):
+```bash
+bcc --inline-runtime program.b -o program
+```
 
 ### Lexical Analysis (`lexer.c`)
 
