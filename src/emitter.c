@@ -59,6 +59,155 @@ static void emit_string_pool(FILE *out) {
     }
 }
 
+// ===================== Name Mangling for C-safe Identifiers =====================
+
+typedef struct {
+    const char *original;
+    char *mangled;
+} NameEntry;
+
+static Vec name_map;  // Vec<NameEntry*>
+
+// C keywords to avoid
+static const char *c_keywords[] = {
+    "auto", "break", "case", "char", "const", "continue", "default", "do",
+    "double", "else", "enum", "extern", "float", "for", "goto", "if",
+    "inline", "int", "long", "register", "restrict", "return", "short",
+    "signed", "sizeof", "static", "struct", "switch", "typedef", "union",
+    "unsigned", "void", "volatile", "while", "_Bool", "_Complex", "_Imaginary",
+    // C11 keywords
+    "_Alignas", "_Alignof", "_Atomic", "_Generic", "_Noreturn", "_Static_assert", "_Thread_local",
+    // Common macros/reserved
+    "NULL", "true", "false", "bool",
+    // B runtime functions we use
+    "word", "B_PTR", "B_ADDR", "B_DEREF",
+    NULL
+};
+
+static int is_c_keyword(const char *name) {
+    for (int i = 0; c_keywords[i]; i++) {
+        if (strcmp(name, c_keywords[i]) == 0) return 1;
+    }
+    return 0;
+}
+
+// Check if a character is valid in a C identifier (not first position)
+static int is_c_ident_char(char c) {
+    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+           (c >= '0' && c <= '9') || c == '_';
+}
+
+// Check if a character is valid as first character of C identifier
+static int is_c_ident_first(char c) {
+    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_';
+}
+
+// Mangle a name to be C-safe
+static char *mangle_name_raw(const char *original) {
+    if (!original || !original[0]) return sdup("__empty");
+
+    // Calculate needed size (worst case: each char becomes _XX + prefix + suffix)
+    size_t len = strlen(original);
+    size_t max_len = len * 4 + 16;
+    char *result = xmalloc(max_len);
+    char *p = result;
+
+    // Handle first character
+    if (!is_c_ident_first(original[0])) {
+        *p++ = '_';
+        if (original[0] == '.') {
+            *p++ = '_';
+        } else {
+            p += sprintf(p, "%02X", (unsigned char)original[0]);
+        }
+    } else {
+        *p++ = original[0];
+    }
+
+    // Handle rest of characters
+    for (size_t i = 1; i < len; i++) {
+        char c = original[i];
+        if (is_c_ident_char(c)) {
+            *p++ = c;
+        } else if (c == '.') {
+            *p++ = '_';
+        } else {
+            // Encode as hex
+            p += sprintf(p, "_%02X", (unsigned char)c);
+        }
+    }
+    *p = '\0';
+
+    return result;
+}
+
+// Check if mangled name already exists in map
+static int mangled_exists(const char *mangled) {
+    for (size_t i = 0; i < name_map.len; i++) {
+        NameEntry *e = (NameEntry*)name_map.data[i];
+        if (strcmp(e->mangled, mangled) == 0) return 1;
+    }
+    return 0;
+}
+
+// Get or create mangled name for an identifier
+static const char *get_mangled_name(const char *original) {
+    if (!original) return NULL;
+
+    // Check if we already have this name
+    for (size_t i = 0; i < name_map.len; i++) {
+        NameEntry *e = (NameEntry*)name_map.data[i];
+        if (strcmp(e->original, original) == 0) return e->mangled;
+    }
+
+    // Create new mangled name
+    char *mangled = mangle_name_raw(original);
+
+    // Check if it's a C keyword
+    if (is_c_keyword(mangled)) {
+        char *prefixed = xmalloc(strlen(mangled) + 3);
+        sprintf(prefixed, "b_%s", mangled);
+        free(mangled);
+        mangled = prefixed;
+    }
+
+    // Handle collisions by adding suffix
+    if (mangled_exists(mangled)) {
+        int suffix = 2;
+        char *unique = xmalloc(strlen(mangled) + 16);
+        do {
+            sprintf(unique, "%s_%d", mangled, suffix++);
+        } while (mangled_exists(unique));
+        free(mangled);
+        mangled = unique;
+    }
+
+    // Add to map
+    NameEntry *e = xmalloc(sizeof(NameEntry));
+    e->original = sdup(original);
+    e->mangled = mangled;
+    vec_push(&name_map, e);
+
+    return mangled;
+}
+
+// Emit a B identifier as a C-safe name
+static void emit_name(FILE *out, const char *name) {
+    if (!name) return;
+    fputs(get_mangled_name(name), out);
+}
+
+// Clear the name map (call at start of each compilation)
+static void clear_name_map(void) {
+    for (size_t i = 0; i < name_map.len; i++) {
+        NameEntry *e = (NameEntry*)name_map.data[i];
+        free((void*)e->original);
+        free(e->mangled);
+        free(e);
+    }
+    name_map.len = 0;
+}
+
 // String collection prepass
 static void collect_strings_expr(Expr *e);
 static void collect_strings_init(Init *in);
@@ -465,10 +614,7 @@ void emit_expr(FILE *out, Expr *e, const char *filename) {
             return;
         }
         case EX_VAR: {
-            const char *v = e->as.var;
-            if (strcmp(v, "rd.unit") == 0) { fputs("rd_unit", out); return; }
-            if (strcmp(v, "wr.unit") == 0) { fputs("wr_unit", out); return; }
-            fputs(v, out);
+            emit_name(out, e->as.var);
             return;
         }
 
@@ -812,7 +958,7 @@ void emit_expr(FILE *out, Expr *e, const char *filename) {
 void emit_ival_expr(FILE *out, Expr *e, const char *filename){
     if (e->kind == EX_VAR) {
         fputs("B_ADDR(", out);
-        fputs(e->as.var, out);
+        emit_name(out, e->as.var);
         fputc(')', out);
         return;
     }
@@ -969,25 +1115,26 @@ void emit_stmt(FILE *out, Stmt *s, int indent, int is_function_body, const char 
         case ST_AUTO: {
             for (size_t i = 0; i < s->as.autodecl.decls.len; i++) {
                 DeclItem *item = (DeclItem*)s->as.autodecl.decls.data[i];
+                const char *mname = get_mangled_name(item->name);
 
                 if (item->size) {
                     // Vector: emit backing storage
                     emit_indent(out, indent);
-                    fprintf(out, "word __%s_store[(", item->name);
+                    fprintf(out, "word __%s_store[(", mname);
                     emit_expr(out, item->size, filename);
                     fprintf(out, ") + 1];\n"); // B bound is last index
 
                     // Emit pointer variable
                     emit_indent(out, indent);
-                    fprintf(out, "word %s;\n", item->name);
+                    fprintf(out, "word %s;\n", mname);
 
                     // Emit initialization (will be moved to init function later)
                     emit_indent(out, indent);
-                    fprintf(out, "%s = B_ADDR(__%s_store[0]);\n", item->name, item->name);
+                    fprintf(out, "%s = B_ADDR(__%s_store[0]);\n", mname, mname);
                 } else {
                     // Simple variable
                     emit_indent(out, indent);
-                    fprintf(out, "word %s = 0;\n", item->name);
+                    fprintf(out, "word %s = 0;\n", mname);
                 }
             }
             return;
@@ -1083,6 +1230,9 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
     string_pool.data = NULL;
     string_pool.len = 0;
     string_pool.cap = 0;
+
+    // Clear name mangling map for fresh compilation
+    clear_name_map();
 
     collect_strings_program(prog);
     fputs(
@@ -1183,13 +1333,8 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
         "\n"
 "static word b_putchar(word x){\n"
 "    __b_sync_wr();\n"
-"    uword v = (uword)x;\n"
-"    for (size_t i = 0; i < sizeof(word); i++) {\n"
-"        unsigned char c = (unsigned char)(v & 0xFF);\n"
-"        if (c == 0) break;\n"
-"        (void)write(wr_fd, &c, 1);\n"
-"        v >>= 8;\n"
-"    }\n"
+"    unsigned char c = (unsigned char)(x & 0xFF);\n"
+"    (void)write(wr_fd, &c, 1);\n"
 "    return x;\n"
 "}\n"
 "static word b_getchar(void){ __b_sync_rd(); unsigned char c; ssize_t n = read(rd_fd, &c, 1); if (n == 1) return (word)c; if (rd_fd != 0) { close(rd_fd); rd_fd = 0; rd_unit = -1; return b_getchar(); } return (word)004; }\n"
@@ -1988,12 +2133,15 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
 
         if (t->kind == TOP_EXTERN_DECL) {
             ExternItem *item = t->as.ext_decl;
-            fprintf(out, "extern word %s;\n", item->name);
+            fputs("extern word ", out);
+            emit_name(out, item->name);
+            fputs(";\n", out);
             continue;
         }
 
         if (t->kind == TOP_EXTERN_DEF) {
             ExternItem *item = t->as.ext_def;
+            const char *mname = get_mangled_name(item->name);
             if (item->as.var.vkind == EXTVAR_BLOB) {
                 int is_single_str =
                     item->as.var.init &&
@@ -2004,7 +2152,7 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
                     ((Init*)item->as.var.init->as.list.data[0])->as.expr->kind == EX_STR;
 
                 if (is_single_str) {
-                    fprintf(out, "word %s;\n", item->name);
+                    fprintf(out, "word %s;\n", mname);
                     continue;
                 }
 
@@ -2013,8 +2161,8 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
                 size_t tail     = (item->as.var.init && item->as.var.init->kind == INIT_LIST) ? edge_tail_words_top(item->as.var.init) : 0;
                 size_t total    = base_len + tail;
                 if (total == 0) total = 1;
-                fprintf(out, "static word __%s_blob[%zu];\n", item->name, total);
-                fprintf(out, "word %s;\n", item->name);
+                fprintf(out, "static word __%s_blob[%zu];\n", mname, total);
+                fprintf(out, "word %s;\n", mname);
             } else if (item->as.var.vkind == EXTVAR_VECTOR) {
                 // Vector external: pointer + backing store
                 size_t init_len = (item->as.var.init && item->as.var.init->kind == INIT_LIST) ? init_list_length(item->as.var.init) : 0;
@@ -2039,14 +2187,14 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
                 size_t total = outer_len + tail;
                 if (total == 0) total = 1;
 
-                fprintf(out, "static word __%s_store[%zu];\n", item->name, total);
-                fprintf(out, "word %s;\n", item->name);
+                fprintf(out, "static word __%s_store[%zu];\n", mname, total);
+                fprintf(out, "word %s;\n", mname);
             } else {
                 // Scalar external
                 if (item->is_implicit_static) {
-                    fprintf(out, "static word %s;\n", item->name);
+                    fprintf(out, "static word %s;\n", mname);
                 } else {
-                    fprintf(out, "word %s;\n", item->name);
+                    fprintf(out, "word %s;\n", mname);
                 }
             }
             continue;
@@ -2060,9 +2208,10 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
         Top *t = (Top*)prog->tops.data[i];
         if (t->kind == TOP_EXTERN_DEF) {
             ExternItem *item = t->as.ext_def;
-            
+            const char *mname = get_mangled_name(item->name);
+
             if (item->as.var.vkind == EXTVAR_SCALAR && item->as.var.init && item->as.var.init->kind == INIT_EXPR) {
-                fprintf(out, "    %s = ", item->name);
+                fprintf(out, "    %s = ", mname);
                 emit_ival_expr(out, item->as.var.init->as.expr, filename);
                 fputs(";\n", out);
             } else if (item->as.var.vkind == EXTVAR_BLOB) {
@@ -2074,7 +2223,7 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
                     ((Init*)item->as.var.init->as.list.data[0])->as.expr &&
                     ((Init*)item->as.var.init->as.list.data[0])->as.expr->kind == EX_STR;
                 if (is_single_str) {
-                    fprintf(out, "    %s = ", item->name);
+                    fprintf(out, "    %s = ", mname);
                     emit_ival_expr(out, ((Init*)item->as.var.init->as.list.data[0])->as.expr, filename);
                     fputs(";\n", out);
                     continue;
@@ -2086,17 +2235,17 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
                 // Initialize blob elements + edge subvectors in tail if present
                 if (item->as.var.init && item->as.var.init->kind == INIT_LIST) {
                     char buf[256];
-                    snprintf(buf, sizeof(buf), "__%s_blob", item->name);
+                    snprintf(buf, sizeof(buf), "__%s_blob", mname);
                     (void)emit_edge_list_init(out, buf, 0, item->as.var.init, base_len, 2, filename);
                 }
                 if (total == 1 || (base_len <= 1 && tail == 0)) {
-                    fprintf(out, "    %s = __%s_blob[0];\n", item->name, item->name);
+                    fprintf(out, "    %s = __%s_blob[0];\n", mname, mname);
                 } else {
-                    fprintf(out, "    %s = B_ADDR(__%s_blob[0]);\n", item->name, item->name);
+                    fprintf(out, "    %s = B_ADDR(__%s_blob[0]);\n", mname, mname);
                 }
             } else if (item->as.var.vkind == EXTVAR_VECTOR) {
                 // Set vector pointer
-                fprintf(out, "    %s = B_ADDR(__%s_store[0]);\n", item->name, item->name);
+                fprintf(out, "    %s = B_ADDR(__%s_store[0]);\n", mname, mname);
                 // Initialize vector elements if present
                 if (item->as.var.init && item->as.var.init->kind == INIT_LIST) {
                     // outer_len is where the tail cursor starts (reserved outer slots)
@@ -2114,7 +2263,7 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
 
                     {
                         char buf[256];
-                        snprintf(buf, sizeof(buf), "__%s_store", item->name);
+                        snprintf(buf, sizeof(buf), "__%s_store", mname);
                         (void)emit_edge_list_init(out, buf, 0, item->as.var.init, outer_len, 2, filename);
                     }
                 }
@@ -2132,7 +2281,9 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
             if (strcmp(f->name, "main") == 0 || strcmp(f->name, "b_main") == 0) {
                 fprintf(out, "static word __b_user_main(");
             } else {
-                fprintf(out, "static word %s(", f->name);
+                fputs("static word ", out);
+                emit_name(out, f->name);
+                fputc('(', out);
             }
             for (size_t p = 0; p < f->params.len; p++) {
                 if (p) fputs(", ", out);
@@ -2157,11 +2308,14 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
                 // Rename main to __b_user_main
                 fprintf(out, "word __b_user_main(");
             } else {
-                fprintf(out, "word %s(", f->name);
+                fputs("word ", out);
+                emit_name(out, f->name);
+                fputc('(', out);
             }
             for (size_t p = 0; p < f->params.len; p++) {
                 if (p) fputs(", ", out);
-                fprintf(out, "word %s", (char*)f->params.data[p]);
+                fputs("word ", out);
+                emit_name(out, (char*)f->params.data[p]);
             }
             fputs(")\n", out);
             emit_stmt(out, f->body, 0, 1, filename); // function body
@@ -2218,7 +2372,8 @@ void emit_program_asm(FILE *out, Program *prog) {
             if (strcmp(f->name, "main") == 0) {
                 fprintf(out, "main:\n");
             } else {
-                fprintf(out, "%s:\n", f->name);
+                emit_name(out, f->name);
+                fputs(":\n", out);
             }
 
             // Function prologue
