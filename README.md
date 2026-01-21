@@ -34,6 +34,13 @@ This implementation includes:
 - **Word packing**: Multi-character constants packed into single words
 - **Pointer arithmetic**: Explicit word-based addressing with configurable modes
 
+### Multi-File Compilation
+- **Multi-file programs**: Compile multiple B source files into single executables
+- **Cross-file function calls**: Functions in any file can call functions from other files
+- **No header files**: Automatic function visibility across all source files
+- **Shared runtime**: All files access the same B runtime library functions
+- **Flexible organization**: Split large programs across logical modules
+
 ### Standard Library (`libb.a`)
 Complete implementation of B's runtime library (using libc) including:
 - I/O functions: `putchar`, `getchar`, `print`, `printf`, `putstr`, `getstr`
@@ -81,6 +88,8 @@ Link B programs with any C library:
 - `-Wall`: Enable all warnings (default)
 - `-Werror`: Treat warnings as errors
 - `--byteptr`: Use byte-addressed pointers
+- `--keep-c`: Don't delete temporary C files after compilation
+- `--emit-c`: Generate C files with nice names (file.b → file.b.c)
 - `-v`: Verbose compilation output
 - `-l LIB`: Link with C library LIB (e.g., `-l raylib`, `-l ncurses`)
 - `-X FLAG`: Pass any FLAG directly to GCC (e.g., `-X -O3`, `-X -I/path/to/include`, `-X -DMY_DEFINE=1`)
@@ -128,6 +137,48 @@ The `bcc` executable will be created in the root directory.
 # Emit assembly code
 ./bcc --asm program.b
 ```
+
+### Multi-File Compilation
+```bash
+# Compile multiple B files into single executable
+./bcc lib.b main.b utils.b -o myprogram
+
+# Compile to object files only (no linking)
+./bcc -c lib.b main.b utils.b
+
+# Keep generated C files for inspection
+./bcc lib.b main.b -o myprogram --keep-c
+
+# Use nice naming for generated C files (file.b → file.b.c)
+./bcc lib.b main.b -o myprogram --emit-c
+
+# Verbose compilation output
+./bcc lib.b main.b -o myprogram -v
+```
+
+**Multi-file project structure:**
+```
+myproject/
+├── lib.b        # Shared utility functions
+├── math.b       # Mathematical functions
+├── io.b         # I/O helper functions
+└── main.b       # Main program entry point
+```
+
+**Example usage:**
+```bash
+# Compile all source files together
+./bcc lib.b math.b io.b main.b -o myapp
+
+# Run the program
+./myapp
+```
+
+**Features:**
+- Functions from any B file can call functions from other B files
+- No need for forward declarations or header files
+- All files share the same runtime library
+- Generated C code is properly linked together
 
 ### B Language Example
 ```b
