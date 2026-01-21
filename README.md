@@ -157,6 +157,13 @@ cd bcc
 make
 ```
 
+To install the compiler system-wide (default `/usr/local/bin`), run:
+```bash
+make install
+```
+
+Use `make install PREFIX=/custom/path` to override the install directory.
+
 The `bcc` executable will be created in the root directory.
 
 ## Compatibility
@@ -639,12 +646,44 @@ Select the arithmetic word size and wraparound behavior with `--word`.
 - Arithmetic wraps at 16-bit (-32768..32767)
 - Examples: `32767 + 1` → `-32768`; `-32768 - 1` → `32767`
 - Bitwise ops mask to 16 bits
+- Shifts are logical (unsigned), so `-1 >> 1` → `32767`
 - Use for historical B programs expecting PDP-11 behavior
 
 #### `--word=32`
 - Emulates 32-bit word semantics
 - Arithmetic wraps at 32-bit boundaries
 - Useful for code written with 32-bit assumptions
+
+#### Safe Arithmetic Implementation
+
+When `--word=16` or `--word=32` is specified, BCC generates code using safe arithmetic macros that avoid **host-C undefined behavior**:
+
+| Macro | Operation | Safety Feature |
+|-------|-----------|----------------|
+| `WADD(a,b)` | Addition | Unsigned arithmetic prevents signed overflow UB |
+| `WSUB(a,b)` | Subtraction | Unsigned arithmetic prevents signed overflow UB |
+| `WMUL(a,b)` | Multiplication | Unsigned arithmetic prevents signed overflow UB |
+| `WDIV(a,b)` | Division | Unsigned division |
+| `WMOD(a,b)` | Modulo | Unsigned modulo |
+| `WSHL(a,n)` | Left shift | Shift count masked; operand masked to word width |
+| `WSHR(a,n)` | Right shift | Shift count masked; operand masked (logical shift) |
+| `WAND(a,b)` | Bitwise AND | Standard bitwise AND with wrapping |
+| `WOR(a,b)` | Bitwise OR | Standard bitwise OR with wrapping |
+| `WNEG(a)` | Unary negation | Unsigned negation prevents MIN_INT overflow UB |
+
+**Key safety guarantees:**
+- **No signed overflow UB**: All arithmetic is performed on unsigned types
+- **No shift UB**: Shift counts are masked to valid range (0-15 for 16-bit, 0-31 for 32-bit)
+- **Proper word-width emulation**: Operands are masked to word width before shifts
+- **Deterministic behavior**: Same results on all C compilers/platforms
+
+**Examples of edge cases handled correctly:**
+```
+1 << 15      → -32768 (16-bit: sign bit set)
+1 << 20      → 16     (16-bit: shift masked to 4)
+-1 >> 1     → 32767  (16-bit: logical right shift of 0xFFFF)
+32767 + 1   → -32768 (16-bit: overflow wrap)
+-(-32768)   → -32768 (16-bit: negation of MIN wraps back)
 
 ### Endianness and Byte Packing
 
@@ -1089,6 +1128,8 @@ This project is licensed under the GNU General Public License v3.0 (GPL-3.0).
 ## Authors
 
 Developed as a faithful recreation of Ken Thompson's original B compiler from Bell Labs, based on the 1969 B language.
+
+Written by @frankischilling
 
 ---
 
