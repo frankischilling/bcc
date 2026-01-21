@@ -237,9 +237,16 @@ void dief(const char *fmt_s, ...) {
 void error_at(Token *tok, const char *src, const char *fmt, ...) {
     va_list ap;
     va_start(ap, fmt);
-    fprintf(stderr, "%s:%d:%d: ", tok->filename, tok->line, tok->col);
-    vfprintf(stderr, fmt, ap);
-    fprintf(stderr, "\n");
+
+    if (g_verbose_errors) {
+        // Verbose format
+        fprintf(stderr, "%s:%d:%d: ", tok->filename, tok->line, tok->col);
+        vfprintf(stderr, fmt, ap);
+        fprintf(stderr, "\n");
+    } else {
+        // Historic 2-letter code format (use "sx" for general syntax errors)
+        fprintf(stderr, "sx %s:%d\n", tok->filename, tok->line);
+    }
     va_end(ap);
 
     // Find the line containing the error
