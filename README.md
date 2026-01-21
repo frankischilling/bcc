@@ -1,6 +1,6 @@
 # BCC - B Programming Language Compiler
 
-A faithful implementation of Ken Thompson's B programming language compiler from Bell Labs, based on the 1969 B language specification.
+A faithful implementation of Ken Thompson's B programming language compiler from Bell Labs, based on the 1969 B language specification. BCC is written in C99, targets the GNU toolchain (gcc + binutils), and ships with a full `libb` built on top of libc for practical, portable use.
 
 ## Overview
 
@@ -35,7 +35,7 @@ This implementation includes:
 - **Pointer arithmetic**: Explicit word-based addressing with configurable modes
 
 ### Standard Library (`libb.a`)
-Complete implementation of B's runtime library including:
+Complete implementation of B's runtime library (using libc) including:
 - I/O functions: `putchar`, `getchar`, `print`, `printf`, `putstr`, `getstr`
 - File operations: `open`, `close`, `read`, `write`, `creat`, `seek`
 - File redirection helpers: `openr`, `openw`, `flush` for switching stdin/stdout units
@@ -81,6 +81,7 @@ Link B programs with any C library:
 - `-Wall`: Enable all warnings (default)
 - `-Werror`: Treat warnings as errors
 - `--byteptr`: Use byte-addressed pointers
+- `-v`: Verbose compilation output
 - `-l LIB`: Link with C library LIB (e.g., `-l raylib`, `-l ncurses`)
 - `-X FLAG`: Pass any FLAG directly to GCC (e.g., `-X -O3`, `-X -I/path/to/include`, `-X -DMY_DEFINE=1`)
 - `--dump-tokens`: Show tokenized input
@@ -92,7 +93,7 @@ Link B programs with any C library:
 ## Installation
 
 ### Prerequisites
-- GCC or compatible C99 compiler
+- GCC or compatible C99 compiler (we build and link with gcc and GNU binutils)
 - GNU Make
 - Unix-like system (Linux, macOS, BSD)
 
@@ -104,6 +105,12 @@ make
 ```
 
 The `bcc` executable will be created in the root directory.
+
+## Compatibility
+- **Supported**: Modern Linux (x86_64) with gcc/libc and GNU binutils; recent macOS and BSDs with gcc or clang in GNU-compat mode.
+- **Pointer models**: Both byte-addressed and word-addressed modes are supported via `--byteptr`.
+- **Dependencies**: Requires libc at runtime (runtime library is implemented atop libc; not a freestanding syscall-only build).
+- **Linking**: Uses the GNU toolchain by default; alternate compilers may work if they honor C99 and GNU ld flags.
 
 ## Usage
 
