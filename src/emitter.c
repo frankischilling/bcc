@@ -635,7 +635,7 @@ void emit_expr(FILE *out, Expr *e, const char *filename) {
                 }
                 // List of builtin functions that have b_ versions
                 const char *b_funcs[] = {
-                    "char", "lchar", "getchr", "putchr", "getstr", "putstr", "flush", "reread", "printf", "print", "printn", "putnum", "putchar", "exit", "abort", "free",
+                    "char", "lchar", "getchr", "putchr", "getstr", "putstr", "flush", "reread", "printf", "printn", "putnum", "putchar", "exit", "abort", "free",
                     "open", "close", "read", "write", "creat", "seek", "openr", "openw",
                     "fork", "wait", "execl", "execv",
                     "chdir", "chmod", "chown", "link", "unlink", "stat", "fstat",
