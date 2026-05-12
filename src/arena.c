@@ -2,7 +2,7 @@
 
 #include "bcc.h"
 
-/* ===================== Arena Implementation ===================== */
+/* Arena Implementation */
 
 Arena *arena_new(void) {
     Arena *arena = (Arena*)malloc(sizeof(Arena));

@@ -342,7 +342,7 @@ Token lx_next(Lexer *L) {
     if (c == '+' && lx_peek2(L) == '+') { lx_get(L); lx_get(L); return mk_tok(TK_PLUSPLUS, line, col, L->filename); }
     if (c == '-' && lx_peek2(L) == '-') { lx_get(L); lx_get(L); return mk_tok(TK_MINUSMINUS, line, col, L->filename); }
 
-    // C-style compound assignments (op=) -- extension
+    // C-style compound assignments (op=) extension
     if (EXT_ENABLED(EXT_C_COMPOUND_ASGN)) {
         if (c == '+' && lx_peek2(L) == '=') { lx_get(L); lx_get(L); return mk_tok(TK_PLUSEQ, line, col, L->filename); }
         if (c == '-' && lx_peek2(L) == '=') { lx_get(L); lx_get(L); return mk_tok(TK_MINUSEQ, line, col, L->filename); }

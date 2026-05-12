@@ -76,34 +76,26 @@ static int is_unary(TokenKind k) {
 }
 
 /*
- * ============================================================================
- * B OPERATOR PRECEDENCE TABLE (Thompson B 1972)
- * ============================================================================
+ * B operator precedence table (Thompson B 1972).
  *
- * This table defines the canonical operator precedence for the B language.
- * Based on the 1972 B Reference Manual and validated against known B behavior.
+ * This table defines the canonical operator precedence for the B language,
+ * based on the 1972 B Reference Manual and validated against known B behavior.
  *
- * PRECEDENCE (highest to lowest):
- * --------------------------------
- *
- * Level | Operators              | Associativity | Description
- * ------|------------------------|---------------|---------------------------
- *  15   | ()  []  f()            | left-to-right | Grouping, indexing, call
- *  14   | ++  --  (postfix)      | left-to-right | Postfix increment/decrement
- *  13   | ++  --  (prefix)       | right-to-left | Prefix increment/decrement
- *       | -  !  *  &             | right-to-left | Unary minus, NOT, deref, addr
- *  12   | *  /  %                | left-to-right | Multiplicative
- *  11   | +  -                   | left-to-right | Additive
- *  10   | <<  >>                 | left-to-right | Shift
- *   9   | <  <=  >  >=           | left-to-right | Relational
- *   8   | ==  !=                 | left-to-right | Equality
- *   7   | &                      | left-to-right | Bitwise AND
- *   6   | |                      | left-to-right | Bitwise OR
- *   5   | ||                     | left-to-right | Extension: logical OR
- *   4   | ?:                     | right-to-left | Conditional (ternary)
- *   3   | =  =+  =-  =*  =/  =%  | right-to-left | Assignment and compound
- *       | =<<  =>>  =&  =|      |               |
- *   2   | ,                      | left-to-right | Comma (sequence)
+ * Precedence from highest to lowest:
+ * Level 15: () [] f(), left-to-right, grouping, indexing, call.
+ * Level 14: postfix increment and decrement, left-to-right.
+ * Level 13: prefix increment/decrement plus unary - ! * &, right-to-left.
+ * Level 12: * / %, left-to-right.
+ * Level 11: + -, left-to-right.
+ * Level 10: << >>, left-to-right.
+ * Level 9: < <= > >=, left-to-right.
+ * Level 8: == !=, left-to-right.
+ * Level 7: &, left-to-right.
+ * Level 6: |, left-to-right.
+ * Level 5: ||, left-to-right, BCC logical OR extension.
+ * Level 4: ?:, right-to-left.
+ * Level 3: = =+ =- =* =/ =% =<< =>> =& =|, right-to-left.
+ * Level 2: comma, left-to-right.
  *
  * NOTES:
  * - Thompson B72 has no || or && operators. This compiler accepts || in
@@ -116,14 +108,13 @@ static int is_unary(TokenKind k) {
  * EVALUATION ORDER:
  * - Binary operators evaluate left operand first, then right
  * - Function arguments: left-to-right (B convention, unspecified in original)
- * - Side effects (++, --, assignment) complete before sequence points
+ * - Side effects from increment, decrement, and assignment complete before sequence points
  *
  * DIFFERENCES FROM C:
  * - No logical && operator; || is a BCC extension
  * - Compound assignments: B uses =op, C uses op=
  * - B shifts at same level as + - (C puts shifts below relational)
  * - B has no sizeof, cast, or -> operators
- * ============================================================================
  */
 
 static int precedence(TokenKind k) {
@@ -176,7 +167,7 @@ TokenKind peek_next_kind(Parser *P){
     return k;
 }
 
-// ===================== AST + Parser (build nodes) =====================
+// AST + Parser (build nodes)
 
 
 
@@ -823,7 +814,7 @@ Expr *parse_postfix(Parser *P) {
             continue;
         }
 
-        // postfix ++/--
+        // postfix increment/decrement
         if (P->cur.kind == TK_PLUSPLUS || P->cur.kind == TK_MINUSMINUS) {
             TokenKind op = P->cur.kind;
             next(P);
@@ -852,7 +843,7 @@ Expr *parse_unary(Parser *P) {
         next(P);
         Expr *rhs = parse_unary(P);
 
-        // prefix ++/-- require lvalue
+        // prefix increment/decrement requires lvalue
         if ((op == TK_PLUSPLUS || op == TK_MINUSMINUS) && !is_lvalue(rhs)) {
             dief("prefix %s requires an lvalue at %d:%d", tk_name(op), line, col);
         }

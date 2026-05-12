@@ -265,7 +265,7 @@ char *compile_b_to_c(const char *in_path, int byteptr, int no_line, int verbose,
     FILE *out;
 
     if (emit_c && emit_c_path) {
-        /* --emit-c: use specified path (e.g., foo.b -> foo.b.c) */
+        /* Emit-C mode: use specified path (e.g., foo.b -> foo.b.c) */
         /* Use strdup not sdup - cfile will be free'd later */
         cfile = strdup(emit_c_path);
         if (!cfile) dief("out of memory");
@@ -308,23 +308,23 @@ char *compile_b_to_c(const char *in_path, int byteptr, int no_line, int verbose,
 
 int main(int argc, char **argv) {
     int emit_c_only = 0;
-    int emit_asm_only = 0; /* --asm flag */
+    int emit_asm_only = 0; /* assembly output flag */
     int compile_only = 0;  /* -c flag */
     int emit_c_to_file = 0; /* -E flag */
-    int keep_c = 0;        /* --keep-c flag */
-    int emit_c = 0;        /* --emit-c flag (a.b -> a.b.c naming) */
+    int keep_c = 0;        /* keep generated C flag */
+    int emit_c = 0;        /* named C output flag (a.b -> a.b.c naming) */
     int debug = 0;         /* -g flag */
     int wall = 1;          /* -Wall (default on) */
     int wextra = 1;        /* -Wextra (default on) */
     int werror = 0;        /* -Werror */
-    int byteptr = 1;       /* --byteptr flag (default on for byte-addressed programs) */
-    int dump_tokens = 0;   /* --dump-tokens */
-    int dump_ast = 0;      /* --dump-ast */
-    int dump_c = 0;        /* --dump-c */
-    int no_line = 1;       /* --no-line */
-    int verbose_errors = 0; /* --verbose-errors */
+    int byteptr = 1;       /* byte pointer flag (default on for byte-addressed programs) */
+    int dump_tokens = 0;   /* token dump flag */
+    int dump_ast = 0;      /* AST dump flag */
+    int dump_c = 0;        /* C dump flag */
+    int no_line = 1;       /* line directive suppression flag */
+    int verbose_errors = 0; /* verbose error flag */
     int verbose = 0;       /* -v flag */
-    int word_bits = 0;     /* --word=16|32|host (0 means host native) */
+    int word_bits = 0;     /* word mode: 16, 32, or host (0 means host native) */
     int use_libb = 1;      /* use external libb (default on for multi-file) */
     Vec extra_gcc_args;    /* extra arguments to pass to gcc */
     Vec in_paths;          /* input .b files */
@@ -355,7 +355,7 @@ int main(int argc, char **argv) {
             keep_c = 1;
         } else if (strcmp(argv[i], "--emit-c") == 0) {
             emit_c = 1;
-            keep_c = 1; /* --emit-c implies keeping the C files */
+            keep_c = 1; /* named C output implies keeping the C files */
         } else if (strcmp(argv[i], "-g") == 0) {
             debug = 1;
         } else if (strcmp(argv[i], "-Wall") == 0) {
@@ -587,7 +587,7 @@ int main(int argc, char **argv) {
         if (emit_c_path) free(emit_c_path);
 
         if (!cfile) {
-            /* compile_b_to_c returns NULL for --dump-tokens/--dump-ast without --dump-c */
+            /* compile_b_to_c returns NULL for token or AST dumps without C dump */
             arena_free(g_compilation_arena);
             g_compilation_arena = NULL;
             return 0;
@@ -616,7 +616,7 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    /* Clean up temp C files unless --keep-c */
+    /* Clean up temp C files unless requested otherwise */
     for (size_t i = 0; i < cfiles.len; i++) {
         char *cfile = (char*)cfiles.data[i];
         if (!keep_c) {

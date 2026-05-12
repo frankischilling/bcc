@@ -2,7 +2,7 @@
 
 #include "bcc.h"
 
-// ===================== Symbol Table Implementation =====================
+// Symbol Table Implementation
 
 // Forward declarations
 static void sem_add_builtin_functions(SemState *st);
@@ -159,7 +159,7 @@ static int is_implicit_static(SemState *st, const char *name) {
     return 0;
 }
 
-// ===================== Semantic Checking Functions =====================
+// Semantic Checking Functions
 
 // Forward declarations
 static void sem_check_expr(SemState *st, Expr *e);

@@ -2,7 +2,7 @@
 
 #include "bcc.h"
 
-// ===================== String Pool for Thompson-Accurate Strings =====================
+// String Pool for Thompson-Accurate Strings
 
 typedef struct {
     const char *str;
@@ -59,7 +59,7 @@ static void emit_string_pool(FILE *out) {
     }
 }
 
-// ===================== Name Mangling for C-safe Identifiers =====================
+// Name Mangling for C-safe Identifiers
 
 typedef struct {
     const char *original;
@@ -339,7 +339,7 @@ static void collect_strings_program(Program *prog) {
     }
 }
 
-// ===================== C Emitter (walk AST) =====================
+// C Emitter (walk AST)
 
 // Convert B-style assignment operators to C-style for code generation
 static const char *assignment_op_to_c(TokenKind op) {
@@ -1056,7 +1056,7 @@ size_t init_list_length(Init *in) {
     return in->as.list.len;
 }
 
-// ---- constant folding (small but useful) ----
+// constant folding (small but useful)
 int try_eval_const_expr(Expr *e, long *out) {
     if (!e) return 0;
     switch (e->kind) {
@@ -1069,7 +1069,7 @@ int try_eval_const_expr(Expr *e, long *out) {
             switch (e->as.unary.op) {
                 case TK_MINUS: *out = -v; return 1;
                 case TK_BANG:  *out = (!v); return 1;
-                default: return 0; // *, &, ++, -- not foldable here
+                default: return 0; // deref, address, increment, and decrement are not foldable here
             }
         }
         case EX_BINARY: {
@@ -1105,7 +1105,7 @@ int try_eval_const_expr(Expr *e, long *out) {
     }
 }
 
-// ---- edge vectors (nested { ... } inside initializers) ----
+// edge vectors (nested { ... } inside initializers)
 size_t nested_base_len(Init *list) {
     // Nested edge vectors need a real address even if empty: reserve 1 word.
     if (!list || list->kind != INIT_LIST) return 0;
@@ -2504,7 +2504,7 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
     }
 }
 
-// ===================== External Runtime Emitter =====================
+// External Runtime Emitter
 
 // Global for libb path (set by main.c)
 const char *g_libb_path = NULL;
@@ -2762,7 +2762,7 @@ void emit_program_c_ext(FILE *out, Program *prog, const char *filename, int byte
     }
 }
 
-// ===================== Assembly Emitter (experimental) =====================
+// Assembly Emitter (experimental)
 
 static int asm_label_id = 0;
 

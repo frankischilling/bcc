@@ -438,7 +438,7 @@ void *xmalloc(size_t n) {
     return p;
 }
 
-// ===================== Error Code Functions =====================
+// Error Code Functions
 
 const char *get_error_code(ErrorCode code) {
     switch (code) {

@@ -16,29 +16,29 @@
 #include <stdint.h>
 #include <inttypes.h>
 
-// ===================== Error Codes =====================
+// Error Codes
 
 typedef enum {
-    ERR_BRACE_IMBALANCE,    // $) -- {} imbalance
-    ERR_PAREN_IMBALANCE,    // () -- () imbalance
-    ERR_COMMENT_IMBALANCE,  // */ -- /* */ imbalance
-    ERR_BRACKET_IMBALANCE,  // [] -- [] imbalance
-    ERR_CASE_OVERFLOW,      // >c -- case table overflow (fatal)
-    ERR_EXPR_STACK_OVERFLOW,// >e -- expression stack overflow (fatal)
-    ERR_LABEL_OVERFLOW,     // >i -- label table overflow (fatal)
-    ERR_SYMBOL_OVERFLOW,    // >s -- symbol table overflow (fatal)
-    ERR_EXPR_SYNTAX,        // ex -- expression syntax
-    ERR_RVALUE_LVALUE,      // lv -- rvalue where lvalue expected
-    ERR_REDECLARATION,      // rd name -- name redeclaration
-    ERR_STMT_SYNTAX,        // sx keyword -- statement syntax
-    ERR_UNDEFINED_NAME,     // un name -- undefined name
-    ERR_EXTERNAL_SYNTAX,    // xx -- external syntax
+    ERR_BRACE_IMBALANCE,    // $): brace imbalance
+    ERR_PAREN_IMBALANCE,    // (): parenthesis imbalance
+    ERR_COMMENT_IMBALANCE,  // */: comment imbalance
+    ERR_BRACKET_IMBALANCE,  // []: bracket imbalance
+    ERR_CASE_OVERFLOW,      // >c: case table overflow (fatal)
+    ERR_EXPR_STACK_OVERFLOW,// >e: expression stack overflow (fatal)
+    ERR_LABEL_OVERFLOW,     // >i: label table overflow (fatal)
+    ERR_SYMBOL_OVERFLOW,    // >s: symbol table overflow (fatal)
+    ERR_EXPR_SYNTAX,        // ex: expression syntax
+    ERR_RVALUE_LVALUE,      // lv: rvalue where lvalue expected
+    ERR_REDECLARATION,      // rd name: name redeclaration
+    ERR_STMT_SYNTAX,        // sx keyword: statement syntax
+    ERR_UNDEFINED_NAME,     // un name: undefined name
+    ERR_EXTERNAL_SYNTAX,    // xx: external syntax
 } ErrorCode;
 
 const char *get_error_code(ErrorCode code);
 const char *get_error_message(ErrorCode code);
 
-// ===================== Token Types =====================
+// Token Types
 
 typedef enum {
     TK_EOF = 0,
@@ -65,8 +65,8 @@ typedef enum {
     // brackets
     TK_LBRACK, TK_RBRACK,   // [ ]
 
-    TK_ASSIGN,   // =
-    TK_EQ,       // ==
+    TK_ASSIGN,   // assignment
+    TK_EQ,       // equality comparison
     TK_NE,       // !=
     TK_LT,       // <
     TK_LE,       // <=
@@ -81,9 +81,9 @@ typedef enum {
     TK_PERCENT,  // %
     TK_BANG,     // !
 
-    // ++ / --
+    // increment and decrement
     TK_PLUSPLUS,            // ++
-    TK_MINUSMINUS,          // --
+    TK_MINUSMINUS,          // decrement
 
     // compound assigns
     TK_PLUSEQ,              // +=
@@ -96,11 +96,11 @@ typedef enum {
     TK_ANDEQ,               // &=
     TK_OREQ,                // |=
     TK_LTEQ,                // =<
-    TK_LEEQ,                // =<=
+    TK_LEEQ,                // less-or-equal assignment
     TK_GTEQ,                // =>
-    TK_GEEQ,                // =>=
-    TK_EQEQ,                // ===
-    TK_NEEQ,                // =!=
+    TK_GEEQ,                // greater-or-equal assignment
+    TK_EQEQ,                // equality assignment
+    TK_NEEQ,                // not-equal assignment
 
     // single-char &
     TK_AMP,                // &
@@ -134,7 +134,7 @@ typedef struct {
     const char *filename;
 } Lexer;
 
-// ===================== AST Types =====================
+// AST Types
 
 typedef struct Vec {
     void **data;
@@ -148,10 +148,10 @@ typedef enum {
     EX_NUM, EX_STR, EX_VAR,
     EX_CALL,          // callee(args)
     EX_INDEX,         // base[idx]
-    EX_UNARY,         // prefix ops (- ! * & ++ --)
-    EX_POST,          // postfix ops (x++ x--)
+    EX_UNARY,         // prefix ops: minus, not, deref, address, increment, decrement
+    EX_POST,          // postfix increment and decrement
     EX_BINARY,
-    EX_ASSIGN,        // =, +=, -=, ...
+    EX_ASSIGN,        // assignment and compound assignment
     EX_TERNARY,       // condition ? true : false
     EX_COMMA          // a, b
 } ExprKind;
@@ -275,7 +275,7 @@ typedef struct Program {
     Vec tops;                                                  // Top*
 } Program;
 
-// ===================== Semantic Analysis (Symbol Table) =====================
+// Semantic Analysis (Symbol Table)
 
 typedef enum {
     SYM_VAR,      // variable (auto or extern)
@@ -320,7 +320,7 @@ typedef struct {
     int switch_depth;
 } Parser;
 
-// ===================== Utility Functions =====================
+// Utility Functions
 
 void dief(const char *fmt, ...);
 void error_at(Token *tok, const char *src, const char *fmt, ...);
@@ -333,7 +333,7 @@ void vec_push(Vec *v, void *p);
 char *fmt(const char *fmt, ...);
 void *xmalloc(size_t n);
 
-// ===================== Lexer =====================
+// Lexer
 
 void lx_skip_ws_and_comments(Lexer *L);
 Token lx_next(Lexer *L);
@@ -341,7 +341,7 @@ Token mk_tok(TokenKind k, int line, int col, const char *filename);
 void tok_free(Token *t);
 const char *tk_name(TokenKind k);
 
-// ===================== Parser =====================
+// Parser
 
 void next(Parser *P);
 void expect(Parser *P, TokenKind k);
@@ -376,7 +376,7 @@ Expr *new_expr(ExprKind k, int line, int col);
 Stmt *new_stmt(StmtKind k, int line, int col);
 Init *new_init(InitKind k, int line, int col);
 
-// ===================== Emitter =====================
+// Emitter
 
 void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr, int no_line, int word_bits);
  
@@ -394,11 +394,11 @@ void emit_stmt(FILE *out, Stmt *s, int indent, int is_function_body, const char 
 void emit_indent(FILE *out, int n);
 void emit_c_string(FILE *out, const char *s);
 
-// ===================== Semantic Analysis =====================
+// Semantic Analysis
 
 void sem_check_program(Program *prog, const char *filename);
 
-// ===================== Arena Allocator =====================
+// Arena Allocator
 
 #define ARENA_CHUNK_SIZE (64 * 1024)  // 64KB chunks
 
@@ -439,7 +439,7 @@ extern Vec g_included_files;
 extern Vec g_parsing_files;
 extern Vec g_known_functions;
 
-// ===================== Dialect and Extension Flags =====================
+// Dialect and Extension Flags
 
 // Extension flags (bitfield)
 typedef enum {
@@ -471,7 +471,7 @@ size_t emit_edge_list_init(FILE *out, const char *arr,
                           size_t base, Init *list,
                           size_t cursor, int indent, const char *filename);
 
-// ===================== Main/File I/O =====================
+// Main/File I/O
 
 char *read_file_all(const char *path, size_t *out_len);
 char *resolve_include_path(const char *include_name, const char *current_file);
