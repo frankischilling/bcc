@@ -51,6 +51,45 @@ char *read_file_all(const char *path, size_t *out_len) {
     return buf;
 }
 
+static int vec_contains_string(Vec *v, const char *s) {
+    for (size_t i = 0; i < v->len; i++) {
+        if (strcmp((const char*)v->data[i], s) == 0) return 1;
+    }
+    return 0;
+}
+
+static void collect_known_functions_from_file(const char *path) {
+    size_t len = 0;
+    char *src = read_file_all(path, &len);
+
+    Parser P;
+    memset(&P, 0, sizeof(P));
+    P.L.src = src;
+    P.L.len = len;
+    P.L.i = 0;
+    P.L.line = 1;
+    P.L.col = 1;
+    P.L.filename = path;
+    P.source = src;
+    P.cur = mk_tok(TK_EOF, 1, 1, path);
+    next(&P);
+
+    Program *prog = parse_program_ast(&P);
+    tok_free(&P.cur);
+
+    for (size_t i = 0; i < prog->tops.len; i++) {
+        Top *t = (Top*)prog->tops.data[i];
+        if (t->kind == TOP_FUNC) {
+            const char *name = t->as.fn->name;
+            if (!vec_contains_string(&g_known_functions, name)) {
+                vec_push(&g_known_functions, sdup(name));
+            }
+        }
+    }
+
+    free(src);
+}
+
 /* Compile libb.c to libb.o if needed, returns path to libb.o */
 static char *compile_libb(int verbose, int byteptr, int word_bits) {
     static char libb_o_path[4096];
@@ -300,6 +339,7 @@ int main(int argc, char **argv) {
     /* Initialize vectors */
     memset(&extra_gcc_args, 0, sizeof(extra_gcc_args));
     memset(&in_paths, 0, sizeof(in_paths));
+    memset(&g_known_functions, 0, sizeof(g_known_functions));
 
     /* Parse arguments */
     for (int i = 1; i < argc; i++) {
@@ -423,6 +463,8 @@ int main(int argc, char **argv) {
         fprintf(stderr, "  - Line comments (//)         use /* */ instead\n");
         fprintf(stderr, "  - Backslash escapes (\\n)     use *n instead\n");
         fprintf(stderr, "  - C-style compound (+=)      use =+ instead\n");
+        fprintf(stderr, "  - Logical OR (||)            use | or ?: instead\n");
+        fprintf(stderr, "  - Long char constants        use one or two chars\n");
         fprintf(stderr, "\n");
         fprintf(stderr, "  --dump-tokens  show tokenized input\n");
         fprintf(stderr, "  --dump-ast     show parsed AST\n");
@@ -438,6 +480,12 @@ int main(int argc, char **argv) {
     /* Default output path */
     if (!out_path) {
         out_path = "a.out";
+    }
+
+    if (in_paths.len > 1 && !dump_tokens && !(dump_ast && !dump_c)) {
+        for (size_t i = 0; i < in_paths.len; i++) {
+            collect_known_functions_from_file((const char*)in_paths.data[i]);
+        }
     }
 
     /* Single-file special modes that emit to stdout */

@@ -99,14 +99,15 @@ static int is_unary(TokenKind k) {
  *   8   | ==  !=                 | left-to-right | Equality
  *   7   | &                      | left-to-right | Bitwise AND
  *   6   | |                      | left-to-right | Bitwise OR
- *   5   | ||                     | left-to-right | Logical OR (no && in B!)
+ *   5   | ||                     | left-to-right | Extension: logical OR
  *   4   | ?:                     | right-to-left | Conditional (ternary)
  *   3   | =  =+  =-  =*  =/  =%  | right-to-left | Assignment and compound
  *       | =<<  =>>  =&  =|      |               |
  *   2   | ,                      | left-to-right | Comma (sequence)
  *
  * NOTES:
- * - B has NO logical AND (&&) operator - use nested conditionals or bitwise &
+ * - Thompson B72 has no || or && operators. This compiler accepts || in
+ *   extension mode only; use conditionals or bitwise operators in strict B.
  * - Compound assignments are B-style: x =+ 1 (not x += 1)
  * - Assignment is right-associative: a = b = c means a = (b = c)
  * - Relational operators return 1 (true) or 0 (false)
@@ -118,7 +119,7 @@ static int is_unary(TokenKind k) {
  * - Side effects (++, --, assignment) complete before sequence points
  *
  * DIFFERENCES FROM C:
- * - No && operator (C added it)
+ * - No logical && operator; || is a BCC extension
  * - Compound assignments: B uses =op, C uses op=
  * - B shifts at same level as + - (C puts shifts below relational)
  * - B has no sizeof, cast, or -> operators

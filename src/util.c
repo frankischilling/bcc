@@ -14,6 +14,9 @@ Vec g_included_files;
 // Currently parsing files (for recursion detection)
 Vec g_parsing_files;
 
+// Top-level function names collected across all input files
+Vec g_known_functions;
+
 // Developer flags
 int g_no_line = 0;
 int g_verbose_errors = 0;

@@ -197,6 +197,31 @@ static void emit_name(FILE *out, const char *name) {
     fputs(get_mangled_name(name), out);
 }
 
+static int program_defines_function(Program *prog, const char *name) {
+    for (size_t i = 0; i < prog->tops.len; i++) {
+        Top *t = (Top*)prog->tops.data[i];
+        if (t->kind == TOP_FUNC && strcmp(t->as.fn->name, name) == 0) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+static void emit_known_external_function_prototypes(FILE *out, Program *prog) {
+    int emitted = 0;
+    for (size_t i = 0; i < g_known_functions.len; i++) {
+        const char *name = (const char*)g_known_functions.data[i];
+        if (strcmp(name, "main") == 0 || strcmp(name, "b_main") == 0) continue;
+        if (program_defines_function(prog, name)) continue;
+
+        fputs("extern word ", out);
+        emit_name(out, name);
+        fputs("();\n", out);
+        emitted = 1;
+    }
+    if (emitted) fputc('\n', out);
+}
+
 // Clear the name map (call at start of each compilation unit)
 // Note: entries are arena-allocated, so we just reset the length
 static void clear_name_map(void) {
@@ -2406,6 +2431,8 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
 
     fputs("}\n\n", out);
 
+    emit_known_external_function_prototypes(out, prog);
+
     // Emit function prototypes for C99 compatibility
     for (size_t i = 0; i < prog->tops.len; i++) {
         Top *t = (Top*)prog->tops.data[i];
@@ -2656,6 +2683,8 @@ void emit_program_c_ext(FILE *out, Program *prog, const char *filename, int byte
         }
     }
     fputs("}\n\n", out);
+
+    emit_known_external_function_prototypes(out, prog);
 
     // Emit function prototypes for C99 compatibility
     for (size_t i = 0; i < prog->tops.len; i++) {

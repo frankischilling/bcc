@@ -295,7 +295,7 @@ Token lx_next(Lexer *L) {
         return t;
     }
 
-    /* character constants (B style: up to 4 chars packed into a word) */
+    /* character constants (B72: up to 2 chars; default mode allows up to 4) */
     if (c == '\'') {
         lx_get(L); /* consume opening ' */
         int chars[4] = {0, 0, 0, 0};
@@ -304,6 +304,10 @@ Token lx_next(Lexer *L) {
             int ch = lx_get(L);
             if (!ch) error_at_location(L->filename, line, col, ERR_EXPR_SYNTAX, "unterminated character constant");
             if (ch == '\'') break;
+            if (count >= 2 && !EXT_ENABLED(EXT_LONG_CHAR_CONST)) {
+                error_at_location(L->filename, line, col, ERR_EXPR_SYNTAX,
+                    "character constants longer than 2 bytes are not allowed in strict B72 mode");
+            }
             if (count >= 4) error_at_location(L->filename, line, col, ERR_EXPR_SYNTAX, "character constant too long");
 
             if (ch == '*') {
@@ -407,7 +411,15 @@ Token lx_next(Lexer *L) {
 
     if (c == '<' && lx_peek2(L) == '<') { lx_get(L); lx_get(L); return mk_tok(TK_LSHIFT, line, col, L->filename); }
     if (c == '>' && lx_peek2(L) == '>') { lx_get(L); lx_get(L); return mk_tok(TK_RSHIFT, line, col, L->filename); }
-    if (c == '|' && lx_peek2(L) == '|') { lx_get(L); lx_get(L); return mk_tok(TK_BARBAR, line, col, L->filename); }
+    if (c == '|' && lx_peek2(L) == '|') {
+        if (EXT_ENABLED(EXT_LOGICAL_OR)) {
+            lx_get(L); lx_get(L); return mk_tok(TK_BARBAR, line, col, L->filename);
+        }
+        if (g_pedantic) {
+            error_at_location(L->filename, line, col, ERR_EXPR_SYNTAX,
+                "|| is not part of Thompson B72 (use | or a conditional expression)");
+        }
+    }
 
 
     if (c == '=' && lx_peek2(L) == '=') { lx_get(L); lx_get(L); return mk_tok(TK_EQ, line, col, L->filename); }

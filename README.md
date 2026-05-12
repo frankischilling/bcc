@@ -1,17 +1,17 @@
 # BCC - B Programming Language Compiler
 
-A faithful implementation of Ken Thompson's B programming language compiler from Bell Labs, based on the 1969 B language specification. BCC is written in C99, targets the GNU toolchain (gcc + binutils), and ships with a full `libb` built on top of libc for practical, portable use.
+A faithful implementation of Ken Thompson's B programming language compiler from Bell Labs, using the January 7, 1972 PDP-11 *Users' Reference to B* as the canonical language reference. BCC is written in C99, targets the GNU toolchain (gcc + binutils), and ships with a full `libb` built on top of libc for practical, portable use.
 
 ## Overview
 
-BCC is a complete B compiler written in C99 that faithfully implements Ken Thompson's PDP-11 B language specification from 1969. B is an untyped systems programming language where everything is a machine word, with explicit operations for indirection, address-of, and pointer arithmetic.
+BCC is a complete B compiler written in C99 that implements Ken Thompson's PDP-11 B language as documented in 1972. B is an untyped systems programming language where everything is a machine word, with explicit operations for indirection, address-of, and pointer arithmetic.
 
 This implementation includes:
 - Full B language compiler matching PDP-11 B semantics
 - Complete runtime library (`libb.a`) with all original functions
 - Authentic B syntax including compound assignments (`=+`, `=-`, etc.)
 - Word-based memory model with configurable pointer addressing modes
-- Historical accuracy to the original 1969 B specification
+- Historical accuracy to Thompson's 1972 PDP-11 B reference, with modern conveniences kept behind extension mode
 
 ## Features
 
@@ -105,7 +105,7 @@ Link B programs with any C library:
 
 ### Strict Mode
 
-BCC defaults to accepting modern conveniences (hex literals, `//` comments, C-style `+=`). Use `--strict` to enforce authentic 1969 Thompson B syntax.
+BCC defaults to accepting modern conveniences (hex literals, `//` comments, C-style `+=`, `||`, longer character constants). Use `--strict --pedantic` to enforce Thompson B72 syntax and report non-standard constructs directly.
 
 **Flags:**
 - `--strict`: Disable all modern extensions (strict B72 mode)
@@ -119,6 +119,8 @@ BCC defaults to accepting modern conveniences (hex literals, `//` comments, C-st
 | Line comments (`//`) | ✓ | ✗ | Block comments `/* */` |
 | Backslash escapes (`\n`) | ✓ | ✗ | B escapes `*n` |
 | C-style compound (`+=`) | ✓ | ✗ | B-style `=+` |
+| Logical OR (`||`) | ✓ | ✗ | Bitwise `|` or `?:` |
+| 3-4 byte char constants | ✓ | ✗ | 1-2 byte constants |
 
 **Why Strict Mode Exists:**
 
@@ -133,15 +135,15 @@ B predates C, and the syntax differs in important ways:
 # Default: accept all syntax
 ./bcc program.b -o program
 
-# Strict mode: silently ignore extensions
+# Strict mode: disable extensions
 ./bcc --strict program.b -o program
 
-# Pedantic: error on any extension
+# Pedantic: error directly on any extension
 ./bcc --strict --pedantic program.b -o program
 ```
 
 **Historical Note:**
-The B language syntax was stable across Unix V1 (1971), Thompson's B72 Reference Manual (1972), and Unix V6 (1975). The differences between these were mainly implementation details (threaded interpreter vs native code, library availability), not syntax. `--strict` enforces the canonical B72 specification.
+The canonical Thompson B language reference for the PDP-11 is the Bell Labs memorandum dated January 7, 1972. Earlier B work began around 1969, but this compiler treats that B72 manual as the syntax and semantics baseline. `--strict --pedantic` enforces that baseline; default mode keeps documented compatibility extensions.
 
 ## Installation
 
@@ -336,7 +338,7 @@ BCC follows a traditional multi-stage compiler architecture with the following p
 #### B-Specific Syntax Handling
 - **Assignment Operators**: `=+`, `=-`, `=*`, `=/` (value op variable)
 - **String Literals**: `*e` termination instead of null bytes
-- **Character Constants**: Packed up to 4 ASCII characters into a word (right-justified, zero-filled)
+- **Character Constants**: Thompson B72 packs one or two characters; default extension mode also accepts three or four
 - **Array Syntax**: `name[constant]` with word-addressed semantics
 - **Comma-Separated Initializers**: B-style external variable initialization
 
@@ -352,6 +354,7 @@ Relational: < <= > >=
 Equality: == !=
 Bitwise AND: &
 Bitwise OR: |
+Logical OR: || (extension; disabled by --strict)
 Assignment: = =+ =- =* =/ =% =& =| =<< =>>
 ```
 
@@ -809,7 +812,7 @@ getchar();  // Calls b_getchar()
 ## Development Philosophy
 
 ### Historical Fidelity
-- **Source Accuracy**: Based on 1969 B language specification
+- **Source Accuracy**: Based on Ken Thompson's January 7, 1972 PDP-11 B reference
 - **Library Compatibility**: Function signatures match original `libb.a`
 - **Error Messages**: Historic diagnostic format preserved
 - **Semantics**: B's unique evaluation rules maintained
@@ -1127,7 +1130,7 @@ This project is licensed under the GNU General Public License v3.0 (GPL-3.0).
 
 ## Authors
 
-Developed as a faithful recreation of Ken Thompson's original B compiler from Bell Labs, based on the 1969 B language.
+Developed as a faithful recreation of Ken Thompson's B compiler from Bell Labs, with the 1972 PDP-11 manual as the canonical language reference.
 
 Written by @frankischilling
 

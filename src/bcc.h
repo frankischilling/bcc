@@ -437,6 +437,7 @@ extern Arena *g_compilation_arena;
 extern Vec g_include_paths;
 extern Vec g_included_files;
 extern Vec g_parsing_files;
+extern Vec g_known_functions;
 
 // ===================== Dialect and Extension Flags =====================
 
@@ -447,6 +448,8 @@ typedef enum {
     EXT_LINE_COMMENTS   = 1 << 1,  // // comments
     EXT_BACKSLASH_ESC   = 1 << 2,  // \n, \t, etc. escapes
     EXT_C_COMPOUND_ASGN = 1 << 3,  // +=, -=, etc. (C-style)
+    EXT_LOGICAL_OR      = 1 << 4,  // || logical OR (not in Thompson B72)
+    EXT_LONG_CHAR_CONST = 1 << 5,  // 3-4 byte character constants
     EXT_ALL             = 0xFFFF,  // All extensions
 } BExtensions;
 
