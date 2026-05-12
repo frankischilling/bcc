@@ -8,7 +8,7 @@ This document provides comprehensive documentation for the B programming languag
 
 **B** is a simple, typeless programming language developed by Ken Thompson at Bell Labs as the predecessor to C. B was designed for systems programming on early Unix systems and influenced the development of C.
 
-**BCC** is a modern B compiler that transpiles B source code to C, then compiles with GCC. It faithfully implements historical B semantics while providing configurable word sizes and pointer modes for compatibility and portability.
+**BCC** is a modern B compiler that transpiles B source code to C, then compiles with GCC. It uses Thompson's January 7, 1972 PDP-11 B manual as the canonical language reference while providing configurable word sizes, pointer modes, and documented compatibility extensions.
 
 ---
 
@@ -21,9 +21,9 @@ This document provides comprehensive documentation for the B programming languag
 
 ### Memory Model
 
-- **Word-Addressed (default):** Pointers refer to word boundaries, not bytes
-- **Byte-Addressed (`--byteptr`):** Standard byte-addressed pointers (modern C semantics)
-- **Character Packing:** Multi-character constants are packed into single words
+- **Byte-Addressed (default):** Standard byte-addressed pointers (modern C semantics)
+- **Word-Addressed:** Pointers refer to word boundaries when byte-pointer mode is disabled
+- **Character Packing:** Thompson B72 character constants are one or two bytes; default extension mode also accepts three or four
 - **String Termination:** Strings use `*e` (EOT, ASCII 4) as terminator, not null bytes
 
 ### Endianness
@@ -31,7 +31,7 @@ This document provides comprehensive documentation for the B programming languag
 In word-addressed mode, `char()` and `lchar()` use little-endian byte packing:
 - Byte 0 is stored at the least-significant position (LSB)
 - This matches PDP-11 conventions
-- Use `--byteptr` mode for maximum cross-platform portability
+- Byte-addressed pointers are the command-line compiler default
 
 ---
 
@@ -64,14 +64,29 @@ main() {
 
 ### Comments
 
-BCC supports two comment styles:
+BCC supports two comment styles in default mode:
 
 ```b
 /* Traditional block comments
    can span multiple lines */
 
-// C++ style line comments (single line)
+// C++ style line comments (single line, extension)
 ```
+
+Use `--strict --pedantic` to reject line comments and other non-B72 syntax.
+
+### Strict Mode
+
+BCC defaults to accepting modern conveniences. `--strict` disables extensions, and `--strict --pedantic` reports them as errors.
+
+| Feature | Default | Strict | B72 replacement |
+|---------|---------|--------|-----------------|
+| Hex literals (`0x10`) | Yes | No | Octal or decimal |
+| Line comments (`//`) | Yes | No | `/* ... */` |
+| Backslash escapes (`\n`) | Yes | No | `*n`, `*t`, `*e` |
+| C-style compound assignment (`+=`) | Yes | No | `=+`, `=-`, etc. |
+| Logical OR (`||`) | Yes | No | Bitwise `|` or `?:` |
+| 3-4 byte character constants | Yes | No | 1-2 byte constants |
 
 ### Variable Declarations
 
@@ -128,15 +143,15 @@ putchar('A');
 B's operator precedence (highest to lowest):
 
 1. **Primary:** `x`, `123`, `"string"`, `(expr)`, `func(args)`, `arr[index]`
-2. **Unary:** `-`, `!`, `~`, `*`, `&`, `++`, `--`
+2. **Unary:** `-`, `!`, `*`, `&`, `++`, `--`
 3. **Multiplicative:** `*`, `/`, `%`
 4. **Additive:** `+`, `-`
 5. **Shift:** `<<`, `>>`
 6. **Relational:** `<`, `<=`, `>`, `>=`
 7. **Equality:** `==`, `!=`
 8. **Bitwise AND:** `&`
-9. **Bitwise XOR:** `^`
-10. **Bitwise OR:** `|`
+9. **Bitwise OR:** `|`
+10. **Logical OR extension:** `||`
 11. **Ternary:** `? :`
 12. **Assignment:** `=`, `=+`, `=-`, `=*`, `=/`, `=%`, `=<<`, `=>>`, `=&`, `=|`
 
@@ -297,15 +312,15 @@ value = *p;      // Dereference operator (value == 42)
 
 ### Word vs Byte Addressing
 
-**Word Addressing (default):**
-- Pointers store word indices
-- `arr[i]` accesses the i-th word
-- Compatible with original B semantics
-
-**Byte Addressing (`--byteptr`):**
+**Byte Addressing (default):**
 - Pointers store byte addresses
 - Standard C pointer semantics
 - Better for interop with C code
+
+**Word Addressing:**
+- Pointers store word indices
+- `arr[i]` accesses the i-th word
+- Closer to original B semantics
 
 ---
 
@@ -367,7 +382,7 @@ data { 10, 20, 30, 40 };
 
 ### Vector Operations
 
-Arrays in B are word-addressed by default:
+Arrays index word-sized elements. Pointer representation depends on the selected byte- or word-addressing mode:
 
 ```b
 auto vec[100];
@@ -400,7 +415,7 @@ BCC provides a comprehensive runtime library with these functions:
 | Function | Description |
 |----------|-------------|
 | `putchar(c)` | Output one character |
-| `getchar()` | Read one character (returns -1 on EOF) |
+| `getchar()` | Read one character (returns `*e` on EOF) |
 | `print(n)` | Print integer value |
 | `printf(fmt, ...)` | Formatted output (supports `%d`, `%o`, `%c`, `%s`) |
 | `printn(n, base)` | Print integer in given base |
@@ -416,8 +431,8 @@ BCC provides a comprehensive runtime library with these functions:
 
 | Function | Description |
 |----------|-------------|
-| `getvec(n)` | Allocate `n` words of memory |
-| `rlsevec(ptr, n)` | Release allocated memory |
+| `alloc(n)` | Allocate `n` words of memory |
+| `free(ptr)` | Release allocated memory |
 
 ### File I/O
 
@@ -495,15 +510,15 @@ When using `--word=16` or `--word=32`, these operations wrap:
 
 ### Pointer Models
 
-**Word Addressing (default):**
-- Pointers store word indices
-- `ptr[i]` accesses word at index `i`
-- Original B semantics
-
-**Byte Addressing (`--byteptr`):**
+**Byte Addressing (default):**
 - Pointers store byte addresses
 - Standard C pointer semantics
-- Better portability
+- Better portability on modern hosts
+
+**Word Addressing:**
+- Pointers store word indices
+- `ptr[i]` accesses word at index `i`
+- Closer to original B memory semantics
 
 ### Scope Rules
 
@@ -545,7 +560,7 @@ bcc lib.b main.b -o program
 | `--emit-c` | Keep generated C files alongside sources |
 | `--keep-c` | Keep temporary C files |
 | `--word=N` | Word size: `host`, `16`, or `32` |
-| `--byteptr` | Use byte-addressed pointers |
+| `--byteptr` | Use byte-addressed pointers (already the default) |
 | `-v` | Verbose output |
 
 ---
@@ -556,7 +571,7 @@ bcc lib.b main.b -o program
 
 - **1969:** B development begins
 - **1971:** B in active use at Bell Labs
-- **1972:** B runs on Unix v1, PDP-11
+- **1972:** Thompson's PDP-11 *Users' Reference to B* provides BCC's canonical language baseline
 - **1973:** B used for Unix v4 development
 - **1974–1975:** B evolves toward C
 - **1978:** C supersedes B for Unix development

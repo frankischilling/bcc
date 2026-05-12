@@ -7,7 +7,7 @@
 
 #include "libb.h"
 
-/* ===== Global I/O State ===== */
+/* Global I/O State */
 
 int b_rd_fd = 0;     /* current input fd */
 int b_wr_fd = 1;     /* current output fd */
@@ -32,7 +32,7 @@ static void __b_sync_wr(void) {
     }
 }
 
-/* ===== Basic I/O ===== */
+/* Basic I/O */
 
 word b_print(word x) {
     __b_sync_wr();
@@ -129,7 +129,7 @@ word b_flush(void) {
     return 0;
 }
 
-/* ===== Exit/Control ===== */
+/* Exit/Control */
 
 word b_exit(word code) {
     exit((int)code);
@@ -146,7 +146,7 @@ word b_free(word p) {
     return 0;
 }
 
-/* ===== Memory Allocation ===== */
+/* Memory Allocation */
 
 word b_alloc(word nwords) {
     size_t bytes = (size_t)nwords * sizeof(word);
@@ -158,7 +158,7 @@ word b_alloc(word nwords) {
     return B_PTR(p);
 }
 
-/* ===== Low-Level Memory Operations ===== */
+/* Low-Level Memory Operations */
 
 word b_load(word addr) {
     return B_DEREF(addr);
@@ -172,7 +172,7 @@ void b_store(word addr, word v) {
 #endif
 }
 
-/* ===== String/Character Operations ===== */
+/* String/Character Operations */
 
 /*
  * B string access - byte packing within words.
@@ -302,7 +302,7 @@ word __b_pack_cstr(const char *s) {
     return bp;
 }
 
-/* ===== Printf Family ===== */
+/* Printf Family */
 
 static void b_printn_u(word n, word base) {
     word a = (word)((uword)n / (uword)base);
@@ -429,7 +429,7 @@ word b_putnum(word n) {
     return n;
 }
 
-/* ===== Command Line Arguments ===== */
+/* Command Line Arguments */
 
 static int __b_argc;
 static char **__b_argv;
@@ -505,7 +505,7 @@ word b_reread(void) {
     return 0;
 }
 
-/* ===== File I/O ===== */
+/* File I/O */
 
 word b_open(word name, word mode) {
     const char *p = (const char*)B_CPTR(name);
@@ -584,7 +584,7 @@ word b_seek(word fd, word offset, word whence) {
     return (r < 0) ? (word)-1 : (word)0;
 }
 
-/* ===== Process Control ===== */
+/* Process Control */
 
 word b_fork(void) {
     return (word)fork();
@@ -668,7 +668,7 @@ word b_system(word cmd) {
     return (word)st;
 }
 
-/* ===== Time/Delay ===== */
+/* Time/Delay */
 
 word b_usleep(word usec) {
     usleep((useconds_t)usec);
@@ -704,7 +704,7 @@ word b_ctime(word tvp) {
     return B_PTR(bufw);
 }
 
-/* ===== System Functions ===== */
+/* System Functions */
 
 word b_getuid(void) {
     return (word)getuid();
@@ -772,7 +772,7 @@ word b_makdir(word path, word mode) {
     return (word)mkdir(p, (mode_t)mode);
 }
 
-/* ===== Terminal I/O ===== */
+/* Terminal I/O */
 
 word b_gtty(word fd, word ttstat) {
     struct termios t;
@@ -809,7 +809,7 @@ word b_intr(word on) {
     return 0;
 }
 
-/* ===== Dynamic Function Calls ===== */
+/* Dynamic Function Calls */
 
 word b_callf_dispatch(int nargs, word name, ...) {
     static int __b_callf_dl_done = 0;
@@ -879,13 +879,13 @@ word b_callf_dispatch(int nargs, word name, ...) {
     return r;
 }
 
-/* ===== Math/Compatibility Helpers ===== */
+/* Math/Compatibility Helpers */
 
 word sx64(word x) {
     return (word)(int16_t)(x & 0xFFFF);
 }
 
-/* ===== Helper Functions for Complex Lvalue Operations ===== */
+/* Helper Functions for Complex Lvalue Operations */
 
 /* All helper functions use safe W* macros to avoid host-C undefined behavior */
 word b_preinc(word *p) { return (*p = WADD(*p, 1)); }
@@ -903,7 +903,7 @@ word b_and_assign(word *p, word v) { return (*p = WAND(*p, v)); }
 word b_or_assign(word *p, word v) { return (*p = WOR(*p, v)); }
 word b_xor_assign(word *p, word v) { return (*p = WXOR(*p, v)); }
 
-/* ===== Initialization ===== */
+/* Initialization */
 
 void __b_init(void) {
     setvbuf(stdout, NULL, _IONBF, 0);

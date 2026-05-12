@@ -15,6 +15,8 @@ The BCC test suite validates compiler correctness across multiple dimensions:
 | **Programs** | Test complete programs | `tests/programs/` |
 | **AST** | Verify parser output | `tests/ast/` |
 | **Multi-file** | Test multi-file compilation | `tests/multifile/` |
+| **Historical strictness** | Verify B72 strict-mode extension rejection | `tests/test_strict_historical.sh` |
+| **Word semantics** | Verify 16-bit, 32-bit, and host arithmetic behavior | `tests/test_word_semantics.sh` |
 
 ---
 
@@ -25,6 +27,15 @@ The BCC test suite validates compiler correctness across multiple dimensions:
 ```bash
 ./tests/run_tests.sh
 ```
+
+### Run Master Suite
+
+```bash
+./tests/run_all_tests.sh
+./tests/run_all_tests.sh --quick
+```
+
+The master suite runs the basic suite, conformance tests, historical strictness tests, and word-semantics tests. `--quick` skips the slower word-semantics section.
 
 ### Verbose Output
 
@@ -78,7 +89,7 @@ PASS: ast/simple
 PASS: multifile/simple
 
 =====================
-Results: 28 passed, 0 failed, 0 skipped
+Results: 34 passed, 0 failed, 0 skipped
 ```
 
 ---
@@ -521,6 +532,26 @@ cat tests/run/mytest.b.c
 
 ---
 
+## Historical Strictness Tests
+
+`tests/test_strict_historical.sh` validates that default mode still accepts documented compatibility extensions while `--strict --pedantic` rejects syntax outside Thompson B72.
+
+Current coverage includes:
+
+| Construct | Default mode | Strict pedantic mode |
+|-----------|--------------|----------------------|
+| Standard bitwise OR (`|`) | Accepted | Accepted |
+| Logical OR (`||`) | Accepted as extension | Rejected |
+| 3-4 byte character constants | Accepted as extension | Rejected |
+
+Run it directly:
+
+```bash
+./tests/test_strict_historical.sh
+```
+
+---
+
 ## Word Semantics Tests
 
 ### Specialized Test Script
@@ -637,4 +668,3 @@ jobs:
 - [BCC Compiler README](README.md)
 - [B Language Reference](B_LANGUAGE.md)
 - [Examples](WIKI_EXAMPLES.md)
-

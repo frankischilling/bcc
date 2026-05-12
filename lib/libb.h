@@ -120,7 +120,7 @@ typedef uintptr_t uword;
 
 #define B_STR(s)     B_PTR((const char*)(s))
 
-/* ===== Runtime Library Function Declarations ===== */
+/* Runtime Library Function Declarations */
 
 /* I/O state (shared globals) */
 extern int b_rd_fd;

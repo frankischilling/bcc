@@ -4,6 +4,31 @@ This page contains practical examples demonstrating B programming language conce
 
 ---
 
+## Repository Example Programs
+
+The `examples/` directory includes compact programs that exercise core B features:
+
+| Program | Demonstrates |
+|---------|--------------|
+| `euclid.b` | Euclid GCD algorithm and loops |
+| `sieve.b` | Vectors and the Sieve of Eratosthenes |
+| `binary_search.b` | Sorted vectors and search logic |
+| `hanoi.b` | Recursion with Towers of Hanoi |
+| `string_bytes.b` | `char()` and `lchar()` byte operations |
+| `digit_histogram.b` | Counting characters in a string |
+| `mandelbrot.b` | ASCII graphics and numeric iteration |
+| `donut.b` | Animation, `sx64`, and `usleep` |
+| `gol.b` | ncurses Game of Life |
+| `brainfuck.b` | Interpreter-style control flow |
+
+Run any example with:
+
+```bash
+./bcc examples/euclid.b -o euclid && ./euclid
+```
+
+---
+
 ## Hello World
 
 The classic "Hello World" program demonstrates basic output and program structure.
@@ -673,8 +698,8 @@ to_upper(src, dst) {
 
     i = 0;
     while ((c = char(src, i)) != '*e') {
-        if (c >= `a' && c <= `z')
-            c = c - (`a' - `A');
+        if (c >= 'a' & c <= 'z')
+            c = c - ('a' - 'A');
         lchar(dst, i, c);
         i =+ 1;
     }
@@ -734,7 +759,7 @@ word to_upper(word s) {
     word c;
 
     while ((c = b_char(s, i)) != 4) {
-        if (c >= 'a' && c <= 'z') {
+        if (c >= 'a' & c <= 'z') {
             c = c - ('a' - 'A');
         }
         b_lchar(result, i, c);
@@ -757,7 +782,7 @@ word to_upper(word src, word dst) {
     word c;
 
     while ((c = b_char(src, i)) != 4) {
-        if (c >= 'a' && c <= 'z') {
+        if (c >= 'a' & c <= 'z') {
             c = c - ('a' - 'A');
         }
         b_lchar(dst, i, c);
@@ -1147,7 +1172,7 @@ gcd(a, b) {
 ```b
 main() {
     auto op;
-    op = `+';
+    op = '+';
     auto a;
     a = 10;
     auto b;
@@ -1155,13 +1180,13 @@ main() {
 
     printf("%d %c %d = ", a, op, b);
 
-    if (op == `+')
+    if (op == '+')
         printf("%d", a + b);
-    else if (op == `-')
+    else if (op == '-')
         printf("%d", a - b);
-    else if (op == `*')
+    else if (op == '*')
         printf("%d", a * b);
-    else if (op == `/') {
+    else if (op == '/') {
         if (b != 0) printf("%d", a / b);
         else printf("division by zero");
     } else
@@ -1187,12 +1212,12 @@ main() {
 is_prime(n) {
     if (n <= 1) return 0;
     if (n <= 3) return 1;
-    if (n % 2 == 0 || n % 3 == 0) return 0;
+    if (n % 2 == 0 | n % 3 == 0) return 0;
 
     auto i;
     i = 5;
     while (i * i <= n) {
-        if (n % i == 0 || n % (i + 2) == 0) {
+        if (n % i == 0 | n % (i + 2) == 0) {
             return 0;
         }
         i =+ 6;
@@ -1222,7 +1247,7 @@ print_words(s) {
     inword = 0;
 
     while ((c = char(s, i)) != '*e') {
-        if (c != ` ' && c != `*t' && c != `*n') {
+        if (c != ' ' & c != '*t' & c != '*n') {
             if (!inword) {
                 printf("  ");
                 inword = 1;
@@ -1268,7 +1293,7 @@ main() {
 }
 
 safe_set(arr, size, index, value) {
-    if (index < 0 || index >= size) {
+    if (index < 0 | index >= size) {
         return 0;  // Error
     }
     arr[index] = value;
@@ -1276,7 +1301,7 @@ safe_set(arr, size, index, value) {
 }
 
 safe_get(arr, size, index, result) {
-    if (index < 0 || index >= size) {
+    if (index < 0 | index >= size) {
         return 0;  // Error
     }
     *result = arr[index];
@@ -1289,8 +1314,8 @@ safe_get(arr, size, index, result) {
 ```b
 main() {
     auto filename 20;
-    filename[0]=`d'; filename[1]=`a'; filename[2]=`t'; filename[3]=`a';
-    filename[4]=`.'; filename[5]=`t'; filename[6]=`x'; filename[7]=`t';
+    filename[0]='d'; filename[1]='a'; filename[2]='t'; filename[3]='a';
+    filename[4]='.'; filename[5]='t'; filename[6]='x'; filename[7]='t';
     filename[8]='*e';
     auto buffer 100;
 

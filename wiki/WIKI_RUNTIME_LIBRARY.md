@@ -1,6 +1,6 @@
 # Runtime Library (libb.a)
 
-B programs rely on a comprehensive runtime library (`libb.a`) that provides essential operating system interfaces, I/O operations, string manipulation, and mathematical functions. This page documents the complete B runtime library as implemented by Ken Thompson's original system.
+B programs rely on a comprehensive runtime library (`libb.a`) that provides essential operating system interfaces, I/O operations, string manipulation, and compatibility helpers. This page documents the runtime library shipped with BCC.
 
 ---
 
@@ -10,7 +10,7 @@ The B runtime library serves as the interface between B programs and the Unix op
 
 **Key Characteristics:**
 - Functions are prefixed with `b_` in the generated C code
-- All parameters and return values are `word` (16-bit integer) type
+- All parameters and return values are `word`; the width follows `--word` mode (`host`, `16`, or `32`)
 - Error handling through return codes and condition flags
 - Direct Unix system call integration
 
@@ -32,8 +32,8 @@ getstr(buffer_ptr) → buffer_ptr
 
 **Examples:**
 ```b
-putchar(`A');           // Output 'A'
-putchar(42 + `0');      // Output '4' (42 in ASCII)
+putchar('A');           // Output 'A'
+putchar(42 + '0');      // Output '4' (42 in ASCII)
 auto ch = getchar();    // Read next character
 putstr("hello");        // Output "hello"
 auto buf 20; getstr(buf); putstr(buf); // Echo a line into the buffer
@@ -67,28 +67,22 @@ printf("char: %c octal: %o*n", 'A', 65); // Multiple formats
 print(123);                           // Print 123 followed by newline
 ```
 
-### Buffered I/O (Advanced)
+### File I/O
 
 ```b
-// File operations (simplified interface)
-fopen(name, mode) → file_descriptor
-fcreat(name) → file_descriptor
-fclose(fd) → status
-
-// Character I/O with files
-getc(fd) → character
-putc(fd, c) → c
-
-// Word I/O with files
-getw(fd) → word
-putw(fd, w) → w
-
-// Buffer control
-flush(fd) → 0
+open(name, mode) → file_descriptor
+creat(name, mode) → file_descriptor
+close(fd) → status
+read(fd, buffer, byte_count) → count
+write(fd, buffer, byte_count) → count
+seek(fd, offset, whence) → status
+openr(unit, name) → unit
+openw(unit, name) → unit
+flush() → 0
 ```
 
 **Mode Values:**
-- `fopen()`: 0 = read, 1 = write
+- `open()`: 0 = read, 1 = write, 2 = read/write
 - File descriptors are Unix file descriptors
 
 ---
@@ -205,19 +199,15 @@ auto n = read(fd, buffer, 50);
 close(fd);
 ```
 
-### Buffered I/O
+### Unit I/O
 
 ```b
-// Buffered file operations
-auto fd = fopen("file.txt", 0);    // Open for reading
-auto ch = getc(fd);                // Read character
-putc(fd, 'X');                     // Write character
+openr(3, "input.txt");             // Redirect getchar/getstr
+auto ch = getchar();               // Read character
 
-auto word = getw(fd);              // Read word
-putw(fd, 12345);                   // Write word
-
-flush(fd);                         // Flush buffers
-fclose(fd);                        // Close file
+openw(4, "output.txt");            // Redirect putchar/putstr/printf
+putchar('X');                      // Write character
+flush();                           // Flush current output unit
 ```
 
 ---
@@ -274,14 +264,14 @@ exit(status) → (does not return)
 // Allocate memory
 alloc(word_count) → pointer or 0
 
-// Memory remains allocated until program termination
-// No corresponding free() function in B
+// Free memory allocated by alloc()
+free(pointer) → 0
 ```
 
 **Memory Model:**
 - Allocates in word units
-- Memory persists for program lifetime
-- No garbage collection or deallocation
+- Memory persists until freed or program termination
+- No garbage collection
 - Returns pointer to allocated block
 
 **Examples:**
@@ -408,7 +398,7 @@ B provides basic arithmetic operations as part of the language, but for advanced
 
 **Available Operations:**
 - Basic arithmetic: `+`, `-`, `*`, `/`, `%`
-- Bitwise operations: `&`, `|`, `^`, `<<`, `>>`
+- Bitwise operations: `&`, `|`, `<<`, `>>`
 - Comparison: `==`, `!=`, `<`, `<=`, `>`, `>=`
 
 ### Compatibility Helpers
@@ -568,10 +558,10 @@ if (chdir("/tmp") < 0) {
 
 1. **Core I/O**: `putchar`, `getchar`, `print`, `printf`
 2. **File I/O**: `open`, `close`, `read`, `write`, `creat`, `seek`
-3. **Buffered I/O**: `fopen`, `fclose`, `getc`, `putc`, `getw`, `putw`
+3. **Unit I/O**: `openr`, `openw`, `flush`, `reread`
 4. **String Operations**: `char`, `lchar`
 5. **Process Control & Interop**: `fork`, `wait`, `execl`, `execv`, `system`, `callf`, `exit`
-6. **Memory Management**: `alloc`
+6. **Memory Management**: `alloc`, `free`
 7. **File System**: `chdir`, `chmod`, `chown`, `link`, `unlink`, `stat`
 8. **System Info**: `getuid`, `setuid`, `time`, `ctime`
 9. **Terminal Control**: `gtty`, `stty`, `intr`
@@ -610,18 +600,13 @@ if (chdir("/tmp") < 0) {
 | `execv` | `(path, argv) → -1` | Execute with arg array |
 | `exit` | `(status) → noreturn` | Exit program |
 | `callf` | `(name, a1...a10) → status` | Call Fortran/GMAP/C routine by name (addresses only; up to 10 args; tries `name` then `name_`) |
-| `fclose` | `(fd) → 0/-1` | Close buffered file |
-| `flush` | `(fd) → 0` | Flush file buffers |
-| `fopen` | `(name, mode) → fd` | Open buffered file |
+| `flush` | `() → 0` | Flush current output unit |
 | `fork` | `() → pid/0` | Create child process |
 | `fstat` | `(fd, buf) → 0/-1` | Get file status by fd |
-| `fcreat` | `(name) → fd` | Create buffered file |
-| `getc` | `(fd) → c/-1` | Read buffered character |
 | `getchar` | `() → c/*e` | Read stdin character |
 | `getchr` | `() → c/4` | Read raw character |
 | `getstr` | `(buf) → buf` | Read line into B string buffer |
 | `getuid` | `() → uid` | Get user ID |
-| `getw` | `(fd) → w/-1` | Read buffered word |
 | `gtty` | `(fd, buf) → 0/-1` | Get terminal modes |
 | `intr` | `(mode) → 0` | Set interrupt handling |
 | `lchar` | `(s, i, c) → c` | Set char at string position |
@@ -634,11 +619,9 @@ if (chdir("/tmp") < 0) {
 | `printf` | `(fmt, ...) → 0` | Formatted output |
 | `printn` | `(n, base) → n` | Print number in base |
 | `putnum` | `(n) → n` | Print decimal number (no newline) |
-| `putc` | `(fd, c) → c/-1` | Write buffered character |
 | `putchar` | `(c) → c` | Write stdout character |
 | `putchr` | `(c) → c` | Write raw character |
 | `putstr` | `(s) → s` | Write B string |
-| `putw` | `(fd, w) → w/-1` | Write buffered word |
 | `read` | `(fd, buf, n) → count` | Read from file |
 | `seek` | `(fd, off, wh) → pos` | Seek in file |
 | `setuid` | `(uid) → 0/-1` | Set user ID |
@@ -676,7 +659,7 @@ main() {
     auto infile = open("input.txt", 0);
     auto outfile = creat("output.txt", 017);
 
-    if (infile < 0 || outfile < 0) {
+    if (infile < 0 | outfile < 0) {
         printf("cannot open files*n");
         return 1;
     }
@@ -741,7 +724,7 @@ main() {
     // Read input (simplified - real implementation would loop)
     auto i = 0;
     auto c;
-    while ((c = getchar()) != '*n' && i < 99) {
+    while ((c = getchar()) != '*n' & i < 99) {
         lchar(input, i++, c);
     }
     lchar(input, i, '*e');
@@ -749,7 +732,7 @@ main() {
     // Convert to uppercase
     i = 0;
     while ((c = char(input, i)) != '*e') {
-        if (c >= 'a' && c <= 'z') {
+        if (c >= 'a' & c <= 'z') {
             c = c + ('A' - 'a');
         }
         lchar(output, i, c);

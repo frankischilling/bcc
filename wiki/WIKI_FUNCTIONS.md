@@ -40,7 +40,7 @@ get_input() {
 
 // Single parameter
 print_number(n) {
-    putchar(n + `0');
+    putchar(n + '0');
 }
 ```
 
@@ -178,7 +178,7 @@ B allows function definitions inside other functions:
 
 ```b
 calculator() {
-    auto operation = `+';
+    auto operation = '+';
 
     add(a, b) {
         return a + b;
@@ -188,7 +188,7 @@ calculator() {
         return a - b;
     }
 
-    if (operation == `+') {
+    if (operation == '+') {
         return add(10, 5);
     } else {
         return subtract(10, 5);
@@ -476,7 +476,7 @@ run_state_machine() {
 ```b
 // Good: one clear purpose
 validate_age(age) {
-    return age >= 0 && age <= 150;
+    return age >= 0 & age <= 150;
 }
 
 // Avoid: multiple responsibilities
@@ -612,10 +612,10 @@ main() {
 **Simple Calculator:**
 ```b
 calculate(op, a, b) {
-    if (op == `+') return a + b;
-    if (op == `-') return a - b;
-    if (op == `*') return a * b;
-    if (op == `/') {
+    if (op == '+') return a + b;
+    if (op == '-') return a - b;
+    if (op == '*') return a * b;
+    if (op == '/') {
         if (b == 0) return 0;  // error
         return a / b;
     }

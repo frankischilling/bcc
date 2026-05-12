@@ -12,7 +12,7 @@ auto x;
 x = 42;             // x holds the value 42
 
 auto y;
-y = `A';            // y holds 65 (ASCII value of 'A')
+y = 'A';            // y holds 65 (ASCII value of 'A')
 
 auto z;
 z = "hi";           // z holds address of string
@@ -109,7 +109,7 @@ B supports several numeric literal formats:
 077      // Octal 77 = decimal 63
 ```
 
-### Hexadecimal (if supported)
+### Hexadecimal (default-mode extension)
 ```b
 0x1A     // Hex 1A = decimal 26
 0xFF     // Hex FF = decimal 255
@@ -118,27 +118,29 @@ B supports several numeric literal formats:
 
 **Implementation Notes:**
 - Leading zero indicates octal
-- No explicit hexadecimal support in original B
+- No explicit hexadecimal support in Thompson B72; use `--strict --pedantic` to reject `0x...`
 - Negative numbers use two's complement
 
 ---
 
 ## Character Constants
 
-B packs character constants into words, supporting 1-2 characters per constant.
+B packs character constants into words. Thompson B72 supports one or two characters per constant; BCC default mode also accepts three or four as a documented extension.
 
 ### Single Character
 ```b
-`A'      // ASCII 65
-`0'      // ASCII 48
-` '      // ASCII 32 (space)
+'A'      // ASCII 65
+'0'      // ASCII 48
+' '      // ASCII 32 (space)
 ```
 
-### Packed Characters (B Extension)
+### Packed Characters
 ```b
-`AB'     // Two characters packed: 'A' in high byte, 'B' in low byte
-`Hi'     // Packed string "Hi"
+'AB'     // Two characters packed: 'A' in high byte, 'B' in low byte
+'Hi'     // Packed string "Hi"
 ```
+
+Three- and four-byte character constants compile in default mode, but are rejected by `--strict --pedantic`.
 
 **Packing Algorithm:**
 ```c
@@ -154,11 +156,11 @@ B uses `*` as escape character (different from C's `\`):
 '*n'     // Newline - ASCII 10
 '*t'     // Tab - ASCII 9
 '*0'     // Null character - ASCII 0
-'*( '    // Left parenthesis
-'*) '    // Right parenthesis
-'** '    // Asterisk
-'*' '    // Single quote
-'*" '    // Double quote
+'*('     // Left parenthesis
+'*)'     // Right parenthesis
+'**'     // Asterisk
+'*''     // Single quote
+'*"'     // Double quote
 ```
 
 **Complete Escape Table:**
@@ -171,8 +173,8 @@ B uses `*` as escape character (different from C's `\`):
 | `*(` | `(` | 40 | Left parenthesis |
 | `*)` | `)` | 41 | Right parenthesis |
 | `**` | `*` | 42 | Asterisk |
-| `*' ` | `'` | 39 | Single quote |
-| `*" ` | `"` | 34 | Double quote |
+| `*'` | `'` | 39 | Single quote |
+| `*"` | `"` | 34 | Double quote |
 
 ---
 
@@ -217,7 +219,7 @@ data { 10, 20, 30, 40 };
 ```
 
 **Array Bounds:**
-- Arrays are word-addressed by default
+- Arrays index word-sized elements
 - Size can be determined at runtime
 - No bounds checking at runtime
 
@@ -235,8 +237,8 @@ value = *ptr;        // Dereference operator
 
 **Pointer Arithmetic:**
 ```b
-ptr = ptr + 1;       // Word-addressed: adds 2 bytes
-ptr = ptr - 1;       // Word-addressed: subtracts 2 bytes
+ptr = ptr + 1;       // Advance by one B word value
+ptr = ptr - 1;       // Move back by one B word value
 ```
 
 ---
@@ -316,8 +318,8 @@ word arr_ptr = &arr[0];  // Pointer to first element
 ```b
 auto c;
 while ((c = getchar()) != '*e') {
-    if (c >= `a' && c <= `z') {
-        c = c + (`A' - `a');  // Convert to uppercase
+    if (c >= 'a' & c <= 'z') {
+        c = c + ('A' - 'a');  // Convert to uppercase
     }
     putchar(c);
 }
@@ -352,7 +354,7 @@ while (i < 10) {
 | Character literals | Packed 1-2 chars | Single char |
 | String termination | `*e` (EOT) | `\0` (NUL) |
 | Type system | Typeless | Rich types |
-| Array bounds | Word-addressed | Byte-addressed |
+| Array elements | Word-sized | Typed elements |
 | Numeric literals | Octal with 0 prefix | Multiple bases |
 
 ---
@@ -368,7 +370,7 @@ main() {
     auto c;
 
     // Read characters into buffer
-    while ((c = getchar()) != '*e' && i < 100) {
+    while ((c = getchar()) != '*e' & i < 100) {
         buf[i++] = c;
     }
     buf[i] = '*e';  // Terminate string
@@ -377,8 +379,8 @@ main() {
     i = 0;
     while (buf[i] != '*e') {
         c = buf[i];
-        if (c >= `a' && c <= `z') {
-            buf[i] = c + (`A' - `a');
+        if (c >= 'a' & c <= 'z') {
+            buf[i] = c + ('A' - 'a');
         }
         i = i + 1;
     }
@@ -395,7 +397,7 @@ main() {
 ```b
 main() {
     auto packed;
-    packed = `Hi';         // Pack "Hi" into one word
+    packed = 'Hi';         // Pack "Hi" into one word
 
     auto high;
     high = packed >> 8;    // Extract 'H'

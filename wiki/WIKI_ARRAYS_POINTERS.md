@@ -1,39 +1,32 @@
 # Arrays & Pointers
 
-B's array and pointer system is built on word-addressed memory. This page covers array declarations, pointer operations, memory addressing, and the unique characteristics of B's memory model.
+B's array and pointer system works with word-sized values. BCC's command-line compiler uses byte-addressed pointers by default while preserving word-sized array elements and B-style pointer operations.
 
 ---
 
 ## Memory Model Fundamentals
 
-### Word-Addressed Memory
+### Word-Sized Memory
 
-B uses **word-addressed memory** (unlike byte-addressed systems):
+B values are machine words:
 
 ```b
-// In B, memory is addressed by words (16-bit units)
-// Arrays and pointers work with word indices, not byte offsets
-
 auto arr 10;    // 10 words of storage
 arr[5] = 42;     // Access word at index 5
 ```
 
 **Key Characteristics:**
-- **Word Size**: 16 bits (2 bytes)
-- **Pointer Units**: Words, not bytes
+- **Word Size**: `host`, `16`, or `32` depending on `--word=`
+- **Pointer Units**: Byte addresses in the current command-line compiler
 - **Array Indexing**: Word-based offsets
 - **Pointer Arithmetic**: Word-sized steps
 
 ### Word vs Byte Addressing
 
 ```b
-// B (word-addressed):
 auto ptr;
-ptr = &variable;         // ptr holds word index
-ptr = ptr + 1;           // moves to next word (16-bit step)
-
-// Equivalent in bytes would be:
-// ptr = ptr + 2;        // byte systems: +2 for 16-bit values
+ptr = &variable;         // ptr holds an address
+ptr = ptr + 1;           // moves to the next word value
 ```
 
 ---
@@ -285,7 +278,7 @@ Strings are word arrays terminated with `*e` (EOT):
 
 // Manual string creation
 auto str 20;
-str[0] = `H'; str[1] = `i'; str[2] = `*e';
+str[0] = 'H'; str[1] = 'i'; str[2] = '*e';
 ```
 
 ### String Operations
@@ -507,23 +500,22 @@ arr[i]
 
 **Runtime Library Support:**
 - `alloc(n)` for dynamic allocation
-- No corresponding `free()` function
-- Memory persists until program termination
+- `free(p)` for deallocation
+- Memory persists until freed or program termination
 
 ### Word vs Byte Addressing
 
-**B's Word-Addressed Model:**
+**BCC Default Byte-Addressed Model:**
 ```c
 // Conceptual C equivalent
-#define B_DEREF(p)   (*(word*)((uintptr_t)(p) * sizeof(word)))
-#define B_INDEX(a,i) (*(word*)((uintptr_t)(a) * sizeof(word) + (uintptr_t)(i) * sizeof(word)))
-```
-
-**Byte-Addressed Alternative:**
-```c
-// With --byteptr flag
 #define B_DEREF(p)   (*(word*)(uintptr_t)(p))
 #define B_INDEX(a,i) (*(word*)((uintptr_t)(a) + (uintptr_t)(i) * sizeof(word)))
+```
+
+**Historical Word-Addressed Model:**
+```c
+#define B_DEREF(p)   (*(word*)((uintptr_t)(p) * sizeof(word)))
+#define B_INDEX(a,i) (*(word*)((uintptr_t)(a) * sizeof(word) + (uintptr_t)(i) * sizeof(word)))
 ```
 
 ---
@@ -535,7 +527,7 @@ arr[i]
 **Bounds Checking:**
 ```b
 safe_array_access(arr, size, index) {
-    if (index < 0 || index >= size) {
+    if (index < 0 | index >= size) {
         printf("array index out of bounds*n");
         return 0;
     }
@@ -574,7 +566,7 @@ safe_dereference(ptr) {
 **Pointer Validation:**
 ```b
 is_valid_pointer(ptr, base, size) {
-    return ptr >= base && ptr < base + size;
+    return ptr >= base & ptr < base + size;
 }
 ```
 

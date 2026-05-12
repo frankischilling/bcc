@@ -1,6 +1,6 @@
 # String Operations
 
-B's string handling is fundamentally different from modern languages. Strings are word arrays terminated with `*e` (EOT, ASCII 4) instead of null bytes. Character constants can pack up to 4 ASCII bytes into a single word (right-justified); strings themselves are typically packed 1-2 characters per 16-bit word. This page covers all aspects of string manipulation in the B programming language.
+B's string handling is fundamentally different from modern languages. Strings are terminated with `*e` (EOT, ASCII 4) instead of null bytes. Thompson B72 character constants pack one or two ASCII bytes into a word; BCC default mode also accepts three or four as an extension. This page covers string manipulation in the B programming language.
 
 ---
 
@@ -21,7 +21,7 @@ word string_array[] = {
 **Key Characteristics:**
 - **No null termination**: Uses `*e` (EOT, ASCII 4)
 - **Character packing**: 1-2 characters per 16-bit word (string storage)
-- **Word addressing**: Strings are word arrays, not byte arrays
+- **Byte-addressed default**: Strings are byte sequences terminated by `*e`
 - **Manual management**: No automatic bounds checking
 
 ### String Literals
@@ -51,9 +51,9 @@ lchar(string_ptr, index, new_char) → new_char
 **Examples:**
 ```b
 auto str 20;
-lchar(str, 0, `H');
-lchar(str, 1, `i');
-lchar(str, 2, `*e');         // Terminate
+lchar(str, 0, 'H');
+lchar(str, 1, 'i');
+lchar(str, 2, '*e');         // Terminate
 
 auto first;
 first = char(str, 0);         // Gets 'H'
@@ -71,7 +71,7 @@ The behavior of `char()` and `lchar()` depends on the pointer mode:
 - `char(str, i)` reads byte at address `str + i`
 - Works naturally with C strings
 
-**Word-Addressed Mode (no `--byteptr`):**
+**Word-Addressed Mode:**
 - Bytes are packed into words with byte 0 at the LSB
 - Multiple bytes share each word (e.g., 8 bytes per 64-bit word)
 - `char(str, i)` extracts byte `i` from the packed words
@@ -82,16 +82,16 @@ In word-addressed mode, bytes are packed with byte 0 at the least-significant po
 
 ### Character Packing
 
-B packs 1-2 characters into each 16-bit word for strings (character constants may include up to 4 ASCII bytes):
+B packs one or two characters into each 16-bit word for Thompson B72 character constants. BCC default mode can pack up to four bytes in a character constant, but `--strict --pedantic` rejects constants longer than two bytes:
 
 ```b
 // Single character in a word
 auto ch;
-ch = `A';                   // 0x0041 (ASCII 'A' in low byte)
+ch = 'A';                   // 0x0041 (ASCII 'A' in low byte)
 
 // Packed characters
 auto packed;
-packed = `Hi';              // 0x4869 ('H' high byte, 'i' low byte)
+packed = 'Hi';              // 0x4869 ('H' high byte, 'i' low byte)
 
 // Extracting packed characters
 auto high;
@@ -225,7 +225,7 @@ auto pos;
     pos = 0;
 append_string(buf, &pos, "Hello ");
 append_string(buf, &pos, "World");
-append_char(buf, &pos, `!');
+append_char(buf, &pos, '!');
 terminate_string(buf, pos);
 // buf now contains "Hello World!*e"
 ```
@@ -236,8 +236,8 @@ terminate_string(buf, pos);
 // Integer to string
 utoa(num, buffer) {
     if (num == 0) {
-        lchar(buffer, 0, `0');
-        lchar(buffer, 1, `*e');
+        lchar(buffer, 0, '0');
+        lchar(buffer, 1, '*e');
         return buffer;
     }
 
@@ -253,14 +253,14 @@ utoa(num, buffer) {
     }
 
     while (num > 0) {
-        temp[i++] = `0' + (num % 10);
+        temp[i++] = '0' + (num % 10);
         num =/ 10;
     }
 
     auto pos;
     pos = 0;
     if (negative) {
-        lchar(buffer, pos++, `-');
+        lchar(buffer, pos++, '-');
     }
 
     while (i > 0) {
@@ -320,7 +320,7 @@ tokenize(text, buffer, delimiters) {
     }
 
     // Handle final word
-    if (i > word_start && word_count < 10) {
+    if (i > word_start & word_count < 10) {
         auto k;
         k = 0;
         while (word_start + k < i) {
@@ -343,27 +343,27 @@ tokenize(text, buffer, delimiters) {
 
 ```b
 is_digit(c) {
-    return c >= `0' && c <= `9';
+    return c >= '0' & c <= '9';
 }
 
 is_alpha(c) {
-    return (c >= `a' && c <= `z') || (c >= `A' && c <= `Z');
+    return (c >= 'a' & c <= 'z') | (c >= 'A' & c <= 'Z');
 }
 
 is_alnum(c) {
-    return is_alpha(c) || is_digit(c);
+    return is_alpha(c) | is_digit(c);
 }
 
 is_space(c) {
-    return c == ` ' || c == `*t' || c == `*n' || c == `*r';
+    return c == ' ' | c == '*t' | c == '*n' | c == '*r';
 }
 
 is_upper(c) {
-    return c >= `A' && c <= `Z';
+    return c >= 'A' & c <= 'Z';
 }
 
 is_lower(c) {
-    return c >= `a' && c <= `z';
+    return c >= 'a' & c <= 'z';
 }
 ```
 
@@ -372,14 +372,14 @@ is_lower(c) {
 ```b
 to_upper(c) {
     if (is_lower(c)) {
-        return c + (`A' - `a');
+        return c + ('A' - 'a');
     }
     return c;
 }
 
 to_lower(c) {
     if (is_upper(c)) {
-        return c + (`a' - `A');
+        return c + ('a' - 'A');
     }
     return c;
 }
@@ -602,7 +602,7 @@ print_base(n, base) {
         return;
     }
 
-    if (n < 0 && base == 10) {
+    if (n < 0 & base == 10) {
         putchar('-');
         n = -n;
     }
@@ -644,7 +644,7 @@ main() {
     auto pos;
     pos = 0;
     auto c;
-    while ((c = getchar()) >= 0 && pos < 1024) {
+    while ((c = getchar()) >= 0 & pos < 1024) {
         buffer[pos++] = c;
     }
     lchar(buffer, pos, '*e');
@@ -732,25 +732,25 @@ process_command(cmd, buffer) {
     auto cmd_char;
     cmd_char = char(cmd, 0);
 
-    if (cmd_char == `p') {
+    if (cmd_char == 'p') {
         printf("%s*n", buffer);
-    } else if (cmd_char == `d') {
+    } else if (cmd_char == 'd') {
         // Delete all text
-        lchar(buffer, 0, `*e');
+        lchar(buffer, 0, '*e');
         printf("Buffer cleared*n");
-    } else if (cmd_char == `i') {
+    } else if (cmd_char == 'i') {
         printf("Enter text to insert: ");
         auto insert_pos;
     insert_pos = strlen(buffer);
         auto pos;
     pos = insert_pos;
         auto c;
-        while ((c = getchar()) != `*n' && c != `*e') {
+        while ((c = getchar()) != '*n' & c != '*e') {
             lchar(buffer, pos++, c);
         }
-        lchar(buffer, pos, `*e');
+        lchar(buffer, pos, '*e');
         printf("Text inserted*n");
-    } else if (cmd_char == `q') {
+    } else if (cmd_char == 'q') {
         return 1;  // Quit
     } else {
         printf("Unknown command*n");
@@ -781,7 +781,7 @@ read_line(buffer, max_len) {
     auto i;
     i = 0;
     auto c;
-    while (i < max_len - 1 && (c = getchar()) != '*n' && c != '*e') {
+    while (i < max_len - 1 & (c = getchar()) != '*n' & c != '*e') {
         lchar(buffer, i++, c);
     }
     lchar(buffer, i, '*e');
@@ -822,12 +822,12 @@ read_line(buffer, max_len) {
 **Avoid Repeated Length Calculations:**
 ```b
 // Bad: strlen called multiple times
-if (strlen(s) > 0 && char(s, strlen(s) - 1) == 'x')
+if (strlen(s) > 0 & char(s, strlen(s) - 1) == 'x')
 
 // Good: calculate once
 auto len;
     len = strlen(s);
-if (len > 0 && char(s, len - 1) == 'x')
+if (len > 0 & char(s, len - 1) == 'x')
 ```
 
 **Use Buffer Pre-allocation:**
@@ -850,7 +850,7 @@ utoa(another, temp);
 safe_char(str, index) {
     auto len;
     len = strlen(str);
-    if (index < 0 || index >= len) {
+    if (index < 0 | index >= len) {
         printf("String index out of bounds*n");
         return '*e';
     }
@@ -860,7 +860,7 @@ safe_char(str, index) {
 safe_lchar(str, index, c) {
     auto len;
     len = strlen(str);
-    if (index < 0 || index > len) {  // Allow writing terminator
+    if (index < 0 | index > len) {  // Allow writing terminator
         printf("String index out of bounds*n");
         return '*e';
     }
@@ -875,7 +875,7 @@ strncpy(dest, src, max_len) {
     auto i;
     i = 0;
     auto c;
-    while (i < max_len - 1 && (c = char(src, i)) != '*e') {
+    while (i < max_len - 1 & (c = char(src, i)) != '*e') {
         lchar(dest, i, c);
         i =+ 1;
     }
@@ -892,7 +892,7 @@ strncpy(dest, src, max_len) {
 |---------|-----------|-----------|
 | Termination | `*e` (EOT) | `\0` (NUL) |
 | Character Packing (strings) | 1-2 per word | 1 per byte |
-| Memory Model | Word-addressed | Byte-addressed |
+| Memory Model | Byte-addressed by default; word packing only in B_BYTEPTR=0 mode | Byte-addressed |
 | Length Operation | O(n) scan | O(1) if cached |
 | Library Functions | `char`/`lchar` | `str*` functions |
 | Buffer Management | Manual | Library assisted |

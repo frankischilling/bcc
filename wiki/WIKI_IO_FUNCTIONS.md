@@ -28,9 +28,9 @@ flush() → 0
 
 **Examples:**
 ```b
-putchar(`A');              // Output 'A'
+putchar('A');              // Output 'A'
 putchar(65);               // Output 'A' (ASCII value)
-putchar(`H'); putchar(`i'); putchar('*n');  // Output "Hi" + newline
+putchar('H'); putchar('i'); putchar('*n');  // Output "Hi" + newline
 putchar('hi!');            // Outputs "hi!" (multi-byte character constant)
 putstr("hello");           // Outputs "hello"
 putstr("prompt?"); flush(); getstr(buf);    // Prompt and read same line
@@ -116,7 +116,7 @@ putnum(0); putchar('*n');     // Output: "0\n" (newline added manually)
 print(42);                    // Output: "42\n"
 printf("hello*n");            // Output: "hello\n"
 printf("value: %d*n", 123);   // Output: "value: 123\n"
-printf("char: %c*n", `A');    // Output: "char: A\n"
+printf("char: %c*n", 'A');    // Output: "char: A\n"
 printf("octal: %o*n", 42);    // Output: "octal: 52\n"
 printn(42, 8);               // Output: "52" (octal)
 printn(42, 16);              // Output: "2A" (hexadecimal)
@@ -234,59 +234,21 @@ close(fd);
 
 ---
 
-## Buffered I/O
+## Current File I/O API
 
-### Buffered File Operations
-
-```b
-// Open buffered file
-fopen(filename, mode) → file_descriptor or -1
-
-// Create buffered file
-fcreat(filename) → file_descriptor or -1
-
-// Close buffered file
-fclose(fd) → 0 or -1
-
-// Flush buffers
-flush(fd) → 0
-```
-
-**Differences from Raw File I/O:**
-- Buffered I/O uses stdio-like buffering
-- More efficient for character-at-a-time operations
-- Automatic buffering management
-- `fcreat()` uses default mode (017)
-
-### Character Buffered I/O
+### File Operations
 
 ```b
-// Read buffered character
-getc(fd) → character or -1
-
-// Write buffered character
-putc(fd, character) → character or -1
+open(filename, mode) → file_descriptor or -1
+creat(filename, mode) → file_descriptor or -1
+close(fd) → 0 or -1
+read(fd, buffer, byte_count) → count or -1
+write(fd, buffer, byte_count) → count or -1
+seek(fd, offset, whence) → 0 or -1
+flush() → 0
 ```
 
-**Buffering Behavior:**
-- Characters are buffered until newline or flush
-- `flush()` forces buffer write to disk
-- More efficient than raw I/O for text processing
-
-### Word Buffered I/O
-
-```b
-// Read buffered word
-getw(fd) → word or -1
-
-// Write buffered word
-putw(fd, word) → word or -1
-```
-
-**Word I/O Notes:**
-- Words are 16-bit values
-- Big-endian byte order (PDP-11 format)
-- Useful for binary data transfer
+Current BCC does not expose separate `fopen`, `fcreat`, `fclose`, `getc`, `putc`, `getw`, or `putw` runtime functions. Use descriptor I/O (`open`/`read`/`write`/`close`) or unit redirection (`openr`/`openw`) with `getchar` and `putchar`.
 
 ---
 
@@ -300,7 +262,7 @@ copy_file(in_name, out_name) {
     auto in_fd = open(in_name, 0);
     auto out_fd = creat(out_name, 017);
 
-    if (in_fd < 0 || out_fd < 0) {
+    if (in_fd < 0 | out_fd < 0) {
         printf("cannot open files*n");
         return 1;
     }
@@ -323,8 +285,7 @@ copy_file(in_name, out_name) {
 ```b
 // Count characters, words, lines
 count_stats(filename) {
-    auto fd = open(filename, 0);
-    if (fd < 0) return;
+    if (openr(3, filename) < 0) return;
 
     auto chars = 0;
     auto words = 0;
@@ -332,14 +293,14 @@ count_stats(filename) {
     auto in_word = 0;
     auto c;
 
-    while ((c = getc(fd)) >= 0) {
+    while ((c = getchar()) != '*e') {
         chars =+ 1;
 
         if (c == '*n') {
             lines =+ 1;
         }
 
-        if (c == ` ' || c == `*t' || c == `*n') {
+        if (c == ' ' | c == '*t' | c == '*n') {
             if (in_word) {
                 words =+ 1;
                 in_word = 0;
@@ -352,7 +313,7 @@ count_stats(filename) {
     if (in_word) words =+ 1;  // Count final word
 
     printf("chars: %d, words: %d, lines: %d*n", chars, words, lines);
-    close(fd);
+    openr(-1, "");
 }
 ```
 
@@ -365,14 +326,14 @@ calculator() {
 
     auto a = read_number();
     auto op = getchar();  // Skip whitespace
-    while (op == ` ' || op == `*t') op = getchar();
+    while (op == ' ' | op == '*t') op = getchar();
     auto b = read_number();
 
     auto result;
-    if (op == `+') result = a + b;
-    else if (op == `-') result = a - b;
-    else if (op == `*') result = a * b;
-    else if (op == `/') {
+    if (op == '+') result = a + b;
+    else if (op == '-') result = a - b;
+    else if (op == '*') result = a * b;
+    else if (op == '/') {
         if (b == 0) {
             printf("division by zero*n");
             return;
@@ -391,11 +352,11 @@ read_number() {
     auto c;
 
     // Skip whitespace
-    while ((c = getchar()) == ` ' || c == `*t');
+    while ((c = getchar()) == ' ' | c == '*t');
 
     // Read digits
-    while (c >= `0' && c <= `9') {
-        num = num * 10 + (c - `0');
+    while (c >= '0' & c <= '9') {
+        num = num * 10 + (c - '0');
         c = getchar();
     }
 
@@ -453,7 +414,7 @@ read_line(buffer, max_len) {
     auto i = 0;
     auto c;
 
-    while (i < max_len - 1 && (c = getchar()) != '*n' && c != '*e') {
+    while (i < max_len - 1 & (c = getchar()) != '*n' & c != '*e') {
         buffer[i++] = c;
     }
     buffer[i] = '*e';  // Terminate
@@ -659,8 +620,7 @@ auto n = read(fd, buffer, 20);  // Respect buffer size
 ```b
 // Count words in a text file
 word_count(filename) {
-    auto fd = open(filename, 0);
-    if (fd < 0) {
+    if (openr(3, filename) < 0) {
         printf("cannot open %s*n", filename);
         return 0;
     }
@@ -669,8 +629,8 @@ word_count(filename) {
     auto in_word = 0;
     auto c;
 
-    while ((c = getc(fd)) >= 0) {
-        if (c == ` ' || c == `*t' || c == `*n') {
+    while ((c = getchar()) != '*e') {
+        if (c == ' ' | c == '*t' | c == '*n') {
             if (in_word) {
                 words =+ 1;
                 in_word = 0;
@@ -682,7 +642,7 @@ word_count(filename) {
 
     if (in_word) words =+ 1;  // Count final word
 
-    close(fd);
+    openr(-1, "");
     return words;
 }
 
@@ -800,17 +760,14 @@ main() {
 | `write` | `(fd, buf, n) → count/-1` | Write to file |
 | `seek` | `(fd, off, wh) → pos/-1` | Seek in file |
 
-### Buffered I/O
+### Unit I/O
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `fopen` | `(name, mode) → fd/-1` | Open buffered file |
-| `fcreat` | `(name) → fd/-1` | Create buffered file |
-| `fclose` | `(fd) → 0/-1` | Close buffered file |
-| `getc` | `(fd) → c/-1` | Read buffered character |
-| `putc` | `(fd, c) → c/-1` | Write buffered character |
-| `getw` | `(fd) → w/-1` | Read buffered word |
-| `putw` | `(fd, w) → w/-1` | Write buffered word |
-| `flush` | `(fd) → 0` | Flush buffers |
+| `openr` | `(unit, name) → unit/-1` | Redirect current input unit |
+| `openw` | `(unit, name) → unit/-1` | Redirect current output unit |
+| `getchar` | `() → c/*e` | Read from current input unit |
+| `putchar` | `(c) → c` | Write to current output unit |
+| `flush` | `() → 0` | Flush current output unit |
 
 ### File Information
 | Function | Signature | Description |

@@ -148,15 +148,15 @@ for (;;) {
 // Character classification
 auto c = getchar();
 switch (c) {
-case `a':
-case `e':
-case `i':
-case `o':
-case `u':
+case 'a':
+case 'e':
+case 'i':
+case 'o':
+case 'u':
     vowel = 1;
-case ` ':
-case `*t':
-case `*n':
+case ' ':
+case '*t':
+case '*n':
     whitespace = 1;
     break;
 default:
@@ -358,12 +358,12 @@ error:
 ```b
 // All of these are false (zero):
 if (0) { /* not executed */ }
-if (`*0') { /* not executed */ }
+if ('*0') { /* not executed */ }
 
 // All of these are true (non-zero):
 if (1) { /* executed */ }
 if (-1) { /* executed */ }
-if (`A') { /* executed */ }
+if ('A') { /* executed */ }
 ```
 
 **Loop Termination:**
@@ -381,7 +381,7 @@ if (`A') { /* executed */ }
 | Break/Continue | No | Yes |
 | Default Case | No | Yes |
 | Fall-through | Always | Until break |
-| Short-circuit &&/|| | No | Yes |
+| Short-circuit logical operators | No | Yes |
 | Switch Scope | Function | Block |
 
 ---
@@ -410,22 +410,22 @@ main() {
 **Simple Calculator:**
 ```b
 main() {
-    auto op = `+';
+    auto op = '+';
     auto a = 10;
     auto b = 5;
     auto result;
 
     switch (op) {
-    case `+':
+    case '+':
         result = a + b;
         goto compute_done;
-    case `-':
+    case '-':
         result = a - b;
         goto compute_done;
-    case `*':
+    case '*':
         result = a * b;
         goto compute_done;
-    case `/':
+    case '/':
         if (b == 0) {
             printf("division by zero*n");
             return 1;
@@ -446,11 +446,11 @@ main() {
     auto count = 0;
 
     while ((c = getchar()) != '*e') {
-        if (c == ` ') {
+        if (c == ' ') {
             count =+ 1;
         } else {
             if (count > 0) {
-                putchar(` ');
+                putchar(' ');
                 count = 0;
             }
             putchar(c);
