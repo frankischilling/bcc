@@ -146,9 +146,9 @@ main() {
     x = 5;
     if ((x > 3 ? x * 2 : x / 2) != 10) return(69);
 
-    /* ============ Logical OR (||) ============ */
+    /* ============ Logical OR (|| BCC extension) ============ */
 
-    /* Test 70-72: Logical OR */
+    /* Test 70-72: Logical OR extension */
     if ((0 || 0) != 0) return(70);
     if ((1 || 0) != 1) return(71);
     if ((0 || 1) != 1) return(72);
@@ -170,4 +170,3 @@ main() {
 
     return(0);
 }
-

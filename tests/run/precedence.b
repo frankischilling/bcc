@@ -111,7 +111,7 @@ test_bitwise() {
     a = 1 == 1 & 1;       /* (1==1) & 1 = 1 & 1 = 1 */
     check("1==1&1", 1, a);
 
-    /* || binds loosest among binary ops */
+    /* BCC extension: || binds loosest among binary ops */
     a = 0 || 1;           /* 1 */
     check("0||1", 1, a);
 
@@ -400,7 +400,7 @@ test_nasty() {
 test_no_logical_and() {
     auto a;
 
-    /* B has || but NO && - must use nested ternary or bitwise & */
+    /* Thompson B72 has no &&; simulate it with nested ternary or bitwise & */
 
     /* Simulating && with ternary: a && b == a ? b : 0 */
     a = 1 ? (1 ? 1 : 0) : 0;  /* true && true = 1 */
@@ -449,4 +449,3 @@ main() {
     printf("ALL PASSED*n");
     return 0;
 }
-

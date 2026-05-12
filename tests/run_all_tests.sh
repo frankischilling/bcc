@@ -124,10 +124,35 @@ fi
 echo ""
 
 # ============================================================================
-# Section 3: Word Semantics Tests
+# Section 3: Historical Strictness Tests
 # ============================================================================
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${BLUE}  Section 3: Word Semantics Tests${NC}"
+echo -e "${BLUE}  Section 3: Historical Strictness Tests${NC}"
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo ""
+
+if [[ -x "${SCRIPT_DIR}/test_strict_historical.sh" ]]; then
+    output=$("${SCRIPT_DIR}/test_strict_historical.sh" 2>&1)
+    echo "$output" | grep -E "^(PASS|FAIL|Results):"
+
+    results=$(echo "$output" | grep "^Results:")
+    if [[ -n "$results" ]]; then
+        passed=$(echo "$results" | grep -oP '\d+(?= passed)')
+        failed=$(echo "$results" | grep -oP '\d+(?= failed)')
+        TOTAL_PASSED=$((TOTAL_PASSED + ${passed:-0}))
+        TOTAL_FAILED=$((TOTAL_FAILED + ${failed:-0}))
+    fi
+else
+    echo -e "${YELLOW}Warning: test_strict_historical.sh not found${NC}"
+fi
+
+echo ""
+
+# ============================================================================
+# Section 4: Word Semantics Tests
+# ============================================================================
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${BLUE}  Section 4: Word Semantics Tests${NC}"
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
 
@@ -174,4 +199,3 @@ else
     echo -e "${RED}╚══════════════════════════════════════════════════════════════╝${NC}"
     exit 1
 fi
-
