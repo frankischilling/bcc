@@ -1,0 +1,405 @@
+
+.text
+	.globl	_LIM
+_LIM:
+	100.
+	.even
+
+.text
+	.globl	_flags
+_flags:
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	0.
+	.even
+
+.text
+	.globl	_main
+_main:
+	mov	r5, -(sp)
+	mov	sp, r5
+	sub	$6., sp
+	mov	r5, r0
+	sub	$2., r0
+	mov	r0, -(sp)
+	mov	$0., r0
+	mov	(sp)+, r1
+	mov	r0, (r1)
+L0:
+	mov	r5, r0
+	sub	$2., r0
+	mov	(r0), r0
+	mov	r0, -(sp)
+	mov	$_LIM, r0
+	mov	(r0), r0
+	cmp	(sp)+, r0
+	bge	L2
+	mov	$1, r0
+	jmp	L3
+L2:
+	clr	r0
+L3:
+	tst	r0
+	bne	1f
+	jmp	L1
+1:
+	mov	$_flags, r0
+	mov	r0, -(sp)
+	mov	r5, r0
+	sub	$2., r0
+	mov	(r0), r0
+	asl	r0
+	mov	(sp)+, r1
+	add	r1, r0
+	mov	r0, -(sp)
+	mov	$1., r0
+	mov	(sp)+, r1
+	mov	r0, (r1)
+	mov	r5, r0
+	sub	$2., r0
+	mov	r0, -(sp)
+	mov	r5, r0
+	sub	$2., r0
+	mov	(r0), r0
+	mov	r0, -(sp)
+	mov	$1., r0
+	mov	(sp)+, r1
+	add	r1, r0
+	mov	(sp)+, r1
+	mov	r0, (r1)
+	jmp	L0
+L1:
+	mov	$_flags, r0
+	mov	r0, -(sp)
+	mov	$0., r0
+	asl	r0
+	mov	(sp)+, r1
+	add	r1, r0
+	mov	r0, -(sp)
+	mov	$0., r0
+	mov	(sp)+, r1
+	mov	r0, (r1)
+	mov	$_flags, r0
+	mov	r0, -(sp)
+	mov	$1., r0
+	asl	r0
+	mov	(sp)+, r1
+	add	r1, r0
+	mov	r0, -(sp)
+	mov	$0., r0
+	mov	(sp)+, r1
+	mov	r0, (r1)
+	mov	r5, r0
+	sub	$2., r0
+	mov	r0, -(sp)
+	mov	$2., r0
+	mov	(sp)+, r1
+	mov	r0, (r1)
+L4:
+	mov	r5, r0
+	sub	$2., r0
+	mov	(r0), r0
+	mov	r0, -(sp)
+	mov	$_LIM, r0
+	mov	(r0), r0
+	cmp	(sp)+, r0
+	bge	L6
+	mov	$1, r0
+	jmp	L7
+L6:
+	clr	r0
+L7:
+	tst	r0
+	bne	1f
+	jmp	L5
+1:
+	mov	$_flags, r0
+	mov	r0, -(sp)
+	mov	r5, r0
+	sub	$2., r0
+	mov	(r0), r0
+	asl	r0
+	mov	(sp)+, r1
+	add	r1, r0
+	mov	(r0), r0
+	tst	r0
+	bne	1f
+	jmp	L8
+1:
+	mov	r5, r0
+	sub	$4., r0
+	mov	r0, -(sp)
+	mov	r5, r0
+	sub	$2., r0
+	mov	(r0), r0
+	mov	r0, -(sp)
+	mov	r5, r0
+	sub	$2., r0
+	mov	(r0), r0
+	mov	(sp)+, r1
+	add	r1, r0
+	mov	(sp)+, r1
+	mov	r0, (r1)
+L9:
+	mov	r5, r0
+	sub	$4., r0
+	mov	(r0), r0
+	mov	r0, -(sp)
+	mov	$_LIM, r0
+	mov	(r0), r0
+	cmp	(sp)+, r0
+	bge	L11
+	mov	$1, r0
+	jmp	L12
+L11:
+	clr	r0
+L12:
+	tst	r0
+	bne	1f
+	jmp	L10
+1:
+	mov	$_flags, r0
+	mov	r0, -(sp)
+	mov	r5, r0
+	sub	$4., r0
+	mov	(r0), r0
+	asl	r0
+	mov	(sp)+, r1
+	add	r1, r0
+	mov	r0, -(sp)
+	mov	$0., r0
+	mov	(sp)+, r1
+	mov	r0, (r1)
+	mov	r5, r0
+	sub	$4., r0
+	mov	r0, -(sp)
+	mov	r5, r0
+	sub	$4., r0
+	mov	(r0), r0
+	mov	r0, -(sp)
+	mov	r5, r0
+	sub	$2., r0
+	mov	(r0), r0
+	mov	(sp)+, r1
+	add	r1, r0
+	mov	(sp)+, r1
+	mov	r0, (r1)
+	jmp	L9
+L10:
+L8:
+	mov	r5, r0
+	sub	$2., r0
+	mov	r0, -(sp)
+	mov	r5, r0
+	sub	$2., r0
+	mov	(r0), r0
+	mov	r0, -(sp)
+	mov	$1., r0
+	mov	(sp)+, r1
+	add	r1, r0
+	mov	(sp)+, r1
+	mov	r0, (r1)
+	jmp	L4
+L5:
+	mov	r5, r0
+	sub	$6., r0
+	mov	r0, -(sp)
+	mov	$1., r0
+	mov	(sp)+, r1
+	mov	r0, (r1)
+	mov	r5, r0
+	sub	$2., r0
+	mov	r0, -(sp)
+	mov	$2., r0
+	mov	(sp)+, r1
+	mov	r0, (r1)
+L13:
+	mov	r5, r0
+	sub	$2., r0
+	mov	(r0), r0
+	mov	r0, -(sp)
+	mov	$_LIM, r0
+	mov	(r0), r0
+	cmp	(sp)+, r0
+	bge	L15
+	mov	$1, r0
+	jmp	L16
+L15:
+	clr	r0
+L16:
+	tst	r0
+	bne	1f
+	jmp	L14
+1:
+	mov	$_flags, r0
+	mov	r0, -(sp)
+	mov	r5, r0
+	sub	$2., r0
+	mov	(r0), r0
+	asl	r0
+	mov	(sp)+, r1
+	add	r1, r0
+	mov	(r0), r0
+	tst	r0
+	bne	1f
+	jmp	L17
+1:
+	mov	r5, r0
+	sub	$6., r0
+	mov	(r0), r0
+	mov	r0, -(sp)
+	mov	$0., r0
+	cmp	(sp)+, r0
+	bne	L18
+	mov	$1, r0
+	jmp	L19
+L18:
+	clr	r0
+L19:
+	tst	r0
+	bne	1f
+	jmp	L20
+1:
+	mov	$32., r0
+	mov	r0, -(sp)
+	jsr	pc, _putchar
+	tst	(sp)+
+L20:
+	mov	r5, r0
+	sub	$6., r0
+	mov	r0, -(sp)
+	mov	$0., r0
+	mov	(sp)+, r1
+	mov	r0, (r1)
+	mov	r5, r0
+	sub	$2., r0
+	mov	(r0), r0
+	mov	r0, -(sp)
+	mov	$10., r0
+	mov	r0, -(sp)
+	mov	0.(sp), r0
+	mov	2.(sp), r1
+	mov	r0, 2.(sp)
+	mov	r1, 0.(sp)
+	jsr	pc, _printn
+	add	$4., sp
+L17:
+	mov	r5, r0
+	sub	$2., r0
+	mov	r0, -(sp)
+	mov	r5, r0
+	sub	$2., r0
+	mov	(r0), r0
+	mov	r0, -(sp)
+	mov	$1., r0
+	mov	(sp)+, r1
+	add	r1, r0
+	mov	(sp)+, r1
+	mov	r0, (r1)
+	jmp	L13
+L14:
+	mov	$10., r0
+	mov	r0, -(sp)
+	jsr	pc, _putchar
+	tst	(sp)+
+L30000:
+	mov	r5, sp
+	mov	(sp)+, r5
+	rts	pc

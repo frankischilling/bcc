@@ -1,0 +1,36 @@
+
+.text
+	.globl	_main
+_main:
+	mov	r5, -(sp)
+	mov	sp, r5
+	mov	$104., r0
+	mov	r0, -(sp)
+	jsr	pc, _putchar
+	tst	(sp)+
+	mov	$101., r0
+	mov	r0, -(sp)
+	jsr	pc, _putchar
+	tst	(sp)+
+	mov	$108., r0
+	mov	r0, -(sp)
+	jsr	pc, _putchar
+	tst	(sp)+
+	mov	$108., r0
+	mov	r0, -(sp)
+	jsr	pc, _putchar
+	tst	(sp)+
+	mov	$111., r0
+	mov	r0, -(sp)
+	jsr	pc, _putchar
+	tst	(sp)+
+	mov	$10., r0
+	mov	r0, -(sp)
+	jsr	pc, _putchar
+	tst	(sp)+
+	mov	$0., r0
+	jmp	L30000
+L30000:
+	mov	r5, sp
+	mov	(sp)+, r5
+	rts	pc

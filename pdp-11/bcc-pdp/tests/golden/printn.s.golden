@@ -1,0 +1,38 @@
+
+.text
+	.globl	_main
+_main:
+	mov	r5, -(sp)
+	mov	sp, r5
+	mov	$255., r0
+	mov	r0, -(sp)
+	mov	$10., r0
+	mov	r0, -(sp)
+	mov	0.(sp), r0
+	mov	2.(sp), r1
+	mov	r0, 2.(sp)
+	mov	r1, 0.(sp)
+	jsr	pc, _printn
+	add	$4., sp
+	mov	$10., r0
+	mov	r0, -(sp)
+	jsr	pc, _putchar
+	tst	(sp)+
+	mov	$255., r0
+	mov	r0, -(sp)
+	mov	$8., r0
+	mov	r0, -(sp)
+	mov	0.(sp), r0
+	mov	2.(sp), r1
+	mov	r0, 2.(sp)
+	mov	r1, 0.(sp)
+	jsr	pc, _printn
+	add	$4., sp
+	mov	$10., r0
+	mov	r0, -(sp)
+	jsr	pc, _putchar
+	tst	(sp)+
+L30000:
+	mov	r5, sp
+	mov	(sp)+, r5
+	rts	pc
