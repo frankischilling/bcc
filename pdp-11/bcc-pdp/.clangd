@@ -1,0 +1,20 @@
+# clangd config for bcc-pdp.
+#
+# This project intentionally uses K&R-style function definitions
+# so the same source compiles under early 1970s Unix V1 cc (which
+# pre-dates ANSI prototypes). On modern clang those raise
+# -Wdeprecated-non-prototype, which is noise here, not signal.
+#
+# `unused-includes` is suppressed because several .c files start
+# as `#include "b.h"`-only stubs and grow over subsequent tasks.
+
+CompileFlags:
+  Add:
+    - -std=c89
+    - -Wno-deprecated-non-prototype
+    - -I.
+
+Diagnostics:
+  Suppress:
+    - deprecated-non-prototype
+    - unused-includes
