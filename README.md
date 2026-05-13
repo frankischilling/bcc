@@ -2,11 +2,14 @@
 
 A faithful implementation of Ken Thompson's B programming language compiler from Bell Labs, using the January 7, 1972 PDP-11 *Users' Reference to B* as the canonical language reference. BCC is written in C99, targets the GNU toolchain (gcc + binutils), and ships with a full `libb` built on top of libc for practical, portable use.
 
+The repository also includes a **basic working** B compiler for **PDP-11 Unix V1**, implemented in **Unix V1 C** and maintained under [`pdp-11/bcc-pdp/`](pdp-11/bcc-pdp/) (details in [PDP-11 Unix V1 native compiler](#pdp-11-unix-v1-native-compiler-pdp-11-bcc-pdp) below).
+
 ## Overview
 
 BCC is a complete B compiler written in C99 that implements Ken Thompson's PDP-11 B language as documented in 1972. B is an untyped systems programming language where everything is a machine word, with explicit operations for indirection, address-of, and pointer arithmetic.
 
 This implementation includes:
+- A basic working native B compiler for PDP-11 Unix V1 in V1 C ([`pdp-11/bcc-pdp/`](pdp-11/bcc-pdp/))
 - Full B language compiler matching PDP-11 B semantics
 - Complete runtime library (`libb.a`) with all original functions
 - Authentic B syntax including compound assignments (`=+`, `=-`, etc.)
@@ -173,6 +176,20 @@ The `bcc` executable will be created in the root directory.
 - **Pointer models**: Both byte-addressed and word-addressed modes are supported via `--byteptr`.
 - **Dependencies**: Requires libc at runtime (runtime library is implemented atop libc; not a freestanding syscall-only build).
 - **Linking**: Uses the GNU toolchain by default; alternate compilers may work if they honor C99 and GNU ld flags.
+
+## PDP-11 Unix V1 native compiler (`pdp-11/bcc-pdp/`)
+
+A second, fully separate **basic working** B compiler for **PDP-11 Unix V1** lives under [`pdp-11/bcc-pdp/`](pdp-11/bcc-pdp/).
+It is implemented in **Unix V1 C** (not C99), is **strictly conformant to Ken Thompson's 1972 *Users' Reference to B*** (kbman) - no
+modern extensions accepted - builds via 1972 `cc` (e.g. under apout), runs on emulated PDP-11 Unix V1 (e.g. SIMH), and self-hosts.
+
+- Supported: every kbman §2–§9 feature including `switch/case`, `char`/`lchar`,
+  `printf`/`printn`, `argv` vector, computed `goto`, vector init by name, all 16
+  compound assigns (`= =| =& === =!= =< =<= => =>= =<< =>> =+ =- =% =* =/`).
+- Removed (post-1972 extensions): `~ ^ && || break continue =^`.
+- See [`pdp-11/bcc-pdp/CONFORMANCE.md`](pdp-11/bcc-pdp/CONFORMANCE.md) for the
+  section-by-section matrix and [`pdp-11/bcc-pdp/README.md`](pdp-11/bcc-pdp/README.md)
+  for build/install/test instructions.
 
 ## Usage
 
@@ -1052,6 +1069,12 @@ The `examples/` directory contains several B programs:
 - `hello.b`: Classic hello world
 - `fib.b`: Fibonacci sequence
 - `fizzbuzz.b`: FizzBuzz challenge
+- `euclid.b`: Greatest common divisor with Euclid's algorithm
+- `sieve.b`: Sieve of Eratosthenes using vectors
+- `binary_search.b`: Search in a sorted vector
+- `hanoi.b`: Recursive Towers of Hanoi
+- `string_bytes.b`: Byte-level string editing with `char`/`lchar`
+- `digit_histogram.b`: Count digit characters in a string
 - `mandelbrot.b`: ASCII Mandelbrot fractal
 - `donut.b`: Spinning 3D ASCII donut animation (uses `sx64`, `usleep`)
 - `gol.b`: Conway's Game of Life
