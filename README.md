@@ -614,9 +614,9 @@ clean:
 - [ ] Verify vector operations edge cases
 
 ### B Compiler in B
-- [ ] Bootstrap: Write a B compiler in B
-- [ ] Self-hosting capability
-- [ ] Minimal runtime for B-in-B execution
+- [X] Bootstrap: Write a B compiler in B
+- [X] Self-hosting capability
+- [X] Minimal runtime for B-in-B execution
 
 ### Historical Unix Compatibility
 - [ ] Target Unix V1 (1971) - Test on recovered systems
