@@ -98,42 +98,37 @@ gcbuf:	0
 / ---- _write(fd, buf, n) ----
 _write:
 	mov	2(sp), r0
-	mov	4(sp), wbuf
-	mov	6(sp), wcnt
-	sys	swrite; wbuf; wcnt
+	mov	4(sp), 0f
+	mov	6(sp), 0f+2
+	sys	write; 0:..; ..
 	bes	1f
 	rts	pc
 1:
 	mov	$-1, r0
 	rts	pc
-wbuf:	0
-wcnt:	0
 
 / ---- _read(fd, buf, n) ----
 _read:
 	mov	2(sp), r0
-	mov	4(sp), rbuf
-	mov	6(sp), rcnt
-	sys	read; rbuf; rcnt
+	mov	4(sp), 0f
+	mov	6(sp), 0f+2
+	sys	read; 0:..; ..
 	bes	1f
 	rts	pc
 1:
 	mov	$-1, r0
 	rts	pc
-rbuf:	0
-rcnt:	0
 
 / ---- _open(name, mode) ----
 _open:
-	mov	2(sp), oname
-	mov	4(sp), r0		/ mode in r0
-	sys	sopen; oname
+	mov	2(sp), 0f
+	mov	4(sp), 0f+2
+	sys	open; 0:..; ..
 	bes	1f
 	rts	pc
 1:
 	mov	$-1, r0
 	rts	pc
-oname:	0
 
 / ---- _close(fd) ----
 _close:
@@ -147,25 +142,22 @@ _close:
 
 / ---- _creat(name, mode) ----
 _creat:
-	mov	2(sp), cname
-	mov	4(sp), r0		/ mode in r0
-	sys	screat; cname
+	mov	2(sp), 0f
+	mov	4(sp), 0f+2
+	sys	creat; 0:..; ..
 	bes	1f
 	rts	pc
 1:
 	mov	$-1, r0
 	rts	pc
-cname:	0
 
 / ---- _seek(fd, off, ptrname) ----
 _seek:
 	mov	2(sp), r0
-	mov	4(sp), soff
-	mov	6(sp), sptr
-	sys	sseek; soff; sptr
+	mov	4(sp), 0f
+	mov	6(sp), 0f+2
+	sys	seek; 0:..; ..
 	rts	pc
-soff:	0
-sptr:	0
 
 / ---- _putstr(s) — print chars until EOT (04) ----
 _putstr:

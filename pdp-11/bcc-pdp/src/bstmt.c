@@ -83,55 +83,22 @@ gconst() {
 	return (v);
 }
 
-/* gival -- read one ival (kbman §7.0): constant OR name (address-of).
- *   On entry: tok positioned at first ival token.
- *   kinds[idx] := 0 const, 1 name.
- *   On const: vals[idx] := value.
- *   On name : nm[idx*10..+9] := name string.
- */
-gival(idx, kinds, vals, nm) int kinds[]; int vals[]; char nm[]; {
+/* Emit one ival (kbman §7.0): constant OR name (address-of). */
+gival() {
 	extern tok, tnam;
 	int tok;
 	char tnam[];
 	if (tok == 1) {                     /* T_NAME */
-		kinds[idx] = 1;
-		cpname(&nm[idx * 10], tnam);
+		cggvn(tnam);
 		gettok();
 		return;
 	}
-	kinds[idx] = 0;
-	vals[idx]  = gconst();
-}
-
-/* Stream-emit the data section for a global definition.
- *   name        -- external symbol
- *   n           -- declared/effective vector size (>= ninit)
- *   ninit       -- number of explicit initializers
- *   kinds, vals -- per-init kind+value (for kind 0)
- *   nm          -- per-init name buffer (for kind 1), 10 bytes/entry
- */
-emitg(name, n, ninit, kinds, vals, nm) char name[]; int kinds[]; int vals[]; char nm[]; {
-	int i;
-	cggvb(name, n);
-	i = 0;
-	while (i < ninit) {
-		if (kinds[i] == 1) cggvn(&nm[i * 10]);
-		else               cggvc(vals[i]);
-		i = i + 1;
-	}
-	while (i < n) {
-		cggvc(0);
-		i = i + 1;
-	}
-	cggve();
+	cggvc(gconst());
 }
 
 gdef(name) char name[]; {
 	extern tok, tval;
 	int tok, tval;
-	int vals[128];
-	int kinds[128];
-	char nm[1280];        /* 128 entries × 10 bytes per name */
 	int n, ninit;
 
 	if (tok == '[') {
@@ -144,11 +111,13 @@ gdef(name) char name[]; {
 		if (tok != ']') fatal("expected ] in global vector");
 		gettok();
 
+		cgagvec(name);
+		cggvb(name, n);
 		ninit = 0;
 		while (tok != ';') {
 			if (tok == 0) fatal("unexpected EOF in global vector");
 			if (ninit >= 128) fatal("too many vector initializers");
-			gival(ninit, kinds, vals, nm);
+			gival();
 			ninit = ninit + 1;
 			if (tok == ',') {
 				gettok();
@@ -156,19 +125,18 @@ gdef(name) char name[]; {
 			}
 			if (tok != ';') fatal("expected , or ; in global vector");
 		}
-		if (n < ninit) n = ninit;
-		cgagvec(name);
-		emitg(name, n, ninit, kinds, vals, nm);
+		cggve();
 		gettok();
 		return;
 	}
 
 	/* Simple defn: name {ival,...} ;  -- no '=' (kbman §7.1) */
+	cggvb(name, 0);
 	ninit = 0;
 	while (tok != ';') {
 		if (tok == 0) fatal("unexpected EOF in global");
 		if (ninit >= 128) fatal("too many global initializers");
-		gival(ninit, kinds, vals, nm);
+		gival();
 		ninit = ninit + 1;
 		if (tok == ',') {
 			gettok();
@@ -176,8 +144,8 @@ gdef(name) char name[]; {
 		}
 		if (tok != ';') fatal("expected , or ; in global");
 	}
-	if (ninit == 0) emitg(name, 1, 0, kinds, vals, nm);
-	else            emitg(name, ninit, ninit, kinds, vals, nm);
+	if (ninit == 0) cggvc(0);
+	cggve();
 	gettok();
 }
 

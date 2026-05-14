@@ -23,7 +23,7 @@ main() {
 	while (i <= n) {
 		fd = open(argv[i], 0);
 		if (fd < 0) {
-			write(2, "cat: open*n", 11);
+			write(1, "cat: open*n", 10);
 			return;
 		}
 		cpfd(fd);

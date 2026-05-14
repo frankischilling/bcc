@@ -123,6 +123,19 @@ regsym(name, cls, off) char name[]; {
 	return (sid);
 }
 
+regext(name) char name[]; {
+	extern scls;
+	int scls[];
+	int sid, cls;
+	sid = symfnd(name);
+	if (sid < 0) return (symadd(name, 3, 0));
+	cls = scls[sid];
+	if (cls == 4) return (sid);
+	if (cls == 7) return (sid);
+	scls[sid] = 3;
+	return (sid);
+}
+
 rrname(name) char name[]; {
 	extern scls, soff, pndcls;
 	int scls[], soff[], pndcls;
@@ -241,7 +254,7 @@ rewrt() {
 		}
 		if (tageq(dtag, "Aextrn")) {
 			nxtnam(dbuf, dnm);
-			regsym(dnm, 3, 0);
+			regext(dnm);
 			continue;
 		}
 		if (tageq(dtag, "Agvec")) {
