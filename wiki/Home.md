@@ -11,6 +11,7 @@ Its historical language baseline is Thompson's January 7, 1972 PDP-11
 - [Language guide](B_LANGUAGE.md).
 - [Compiler options](../docs/cli.md).
 - [Historical sources and remaining differences](HISTORICAL_CONFORMANCE.md).
+- [Source-by-source review and reference inventory](SOURCE_REVIEW.md).
 
 ## Language and library
 

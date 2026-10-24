@@ -1,5 +1,8 @@
 # Historical conformance references
 
+For reviewed primary-source findings, dialect distinctions, and access limits,
+see the [historical source review](SOURCE_REVIEW.md).
+
 The target dialect is Ken Thompson's *Users' Reference to B*, dated January 7,
 1972, for the PDP-11. Use the [edited text][kbman] alongside the [original
 scan][kbscan] when OCR or punctuation is ambiguous. The other sources below

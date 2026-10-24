@@ -173,6 +173,7 @@ explains the layouts and string terminators.
 - [Compiler architecture](docs/architecture.md)
 - [Historical conformance and source hierarchy](wiki/HISTORICAL_CONFORMANCE.md)
 - [B language guide](wiki/B_LANGUAGE.md)
+- [Historical source review](wiki/SOURCE_REVIEW.md)
 - [Runtime guide](wiki/WIKI_RUNTIME_LIBRARY.md)
 - [Native compiler status](pdp-11/bcc-pdp/CONFORMANCE.md)
 
