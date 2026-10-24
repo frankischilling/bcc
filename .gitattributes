@@ -1,0 +1,9 @@
+*.sh text eol=lf
+*.py text eol=lf
+*.c text eol=lf
+*.h text eol=lf
+*.b text eol=lf
+*.s text eol=lf
+*.md text eol=lf
+*.pdf binary
+*.out -text

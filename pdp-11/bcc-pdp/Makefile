@@ -1,15 +1,20 @@
 # bcc-pdp Makefile -- builds B compiler as PDP-11 a.out binaries
 # (b00 + b01 + b1) using V1 cc under apout.
 #
-# No host gcc.  Sources are V1 C dialect (no #include, no void, K&R,
+# The PDP-11 sources use the V1 C dialect (no #include, no void, K&R,
 # 6-char identifier safe, no &&-in-assignment, etc).  Compiles via the
 # actual 1972 cc binary running under apout.
+
+.NOTPARALLEL:
+# The historical cc and assembler use fixed scratch filenames.
 
 V1     = ../unix-v1
 APOUT  = $(V1)/tools/apout/apout
 SRCDIR = src
 BUILD  = build
 AROOT  = $(BUILD)/aroot
+CRT0   = $(BUILD)/crt0.o
+TOOLCHAIN_INPUTS = $(subst :,\:,$(shell find $(V1)/fs/root $(V1)/fs/usr -type f 2>/dev/null))
 
 RUN    = APOUT_ROOT=$(AROOT) $(APOUT)
 
@@ -35,11 +40,11 @@ libb: $(LIBB)
 $(LIBB): $(B00) $(B01) $(B1) runtime/libb.b
 	@cp runtime/libb.b $(AROOT)/libb.b
 	@rm -f $(AROOT)/libb.ic $(AROOT)/libb.r2 $(AROOT)/libb.s
-	-cd $(AROOT) && APOUT_ROOT=. $(abspath $(APOUT)) $(abspath $(B00)) -o libb.ic libb.b
+	cd $(AROOT) && APOUT_ROOT=. $(abspath $(APOUT)) $(abspath $(B00)) -o libb.ic libb.b
 	@test -f $(AROOT)/libb.ic || { echo "b00 failed (no libb.ic)"; exit 1; }
-	-cd $(AROOT) && APOUT_ROOT=. $(abspath $(APOUT)) $(abspath $(B01)) -i libb.ic -o libb.r2
+	cd $(AROOT) && APOUT_ROOT=. $(abspath $(APOUT)) $(abspath $(B01)) -i libb.ic -o libb.r2
 	@test -f $(AROOT)/libb.r2 || { echo "b01 failed (no libb.r2)"; exit 1; }
-	-cd $(AROOT) && APOUT_ROOT=. $(abspath $(APOUT)) $(abspath $(B1)) -i libb.r2 -o libb.s
+	cd $(AROOT) && APOUT_ROOT=. $(abspath $(APOUT)) $(abspath $(B1)) -i libb.r2 -o libb.s
 	@test -f $(AROOT)/libb.s || { echo "b1 failed (no libb.s)"; exit 1; }
 	@sed -e 's/L\([0-9][0-9]*\)/B\1/g' -e 's/S\([0-9][0-9]*\)/C\1/g' $(AROOT)/libb.s > $(AROOT)/libb.ns
 	@mv $(AROOT)/libb.ns $(AROOT)/libb.s
@@ -49,7 +54,20 @@ $(LIBB): $(B00) $(B01) $(B1) runtime/libb.b
 
 aroot: $(AROOT)/.stamp
 
-$(AROOT)/.stamp:
+$(APOUT): $(V1)/tools/apout/Makefile
+	$(MAKE) -C $(V1)/tools/apout
+
+$(V1)/tools/apout/Makefile:
+	@echo "Missing Unix restoration. Run git submodule update --init pdp-11/unix-v1 from the repository root." >&2
+	@exit 1
+
+$(CRT0): $(APOUT) $(V1)/src/lib/crt0.s
+	mkdir -p $(BUILD)/crt0-stage
+	cp $(V1)/src/lib/crt0.s $(BUILD)/crt0-stage/crt0.s
+	cd $(BUILD)/crt0-stage && APOUT_ROOT=$(abspath $(V1)/fs/root) $(abspath $(APOUT)) $(abspath $(V1)/fs/root/bin/as) crt0.s
+	cp $(BUILD)/crt0-stage/a.out $@
+
+$(AROOT)/.stamp: $(CRT0) tools/build-apout-root.sh runtime/bmain.s runtime/brt.s $(TOOLCHAIN_INPUTS)
 	tools/build-apout-root.sh
 	touch $@
 
@@ -99,7 +117,7 @@ install: all
 
 # End-to-end: compile a .b, assemble + link with runtime, run via apout.
 B ?= tests/run/t01_hello.b
-test-run: $(B00) $(B01) $(B1)
+test-run: all
 	tools/run-apout.sh $(B)
 
 # End-to-end inside SIMH Unix V1: install compiler, rebuild disk images,

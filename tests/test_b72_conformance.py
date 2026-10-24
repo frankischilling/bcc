@@ -8,6 +8,12 @@ import tempfile
 
 
 CASES = {
+    "function_value": ("f(){return(37);} main(){auto p; p=f; return(p()!=37);}", 0),
+    "function_conditional": ("f(x){return(x+2);} g(x){return(x+3);} main(){return((1?f:g)(40)!=42);}", 0),
+    "function_vector": ("f(x){return(x+2);} main(){auto v 2; v[0]=f; return(v[0](40)!=42);}", 0),
+    "function_argument": ("f(x){return(x+2);} apply(p,x){return(p(x));} main(){return(apply(f,40)!=42);}", 0),
+    "getchar_eof": ("main(){extrn getchar; return(getchar()!=004);}", 0),
+    "getchar_value_eof": ("main(){auto f; extrn getchar; f=getchar; return(f()!=004);}", 0),
     "multiply_assignment": ("main(){auto x; x=6; x=*7; return(x!=42);}", 0),
     "spaced_dereference": ("main(){auto x,p,y; x=42; p= &x; y= *p; return(y!=42);}", 0),
     "brace_escapes": ("main(){return('*('!='{' | '*)'!='}');}", 0),
@@ -86,7 +92,7 @@ def main():
                         elif result.returncode:
                             ok, detail = False, result.stderr[-1500:]
                         else:
-                            run = subprocess.run([str(tmp / "case")], cwd=tmp, capture_output=True, text=True, timeout=5)
+                            run = subprocess.run([str(tmp / "case")], cwd=tmp, input="", capture_output=True, text=True, timeout=5)
                             ok = run.returncode == expected
                             detail = f"exit {run.returncode}, expected {expected}: {run.stderr}"
                     except subprocess.TimeoutExpired:

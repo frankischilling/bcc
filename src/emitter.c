@@ -201,6 +201,27 @@ static void emit_name(FILE *out, const char *name) {
     fputs(get_mangled_name(name), out);
 }
 
+static int runtime_function(const char *name) {
+    static const char *names[] = {
+        "char", "lchar", "getchar", "getchr", "putchr", "getstr", "putstr",
+        "flush", "reread", "printf", "printn", "putnum", "print", "putchar",
+        "exit", "abort", "free", "alloc", "open", "close", "read", "write",
+        "creat", "seek", "openr", "openw", "fork", "wait", "execl", "execv",
+        "chdir", "chmod", "chown", "link", "unlink", "stat", "fstat", "time",
+        "ctime", "getuid", "setuid", "makdir", "intr", "gtty", "stty",
+        "system", "usleep", "callf", "argc", "argv", NULL
+    };
+    for (size_t i = 0; names[i]; i++)
+        if (strcmp(name, names[i]) == 0) return 1;
+    return 0;
+}
+
+static void emit_function_name(FILE *out, const char *name) {
+    if (strcmp(name, "main") == 0) fputs("__b_user_main", out);
+    else if (runtime_function(name)) fprintf(out, "b_%s", name);
+    else emit_name(out, name);
+}
+
 static int program_defines_function(Program *prog, const char *name) {
     for (size_t i = 0; i < prog->tops.len; i++) {
         Top *t = (Top*)prog->tops.data[i];
@@ -672,11 +693,26 @@ void emit_expr(FILE *out, Expr *e, const char *filename) {
         case EX_VAR: {
             int id = label_id(e->as.var);
             if (id) fprintf(out, "__b_label_value_%d", id);
-            else emit_name(out, e->as.var);
+            else if (e->function_value) {
+                fputs("B_FUNCTION(", out);
+                emit_function_name(out, e->as.var);
+                fputc(')', out);
+            } else emit_name(out, e->as.var);
             return;
         }
 
         case EX_CALL: {
+            if (e->indirect_call) {
+                fputs("((word (*)())B_FUNCTION_CPTR(", out);
+                emit_expr(out, e->as.call.callee, filename);
+                fputs("))(", out);
+                for (size_t i = 0; i < e->as.call.args.len; i++) {
+                    if (i) fputs(", ", out);
+                    emit_expr(out, e->as.call.args.data[i], filename);
+                }
+                fputc(')', out);
+                return;
+            }
             int used_builtin_prefix = 0;
             int printf_like = 0;
             size_t fmt_index = 0;
@@ -696,24 +732,7 @@ void emit_expr(FILE *out, Expr *e, const char *filename) {
                     fputc(')', out);
                     return;
                 }
-                // List of builtin functions that have b_ versions
-                const char *b_funcs[] = {
-                    "char", "lchar", "getchr", "putchr", "getstr", "putstr", "flush", "reread", "printf", "printn", "putnum", "putchar", "exit", "abort", "free", "alloc",
-                    "open", "close", "read", "write", "creat", "seek", "openr", "openw",
-                    "fork", "wait", "execl", "execv",
-                    "chdir", "chmod", "chown", "link", "unlink", "stat", "fstat",
-                    "time", "ctime", "getuid", "setuid", "makdir", "intr",
-                    "system", "usleep",
-                    "callf",
-                    "argc", "argv",
-                    NULL
-                };
-                for (int i = 0; b_funcs[i]; i++) {
-                    if (strcmp(name, b_funcs[i]) == 0) {
-                        used_builtin_prefix = 1;
-                        break;
-                    }
-                }
+                used_builtin_prefix = runtime_function(name);
             }
             const char *cname = NULL;
             int wrap_ret_ptr = 0;
@@ -733,7 +752,7 @@ void emit_expr(FILE *out, Expr *e, const char *filename) {
             if (used_builtin_prefix && e->as.call.callee->kind == EX_VAR) {
                 fprintf(out, "b_%s", e->as.call.callee->as.var);
             } else {
-                emit_expr(out, e->as.call.callee, filename);
+                emit_function_name(out, e->as.call.callee->as.var);
             }
             fputc('(', out);
             size_t nargs = e->as.call.args.len;
@@ -1367,7 +1386,6 @@ static void emit_global_regions(FILE *out, Program *prog) {
 }
 
 // Forward declaration for assembly emitter
-void emit_program_asm(FILE *out, Program *prog);
 
 void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr, int no_line, int word_bits) {
     current_byteptr = byteptr;
@@ -1380,6 +1398,7 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
     clear_name_map();
 
     collect_strings_program(prog);
+    if (g_use_curses) fputs("#define BCC_USE_CURSES 1\n", out);
     fputs(
         "#define _DEFAULT_SOURCE 1\n"
         "#define _XOPEN_SOURCE 700\n"
@@ -1401,11 +1420,14 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
         "#include <termios.h>\n"
         "#include <sys/ioctl.h>\n"
         "#include <ctype.h>\n"
+        "#include <errno.h>\n"
         "#include <dlfcn.h>\n"
         "#include <math.h>\n"
         "#include <stddef.h>\n"
+        "#ifdef BCC_USE_CURSES\n"
         "#include <ncurses.h>\n"
         "#include <panel.h>\n"
+        "#endif\n"
         "\n"
         "/* Undefine common macros that might conflict with B variable names */\n"
         "#undef TRUE\n"
@@ -2045,72 +2067,92 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
         "    __b_wait_status = (word)st;\n"
         "    return (word)pid;\n"
         "}\n"
-        "static word b_execl(word path, ...) {\n"
-        "    const char *p = __b_cstr(path);\n"
-        "\n"
-        "    char *argv[64];\n"
-        "    int i = 0;\n"
-        "    argv[i++] = (char*)p;\n"
-        "\n"
-        "    va_list ap;\n"
-        "    va_start(ap, path);\n"
-        "    for (; i < 63; ) {\n"
-        "        word w = va_arg(ap, word);\n"
-        "        if (w == 0) break;\n"
-        "        argv[i++] = (char*)B_CPTR(w);\n"
-        "    }\n"
-        "    va_end(ap);\n"
-        "\n"
-        "    argv[i] = NULL;\n"
-        "    execv(p, argv);\n"
-        "    return -1; /* Only reached on error */\n"
-        "}\n"
-        "\n"
-"static word b_execv(word path, word argv) {\n"
-"    /* Note: Manual specifies execv(path, argv, count) with counted vector */\n"
-"    /* Current implementation uses null-terminated vector for compatibility */\n"
-"    const char *p = __b_cstr(path);\n"
-"    word *av = (word*)B_CPTR(argv);\n"
-        "\n"
-        "    char *cargv[256];\n"
-        "    int i = 0;\n"
-        "    for (; i < 255 && av[i] != 0; i++) cargv[i] = (char*)B_CPTR(av[i]);\n"
-"    cargv[i] = NULL;\n"
+"/* B72 section 8 passes exactly count argument strings, including arg0. */\n"
+"static word b_execv(word path, word argv, word count) {\n"
+"    if (count < 0 || count > 255 || (count && !argv)) return -1;\n"
+"    char *name = __b_dup_bstr(path);\n"
+"    if (!name) return -1;\n"
+"    char *arguments[256];\n"
+"    word *values = count ? (word*)B_CPTR(argv) : NULL;\n"
+"    size_t n = (size_t)count, i = 0;\n"
+"    for (; i < n; i++) {\n"
+"        if (!values[i]) break;\n"
+"        arguments[i] = __b_dup_bstr(values[i]);\n"
+"        if (!arguments[i]) break;\n"
+"    }\n"
+"    if (i == n) {\n"
+"        arguments[n] = NULL;\n"
+"        execv(name, arguments);\n"
+"    }\n"
+"    while (i) free(arguments[--i]);\n"
+"    free(name);\n"
+"    return -1;\n"
+"}\n"
 "\n"
-"    execv(p, cargv);\n"
-"    return -1; /* Only reached on error */\n"
+"static word b_execl(word path, ...) {\n"
+"    char *name = __b_dup_bstr(path);\n"
+"    if (!name) return -1;\n"
+"    char *arguments[256];\n"
+"    size_t n = 0;\n"
+"    int complete = 0;\n"
+"    va_list ap;\n"
+"    va_start(ap, path);\n"
+"    while (n < 255) {\n"
+"        word value = va_arg(ap, word);\n"
+"        if (!value) { complete = 1; break; }\n"
+"        arguments[n] = __b_dup_bstr(value);\n"
+"        if (!arguments[n]) break;\n"
+"        n++;\n"
+"    }\n"
+"    va_end(ap);\n"
+"    if (complete) {\n"
+"        arguments[n] = NULL;\n"
+"        execv(name, arguments);\n"
+"    }\n"
+"    while (n) free(arguments[--n]);\n"
+"    free(name);\n"
+"    return -1;\n"
 "}\n"
 "\n"
 "static word b_system(word cmd) {\n"
-"    /* TSS-style: treat the string as a literal command line (no shell expansion) */\n"
+"    /* Split arguments without invoking a shell or expanding their contents. */\n"
 "    char *line = __b_dup_bstr(cmd);\n"
 "    if (!line) return -1;\n"
-"\n"
 "    char *argv[128];\n"
 "    size_t argc = 0;\n"
-"    char *p = line;\n"
-"\n"
+"    char *p = line, *q = line;\n"
 "    while (*p) {\n"
 "        while (*p && isspace((unsigned char)*p)) p++;\n"
 "        if (!*p) break;\n"
 "        if (argc + 1 >= sizeof(argv)/sizeof(argv[0])) { free(line); return -1; }\n"
-"        argv[argc++] = p;\n"
-"        while (*p && !isspace((unsigned char)*p)) p++;\n"
-"        if (*p) { *p = 0; p++; }\n"
+"        argv[argc++] = q;\n"
+"        int quote = 0;\n"
+"        while (*p && (quote || !isspace((unsigned char)*p))) {\n"
+"            unsigned char c = (unsigned char)*p++;\n"
+"            if (c == '\\\\' && quote != '\\'') {\n"
+"                if (!*p) { free(line); return -1; }\n"
+"                *q++ = *p++;\n"
+"            } else if (c == '\\'' || c == '\"') {\n"
+"                if (!quote) quote = c;\n"
+"                else if (quote == c) quote = 0;\n"
+"                else *q++ = (char)c;\n"
+"            } else *q++ = (char)c;\n"
+"        }\n"
+"        if (quote) { free(line); return -1; }\n"
+"        if (*p) p++;\n"
+"        *q++ = 0;\n"
 "    }\n"
-"\n"
 "    if (argc == 0) { free(line); return -1; }\n"
 "    argv[argc] = NULL;\n"
-"\n"
 "    pid_t pid = fork();\n"
 "    if (pid == 0) {\n"
 "        execvp(argv[0], argv);\n"
 "        _exit(127);\n"
 "    }\n"
 "    if (pid < 0) { free(line); return -1; }\n"
-"\n"
 "    int st = 0;\n"
-"    pid_t w = waitpid(pid, &st, 0);\n"
+"    pid_t w;\n"
+"    do { w = waitpid(pid, &st, 0); } while (w < 0 && errno == EINTR);\n"
 "    free(line);\n"
 "    if (w < 0) return -1;\n"
 "    return (word)st;\n"
@@ -2596,9 +2638,9 @@ void emit_program_c_ext(FILE *out, Program *prog, const char *filename, int byte
     fprintf(out, "#define WORD_BITS %d\n", word_bits);
     fprintf(out, "#include \"libb.h\"\n\n");
 
-    // Emit ncurses/panel if needed (libb.h doesn't include these heavy deps)
-    fputs("#include <ncurses.h>\n", out);
-    fputs("#include <panel.h>\n\n", out);
+    if (g_use_curses) {
+        fputs("#include <ncurses.h>\n#include <panel.h>\n\n", out);
+    }
 
     // Emit Thompson B packed strings (still per-file)
     if (string_pool.len > 0) {
@@ -2823,66 +2865,5 @@ void emit_program_c_ext(FILE *out, Program *prog, const char *filename, int byte
         // Export the init function for linking
         fprintf(out, "void __b_init_file_%p_export(void) __attribute__((constructor));\n", (void*)prog);
         fprintf(out, "void __b_init_file_%p_export(void) { __b_init_file_%p(); }\n", (void*)prog, (void*)prog);
-    }
-}
-
-// Assembly Emitter (experimental)
-
-static int asm_label_id = 0;
-
-static void emit_asm_label(FILE *out, const char *prefix) {
-    fprintf(out, ".L%s%d:\n", prefix, asm_label_id++);
-}
-
-void emit_program_asm(FILE *out, Program *prog) {
-    // Generate x86_64 assembly in GAS syntax
-    fprintf(out, "# B compiler - generated assembly\n");
-    fprintf(out, ".intel_syntax noprefix\n");
-    fprintf(out, ".data\n");
-
-    // Global variables would go here, but for now we skip them
-
-    fprintf(out, ".text\n");
-    fprintf(out, ".global main\n");
-
-    // Find and emit functions
-    for (size_t i = 0; i < prog->tops.len; i++) {
-        Top *t = prog->tops.data[i];
-        if (t->kind == TOP_FUNC) {
-            Func *f = t->as.fn;
-
-            // Function label
-            if (strcmp(f->name, "main") == 0) {
-                fprintf(out, "main:\n");
-            } else {
-                emit_name(out, f->name);
-                fputs(":\n", out);
-            }
-
-            // Function prologue
-            fprintf(out, "    push rbp\n");
-            fprintf(out, "    mov rbp, rsp\n");
-
-            // Allocate space for locals (simplified - assume 8 bytes per local)
-            // In a real implementation, we'd track local variables properly
-            fprintf(out, "    sub rsp, 8\n");
-
-            // Emit function body (very basic)
-            if (f->body && f->body->kind == ST_BLOCK) {
-                for (size_t j = 0; j < f->body->as.block.items.len; j++) {
-                    Stmt *stmt = f->body->as.block.items.data[j];
-                    if (stmt->kind == ST_RETURN && stmt->as.ret.val) {
-                        // Very basic return handling
-                        fprintf(out, "    mov rax, %ld\n", stmt->as.ret.val->as.num);
-                        break; // For now, just handle the first return
-                    }
-                }
-            }
-
-            // Function epilogue
-            fprintf(out, "    leave\n");
-            fprintf(out, "    ret\n");
-            fprintf(out, "\n");
-        }
     }
 }

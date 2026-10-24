@@ -615,70 +615,92 @@ word b_wait(void) {
     return (word)pid;
 }
 
-word b_execl(word path, ...) {
-    const char *p = __b_cstr(path);
-
-    char *argv[64];
-    int i = 0;
-    argv[i++] = (char*)p;
-
-    va_list ap;
-    va_start(ap, path);
-    for (; i < 63; ) {
-        word w = va_arg(ap, word);
-        if (w == 0) break;
-        argv[i++] = (char*)B_CPTR(w);
+/* B72 section 8 passes exactly count argument strings, including arg0. */
+word b_execv(word path, word argv, word count) {
+    if (count < 0 || count > 255 || (count && !argv)) return -1;
+    char *name = __b_dup_bstr(path);
+    if (!name) return -1;
+    char *arguments[256];
+    word *values = count ? (word*)B_CPTR(argv) : NULL;
+    size_t n = (size_t)count, i = 0;
+    for (; i < n; i++) {
+        if (!values[i]) break;
+        arguments[i] = __b_dup_bstr(values[i]);
+        if (!arguments[i]) break;
     }
-    va_end(ap);
-
-    argv[i] = NULL;
-    execv(p, argv);
+    if (i == n) {
+        arguments[n] = NULL;
+        execv(name, arguments);
+    }
+    while (i) free(arguments[--i]);
+    free(name);
     return -1;
 }
 
-word b_execv(word path, word argv) {
-    const char *p = __b_cstr(path);
-    word *av = (word*)B_CPTR(argv);
-
-    char *cargv[256];
-    int i = 0;
-    for (; i < 255 && av[i] != 0; i++)
-        cargv[i] = (char*)B_CPTR(av[i]);
-    cargv[i] = NULL;
-
-    execv(p, cargv);
+word b_execl(word path, ...) {
+    char *name = __b_dup_bstr(path);
+    if (!name) return -1;
+    char *arguments[256];
+    size_t n = 0;
+    int complete = 0;
+    va_list ap;
+    va_start(ap, path);
+    while (n < 255) {
+        word value = va_arg(ap, word);
+        if (!value) { complete = 1; break; }
+        arguments[n] = __b_dup_bstr(value);
+        if (!arguments[n]) break;
+        n++;
+    }
+    va_end(ap);
+    if (complete) {
+        arguments[n] = NULL;
+        execv(name, arguments);
+    }
+    while (n) free(arguments[--n]);
+    free(name);
     return -1;
 }
 
 word b_system(word cmd) {
+    /* Split arguments without invoking a shell or expanding their contents. */
     char *line = __b_dup_bstr(cmd);
     if (!line) return -1;
-
     char *argv[128];
     size_t argc = 0;
-    char *p = line;
-
+    char *p = line, *q = line;
     while (*p) {
         while (*p && isspace((unsigned char)*p)) p++;
         if (!*p) break;
         if (argc + 1 >= sizeof(argv)/sizeof(argv[0])) { free(line); return -1; }
-        argv[argc++] = p;
-        while (*p && !isspace((unsigned char)*p)) p++;
-        if (*p) { *p = 0; p++; }
+        argv[argc++] = q;
+        int quote = 0;
+        while (*p && (quote || !isspace((unsigned char)*p))) {
+            unsigned char c = (unsigned char)*p++;
+            if (c == '\\' && quote != '\'') {
+                if (!*p) { free(line); return -1; }
+                *q++ = *p++;
+            } else if (c == '\'' || c == '"') {
+                if (!quote) quote = c;
+                else if (quote == c) quote = 0;
+                else *q++ = (char)c;
+            } else *q++ = (char)c;
+        }
+        if (quote) { free(line); return -1; }
+        if (*p) p++;
+        *q++ = 0;
     }
-
     if (argc == 0) { free(line); return -1; }
     argv[argc] = NULL;
-
     pid_t pid = fork();
     if (pid == 0) {
         execvp(argv[0], argv);
         _exit(127);
     }
     if (pid < 0) { free(line); return -1; }
-
     int st = 0;
-    pid_t w = waitpid(pid, &st, 0);
+    pid_t w;
+    do { w = waitpid(pid, &st, 0); } while (w < 0 && errno == EINTR);
     free(line);
     if (w < 0) return -1;
     return (word)st;

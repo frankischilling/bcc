@@ -24,18 +24,19 @@ start:
 	/ kbman convention: _argv[0] = parameter count (NOT including progname);
 	/ _argv[1..argv[0]] are the user-supplied parameter strings.
 	dec	r1		/ subtract progname from count
-	mov	r1, _argv	/ _argv[0] = parameter count
 	mov	r1, r3		/ r3 = remaining count
 	mov	$_argv+2, r2	/ r2 = &_argv[1]
 	cmp	r3, $31.
 	blos	1f
 	mov	$31., r3	/ truncate to vector capacity
 1:
+	mov	r3, _argv	/ report only the entries that fit
+3:
 	tst	r3
 	beq	2f
 	mov	(r0)+, (r2)+
 	dec	r3
-	br	1b
+	br	3b
 2:
 
 	/ Old-style direct push of argc/argv on stack for backwards compat

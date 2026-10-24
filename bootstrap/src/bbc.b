@@ -6,9 +6,9 @@
  */
 
 SRC; SRCLEN; POS; LINE; COL; STRICT; WANT_NCURSES;
-TOK; TNUM; TTEXT;
+TOK; TNUM; TTEXT; TTEXTLEN;
 OUT; FUNS; NFUNS; MAIN_NARGS; HAS_MAIN; GLOBS; NGLOBS;
-VERBOSE;
+VERBOSE; LIBDIR; LOCALS; NLOCALS;
 
 fatal(msg) {
     extrn printf, exit;
@@ -304,6 +304,8 @@ read_escape() {
     if (c == 'n') return(10);
     if (c == 't') return(9);
     if (c == 'e') return(4);
+    if (c == '(') return(123);
+    if (c == ')') return(125);
     if (c == '0') return(0);
     if (c == 42) return(42);
     if (c == '"') return('"');
@@ -312,6 +314,7 @@ read_escape() {
 }
 
 is_star_escape(c) {
+    if ((c == '(') | (c == ')') | (c == 39)) return(1);
     if (c == 'n') return(1);
     if (c == 't') return(1);
     if (c == 'e') return(1);
@@ -335,6 +338,7 @@ scan_string() {
         if ((c == 42) & is_star_escape(peekc())) c = read_escape();
         buf_ch(b, c);
     }
+    TTEXTLEN = b[1];
     TTEXT = buf_take(b);
     TOK = 3;
 }
@@ -351,7 +355,9 @@ scan_char() {
             if (STRICT) fatal("backslash escapes are not strict B");
             c = read_escape();
         }
-        if ((c == 42) & is_star_escape(peekc())) c = read_escape();
+        if ((c == 42) & is_star_escape(peekc())) {
+            if ((peekc() != 39) | (char(SRC, POS + 1) == 39)) c = read_escape();
+        }
         v = (v << 8) | c;
         n = n + 1;
         if (STRICT & (n > 2)) fatal("long char constant is not strict B");
@@ -371,9 +377,9 @@ keyword(s) {
     if (streq(s, "goto")) return(16);
     if (streq(s, "switch")) return(17);
     if (streq(s, "case")) return(18);
-    if (streq(s, "default")) return(19);
-    if (streq(s, "break")) return(20);
-    if (streq(s, "continue")) return(21);
+    if (!STRICT & streq(s, "default")) return(19);
+    if (!STRICT & streq(s, "break")) return(20);
+    if (!STRICT & streq(s, "continue")) return(21);
     return(1);
 }
 
@@ -393,6 +399,7 @@ next() {
         s = new_text(start, POS - start);
         TTEXT = s;
         TOK = keyword(s);
+        if (STRICT & (streq(s, "break") | streq(s, "continue") | streq(s, "default"))) TTEXT = scat("__bbc_", s);
         return(0);
     }
     if (is_digit(c)) {
@@ -565,8 +572,9 @@ prec(op) {
     if (op == 45) return(5);
     if ((op == 59) | (op == 61)) return(6);
     if ((op == 58) | (op == 60) | (op == 62) | (op == 63)) return(7);
-    if ((op == 40) | (op == 41) | (op == 48) | (op == 49)) return(8);
-    if ((op == 42) | (op == 43) | (op == 44)) return(9);
+    if ((op == 48) | (op == 49)) return(8);
+    if ((op == 40) | (op == 41)) return(9);
+    if ((op == 42) | (op == 43) | (op == 44)) return(10);
     return(0);
 }
 
@@ -616,33 +624,26 @@ rel_assign_op(op) {
     return(0);
 }
 
-c_escape_to(b, s) {
+c_escape_n(b, s, n) {
     auto i, c;
     i = 0;
-    while (i < slen(s)) {
+    while (i < n) {
         c = char(s, i);
-        if (c == 10) {
-            buf_ch(b, 92); buf_ch(b, 'n');
-        } else if (c == 9) {
-            buf_ch(b, 92); buf_ch(b, 't');
-        } else if (c == 13) {
-            buf_ch(b, 92); buf_ch(b, 'r');
-        } else if (c == '"') {
-            buf_ch(b, 92); buf_ch(b, '"');
-        } else if (c == 92) {
-            buf_ch(b, 92); buf_ch(b, 92);
-        } else if (c == 0) {
-            buf_ch(b, 92); buf_ch(b, '0');
-        } else {
-            buf_ch(b, c);
-        }
+        buf_ch(b, 92);
+        buf_ch(b, '0' + ((c >> 6) & 7));
+        buf_ch(b, '0' + ((c >> 3) & 7));
+        buf_ch(b, '0' + (c & 7));
         i = i + 1;
     }
 }
 
+c_escape_to(b, s) {
+    c_escape_n(b, s, slen(s));
+}
+
 emit_c_quoted_eot(s) {
     emit("*"");
-    c_escape_to(OUT, s);
+    c_escape_n(OUT, s, TTEXTLEN);
     buf_ch(OUT, 92);
     buf_ch(OUT, '0');
     buf_ch(OUT, '0');
@@ -650,23 +651,94 @@ emit_c_quoted_eot(s) {
     emit("*"");
 }
 
+has_local(name) {
+    auto i;
+    i = 0;
+    while (i < NLOCALS) {
+        if (streq(LOCALS[i], name)) return(1);
+        i = i + 1;
+    }
+    return(0);
+}
+
+add_local(name) {
+    if (NLOCALS >= 2048) fatal("too many local names");
+    LOCALS[NLOCALS] = name;
+    NLOCALS = NLOCALS + 1;
+}
+
+has_function(name) {
+    auto i;
+    i = 0;
+    while (i < NFUNS) {
+        if (streq(FUNS[i * 2], name)) return(1);
+        i = i + 1;
+    }
+    return(0);
+}
+
+c_name(name) {
+    auto i;
+    if (!is_alpha(char(name, 0))) return(0);
+    i = 1;
+    while (i < slen(name)) {
+        if (!is_alnum(char(name, i))) return(0);
+        i = i + 1;
+    }
+    return(1);
+}
+
 call_name(name) {
+    if (has_local(name)) return(name);
+    if (streq(name, "main")) return("__b_user_main");
+    if (has_function(name)) return(name);
     if (streq(name, "char")) return("b_char");
     if (streq(name, "lchar")) return("b_lchar");
+    if (streq(name, "getchar")) return("b_getchar");
+    if (streq(name, "getchr")) return("b_getchr");
+    if (streq(name, "putchr")) return("b_putchr");
+    if (streq(name, "getstr")) return("b_getstr");
+    if (streq(name, "putstr")) return("b_putstr");
+    if (streq(name, "flush")) return("b_flush");
+    if (streq(name, "reread")) return("b_reread");
     if (streq(name, "printf")) return("b_printf");
     if (streq(name, "printn")) return("b_printn");
+    if (streq(name, "putnum")) return("b_putnum");
+    if (streq(name, "print")) return("b_print");
     if (streq(name, "putchar")) return("b_putchar");
-    if (streq(name, "getchar")) return("b_getchar");
     if (streq(name, "exit")) return("b_exit");
+    if (streq(name, "abort")) return("b_abort");
     if (streq(name, "free")) return("b_free");
-    if (streq(name, "openr")) return("b_openr");
-    if (streq(name, "openw")) return("b_openw");
+    if (streq(name, "alloc")) return("b_alloc");
+    if (streq(name, "open")) return("b_open");
     if (streq(name, "close")) return("b_close");
     if (streq(name, "read")) return("b_read");
     if (streq(name, "write")) return("b_write");
     if (streq(name, "creat")) return("b_creat");
-    if (streq(name, "system")) return("b_system");
+    if (streq(name, "seek")) return("b_seek");
+    if (streq(name, "openr")) return("b_openr");
+    if (streq(name, "openw")) return("b_openw");
+    if (streq(name, "fork")) return("b_fork");
+    if (streq(name, "wait")) return("b_wait");
+    if (streq(name, "execl")) return("b_execl");
+    if (streq(name, "execv")) return("b_execv");
+    if (streq(name, "chdir")) return("b_chdir");
+    if (streq(name, "chmod")) return("b_chmod");
+    if (streq(name, "chown")) return("b_chown");
+    if (streq(name, "link")) return("b_link");
     if (streq(name, "unlink")) return("b_unlink");
+    if (streq(name, "stat")) return("b_stat");
+    if (streq(name, "fstat")) return("b_fstat");
+    if (streq(name, "time")) return("b_time");
+    if (streq(name, "ctime")) return("b_ctime");
+    if (streq(name, "getuid")) return("b_getuid");
+    if (streq(name, "setuid")) return("b_setuid");
+    if (streq(name, "makdir")) return("b_makdir");
+    if (streq(name, "intr")) return("b_intr");
+    if (streq(name, "gtty")) return("b_gtty");
+    if (streq(name, "stty")) return("b_stty");
+    if (streq(name, "system")) return("b_system");
+    if (streq(name, "usleep")) return("b_usleep");
     if (streq(name, "argc")) return("b_argc");
     if (streq(name, "argv")) return("b_argv");
     return(name);
@@ -748,7 +820,7 @@ fmt_arg_is_s(fmt, want) {
 }
 
 primary() {
-    auto b, s, name, arg, narg;
+    auto b, s, name, arg, narg, i;
     b = buf_new(128);
     if (TOK == 2) {
         buf_str(b, "((word)");
@@ -765,16 +837,27 @@ primary() {
         return(buf_take(b));
     }
     if (TOK == 3) {
-        buf_str(b, "__b_pack_cstr(*"");
-        c_escape_to(b, TTEXT);
-        buf_str(b, "*")");
+        buf_str(b, "({static union {word align; unsigned char bytes[((");
+        buf_num(b, TTEXTLEN + 1);
+        buf_str(b, "+sizeof(word)-1)/sizeof(word))**sizeof(word)];} __s={.bytes={");
+        i = 0;
+        while (i < TTEXTLEN) {
+            buf_num(b, char(TTEXT, i));
+            buf_ch(b, ',');
+            i = i + 1;
+        }
+        buf_str(b, "4}}; B_PTR_N(__s.bytes,sizeof(__s.bytes));})");
         next();
         return(buf_take(b));
     }
     if (TOK == 1) {
         name = TTEXT;
-        buf_str(b, name);
         next();
+        if ((TOK != 30) & !has_local(name) & (has_function(name) | !streq(call_name(name), name))) {
+            buf_str(b, "B_FUNCTION(");
+            buf_str(b, call_name(name));
+            buf_ch(b, ')');
+        } else buf_str(b, name);
         return(buf_take(b));
     }
     if (TOK == 30) {
@@ -798,7 +881,11 @@ postfix() {
             cname = call_name(name);
             b = buf_new(256);
             if (wrap_malloc(name)) buf_str(b, "B_PTR(");
-            buf_str(b, cname);
+            if (has_local(name) | has_global(name) | !c_name(name)) {
+                buf_str(b, "((word(**)())B_FUNCTION_CPTR(");
+                buf_str(b, name);
+                buf_str(b, "))");
+            } else buf_str(b, cname);
             buf_ch(b, '(');
             next();
             first = 1;
@@ -914,7 +1001,15 @@ expr(minp) {
         else rhs = expr(p + 1);
         b = buf_new(256);
         rel = rel_assign_op(op);
-        if (rel) {
+        if ((op == 45) | (op == 46)) {
+            buf_str(b, "({word __left=(");
+            buf_str(b, lhs);
+            buf_str(b, "); word __right=(");
+            buf_str(b, rhs);
+            buf_str(b, "); __left ");
+            buf_str(b, c_op(op));
+            buf_str(b, " __right;})");
+        } else if (rel) {
             buf_ch(b, '(');
             buf_str(b, lhs);
             buf_str(b, " = (");
@@ -954,9 +1049,11 @@ auto_decl() {
     while (1) {
         if (TOK != 1) fatal("expected auto name");
         name = TTEXT;
+        add_local(name);
         next();
         if (!first) emit(", ");
         if (TOK == 34) {
+            if (STRICT) fatal("bracketed auto vector is not strict B");
             next();
             size = expr(1);
             expect(35);
@@ -1263,6 +1360,7 @@ global_or_func() {
     name = TTEXT;
     next();
     if (TOK == 30) {
+        NLOCALS = 0;
         next();
         emit("word ");
         if (streq(name, "main")) emit("__b_user_main");
@@ -1273,6 +1371,7 @@ global_or_func() {
         while (TOK != 31) {
             if (TOK != 1) fatal("expected parameter");
             p = TTEXT;
+            add_local(p);
             if (!first) emit(", ");
             emit("word ");
             emit(p);
@@ -1434,6 +1533,8 @@ compile_to_c(inpath) {
     read_file(inpath);
     FUNS = malloc(2048 * &0[1]);
     GLOBS = malloc(2048 * &0[1]);
+    LOCALS = malloc(2048 * &0[1]);
+    NLOCALS = 0;
     scan_functions();
     OUT = buf_new(1048576);
     emit_header();
@@ -1466,22 +1567,62 @@ make_c_name(s, idx) {
     return(buf_take(b));
 }
 
+/* Quote one argument for the runtime's shell-free command parser. */
+cmdarg(b, s) {
+    auto i, c;
+    buf_ch(b, 047);
+    i = 0;
+    while (i < slen(s)) {
+        c = char(s, i);
+        if (c == 047) {
+            buf_ch(b, 047);
+            buf_ch(b, 0134);
+            buf_ch(b, 047);
+            buf_ch(b, 047);
+        } else buf_ch(b, c);
+        i = i + 1;
+    }
+    buf_ch(b, 047);
+}
+
+runtime_dir(prog) {
+    auto i, last, b;
+    i = 0;
+    last = -1;
+    while (i < slen(prog)) {
+        if (char(prog, i) == '/') last = i;
+        i = i + 1;
+    }
+    b = buf_new(128);
+    i = 0;
+    while (i <= last) {
+        buf_ch(b, char(prog, i));
+        i = i + 1;
+    }
+    buf_str(b, "../../../lib");
+    return(buf_take(b));
+}
+
 build_cmd(cfiles, nc, out, extras, nextra) {
     auto b, i;
     b = buf_new(4096);
-    buf_str(b, "gcc -std=c99 -O2 -Wno-implicit-function-declaration -I/home/frank/bcc/lib -DB_BYTEPTR=1 -DWORD_BITS=0 -o ");
-    buf_str(b, out);
+    buf_str(b, "gcc -std=c99 -O2 -Wno-implicit-function-declaration -I ");
+    cmdarg(b, LIBDIR);
+    buf_str(b, " -DB_BYTEPTR=1 -DWORD_BITS=0 -o ");
+    cmdarg(b, out);
     i = 0;
     while (i < nc) {
         buf_ch(b, ' ');
-        buf_str(b, cfiles[i]);
+        cmdarg(b, cfiles[i]);
         i = i + 1;
     }
-    buf_str(b, " /home/frank/bcc/lib/libb.c -ldl -lm");
+    buf_ch(b, ' ');
+    cmdarg(b, scat(LIBDIR, "/libb.c"));
+    buf_str(b, " -ldl -lm");
     i = 0;
     while (i < nextra) {
         buf_ch(b, ' ');
-        buf_str(b, extras[i]);
+        cmdarg(b, extras[i]);
         i = i + 1;
     }
     return(buf_take(b));
@@ -1489,7 +1630,7 @@ build_cmd(cfiles, nc, out, extras, nextra) {
 
 usage() {
     extrn printf;
-    printf("usage: bbc [-S] [--emit-c] [--keep-c] [-v] input.b ... [-o out]*n");
+    printf("usage: bbc [-S] [--emit-c] [--keep-c] [-v] [--libdir path] input.b ... [-o out]*n");
 }
 
 main() {
@@ -1497,6 +1638,7 @@ main() {
     auto a, csrc, cname, cmd, rc, extras, nextra;
     extrn argc, argv, malloc, system, unlink;
     ac = argc();
+    LIBDIR = runtime_dir(argv(0));
     emit_stdout = 0;
     emit_c = 0;
     keep_c = 0;
@@ -1536,6 +1678,10 @@ main() {
             if (i >= ac) fatal("missing -X value");
             extras[nextra] = argv(i);
             nextra = nextra + 1;
+        } else if (streq(a, "--libdir")) {
+            i = i + 1;
+            if (i >= ac) fatal("missing --libdir value");
+            LIBDIR = argv(i);
         } else if (streq(a, "-o")) {
             i = i + 1;
             if (i >= ac) fatal("missing -o value");

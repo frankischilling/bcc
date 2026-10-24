@@ -1,0 +1,39 @@
+name: Compiler conformance
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  host:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        cc: [gcc, clang]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the host compiler
+        run: make CC=${{ matrix.cc }}
+      - name: Run host and emitted-assembly tests
+        run: make test
+      - name: Check the B-written bootstrap
+        run: make -C bootstrap test
+      - name: Check assembly-source builds
+        if: matrix.cc == 'gcc'
+        run: |
+          make -C asm check
+          make -C asm bootstrap
+  pdp11:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Build with the historical toolchain
+        run: make -C pdp-11/bcc-pdp
+      - name: Check native output and binary limits
+        run: |
+          bash pdp-11/bcc-pdp/tests/run/run.sh
+          bash pdp-11/bcc-pdp/tests/ext/run.sh
+          bash pdp-11/bcc-pdp/tests/check_v1_binaries.sh

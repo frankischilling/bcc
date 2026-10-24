@@ -227,7 +227,7 @@ wait() → child_pid
 execl(path, arg0, arg1, ..., 0) → -1 (error only)
 
 // Execute with argument array
-execv(path, argv_array) → -1 (error only)
+execv(path, argv_array, count) → -1 (error only)
 ```
 
 **Process ID Convention:**
@@ -597,7 +597,7 @@ if (chdir("/tmp") < 0) {
 | `creat` | `(name, mode) → fd` | Create file |
 | `ctime` | `(buf) → str` | Format time as string |
 | `execl` | `(path, ...) → -1` | Execute with arg list |
-| `execv` | `(path, argv) → -1` | Execute with arg array |
+| `execv` | `(path, argv, count) → -1` | Execute with exactly count arguments |
 | `exit` | `(status) → noreturn` | Exit program |
 | `callf` | `(name, a1...a10) → status` | Call Fortran/GMAP/C routine by name (addresses only; up to 10 args; tries `name` then `name_`) |
 | `flush` | `() → 0` | Flush current output unit |

@@ -1,5 +1,5 @@
 #!/bin/sh
-# Verify installed V1 compiler binaries fit in 16 KB user space.
+# Verify built V1 compiler binaries fit in 16 KB user space.
 #
 # Checks:
 #   - magic == 0407
@@ -10,7 +10,6 @@ set -eu
 cd "$(dirname "$0")/.."
 
 make >/dev/null
-tools/install_v1.sh >/dev/null
 
 python3 - <<'PY'
 import pathlib
@@ -20,8 +19,10 @@ import sys
 LIMIT = 16384
 fail = 0
 for name in ("b00", "b01", "b1", "b"):
-    path = pathlib.Path("../unix-v1/fs/root/bin") / name
-    if not path.exists():
+    path = pathlib.Path("build") / name
+    if not path.is_file() or path.stat().st_size < 16:
+        print(f"FAIL {path}: missing or truncated binary")
+        fail = 1
         continue
     magic, text, data, bss = struct.unpack("<4H", path.read_bytes()[:8])
     td = text + data

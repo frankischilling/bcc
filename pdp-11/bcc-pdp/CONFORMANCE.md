@@ -9,7 +9,7 @@ Status legend:
 - ✔ - implemented per spec
 - ✚ - implemented with documented deviation (see notes)
 - ⚠ - implementation differs from manual but observable behavior matches
-- ✗ - not implemented (none, currently)
+- ✗ - not implemented
 
 ## §1–2  Introduction & Canonical Syntax
 
@@ -128,6 +128,9 @@ a placeholder. Two implementation files:
 Predefined `argv[]` (kbman §8 last paragraph): 32-word vector populated by
 `runtime/bmain.s` from the V1 kernel argument frame.  `argv[0] = argc`,
 `argv[1..argv[0]]` are byte-address pointers to argument strings.
+The current implementation omits the program name and keeps at most 31 user
+arguments; the count reports only stored entries. This is a compatibility
+limit, not full reproduction of the historical argument vector.
 
 ## §9  Examples
 

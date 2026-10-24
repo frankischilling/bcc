@@ -160,6 +160,8 @@ typedef enum {
 struct Expr {
     ExprKind kind;
     int line, col;
+    int function_value; /* This name denotes a function rvalue. */
+    int indirect_call;  /* The callee is an evaluated B word. */
     size_t string_len; // EX_STR byte length, excluding the implicit *e
     union {
         long num;          // EX_NUM
@@ -389,7 +391,6 @@ void emit_program_c_ext(FILE *out, Program *prog, const char *filename, int byte
 
 // Path to libb installation (set by main.c based on executable location)
 extern const char *g_libb_path;
-void emit_program_asm(FILE *out, Program *prog);
 void emit_expr(FILE *out, Expr *e, const char *filename);
 void emit_ival_expr(FILE *out, Expr *e, const char *filename);
 void emit_stmt(FILE *out, Stmt *s, int indent, int is_function_body, const char *filename);
@@ -457,6 +458,7 @@ typedef enum {
     EXT_ALL             = 0xFFFF,  // All extensions
 } BExtensions;
 
+extern int g_use_curses;          /* Optional terminal headers requested by -l. */
 extern int g_strict;              // If true, use strict B72 mode (no extensions)
 extern unsigned g_extensions;     // Enabled extensions (bitfield)
 extern int g_pedantic;            // If true, error on any extension use

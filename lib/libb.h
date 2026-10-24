@@ -28,6 +28,7 @@
 #include <termios.h>
 #include <sys/ioctl.h>
 #include <ctype.h>
+#include <errno.h>
 #include <dlfcn.h>
 #include <math.h>
 #include <stddef.h>
@@ -159,7 +160,7 @@ word b_seek(word fd, word offset, word whence);
 word b_fork(void);
 word b_wait(void);
 word b_execl(word path, ...);
-word b_execv(word path, word argv);
+word b_execv(word path, word argv, word count);
 word b_system(word cmd);
 
 /* Time/delay */

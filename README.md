@@ -54,7 +54,7 @@ switches, label values, and computed branches within a function.
 - **Shared runtime**: All files access the same B runtime library functions
 - **Flexible organization**: Split large programs across logical modules
 
-### Standard Library (`libb.a`)
+### Host runtime (`libb`)
 The libc-based runtime provides:
 - I/O functions: `putchar`, `getchar`, `print`, `printf`, `putstr`, `getstr`
 - File operations: `open`, `close`, `read`, `write`, `creat`, `seek`
@@ -178,17 +178,24 @@ The `bcc` executable will be created in the root directory.
 
 ## PDP-11 Unix V1 native compiler (`pdp-11/bcc-pdp/`)
 
-A second, fully separate **basic working** B compiler for **PDP-11 Unix V1** lives under [`pdp-11/bcc-pdp/`](pdp-11/bcc-pdp/).
-It is implemented in **Unix V1 C** (not C99), uses Ken Thompson's 1972 *Users' Reference to B* (kbman) as its syntax baseline, builds via 1972 `cc` (e.g. under apout), runs on emulated PDP-11 Unix V1 (e.g. SIMH), and self-hosts.
+The separate compiler in [`pdp-11/bcc-pdp/`](pdp-11/bcc-pdp/) uses the
+historical C toolchain and emits native PDP-11 code. Its three compiler
+passes and driver fit the 16 KB process budget. Tests run through apout;
+that is distinct from booting the system in SIMH and rebuilding inside it.
 
-- Supported: every kbman §2–§9 feature including `switch/case`, `char`/`lchar`,
-  `printf`/`printn`, `argv` vector, computed `goto`, vector init by name, all 16
-  compound assigns (`= =| =& === =!= =< =<= => =>= =<< =>> =+ =- =% =* =/`).
-- Extensions outside the selected PDP-11 dialect: `~ ^ && || break continue =^`.
-- See [`pdp-11/bcc-pdp/CONFORMANCE.md`](pdp-11/bcc-pdp/CONFORMANCE.md) for the
-  section-by-section matrix and [`pdp-11/bcc-pdp/README.md`](pdp-11/bcc-pdp/README.md)
-  for build/install/test instructions. Its byte-addressed pointers and fixed
-  `ctime` output remain deviations from the reference.
+Its syntax baseline is the 1972 reference, but the implementation is not
+fully conformant. Native pointers are byte-addressed, the argument vector
+has a fixed capacity, and `ctime` is still a placeholder. See the
+[native conformance matrix](pdp-11/bcc-pdp/CONFORMANCE.md).
+
+## Build variants and verification
+
+- [`asm/`](asm/README.md) builds `bccasm` from checked-in x86-64 GNU assembler
+  snapshots. It uses the same runtime and host tests as `bcc`.
+- [`bootstrap/`](bootstrap/README.md) contains the B-written compiler and its
+  three-stage generated-C fixed-point test.
+- [Testing guide](docs/testing.md) lists the commands for all variants and
+  explains what each result establishes.
 
 ## Usage
 
@@ -398,7 +405,7 @@ Assignment: = =+ =- =* =/ =% =& =| =<< =>>
 - **Precedence Matching**: Verified against B manual specifications
 - **Character Packing**: Implemented B's word-packing for character constants
 - **String Handling**: `*e` termination with proper runtime support
-- **Library Compatibility**: Function signatures match original `libb.a`
+- **Library compatibility**: Selected B interfaces are implemented over libc; historical ABI gaps remain.
 
 #### Memory Efficiency
 - **Arena Allocation**: Eliminates per-AST-node free operations
@@ -495,7 +502,7 @@ bcc/
   wiki/          Language guides and primary-source conformance notes
   pdp-11/        Native Unix V1 compiler and historical system documentation
   bootstrap/     B bootstrap sources
-  asm/           Assembly implementation
+  asm/           Generated x86-64 assembly-source build
   examples/      Example B programs
 ```
 
@@ -790,12 +797,12 @@ getchar();  // Calls b_getchar()
 
 ### Historical Fidelity
 - **Source Accuracy**: Based on Ken Thompson's January 7, 1972 PDP-11 B reference
-- **Library Compatibility**: Function signatures match original `libb.a`
+- **Library compatibility**: Selected B interfaces are implemented over libc; historical ABI gaps remain.
 - **Error Messages**: Historic diagnostic format preserved
 - **Semantics**: B's unique evaluation rules maintained
 
 ### Modern Implementation
-- **Memory Safety**: Arena allocation prevents leaks
+- **Allocation**: Compiler syntax objects use an arena; this is not a general memory-safety guarantee.
 - **Error Handling**: Comprehensive error reporting with context
 - **Cross-Platform**: Portable C99 implementation
 - **Maintainability**: Clean separation of compilation phases

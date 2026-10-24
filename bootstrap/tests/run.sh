@@ -26,7 +26,7 @@ run_ok() {
   local name="$1"
   local src="$ROOT/tests/strict-ok/$name.b"
   local exe="$TMP/$name"
-  if ! "$BBC" "$src" -o "$exe" >"$TMP/$name.compile.out" 2>&1; then
+  if ! "$BBC" --strict --pedantic "$src" -o "$exe" >"$TMP/$name.compile.out" 2>&1; then
     bad "$name compile" "$(head -1 "$TMP/$name.compile.out")"
     return
   fi
@@ -91,27 +91,28 @@ for f in "$ROOT"/tests/default-ext/*.b; do
   run_default_ext "$(basename "$f" .b)"
 done
 
-"$ROOT/build/stage1/bbc" --emit-c "$ROOT/src/bbc.b" >"$TMP/stage1.emit.log" 2>&1 || bad "stage1 emit-c"
-"$ROOT/build/stage2/bbc" --emit-c "$ROOT/src/bbc.b" >"$TMP/stage2.emit.log" 2>&1 || bad "stage2 emit-c"
-if [[ -f "$ROOT/src/bbc.b.c" ]]; then
-  cp "$ROOT/src/bbc.b.c" "$TMP/stage2.c"
-  "$ROOT/build/stage1/bbc" --emit-c "$ROOT/src/bbc.b" >/dev/null 2>&1
-  cp "$ROOT/src/bbc.b.c" "$TMP/stage1.c"
-  if diff -q "$TMP/stage1.c" "$TMP/stage2.c" >/dev/null; then
-    ok "stage1/stage2 generated C match"
+for stage in 1 2 3; do
+  if "$ROOT/build/stage$stage/bbc" -S "$ROOT/src/bbc.b" >"$TMP/stage$stage.c" 2>"$TMP/stage$stage.emit.log" && [[ -s "$TMP/stage$stage.c" ]]; then
+    ok "stage$stage emits C"
   else
-    bad "stage1/stage2 generated C match"
+    bad "stage$stage emits C"
   fi
-  "$ROOT/build/stage3/bbc" --emit-c "$ROOT/src/bbc.b" >"$TMP/stage3.emit.log" 2>&1 || bad "stage3 emit-c"
-  cp "$ROOT/src/bbc.b.c" "$TMP/stage3.c"
-  if diff -q "$TMP/stage2.c" "$TMP/stage3.c" >/dev/null; then
-    ok "stage2/stage3 generated C match"
+done
+for pair in "1 2" "2 3"; do
+  read -r left right <<<"$pair"
+  if [[ -s "$TMP/stage$left.c" && -s "$TMP/stage$right.c" ]] && cmp -s "$TMP/stage$left.c" "$TMP/stage$right.c"; then
+    ok "stage$left/stage$right generated C match"
   else
-    bad "stage2/stage3 generated C match"
+    bad "stage$left/stage$right generated C match"
   fi
-  rm -f "$ROOT/src/bbc.b.c"
+done
+
+mkdir -p "$TMP/path with spaces and 'quotes'"
+cp "$ROOT/tests/strict-ok/expr.b" "$TMP/path with spaces and 'quotes'/input.b"
+if "$BBC" --libdir "$ROOT/../lib" "$TMP/path with spaces and 'quotes'/input.b" -o "$TMP/path with spaces and 'quotes'/output" && "$TMP/path with spaces and 'quotes'/output"; then
+  ok "quoted input and output paths"
 else
-  bad "emit-c output missing"
+  bad "quoted input and output paths"
 fi
 
 if "$BBC3" "$ROOT/tests/default-ext/extensions.b" -o "$TMP/stage3_ext" >"$TMP/stage3_ext.compile.out" 2>&1; then

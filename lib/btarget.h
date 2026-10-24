@@ -6,6 +6,7 @@
 typedef struct {
     uintptr_t host;
     size_t words;
+    size_t bytes;
     unsigned base;
     size_t frame;
 } b_target_region;
@@ -36,7 +37,7 @@ static inline word __b_target_ptr(const void *pointer, size_t bytes, size_t fram
     if (!words) words = 1;
     for (size_t i = 0; i < __b_region_count; i++) {
         b_target_region *r = &__b_regions[i];
-        if (r->words && host >= r->host && host - r->host < r->words * sizeof(word)) {
+        if (r->words && host >= r->host && host - r->host < r->bytes) {
             size_t offset = host - r->host;
             if (offset % sizeof(word) >= units)
                 __b_address_error("pointer into host word padding");
@@ -56,7 +57,7 @@ static inline word __b_target_ptr(const void *pointer, size_t bytes, size_t fram
     for (index = 0; index < __b_region_count; index++)
         if (!__b_regions[index].words) break;
     if (index == __b_region_count) __b_region_count++;
-    __b_regions[index] = (b_target_region){host, words, base, frame};
+    __b_regions[index] = (b_target_region){host, words, bytes, base, frame};
     for (unsigned i = 0; i < count; i++)
         __b_addresses[base + i] = (unsigned char*)pointer + (i / units) * sizeof(word) + i % units;
     return WVAL(base);
@@ -96,6 +97,8 @@ static inline void __b_target_leave(b_target_frame *frame) {
     __b_current_frame = frame->parent;
 }
 
+#define B_FUNCTION(f) __b_target_ptr((const void*)(f), 1, 0)
+#define B_FUNCTION_CPTR(f) __b_target_cptr(f)
 #define B_FRAME b_target_frame __b_frame __attribute__((cleanup(__b_target_leave))) = __b_target_enter()
 #define B_LOCAL_PTR_N(p,n) __b_target_ptr((p),(n),__b_current_frame)
 #define B_PTR_N(p,n) __b_target_ptr((p),(n),0)
@@ -118,6 +121,8 @@ static inline void __b_target_leave(b_target_frame *frame) {
 #define B_DEREF(p) (*(word*)B_CPTR(p))
 #define B_FORGET(p) ((void)(p))
 #define B_LOCAL_PTR_N(p,n) B_PTR(p)
+#define B_FUNCTION(f) ((word)(uword)(f))
+#define B_FUNCTION_CPTR(f) ((void*)(uword)(f))
 #define B_FRAME ((void)0)
 #endif
 

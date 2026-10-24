@@ -432,6 +432,9 @@ int main(int argc, char **argv) {
         } else if (strcmp(argv[i], "-l") == 0) {
             if (i + 1 >= argc) dief("missing value after -l");
             const char *lib_name = argv[++i];
+            if (strcmp(lib_name, "ncurses") == 0 || strcmp(lib_name, "ncursesw") == 0 ||
+                strcmp(lib_name, "curses") == 0 || strcmp(lib_name, "panel") == 0 ||
+                strcmp(lib_name, "panelw") == 0) g_use_curses = 1;
             size_t len = strlen(lib_name) + 3;
             char *lib_arg = (char*)malloc(len);
             if (!lib_arg) dief("out of memory");
@@ -519,8 +522,27 @@ int main(int argc, char **argv) {
         }
     }
 
-    /* Single-file special modes that emit to stdout */
-    if (emit_c_only || emit_asm_only) {
+    /* Lower the same complete C representation used by executable builds.
+       The former assembly path silently omitted most expressions and data. */
+    if (emit_asm_only) {
+        if (in_paths.len != 1) dief("--asm only works with a single input file");
+        char *cfile = compile_b_to_c((const char*)in_paths.data[0], byteptr, no_line,
+                                    verbose, 0, 0, 0, 0, NULL, word_bits, 0);
+        Vec files = {0};
+        vec_push(&files, cfile);
+        vec_push(&extra_gcc_args, sdup("-S"));
+        int status = run_gcc_multi(&files, "-", 0, debug, wall, wextra, werror,
+                                   &extra_gcc_args, 0, byteptr, word_bits, verbose);
+        if (keep_c || status) fprintf(stderr, "Generated C: %s\n", cfile);
+        else unlink(cfile);
+        free(cfile);
+        arena_free(g_compilation_arena);
+        g_compilation_arena = NULL;
+        return status;
+    }
+
+    /* Single-file C output to stdout. */
+    if (emit_c_only) {
         if (in_paths.len > 1) {
             dief("-S and --asm only work with a single input file");
         }
@@ -545,11 +567,7 @@ int main(int argc, char **argv) {
         tok_free(&P.cur);
         sem_check_program(prog, in_path);
 
-        if (emit_c_only) {
-            emit_program_c(stdout, prog, in_path, byteptr, no_line, word_bits);
-        } else {
-            emit_program_asm(stdout, prog);
-        }
+        emit_program_c(stdout, prog, in_path, byteptr, no_line, word_bits);
 
         free(src);
         arena_free(g_compilation_arena);

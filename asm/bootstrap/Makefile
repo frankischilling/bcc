@@ -5,7 +5,7 @@ LDFLAGS ?= -lm
 
 STAGE = stage1
 TARGET = $(STAGE)/bccasm
-RUNTIME = $(STAGE)/lib/runtime.o
+RUNTIME = $(STAGE)/lib/libb.c
 
 ASM_SOURCES = \
 	../generated/util.s \
@@ -25,7 +25,10 @@ OBJECTS = \
 	$(STAGE)/obj/emitter.o \
 	$(STAGE)/obj/main.o
 
-all: $(TARGET) $(RUNTIME)
+all: check-snapshots $(TARGET) $(RUNTIME)
+
+check-snapshots:
+	$(MAKE) -C .. check-snapshots
 
 bootstrap: all check
 
@@ -38,8 +41,8 @@ $(TARGET): $(OBJECTS) | $(STAGE)
 $(STAGE)/obj/%.o: ../generated/%.s | $(STAGE)/obj
 	$(AS) -o $@ $<
 
-$(RUNTIME): ../runtime.s | $(STAGE)/lib
-	$(AS) -o $@ $<
+$(RUNTIME): ../../lib/libb.c ../../lib/libb.h ../../lib/btarget.h | $(STAGE)/lib
+	cp --remove-destination ../../lib/libb.c ../../lib/libb.h ../../lib/btarget.h $(STAGE)/lib/
 
 $(STAGE):
 	mkdir -p $@
@@ -49,9 +52,8 @@ $(STAGE)/obj:
 
 $(STAGE)/lib:
 	mkdir -p $@
-	ln -sf ../../../../lib/libb.h $@/libb.h
 
 clean:
 	rm -rf $(STAGE)
 
-.PHONY: all bootstrap check clean
+.PHONY: all bootstrap check clean check-snapshots

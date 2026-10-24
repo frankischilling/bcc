@@ -211,6 +211,7 @@ static void sem_check_expr(SemState *st, Expr *e) {
         case EX_VAR: {
             // Check if variable is declared or extern
             Symbol *sym = scope_find(st->current, e->as.var);
+            e->function_value = sym && sym->kind == SYM_FUNC;
             if (!sym && !is_extern_name(st, e->as.var) && !is_implicit_static(st, e->as.var)) {
                 if (g_strict)
                     dief("undefined internal name '%s' at %d:%d", e->as.var, e->line, e->col);
@@ -233,8 +234,9 @@ static void sem_check_expr(SemState *st, Expr *e) {
                 } else if (sym->kind != SYM_VAR && sym->kind != SYM_FUNC) {
                     dief("'%s' is not callable at %d:%d", fname, e->line, e->col);
                 }
+                e->indirect_call = sym && sym->kind == SYM_VAR;
             } else {
-                // Complex callee expression - check it recursively
+                e->indirect_call = 1;
                 sem_check_expr(st, e->as.call.callee);
             }
 

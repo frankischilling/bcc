@@ -12,7 +12,7 @@ all: stage3
 
 stage1: $(STAGE1)
 
-$(STAGE1): $(SRC)
+$(STAGE1): $(SRC) $(STAGE0) ../lib/libb.c ../lib/libb.h ../lib/btarget.h
 	mkdir -p $(BUILD)/stage1
 	$(STAGE0) $(SRC) -o $(STAGE1)
 
@@ -29,7 +29,8 @@ $(STAGE3): $(STAGE2) $(SRC)
 	$(STAGE2) $(SRC) -o $(STAGE3)
 
 test: stage3
-	./tests/run.sh
+	bash tests/run.sh
+	python3 tests/conformance.py
 
 clean:
 	rm -rf $(BUILD)

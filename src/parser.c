@@ -22,6 +22,7 @@ int accept(Parser *P, TokenKind k) {
 
 Expr *new_expr(ExprKind k, int line, int col) {
     Expr *e = (Expr*)xmalloc(sizeof(*e));
+    memset(e, 0, sizeof(*e));
     e->kind = k; e->line = line; e->col = col;
     return e;
 }

@@ -69,6 +69,13 @@ historical object-code reproduction as separate claims.
 
 ## Implemented checks and remaining limits
 
+See [the testing guide](../docs/testing.md) for host, assembly-source,
+B-written bootstrap, and native PDP-11 commands. Host assembly output is
+compiled through the C backend, then assembled and executed by the tests.
+Function-valued variables, vector entries, conditional callees, and B EOF
+handling are also checked.
+
+
 `make test` runs the existing suite and `tests/test_b72_conformance.py`.
 The added cases exercise operator adjacency, brace and quote escapes, embedded zero bytes, shift
 precedence, ordered bitwise evaluation, label values and function scope,
@@ -80,10 +87,15 @@ use the shared runtime.
 The C99 compiler translates 16-bit B addresses through registered host
 storage. It keeps host-sized storage cells and relies on GNU-compatible C
 extensions. This does not reproduce an original process image, threaded
-object code, or the Unix V1 syscall ABI. Runtime time, stat, terminal, and
-exec interfaces still need separate ABI conformance work. The 32-bit mode
+object code, or the Unix V1 syscall ABI. The host exec wrappers now accept the counted vector and explicit arg0
+from section 8, converting packed B strings before calling libc. Runtime
+time, stat, and terminal interfaces still need separate ABI conformance work. The 32-bit mode
 is arithmetic emulation with native pointers; arithmetic on those pointers
-can still truncate them. The separate native PDP-11 compiler retains its
+can still truncate them. Function values can be called through variables and expressions; mutable
+function-name cells are not yet a complete implementation of section 7.3.
+The B-written bootstrap now shares the tested expression and lexical rules,
+but computed label values and 16-bit storage are still missing there.
+The separate native PDP-11 compiler retains its
 documented byte addresses and placeholder date formatter.
 
 

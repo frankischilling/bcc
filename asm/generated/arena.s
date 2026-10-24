@@ -10,28 +10,27 @@
 arena_new:
 .LFB14:
 	.cfi_startproc
-	subq	$24, %rsp
-	.cfi_def_cfa_offset 32
+	pushq	%rbx
+	.cfi_def_cfa_offset 16
+	.cfi_offset 3, -16
 	movl	$16, %edi
 	call	malloc@PLT
-	movq	%rax, %rdx
+	movq	%rax, %rbx
 	testq	%rax, %rax
 	je	.L5
 .L2:
 	pxor	%xmm0, %xmm0
-	movq	%rdx, %rax
-	movups	%xmm0, (%rdx)
-	addq	$24, %rsp
+	movq	%rbx, %rax
+	movups	%xmm0, (%rbx)
+	popq	%rbx
 	.cfi_remember_state
 	.cfi_def_cfa_offset 8
 	ret
 .L5:
 	.cfi_restore_state
-	movq	%rax, 8(%rsp)
 	leaq	.LC0(%rip), %rdi
 	xorl	%eax, %eax
 	call	dief@PLT
-	movq	8(%rsp), %rdx
 	jmp	.L2
 	.cfi_endproc
 .LFE14:
@@ -139,103 +138,104 @@ arena_reset:
 arena_alloc:
 .LFB18:
 	.cfi_startproc
-	subq	$40, %rsp
+	pushq	%r13
+	.cfi_def_cfa_offset 16
+	.cfi_offset 13, -16
+	pushq	%r12
+	.cfi_def_cfa_offset 24
+	.cfi_offset 12, -24
+	movq	%rdi, %r12
+	pushq	%rbp
+	.cfi_def_cfa_offset 32
+	.cfi_offset 6, -32
+	pushq	%rbx
+	.cfi_def_cfa_offset 40
+	.cfi_offset 3, -40
+	movq	%rsi, %rbx
+	subq	$8, %rsp
 	.cfi_def_cfa_offset 48
-	movq	%rbx, 24(%rsp)
-	.cfi_offset 3, -24
-	movq	%rdi, %rbx
 	testq	%rdi, %rdi
 	je	.L56
 .L33:
-	movq	8(%rbx), %rdx
-	addq	$7, %rsi
-	andq	$-8, %rsi
-	testq	%rdx, %rdx
+	movq	8(%r12), %rbp
+	addq	$7, %rbx
+	andq	$-8, %rbx
+	testq	%rbp, %rbp
 	je	.L34
-	movq	8(%rdx), %rax
-	leaq	(%rax,%rsi), %rcx
-	cmpq	%rcx, 16(%rdx)
+	movq	8(%rbp), %rax
+	leaq	(%rax,%rbx), %rdx
+	cmpq	%rdx, 16(%rbp)
 	jnb	.L36
-	movq	%rbp, 32(%rsp)
-	.cfi_offset 6, -16
-	movl	$65536, %ebp
-	cmpq	%rbp, %rsi
-	movq	%rsi, (%rsp)
-	cmovnb	%rsi, %rbp
-	movq	%rdx, 8(%rsp)
-	leaq	24(%rbp), %rdi
+	movl	$65536, %r13d
+	cmpq	%r13, %rbx
+	cmovnb	%rbx, %r13
+	leaq	24(%r13), %rdi
 	call	malloc@PLT
-	movq	(%rsp), %rsi
 	testq	%rax, %rax
 	je	.L40
 	movq	$0, (%rax)
-	movq	8(%rsp), %rcx
-	movq	%rax, %rdx
+	movq	%rbp, %rdx
+	movq	%rax, %rbp
 	movq	$0, 8(%rax)
-	movq	%rbp, 16(%rax)
+	movq	%r13, 16(%rax)
 .L39:
-	movq	%rdx, (%rcx)
+	movq	%rbp, (%rdx)
 .L38:
-	movq	%rdx, 8(%rbx)
-	movq	32(%rsp), %rbp
-	.cfi_restore 6
-	movq	%rsi, %rcx
+	movq	%rbp, 8(%r12)
+	movq	%rbx, %rdx
 	xorl	%eax, %eax
 .L36:
-	movq	%rcx, 8(%rdx)
-	movq	24(%rsp), %rbx
-	leaq	24(%rdx,%rax), %rax
-	addq	$40, %rsp
+	movq	%rdx, 8(%rbp)
+	addq	$8, %rsp
 	.cfi_remember_state
+	.cfi_def_cfa_offset 40
+	leaq	24(%rbp,%rax), %rax
+	popq	%rbx
+	.cfi_def_cfa_offset 32
+	popq	%rbp
+	.cfi_def_cfa_offset 24
+	popq	%r12
+	.cfi_def_cfa_offset 16
+	popq	%r13
 	.cfi_def_cfa_offset 8
 	ret
 	.p2align 4,,10
 	.p2align 3
 .L34:
 	.cfi_restore_state
-	movq	%rbp, 32(%rsp)
-	.cfi_offset 6, -16
-	movl	$65536, %ebp
-	cmpq	%rbp, %rsi
-	movq	%rsi, (%rsp)
-	cmovnb	%rsi, %rbp
-	leaq	24(%rbp), %rdi
+	movl	$65536, %r13d
+	cmpq	%r13, %rbx
+	cmovnb	%rbx, %r13
+	leaq	24(%r13), %rdi
 	call	malloc@PLT
-	movq	(%rsp), %rsi
+	movq	%rax, %rbp
 	testq	%rax, %rax
-	movq	%rax, %rdx
 	je	.L40
-	movq	$0, (%rdx)
-	movq	$0, 8(%rdx)
-	movq	%rbp, 16(%rdx)
+	movq	$0, 0(%rbp)
+	movq	$0, 8(%rbp)
+	movq	%r13, 16(%rbp)
 .L37:
-	movq	%rdx, (%rbx)
+	movq	%rbp, (%r12)
 	jmp	.L38
 	.p2align 4,,10
 	.p2align 3
 .L56:
-	.cfi_restore 6
 	leaq	.LC1(%rip), %rdi
 	xorl	%eax, %eax
-	movq	%rsi, (%rsp)
 	call	dief@PLT
-	movq	(%rsp), %rsi
 	jmp	.L33
 .L40:
-	.cfi_offset 6, -16
-	xorl	%eax, %eax
 	leaq	.LC0(%rip), %rdi
-	movq	%rsi, (%rsp)
+	xorl	%eax, %eax
 	call	dief@PLT
-	movq	8(%rbx), %rdx
-	movq	(%rsp), %rsi
+	movq	8(%r12), %rbp
 	movq	$0, 0
 	movq	$0, 8
-	testq	%rdx, %rdx
-	movq	%rbp, 16
+	movq	%r13, 16
+	testq	%rbp, %rbp
 	je	.L37
-	movq	%rdx, %rcx
-	xorl	%edx, %edx
+	movq	%rbp, %rdx
+	xorl	%ebp, %ebp
 	jmp	.L39
 	.cfi_endproc
 .LFE18:
@@ -247,7 +247,7 @@ arena_sdup:
 .LFB19:
 	.cfi_startproc
 	testq	%rsi, %rsi
-	je	.L58
+	je	.L59
 	pushq	%r12
 	.cfi_def_cfa_offset 16
 	.cfi_offset 12, -16
@@ -267,20 +267,21 @@ arena_sdup:
 	call	arena_alloc
 	movq	%rbp, %rdx
 	movq	%rbx, %rsi
-	popq	%rbx
-	.cfi_restore 3
-	.cfi_def_cfa_offset 24
 	movq	%rax, %rdi
+	call	memcpy@PLT
+	popq	%rbx
+	.cfi_def_cfa_offset 24
 	popq	%rbp
-	.cfi_restore 6
 	.cfi_def_cfa_offset 16
 	popq	%r12
-	.cfi_restore 12
 	.cfi_def_cfa_offset 8
-	jmp	memcpy@PLT
+	ret
 	.p2align 4,,10
 	.p2align 3
-.L58:
+.L59:
+	.cfi_restore 3
+	.cfi_restore 6
+	.cfi_restore 12
 	xorl	%eax, %eax
 	ret
 	.cfi_endproc
@@ -295,36 +296,41 @@ arena_xstrdup_range:
 	pushq	%r12
 	.cfi_def_cfa_offset 16
 	.cfi_offset 12, -16
-	movl	$1, %eax
-	movq	%rsi, %r12
+	movq	%rdx, %r12
 	pushq	%rbp
 	.cfi_def_cfa_offset 24
 	.cfi_offset 6, -24
-	movq	%rdx, %rbp
+	movq	%rsi, %rbp
 	pushq	%rbx
 	.cfi_def_cfa_offset 32
 	.cfi_offset 3, -32
+	cmpq	%rcx, %rdx
+	jnb	.L66
 	movq	%rcx, %rbx
 	subq	%rdx, %rbx
-	cmpq	%rcx, %rdx
 	leaq	1(%rbx), %rsi
-	cmovnb	%rax, %rsi
-	xorl	%eax, %eax
-	cmpq	%rdx, %rcx
-	cmovc	%rax, %rbx
+.L65:
 	call	arena_alloc
-	leaq	(%r12,%rbp), %rsi
+	leaq	0(%rbp,%r12), %rsi
 	movq	%rbx, %rdx
 	movq	%rax, %rdi
 	call	memcpy@PLT
 	movb	$0, (%rax,%rbx)
 	popq	%rbx
+	.cfi_remember_state
 	.cfi_def_cfa_offset 24
 	popq	%rbp
 	.cfi_def_cfa_offset 16
 	popq	%r12
 	.cfi_def_cfa_offset 8
 	ret
+	.p2align 4,,10
+	.p2align 3
+.L66:
+	.cfi_restore_state
+	movl	$1, %esi
+	xorl	%ebx, %ebx
+	jmp	.L65
 	.cfi_endproc
 .LFE20:
 	.size	arena_xstrdup_range, .-arena_xstrdup_range
@@ -341,68 +347,63 @@ arena_fmt:
 	pushq	%r12
 	.cfi_def_cfa_offset 16
 	.cfi_offset 12, -16
-	movq	%rdi, %r12
+	movq	%rsi, %r12
 	pushq	%rbp
 	.cfi_def_cfa_offset 24
 	.cfi_offset 6, -24
-	movq	%rsi, %rbp
+	movq	%rdi, %rbp
 	pushq	%rbx
 	.cfi_def_cfa_offset 32
 	.cfi_offset 3, -32
-	subq	$240, %rsp
-	.cfi_def_cfa_offset 272
-	movq	%rdx, 80(%rsp)
-	movq	%rcx, 88(%rsp)
-	movq	%r8, 96(%rsp)
-	movq	%r9, 104(%rsp)
+	subq	$224, %rsp
+	.cfi_def_cfa_offset 256
+	movq	%rdx, 64(%rsp)
+	movq	%rcx, 72(%rsp)
+	movq	%r8, 80(%rsp)
+	movq	%r9, 88(%rsp)
 	testb	%al, %al
-	je	.L67
-	movaps	%xmm0, 112(%rsp)
-	movaps	%xmm1, 128(%rsp)
-	movaps	%xmm2, 144(%rsp)
-	movaps	%xmm3, 160(%rsp)
-	movaps	%xmm4, 176(%rsp)
-	movaps	%xmm5, 192(%rsp)
-	movaps	%xmm6, 208(%rsp)
-	movaps	%xmm7, 224(%rsp)
-.L67:
-	movq	%fs:40, %rax
-	movq	%rax, 56(%rsp)
-	xorl	%eax, %eax
-	leaq	272(%rsp), %rax
-	movq	%rbp, %rdx
+	je	.L71
+	movaps	%xmm0, 96(%rsp)
+	movaps	%xmm1, 112(%rsp)
+	movaps	%xmm2, 128(%rsp)
+	movaps	%xmm3, 144(%rsp)
+	movaps	%xmm4, 160(%rsp)
+	movaps	%xmm5, 176(%rsp)
+	movaps	%xmm6, 192(%rsp)
+	movaps	%xmm7, 208(%rsp)
+.L71:
+	leaq	256(%rsp), %rax
+	movq	%rsp, %rcx
+	movq	%r12, %rdx
 	xorl	%esi, %esi
-	movq	%rax, 16(%rsp)
-	leaq	8(%rsp), %rcx
-	leaq	64(%rsp), %rax
+	movq	%rax, 8(%rsp)
 	xorl	%edi, %edi
-	movl	$16, 8(%rsp)
-	movl	$48, 12(%rsp)
-	movdqu	8(%rsp), %xmm0
-	movq	%rax, 24(%rsp)
-	movq	%rax, 48(%rsp)
-	movups	%xmm0, 32(%rsp)
+	leaq	48(%rsp), %rax
+	movl	$16, (%rsp)
+	movl	$48, 4(%rsp)
+	movdqu	(%rsp), %xmm0
+	movq	%rax, 16(%rsp)
+	movq	%rax, 40(%rsp)
+	movups	%xmm0, 24(%rsp)
 	call	vsnprintf@PLT
 	movslq	%eax, %rbx
 	testl	%ebx, %ebx
-	js	.L71
-.L68:
-	movq	%r12, %rdi
-	leaq	1(%rbx), %rsi
+	js	.L73
+.L70:
+	addq	$1, %rbx
+	movq	%rbp, %rdi
+	movq	%rbx, %rsi
 	call	arena_alloc
-	leaq	32(%rsp), %rcx
-	movq	%rbp, %rdx
-	leaq	1(%rbx), %rsi
+	leaq	24(%rsp), %rcx
+	movq	%r12, %rdx
+	movq	%rbx, %rsi
 	movq	%rax, %rdi
-	movq	%rax, %r12
+	movq	%rax, %rbp
 	call	vsnprintf@PLT
-	movq	56(%rsp), %rax
-	subq	%fs:40, %rax
-	jne	.L72
-	addq	$240, %rsp
+	addq	$224, %rsp
 	.cfi_remember_state
 	.cfi_def_cfa_offset 32
-	movq	%r12, %rax
+	movq	%rbp, %rax
 	popq	%rbx
 	.cfi_def_cfa_offset 24
 	popq	%rbp
@@ -412,14 +413,12 @@ arena_fmt:
 	ret
 	.p2align 4,,10
 	.p2align 3
-.L71:
+.L73:
 	.cfi_restore_state
 	leaq	.LC2(%rip), %rdi
 	xorl	%eax, %eax
 	call	dief@PLT
-	jmp	.L68
-.L72:
-	call	__stack_chk_fail@PLT
+	jmp	.L70
 	.cfi_endproc
 .LFE21:
 	.size	arena_fmt, .-arena_fmt
@@ -433,36 +432,32 @@ arena_fmt:
 arena_mark:
 .LFB22:
 	.cfi_startproc
+	pushq	%rbx
+	.cfi_def_cfa_offset 16
+	.cfi_offset 3, -16
+	movq	%rdi, %rbx
 	testq	%rdi, %rdi
-	je	.L84
-	movq	8(%rdi), %rdx
+	je	.L80
+.L75:
+	movq	8(%rbx), %rdx
 	xorl	%eax, %eax
 	testq	%rdx, %rdx
-	je	.L81
+	je	.L76
 	movq	8(%rdx), %rax
-.L81:
+.L76:
 	xchgq	%rdx, %rax
+	popq	%rbx
+	.cfi_remember_state
+	.cfi_def_cfa_offset 8
 	ret
 	.p2align 4,,10
 	.p2align 3
-.L84:
-	subq	$24, %rsp
-	.cfi_def_cfa_offset 32
-	xorl	%eax, %eax
-	movq	%rdi, 8(%rsp)
+.L80:
+	.cfi_restore_state
 	leaq	.LC3(%rip), %rdi
-	call	dief@PLT
-	movq	8(%rsp), %rdx
 	xorl	%eax, %eax
-	movq	8(%rdx), %rdx
-	testq	%rdx, %rdx
-	je	.L75
-	movq	8(%rdx), %rax
-.L75:
-	xchgq	%rdx, %rax
-	addq	$24, %rsp
-	.cfi_def_cfa_offset 8
-	ret
+	call	dief@PLT
+	jmp	.L75
 	.cfi_endproc
 .LFE22:
 	.size	arena_mark, .-arena_mark
@@ -476,89 +471,91 @@ arena_mark:
 arena_rewind:
 .LFB23:
 	.cfi_startproc
-	pushq	%r13
+	pushq	%r14
 	.cfi_def_cfa_offset 16
-	.cfi_offset 13, -16
-	movq	%rdx, %r13
-	pushq	%r12
+	.cfi_offset 14, -16
+	movq	%rdx, %r14
+	pushq	%r13
 	.cfi_def_cfa_offset 24
-	.cfi_offset 12, -24
+	.cfi_offset 13, -24
+	movq	%rsi, %r13
+	pushq	%r12
+	.cfi_def_cfa_offset 32
+	.cfi_offset 12, -32
 	movq	%rdi, %r12
 	pushq	%rbp
-	.cfi_def_cfa_offset 32
-	.cfi_offset 6, -32
+	.cfi_def_cfa_offset 40
+	.cfi_offset 6, -40
 	movq	%rsi, %rbp
 	pushq	%rbx
-	.cfi_def_cfa_offset 40
-	.cfi_offset 3, -40
-	subq	$8, %rsp
 	.cfi_def_cfa_offset 48
+	.cfi_offset 3, -48
 	testq	%rdi, %rdi
-	je	.L98
-.L86:
+	je	.L94
+.L82:
 	testq	%rbp, %rbp
-	je	.L87
+	je	.L83
 	movq	0(%rbp), %rbx
 	testq	%rbx, %rbx
-	je	.L92
+	je	.L88
 	.p2align 4
 	.p2align 3
-.L91:
+.L87:
 	movq	%rbx, %rdi
 	movq	(%rbx), %rbx
 	call	free@PLT
 	testq	%rbx, %rbx
-	jne	.L91
+	jne	.L87
 	testq	%rbp, %rbp
-	je	.L90
-.L92:
+	je	.L86
+.L88:
 	movq	$0, 0(%rbp)
-	movq	%r13, 8(%rbp)
-	movq	%rbp, 8(%r12)
-	addq	$8, %rsp
+	movq	%r14, 8(%rbp)
+	movq	%r13, 8(%r12)
+	popq	%rbx
 	.cfi_remember_state
 	.cfi_def_cfa_offset 40
-	popq	%rbx
-	.cfi_def_cfa_offset 32
 	popq	%rbp
-	.cfi_def_cfa_offset 24
+	.cfi_def_cfa_offset 32
 	popq	%r12
-	.cfi_def_cfa_offset 16
+	.cfi_def_cfa_offset 24
 	popq	%r13
+	.cfi_def_cfa_offset 16
+	popq	%r14
 	.cfi_def_cfa_offset 8
 	ret
 	.p2align 4,,10
 	.p2align 3
-.L87:
+.L83:
 	.cfi_restore_state
 	movq	(%r12), %rbx
 	testq	%rbx, %rbx
-	jne	.L91
-.L90:
+	jne	.L87
+.L86:
+	xorl	%r13d, %r13d
 	movq	$0, (%r12)
-	movq	%rbp, 8(%r12)
-	addq	$8, %rsp
+	movq	%r13, 8(%r12)
+	popq	%rbx
 	.cfi_remember_state
 	.cfi_def_cfa_offset 40
-	popq	%rbx
-	.cfi_def_cfa_offset 32
 	popq	%rbp
-	.cfi_def_cfa_offset 24
+	.cfi_def_cfa_offset 32
 	popq	%r12
-	.cfi_def_cfa_offset 16
+	.cfi_def_cfa_offset 24
 	popq	%r13
+	.cfi_def_cfa_offset 16
+	popq	%r14
 	.cfi_def_cfa_offset 8
 	ret
 	.p2align 4,,10
 	.p2align 3
-.L98:
+.L94:
 	.cfi_restore_state
 	leaq	.LC4(%rip), %rdi
 	xorl	%eax, %eax
 	call	dief@PLT
-	jmp	.L86
+	jmp	.L82
 	.cfi_endproc
 .LFE23:
 	.size	arena_rewind, .-arena_rewind
-	.ident	"GCC: (GNU) 16.1.1 20260430"
 	.section	.note.GNU-stack,"",@progbits

@@ -1,7 +1,7 @@
 # bcc-pdp
 
 A B compiler for **PDP-11 Unix 1st Edition** (1972), written in V1 C and
-running natively under V1.  Strict conformance to Ken Thompson's
+targeting V1. Its language baseline is Ken Thompson's
 **Users' Reference to B** (Bell Labs Technical Memorandum, 1972-01-07,
 known as "kbman").  See [CONFORMANCE.md](CONFORMANCE.md) for the
 section-by-section status matrix.
@@ -11,8 +11,9 @@ code), `b01` (symbol classification and IC resolution), and `b1` (reads
 resolved IC, emits V1 `as`) -- keep each compiler process inside V1's
 16 KB address-space budget.  They are built by V1 `cc` (the 1972 last1120c
 compiler) running under [apout](../unix-v1/tools/apout) on the host.
-No gcc anywhere in the pipeline.  Inside SIMH they self-host from
-`/usr/src/bcc/`.
+The host emulator is built with a modern C compiler; the PDP-11 compiler
+binaries are built with the historical compiler. An in-system rebuild from
+`/usr/src/bcc/` is a separate check from the apout tests.
 
 - Target CPU: PDP-11/20 (no EIS -- software muldiv in `runtime/brt.s`).
 - Calling convention: args pushed left-to-right, return in R0, R5 frame.
@@ -21,6 +22,7 @@ No gcc anywhere in the pipeline.  Inside SIMH they self-host from
 ## Build
 
 ```sh
+git submodule update --init ../unix-v1
 make            # apout-V1-cc compiles src/*.c -> build/b00 + build/b01 + build/b1
 ```
 
