@@ -77,9 +77,9 @@ A literal translation of the early C files is not sufficient:
 
 The eventual B-written passes and driver must rebuild their own B sources
 inside the restored system. Keeping the historical assembler is a possible
-transition; it is not GNU binutils, but it is still an external tool. A fully
-self-contained image-construction path would need a B-written assembler or
-a direct native executable writer too. Any remaining target-specific glue
+transition; it is not GNU binutils, but it is still an external tool. It is
+not the final goal. The completed path needs a B-written assembler or a
+direct native executable writer too. Any remaining target-specific glue
 must be stated explicitly.
 
 ## Completion checks

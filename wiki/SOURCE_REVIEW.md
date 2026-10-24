@@ -563,22 +563,62 @@ BCC's source-language semantics.
 
 ### Modern BCPL is implementation guidance, not the B baseline
 
-Selected sections of Richards's [current Cintsys/Cintpos guide](https://www.cl.cam.ac.uk/~mr10/bcplman.pdf)
-were reviewed: the overview, startup, OCODE design, compiler organization,
-and Sial introduction. The retrieved copy is dated June 24, 2026; this was
-not a complete review of its language extensions or libraries.
+The extracted text of Richards's [current Cintsys/Cintpos guide](https://www.cl.cam.ac.uk/~mr10/bcplman.pdf)
+was read from beginning to end, including its libraries, command reference,
+compiler chapters, installation instructions, examples, and appendices. The
+retrieved copy is dated June 24, 2026. Diagrams whose contents were omitted
+by text extraction still need visual review; this is not a claim that every
+figure has been checked.
 
-The guide separates parsing, intermediate-code translation, and target code
-generation. Its account of a 1980 change says non-global functions and labels
-ceased to be variables to permit position-independent code. Applying that
-later rule to B would remove historical writable cells. Its Sial introduction
-also states that support for newer BCPL constructs is incomplete, so that
-backend cannot be treated as a complete modern-language oracle.
+This guide describes a living BCPL implementation, not the January 1972 B
+dialect. Its floating-point additions, pattern matching, conditional
+compilation, length-prefixed strings, and global-vector conventions must
+not become B72 rules by accident. Chapter 8 dates the removal of writable
+non-global function and label cells to 1980. BCC must retain B's earlier
+writable cells.
 
-The section titled "Bootstrapping Cintsys" describes startup of an existing
-interpreter and loading runtime modules. That use of the word bootstrap is
-different from rebuilding a compiler and its toolchain from source. BCC's
-bootstrap documentation must state which operation a test actually proves.
+The implementation chapters give several useful checks for BCC's planned
+B-written backend:
+
+- Keep source semantics separate from the target instruction set. The
+  frontend, intermediate representation, and code generator have distinct
+  responsibilities. Document each intermediate instruction's stack effect
+  and the state expected at branch destinations.
+- Distinguish byte addresses, word addresses, and entry addresses throughout
+  the backend and runtime. The guide's native examples convert aligned data
+  addresses to word pointers; that does not make arbitrary byte pointers
+  interchangeable with B pointers.
+- Preserve values across indirect stores only when aliasing permits it.
+  Section 9.3.2 reloads a local after an indirect store because the store
+  could have changed that local. This is a useful regression pattern for
+  any future register-caching optimization.
+- Validate relative branch ranges. The Cintcode design uses resolving
+  halfwords; the MC package instead requires an appropriate short or long
+  branch and diagnoses an insufficient short range. Neither justifies
+  silently truncating a displacement in a native backend.
+- Calculate constants using the intended target representation. The guide
+  explicitly warns that a compiler's own word width can limit constants
+  generated for a wider target. BCC's target-width tests must remain
+  independent of the host compiler's arithmetic.
+
+The section titled "Bootstrapping Cintsys" describes starting an existing
+interpreter and loading modules. Chapter 13 separately explains rebuilding
+that interpreter in C and then compiling the BCPL components with supplied
+compiled modules. The native path in sections 11.1 and 13.7 still needs
+C initialization code, a C runtime interface, handwritten assembly, and
+external compilation/linking. These are useful designs, but none proves
+a compiler has eliminated its C or assembler dependencies. BCC's
+[bootstrap requirements](BOOTSTRAP.md) distinguish those milestones.
+
+Some parts of the guide are explicitly unfinished or describe planned
+behavior. The Sial introduction says newer constructs are unsupported,
+while later sections describe floating-point operators added in 2014 and
+their implementation in `sial-686`. That inconsistency needs a
+version-specific source check, not a blanket claim that all Sial backends
+support or reject those operators. Sections 10.3 and 10.4 have headings
+but no explanatory text, and appendix B is marked under construction.
+The console, networking, graphics, and sound APIs are contemporary system
+interfaces, not evidence for Unix V1's B library ABI.
 
 ### What a fixed point proves
 
@@ -630,11 +670,35 @@ shifts differ, and the device's status register is not the processor status
 word. These distinctions matter when auditing native arithmetic helpers and
 the emulator used to test them.
 
-Selected PDP-11/40 sections were also checked for stack addressing, `MOVB`,
-`JSR`, `RTS`, and parameter linkage. They confirm word-sized SP increments,
-register sign extension by `MOVB`, and the distinction between hardware
-linkage and a software argument convention. They do not make optional
-PDP-11/40 instructions available on the PDP-11/20 target.
+The complete extracted text of the [1972 PDP-11/40 handbook](https://pdos.csail.mit.edu/6.828/2005/readings/pdp11-40.pdf)
+was also read, including addressing, instructions, programming techniques,
+memory management, processor options, and appendices. OCR formulas and
+some diagrams remain uncertain. The branch page and the processor-family
+comparison on printed page 9-3 were checked visually.
+
+The family comparison separates the 11/20's external arithmetic option
+from the 11/40's internal extended instruction set. It lists `XOR`, `SOB`,
+`MARK`, `SXT`, and `RTT` as additions to the later basic set. A future B-written
+PDP-11 backend must not emit them merely because a newer handbook or a
+host emulator recognizes them. The existing target uses the earlier
+instruction set and memory-mapped arithmetic device.
+
+Chapters 3 through 5 confirm word-sized SP increments even for byte
+operations, register sign extension by `MOVB`, and the distinction between
+hardware linkage and a software argument convention. `CMP` tests source
+minus destination, unlike `SUB`, which stores destination minus source.
+Signed comparisons need the overflow-aware conditions, not just the sign
+bit. Branch displacements count words from the following instruction;
+large transfers need a different encoding rather than a truncated offset.
+
+Memory-management, privileged-mode, floating-point, and programmable
+stack-limit descriptions are model- and option-specific. They do not
+replace the restored kernel's actual process-memory limits. Appendix C's
+timings depend on addressing modes, memory, and installed options, so they
+are not universal costs for BCC's native instructions. Appendix A contains
+an older-model ISP description and floating-point material; its notation
+and scope need checking against the specific CPU, not literal translation
+from noisy OCR.
 
 ### Terminal hardware and restored-kernel boundaries
 
@@ -670,9 +734,11 @@ runtime tests.
 
 The GNU compiler, assembler, and linker entry pages were inspected as host
 toolchain references, not historical B specifications. Their indexes are not
-the full manuals. The x86-64 ABI was subsequently retrieved through the project's official
-PDF artifact. The copy is dated March 12, 2025. Its function-call, variable-
-argument, and Linux syscall sections were reviewed, not the entire ABI.
+the full manuals. The x86-64 ABI was retrieved through the project's official
+PDF artifact. The copy is dated March 12, 2025; its complete extracted text
+was read, including object files, loading, relocations, unwind information,
+ILP32, TLS, CET, and the appendices. This does not establish that BCC
+implements every facility described there.
 
 The [AMD64 ABI](https://gitlab.com/x86-psABIs/x86-64-ABI/-/jobs/artifacts/master/raw/x86-64-ABI/abi.pdf?job=build)
 requires stack alignment and preserved registers across ordinary calls, and
@@ -682,6 +748,30 @@ Variadic calls carry vector-register information in `al`; the Linux syscall
 interface uses `r10` rather than `rcx` for its fourth argument and clobbers
 `rcx` and `r11`. A future B-written native host backend must distinguish those
 interfaces rather than reuse one call sequence for both.
+
+The ELF chapters matter for removing the external linker. LP64 output uses
+ELFCLASS64, little-endian encoding, machine identifier 62, and explicit
+addends in `Elf64_Rela` relocations. A linker must check whether a truncated
+32-bit relocation reconstructs the full value by the required zero or sign
+extension. Loadable segment offsets and virtual addresses must have matching
+page offsets, and uninitialized data must begin as zero. Those are separate
+tests from whether a tiny executable happens to start.
+
+Process entry is not an ordinary function call: the initial stack contains
+`argc`, pointers to arguments and environment strings, and an auxiliary
+vector. An entry routine must convert that state to B's string and pointer
+representation. ILP32/x32 is a distinct ABI with 32-bit pointers and ELFCLASS32;
+selecting 32-bit B arithmetic on an LP64 host does not implement it.
+
+The unwind and CET chapters describe additional contracts, not B language
+features. Handwritten assembly needs accurate frame descriptions if unwinding
+through it is supported. An output file must not advertise indirect-branch
+or shadow-stack compatibility without implementing the corresponding
+requirements. A static, syscall-based first backend can avoid a dynamic
+loader, PLT, and TLS implementation, but that is a deliberately narrower
+output target, not full coverage of the ABI. Chapter 8 itself is unfinished,
+and section 3.5 marks its code examples as non-normative; examples still
+need assembly and execution checks before use.
 
 The supplied repository snapshots were read in full. They are project claims,
 not independent historical evidence. Several old claims were wrong: automatic
@@ -832,6 +922,13 @@ comparing and installing the result. This closes a validation gap; it does
 not turn the C-written compiler into a B-written one. The
 [bootstrap goals](BOOTSTRAP.md) describe that separate work.
 
+The June 1972 manual's preface explicitly warns that installations differed
+in hardware, memory configuration, and software versions. It singles out
+absolute core locations and says the assembler and loader had been reorganized
+in anticipation of the PDP-11/45. That is another reason to attach ABI and
+memory claims to an edition and tested configuration, rather than treating
+one restored image as a universal early-Unix machine.
+
 ## Reference inventory
 
 "Read" below describes the review scope, not a promise that every feature in
@@ -877,7 +974,7 @@ in the inventory so that missing or duplicated material is visible.
 | 027 | [man12.pdf](https://www.nokia.com/bell-labs/about/dennis-m-ritchie/man12.pdf) | Read in full |
 | 028 | [V1/man/man5/a.out.5](https://www.tuhs.org/cgi-bin/utree.pl?file=V1/man/man5/a.out.5) | Read in full |
 | 029 | [V1/man/man5/archive.5](https://www.tuhs.org/cgi-bin/utree.pl?file=V1/man/man5/archive.5) | Read in full |
-| 030 | [v2man.pdf](https://www.tuhs.org/Archive/Distributions/Research/Dennis_v2/v2man.pdf) | Manual body read in full; contents index partially inspected; OCR glyph checks remain |
+| 030 | [v2man.pdf](https://www.tuhs.org/Archive/Distributions/Research/Dennis_v2/v2man.pdf) | Complete OCR text read, including preface, contents and index; ambiguous glyphs need visual checks |
 | 031 | [Index of /Archive/Distributions/Research/Dennis_v2](https://www.tuhs.org/Archive/Distributions/Research/Dennis_v2/) | Directory index read; linked contents not exhaustively reviewed |
 | 032 | [Index of /Archive/Distributions/Research/1972_stuff](https://www.tuhs.org/Archive/Distributions/Research/1972_stuff/) | Directory index read; linked contents not exhaustively reviewed |
 | 033 | [Index of /Archive/Applications/Dennis_Tapes](https://www.tuhs.org/Archive/Applications/Dennis_Tapes/) | Directory index read; linked contents not exhaustively reviewed |
@@ -965,7 +1062,7 @@ in the inventory so that missing or duplicated material is visible.
 | 095 | [BCPLCTSS](https://www.cl.cam.ac.uk/~mr10/BCPLCTSS.html) | Distribution overview read; archive source not exhaustively reviewed |
 | 096 | [BCPL and Tripos Archive](https://www.cl.cam.ac.uk/~mr10/Archive.html) | Archive overview read; linked files not exhaustively reviewed |
 | 097 | [cpl2bcpl.pdf](https://www.cl.cam.ac.uk/~mr10/cpl2bcpl.pdf) | Complete paper read |
-| 098 | [bcplman.pdf](https://www.cl.cam.ac.uk/~mr10/bcplman.pdf) | 2026 guide: abstract, contents, section 4.1, chapter 8, compiler overview and Sial introduction reviewed; remainder not reviewed |
+| 098 | [bcplman.pdf](https://www.cl.cam.ac.uk/~mr10/bcplman.pdf) | Complete extracted text read; diagrams omitted by extraction still need visual review |
 
 ### Threaded code and bootstrap trust
 
@@ -985,8 +1082,8 @@ in the inventory so that missing or duplicated material is visible.
 | 105 | [PDP-11_Handbook_Second_Edition_1970.pdf](https://www.bitsavers.org/pdf/dec/pdp11/1120/PDP-11_Handbook_Second_Edition_1970.pdf) | Complete extracted text read from public mirror; diagrams not all checked |
 | 106 | [KA11_ProcessorMan_Sep1970.pdf](https://bitsavers.trailing-edge.com/pdf/dec/pdp11/1120/KA11_ProcessorMan_Sep1970.pdf) | Not retrieved: 403: Forbidden |
 | 107 | [KE11-A_ExtendedArithElem.pdf](https://bitsavers.trailing-edge.com/pdf/dec/pdp11/1120/KE11-A_ExtendedArithElem.pdf) | Full OCR read from public mirror; diagrams and numeric tables need checks |
-| 108 | [pdp11-40.pdf](https://pdos.csail.mit.edu/6.828/2005/readings/pdp11-40.pdf) | BR page visually checked; SP, MOVB, JSR/RTS and linkage sections read; other sections not fully reviewed |
-| 109 | [PDP-11_40_Processor_Handbook_1972.pdf](https://bitsavers.trailing-edge.com/pdf/dec/pdp11/handbooks/PDP-11_40_Processor_Handbook_1972.pdf) | Alternate scan unavailable; selected matching handbook sections reviewed at entry 108 |
+| 108 | [pdp11-40.pdf](https://pdos.csail.mit.edu/6.828/2005/readings/pdp11-40.pdf) | Complete extracted text read; BR and processor-family pages visually checked; other diagrams and OCR formulas need checks |
+| 109 | [PDP-11_40_Processor_Handbook_1972.pdf](https://bitsavers.trailing-edge.com/pdf/dec/pdp11/handbooks/PDP-11_40_Processor_Handbook_1972.pdf) | Alternate scan unavailable; complete extracted text of matching handbook reviewed at entry 108 |
 
 ### Host language and toolchain references
 
@@ -997,7 +1094,7 @@ in the inventory so that missing or duplicated material is visible.
 | 112 | [C Extensions (Using the GNU Compiler Collection (GCC))](https://gcc.gnu.org/onlinedocs/gcc/C-Extensions.html) | Extension overview read; linked extension chapters not all reviewed |
 | 113 | [Top (Using as)](https://sourceware.org/binutils/docs/as/) | Assembler overview and relevant contents inspected; not all linked chapters |
 | 114 | [Top (LD)](https://sourceware.org/binutils/docs/ld/) | Linker overview and contents read; not all linked chapters |
-| 115 | [x86 psABIs / x86-64 psABI · GitLab](https://gitlab.com/x86-psABIs/x86-64-ABI) | Official ABI PDF (March 12, 2025) retrieved; function calling, varargs and Linux syscall sections reviewed |
+| 115 | [x86 psABIs / x86-64 psABI · GitLab](https://gitlab.com/x86-psABIs/x86-64-ABI) | Official ABI PDF (March 12, 2025): complete extracted text read; implementation coverage is separate |
 
 ### Repository snapshots and catalog records
 
