@@ -267,3 +267,8 @@ cells, including through external address initializers and across input
 files. It checks saved variadic function values, extra argument evaluation,
 missing-argument diagnostics, and shared inline-runtime output state. The
 bootstrap runs the same applicable cases through all three stages.
+
+The host terminal-buffer tests open a private pseudoterminal. They do not
+read or change the terminal running the test suite. These checks cover null
+buffers, missing-argument diagnostics, failed descriptors, and a guarded
+three-word round trip. They do not establish DC11 register compatibility.

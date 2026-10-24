@@ -75,6 +75,8 @@ def main():
                           '--compiler', str(compiler)], 'command arguments') and ok
         ok = checked_run([sys.executable, str(root / 'tests/test_exec_runtime.py'),
                           '--compiler', str(compiler)], 'exec runtime') and ok
+        ok = checked_run([sys.executable, str(root / 'tests/test_tty_runtime.py'),
+                          '--compiler', str(compiler)], 'terminal buffer safety') and ok
         ok = checked_run([sys.executable, str(root / 'tests/test_time_runtime.py'),
                           '--compiler', str(compiler)], 'time runtime') and ok
         ok = checked_run([sys.executable, str(root / 'tests/test_library_bindings.py'),

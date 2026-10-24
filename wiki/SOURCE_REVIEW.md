@@ -796,6 +796,13 @@ function-local declarations, saved function values, local shadowing, and
 declaration conflicts. Broader regression checks remain necessary; these
 cases do not establish complete language conformance.
 
+Private-pseudoterminal tests exposed null-buffer crashes in host `gtty` and
+`stty`. Both runtime layouts now reject a null buffer before dereferencing
+it. The checks preserve the terminal settings, verify the three-word output
+boundary, and retain missing-argument diagnostics. This is a buffer-safety
+fix, not the still-missing translation from host termios fields to the
+historical DC11 register layout.
+
 ## Reference inventory
 
 "Read" below describes the review scope, not a promise that every feature in

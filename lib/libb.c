@@ -694,6 +694,7 @@ word b_mkdir(word path, word mode) { return b_makdir(path, mode); }
 /* Terminal I/O */
 
 word b_gtty(word fd, word ttstat) {
+    if (!ttstat) { errno = EFAULT; return -1; }
     struct termios t;
     if (tcgetattr((int)fd, &t) < 0) return -1;
 
@@ -705,6 +706,7 @@ word b_gtty(word fd, word ttstat) {
 }
 
 word b_stty(word fd, word ttstat) {
+    if (!ttstat) { errno = EFAULT; return -1; }
     struct termios t;
     if (tcgetattr((int)fd, &t) < 0) return -1;
 
