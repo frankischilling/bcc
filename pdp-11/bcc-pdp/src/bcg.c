@@ -109,6 +109,12 @@ cgbinc(op, lfa, lend) {
 cgcll(nargs) {
 	int i;
 	if (nargs < 0 | nargs > 8190) fatal("bad argument count");
+	/* exit() has no historical argument; its optional status must not read
+	 * the saved callee value. An unused zero slot keeps that call safe. */
+	if (nargs == 0) {
+		eop("clr\t-(sp)");
+		nargs = 1;
+	}
 	/* Caller pushed args left-to-right (so rightmost arg is TOS).
 	 * Reverse the top N stack words so leftmost arg ends up at TOS.
 	 * After this, callee sees arg i at 2*(i+2)(r5) regardless of

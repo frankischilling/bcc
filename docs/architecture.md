@@ -16,6 +16,13 @@ Executable, object, and host-assembly output use the same C representation.
 Assembly emission asks the host compiler to lower that C with `-S`; it is
 not an independent handwritten B backend.
 
+Generated C uses GNU statement expressions to sequence operands and evaluate
+lvalues once, plus constructor and weak-symbol attributes for shared runtime
+state. It is not portable ISO C99 output merely because the compiler itself
+is built in C99 mode. See [GCC statement expressions](https://gcc.gnu.org/onlinedocs/gcc/Statement-Exprs.html).
+Label values use numbered cells and C switch dispatch rather than raw host
+instruction addresses.
+
 ## Runtime and 16-bit addresses
 
 `lib/libb.c` implements host runtime calls. `lib/libb.h` declares the API and
@@ -94,8 +101,10 @@ Native `runtime/brt.s` supplies startup-adjacent helpers and syscall wrappers;
 uses word-addressed B data pointers. Public B function symbols address mutable
 cells initialized to the function body. Every call saves the callee value on
 the stack, evaluates and reverses the arguments into the existing ABI order,
-then calls that saved address. Cleanup removes the arguments and the saved
-callee. For external string initializers, `b01` buffers the short definition
+then calls that saved address. An empty argument list carries an unused zero
+word, so the historical `exit()` call does not read the saved callee as its
+optional status argument. Cleanup removes the arguments, any padding, and
+the saved callee. For external string initializers, `b01` buffers the short definition
 and cell records while streaming literal bytes first. The cells are emitted
 together afterward, with references to the literal labels. This avoids
 putting string bytes between adjacent cells or retaining every literal in

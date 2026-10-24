@@ -139,13 +139,14 @@ assembly syscall wrappers and B library functions:
 | `time` | `runtime/brt.s` | V1 syscall 13; high/low words read from AC/MQ |
 | `wait` | `runtime/brt.s` | V1 syscall 7 |
 
-Predefined `argv[]` (kbman §8 last paragraph): a pointer cell and a 32-word vector populated by
+Predefined `argv[]` (kbman §8 last paragraph): a writable pointer cell and a stack-allocated vector populated by
 `runtime/bmain.s` from the V1 kernel argument frame.  `argv[0] = argc`,
 `argv[1..argv[0]]` are word-address pointers to aligned copies of argument strings.
 The program name occupies `argv[1]`; user arguments start at `argv[2]`.
-At most 31 string pointers fit, and the count reports only stored entries.
-Strings retain the kernel's NUL terminator. The fixed capacity is a limit,
-not full reproduction of the historical argument vector. For compatibility,
+All arguments supplied by the kernel are retained; startup checks vector and
+string storage against the program boundary instead of truncating the count.
+Strings retain the kernel's NUL terminator. Kernel exec limits and available
+process memory still constrain the total. For compatibility,
 optional `main(count, values)` parameters exclude the program name.
 
 ## §9  Examples

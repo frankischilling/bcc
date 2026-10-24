@@ -11,12 +11,22 @@ start:
 	mov	sp, r0
 	mov	(r0)+, r1
 	bic	$1, sp		/ keep copies and B frames word-aligned
-	mov	$_argv+4, r2
-	cmp	r1, $31.
-	blos	.argct
-	mov	$31., r1
-.argct:
-	mov	r1, _argv+2
+	/ Reserve the complete count-prefixed vector before copying strings.
+	cmp	r1, $8190.
+	bhi	.argerr
+	mov	r1, r2
+	inc	r2
+	asl	r2
+	mov	sp, r5
+	sub	r2, r5
+	bcs	.argerr
+	cmp	r5, $.bend+8
+	blos	.argerr
+	mov	r5, sp
+	mov	r5, r2
+	mov	r5, _argv
+	asr	_argv
+	mov	r1, (r2)+
 .arglp:
 	tst	r1
 	beq	.argdn
@@ -27,9 +37,11 @@ start:
 	bne	.argln
 	sub	r3, r4
 	inc	r4
+	beq	.argerr
 	bic	$1, r4
 	mov	sp, r5
 	sub	r4, r5
+	bcs	.argerr
 	cmp	r5, $.bend+8
 	blos	.argerr
 	mov	r5, sp
@@ -45,10 +57,12 @@ start:
 .argdn:
 	/ Optional main parameters exclude the program name.
 	clr	r5
-	mov	$_argv+6, r0
-	asr	r0
+	mov	_argv, r0
+	add	$2, r0
 	mov	r0, -(sp)
-	mov	_argv+2, r0
+	mov	_argv, r0
+	asl	r0
+	mov	(r0), r0
 	dec	r0
 	bge	1f
 	clr	r0
@@ -65,10 +79,6 @@ start:
 .argmsg: <bcc: argument storage\n>
 .even
 
-/ Pointer cell and 32 data words: count, program name, up to 30 user strings.
+/ Writable pointer cell; startup allocates its vector on the process stack.
 _argv:
-	[.+2-start+40014]\/2
-	0;0;0;0;0;0;0;0
-	0;0;0;0;0;0;0;0
-	0;0;0;0;0;0;0;0
-	0;0;0;0;0;0;0;0
+	0

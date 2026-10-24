@@ -1,6 +1,7 @@
 # BCC
 
-BCC compiles B programs through a C99 backend and the GNU toolchain. Its
+BCC compiles B programs through a C backend with GNU extensions and the GNU
+toolchain. Its
 language baseline is Ken Thompson's January 7, 1972 PDP-11 *Users' Reference
 to B*. The repository also contains an x86-64 assembly-source build, a
 B-written bootstrap compiler, and a separate native PDP-11 compiler.

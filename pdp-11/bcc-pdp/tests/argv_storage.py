@@ -9,9 +9,17 @@ def main():
     root = Path(__file__).resolve().parents[1]
     cases = [
         ('capacity', '''main(count,values){extrn argv,char,putchar;
-            if(count!=30 | argv[0]!=31 | values[29]!=argv[31])return(1);
-            if(char(argv[31],0)!='x')return(2);
+            if(count!=40 | argv[0]!=41 | values[39]!=argv[41])return(1);
+            if(char(argv[41],0)!='x')return(2);
             putchar('OK');putchar('*n');return(0);}''', ['x']*40, 0, b'OK\n'),
+        ('many-short', """main(count,values){extrn argv,char,putchar;auto i;
+            if(count!=100 | argv[0]!=101)return(1);
+            i=0;while(i<count){if(char(values[i],0)!='x' | values[i]!=argv[i+2])return(2);i++;}
+            putchar('OK');putchar('*n');return(0);}""", ['x']*100, 0, b'OK\n'),
+        ('empty-strings', """main(count,values){extrn argv,char,putchar;auto i;
+            if(count!=40 | argv[0]!=41)return(1);
+            i=0;while(i<count){if(char(values[i],0)!=0 | values[i]!=argv[i+2])return(2);i++;}
+            putchar('OK');putchar('*n');return(0);}""", ['']*40, 0, b'OK\n'),
         # The fast observer has a larger stack address range than V1. Both use
         # the same startup bounds check against the assembled program end.
         ('overlap', 'main(){return(99);}', ['x'*1024]*30, 1, b'bcc: argument storage\n'),

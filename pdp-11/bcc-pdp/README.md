@@ -9,7 +9,9 @@ Three processes split the compiler: `b00` parses B into intermediate records,
 `b01` resolves names, and `b1` emits V1 assembler syntax. A small native `b`
 driver runs the passes and assembler. Arguments are arranged so the leftmost
 argument is nearest the return address; R5 is the frame pointer and R0 holds
-a function result. Multiplication and division do not require EIS instructions.
+a function result. Empty calls reserve an unused zero word so `exit()` also has a defined zero
+status in the fast observer; explicit `exit(status)` remains available.
+Multiplication and division do not require EIS instructions.
 
 This is not complete B72 conformance. The [status notes](CONFORMANCE.md) and
 [repository-wide source comparison](../../wiki/HISTORICAL_CONFORMANCE.md)
@@ -156,11 +158,13 @@ in the body cannot overwrite the caller's frame.
   Internal label names also have writable, persistent cells. Bare and
   computed branches read the current value. Missing and duplicate labels
   are rejected by the resolver.
-- The startup argument vector keeps at most 31 entries, including the
-  program name at `argv[1]`. Its count reports only stored entries. The
-  optional `main(count, values)` extension still receives user arguments
-  only, excluding the program name. Strings are copied into aligned stack
-  storage; startup rejects copies that would overlap the program.
+- Startup allocates a count-prefixed vector for every argument supplied by
+  the kernel, including the program name at `argv[1]`. It no longer silently
+  drops arguments after entry 31. The optional `main(count, values)` extension
+  receives user arguments only, excluding the program name. The vector and
+  strings use aligned stack storage. Startup rejects oversized counts,
+  arithmetic wraparound, or copies that would overlap the program; available
+  process memory and the kernel's exec limits still apply.
 - Character constants require one or two characters; empty, oversized,
   and unfinished constants are rejected.
 - Source strings, including external initializers, are limited to 255 bytes

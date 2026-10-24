@@ -326,9 +326,10 @@ B15:
 	asl	r0
 	mov	(r0), r0
 	mov	r0, -(sp)
-	mov	0.(sp), r0
+	clr	-(sp)
+	mov	2.(sp), r0
 	jsr	pc, (r0)
-	add	$2., sp
+	add	$4., sp
 	mov	(sp)+, r1
 	asl	r1
 	mov	r0, (r1)

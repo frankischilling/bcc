@@ -636,6 +636,22 @@ register sign extension by `MOVB`, and the distinction between hardware
 linkage and a software argument convention. They do not make optional
 PDP-11/40 instructions available on the PDP-11/20 target.
 
+### Terminal hardware and restored-kernel boundaries
+
+The register descriptions and tables in the [September 1973 DC11 manual](https://deramp.com/downloads/mfe_archive/011-Digital%20Equipment%20Corporation/08%20PDP-11/05%20Unibus%20Options/DC11%20Asynchronous%20Line%20Interface/DC11%20Documentation/DC11-A%20Manual%20DEC-11-HDCD-D%20Sep73.pdf)
+were checked visually on PDF pages 11-12. Receiver and transmitter speed
+selectors occupy bits 3-4, but the four rates depend on the installed clock
+option. Receiver bits 9-10 select character width; transmitter bit 8 selects
+one versus two stop bits. Other bits report hardware state or control modem
+signals, so these words cannot simply hold host `termios` flag values.
+
+This is a later hardware manual, not proof of every 1971 installation's
+configuration. The pinned restored kernel also needs separate inspection:
+its terminal input code tests `010` as echo-enable, unlike the November
+manual's echo-disable description. Native wrappers expose the restored
+kernel. Host emulation must name its chosen contract and distinguish mapped
+software modes from hardware behavior it cannot reproduce.
+
 ## Host toolchain and repository evidence
 
 The selected [C99 consolidated draft](https://www.open-std.org/jtc1/sc22/wg14/www/docs/n1256.pdf)
@@ -727,6 +743,21 @@ make the host and bootstrap silently stop reading source. They now diagnose
 that byte rather than treating it as end-of-file. `*0` remains the supported
 escape for a NUL in literal data. Native parsing already rejects the
 outside-literal case.
+
+The native argument-vector check also exposed a deliberate old limit: startup
+kept only 31 strings, including the program name. The B manual describes the
+kernel argument count and vector, not that truncation rule. Startup now
+allocates the complete vector on the stack and checks its size before copying
+strings. Fast tests cover forty and one hundred user arguments, empty strings,
+and storage overlap; a real-kernel exec fixture checks forty user arguments.
+Kernel exec limits and available process memory still apply.
+
+The native no-argument `exit()` path was also reading the saved callee value
+as an optional status argument. A fast-observer reproduction returned 190
+instead of zero. Empty native calls now reserve an unused zero word; direct
+and function-value `exit()` calls terminate with zero in that observer, while
+an explicit status remains intact. This is not a claim that the original V1
+kernel reports modern process exit status.
 
 ## Reference inventory
 

@@ -85,6 +85,7 @@ make -C pdp-11/bcc-pdp v1-run B=tests/run/t35_execv.b
 make -C pdp-11/bcc-pdp v1-run B=tests/run/t41_eight_names.b
 make -C pdp-11/bcc-pdp v1-run B=tests/run/t43_forward_labels.b
 make -C pdp-11/bcc-pdp v1-run B=tests/v1/tty.b
+make -C pdp-11/bcc-pdp v1-run B=tests/v1/argv_many.b
 bash pdp-11/bcc-pdp/tools/v1-run.sh pdp-11/bcc-pdp/tests/run/t19a_tilde.b --expect-compile-error
 ```
 
@@ -139,8 +140,10 @@ word modes, plus the three bootstrap stages.
 
 Native word-address tests cover pointer increments, differences, static
 initializers, packed strings, file-buffer offsets, exec vectors, and copied
-argument alignment. `tests/argv_storage.py` also checks the fixed argument
-capacity and startup rejection before copies reach program data. The real
+argument alignment. `tests/argv_storage.py` also checks the dynamically allocated
+argument vector, empty arguments, and startup rejection before copies reach
+program data. A real-kernel exec fixture checks forty user arguments survive
+startup without truncation. The real
 V1 runner accepts repeated `--argument` options for simple shell words; it
 rejects shell metacharacters rather than interpolating them into commands.
 
