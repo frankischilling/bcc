@@ -8,18 +8,21 @@ selnam[1000];
 selnum 0;
 selpos 0;
 sellen 0;
+seltail 0;
+selpart 0;
 
 selclr() {
-    extern selpos, sellen;
-    int selpos, sellen;
-    selpos = 0; sellen = 0;
+    extern selpos, sellen, seltail, selpart;
+    int selpos, sellen, seltail, selpart;
+    selpos = 0; sellen = 0; seltail = 0; selpart = 0;
 }
 
+/* Long data lines are copied in chunks, never mistaken for public labels. */
 selget(fd) {
-    extern selbuf, sellin, selpos, sellen;
+    extern selbuf, sellin, selpos, sellen, seltail, selpart;
     char selbuf[], sellin[];
-    int selpos, sellen, n, c;
-    n = 0;
+    int selpos, sellen, seltail, selpart, n, c;
+    n = 0; selpart = seltail; seltail = 0;
     while (1) {
         if (selpos >= sellen) {
             sellen = read(fd, selbuf, 512);
@@ -27,8 +30,8 @@ selget(fd) {
             if (sellen < 0) failmsg("b: runtime read failed\n");
             if (sellen == 0) break;
         }
+        if (n >= 1039) { seltail = 1; break; }
         c = selbuf[selpos++];
-        if (n >= 1039) failmsg("b: assembly line too long\n");
         sellin[n++] = c;
         if (c == '\n') break;
     }
@@ -38,8 +41,10 @@ selget(fd) {
 
 /* Recognize a standalone public label; copy its name without the colon. */
 sellab(s, name) char s[], name[]; {
-    int i, n, c;
+    extern seltail, selpart;
+    int seltail, selpart, i, n, c;
     name[0] = 0;
+    if (seltail | selpart) return(0);
     i = 0; n = 0;
     while (s[i] == ' ' | s[i] == '\t') i++;
     if (s[i] != '_') return(0);
