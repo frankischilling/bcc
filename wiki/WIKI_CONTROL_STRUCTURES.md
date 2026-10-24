@@ -50,9 +50,12 @@ main() {
 }
 ```
 
+Nested switches have independent cases. See the
+[runnable nested-switch example](../examples/b72/nested_switch.b).
+
 `goto` accepts a label value, not just a literal label name. A label belongs
-to its function; do not branch into another function or keep a label value
-after its invocation returns. Label cells are writable and retain their values across invocations of the
+to its function; do not branch into another function or try to resume an
+invocation that has already returned. Label cells are writable and retain their values across invocations of the
 function. The host, bootstrap, and native backends check this behavior.
 See the [runnable label-cell example](../examples/b72/label_cells.b).
 

@@ -13,7 +13,6 @@ dbuf[520]; /* 1040 bytes: enough for 256 decimal literal bytes. */
 dtag[5];
 dnm[5];
 dsb[130]; /* 260 literal bytes. */
-dsk[64];
 
 usage() {
 	errinit();
@@ -83,9 +82,8 @@ main(argc, argv) int argv[]; {
 }
 
 disp1() {
-	extern dbuf, dtag, dnm, dsb, dsk;
+	extern dbuf, dtag, dnm, dsb;
 	char dbuf[], dtag[], dnm[], dsb[];
-	int dsk[];
 	int a, b, c;
 	if (tageq(dtag, "n"))   { a = nxti(dbuf); cgnst(a); return (1); }
 	if (tageq(dtag, "ps"))  { cgpsh(); return (1); }
@@ -128,27 +126,26 @@ disp2() {
 }
 
 disp3() {
-	extern dbuf, dtag, dnm, dsb, dsk;
+	extern dbuf, dtag, dnm, dsb;
 	char dbuf[], dtag[], dnm[], dsb[];
-	int dsk[];
-	int a, b, ld, lp, le, nc, ii, sid, slen, j;
-	if (tageq(dtag, "swb")) { a = nxti(dbuf); cgswb(a); return (1); }
-	if (tageq(dtag, "swe")) {
-		ld = nxti(dbuf);
-		lp = nxti(dbuf);
-		le = nxti(dbuf);
-		nc = nxti(dbuf);
-		if (nc < 0) fatal("negative case count");
-		if (nc > 32) fatal("too many cases");
-		ii = 0;
-		while (ii < nc) {
-			dsk[2 * ii]     = nxti(dbuf);
-			dsk[2 * ii + 1] = nxti(dbuf);
-			ii = ii + 1;
-		}
-		cgswe(ld, lp, le, nc, dsk);
-		return (1);
-	}
+	int a, b, ld, ln, value, lb, sid, slen, j;
+	if (tageq(dtag, "swb")) {
+        a = nxti(dbuf);
+        if (a < 0) fatal("bad switch label");
+        cgswb(a); return (1);
+    }
+    if (tageq(dtag, "swc")) {
+        ld = nxti(dbuf); ln = nxti(dbuf);
+        value = nxti(dbuf); lb = nxti(dbuf);
+        if (ld < 0 | ln < 0 | lb < 0) fatal("bad switch label");
+        cgswc(ld, ln, value, lb); return (1);
+    }
+    if (tageq(dtag, "swx")) {
+        a = nxti(dbuf); b = nxti(dbuf);
+        if (a < 0 | b < 0) fatal("bad switch label");
+        cgswe(a, b); return (1);
+    }
+
 	if (tageq(dtag, "gor")) { cggor(); return (1); }
 	if (tageq(dtag, "la"))  { a = nxti(dbuf); cgla(a); return (1); }
 	if (tageq(dtag, "lv"))  { a = nxti(dbuf); cglval(a); return (1); }

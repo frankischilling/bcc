@@ -132,22 +132,15 @@ cgswb(ldisp) {
 	outs("swb "); outd(ldisp); outc('\n');
 }
 
-/* switch end: emit pop+exit, then Ldisp + dispatch chain.
- *   ldisp lpop lend ncases  k0 l0 k1 l1 ... */
-cgswe(ldisp, lpop, lend, ncases, table) int table[]; {
-	int i;
-	outs("swe ");
-	outd(ldisp); outc(' ');
-	outd(lpop);  outc(' ');
-	outd(lend);  outc(' ');
-	outd(ncases);
-	i = 0;
-	while (i < ncases) {
-		outc(' '); outd(table[2 * i]);
-		outc(' '); outd(table[2 * i + 1]);
-		i = i + 1;
-	}
-	outc('\n');
+/* Case nodes are emitted where they occur; no shared case table is needed. */
+cgswc(ldisp, lnext, value, lbody) {
+    outs("swc "); outd(ldisp); outc(' ');
+    outd(lnext); outc(' '); outd(value); outc(' ');
+    outd(lbody); outc('\n');
+}
+
+cgswe(last, lend) {
+    outs("swx "); outd(last); outc(' '); outd(lend); outc('\n');
 }
 
 /* computed goto: r0 holds target address; emit jmp (r0). */

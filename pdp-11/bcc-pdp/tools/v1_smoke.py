@@ -23,7 +23,7 @@ import time
 import pexpect
 from v1_image import inspect
 from v1_files import verify_files
-from console_protocol import command_line, completion_pattern, program_output
+from console_protocol import command_line, completion_pattern, program_output, compile_failure
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 V1 = os.path.normpath(os.path.join(HERE, "..", "..", "unix-v1"))
@@ -134,9 +134,12 @@ def main() -> int:
     parser.add_argument("--argument", action="append", default=[], help="simple argument passed to the guest program")
     outcome = parser.add_mutually_exclusive_group()
     outcome.add_argument("--expect-compile-error", action="store_true")
+    parser.add_argument("--expect-diagnostic", help="required compiler message with --expect-compile-error")
     parser.add_argument("--trace-stages", action="store_true", help="run each compiler pass directly before checking the driver")
     outcome.add_argument("--selfhost", action="store_true", help="rebuild and compare the four compiler binaries inside V1")
     args = parser.parse_args()
+    if args.expect_diagnostic is not None and not args.expect_compile_error:
+        parser.error("--expect-diagnostic requires --expect-compile-error")
     if any(not re.fullmatch(r"[A-Za-z0-9_.-]+", value) for value in args.argument):
         parser.error("guest arguments must be simple shell words")
     expected_rebuilds = {}
@@ -257,8 +260,7 @@ def main() -> int:
         ls_out = recv_until(sock, rb"# ", timeout=30)
         produced = bool(re.search(rb"(^|[\r\n])a\.out[\r\n]", ls_out))
         if args.expect_compile_error:
-            diagnosed = b"b: pass failed" in compile_out or b"b: assembler failed" in compile_out
-            if not produced and diagnosed:
+            if compile_failure(compile_out, produced, args.expect_diagnostic):
                 sys.stderr.write("PASS: guest driver rejected the failed compilation\n")
                 return 0
             sys.stderr.write(compile_out.decode("latin-1"))

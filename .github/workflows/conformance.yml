@@ -65,8 +65,10 @@ jobs:
           python3 pdp-11/bcc-pdp/tests/driver_cases.py
           python3 pdp-11/bcc-pdp/tests/ic_cases.py
           python3 pdp-11/bcc-pdp/tests/read_errors.py
+          python3 pdp-11/bcc-pdp/tests/compiler_stack.py
           python3 pdp-11/bcc-pdp/tests/argv_storage.py
           python3 tests/test_external_scope.py --native
+          python3 tests/test_switch_runtime.py --native
           python3 pdp-11/bcc-pdp/tests/image_tools.py
           python3 pdp-11/bcc-pdp/tests/file_verification.py
           python3 pdp-11/bcc-pdp/tests/console_protocol.py
@@ -102,6 +104,16 @@ jobs:
           make -C pdp-11/bcc-pdp v1-run B=tests/v1/argv_many.b
           make -C pdp-11/bcc-pdp v1-run B=tests/v1/console_prompt.b
           make -C pdp-11/bcc-pdp v1-run B=tests/v1/console_no_newline.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t103_switch_nested.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t104_switch_far.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t105_switch_escape.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t106_switch_capacity.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t107_nested_parentheses.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t108_nested_parentheses32.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t109_switch_flow.b
+          pdp-11/bcc-pdp/tools/v1-run.sh pdp-11/bcc-pdp/tests/v1/stack_exhaustion.b --expect-compile-error --expect-diagnostic 'compiler stack exhausted'
+          pdp-11/bcc-pdp/tools/v1-run.sh pdp-11/bcc-pdp/tests/v1/stack_unary.b --expect-compile-error --expect-diagnostic 'compiler stack exhausted'
+          pdp-11/bcc-pdp/tools/v1-run.sh pdp-11/bcc-pdp/tests/v1/stack_blocks.b --expect-compile-error --expect-diagnostic 'compiler stack exhausted'
           make -C pdp-11/bcc-pdp v1-run B=tests/run/t100_exit_no_argument.b
           make -C pdp-11/bcc-pdp v1-run B=tests/run/t39_signed_math.b
           make -C pdp-11/bcc-pdp v1-run B=tests/run/t40_print_min.b

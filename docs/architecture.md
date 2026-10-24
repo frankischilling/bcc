@@ -106,6 +106,19 @@ a forward assembler constant whose value is emitted after the body has been
 parsed. Late automatic declarations therefore contribute to the same frame;
 vector initialization records stay at their source execution points.
 
+Native switch dispatch is streamed through `swb`, `swc`, and `swx` records.
+Each case has a comparison node and a separate body entry. Ordinary
+fall-through skips the comparison, while a match removes the saved selector
+before entering the body. Forward jumps avoid short-branch range limits.
+Nested switches retain only their pending chain labels and counts, not a
+shared table of case entries.
+
+The native parser also checks the available stack before recursive work.
+Its storage-boundary test compares the computed end of the lexer buffers
+with the linked executable header. Parenthesis handling avoids retaining
+assignment temporaries at every nesting level, and statement arms share
+local slots to fit the restored system's process memory.
+
 Native `runtime/brt.s` supplies startup-adjacent helpers and syscall wrappers;
 `runtime/libb.b` supplies library routines written in B. The native compiler
 uses word-addressed B data pointers. Public B function symbols address mutable

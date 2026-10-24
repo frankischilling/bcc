@@ -49,6 +49,39 @@ kwn[20];          /* int pointers to keyword strings */
 kwt[20];          /* int tokens */
 kwc 0;
 
+/* These five buffers account for b00's BSS. The stack test compares this
+ * boundary with the linked image, so adding storage requires updating it. */
+stkend 0;
+
+stkmax(p) {
+    extern stkend;
+    int stkend;
+    if (p < 0) fatal("compiler image too large");
+    if (p > stkend) stkend = p;
+}
+
+stkini() {
+    extern stkend, tstrbuf, tnam, savnam, kwn, kwt;
+    int stkend, tstrbuf[], tnam[], savnam[], kwn[], kwt[];
+    stkend = 0;
+    stkmax(&tstrbuf[130]); stkmax(&tnam[5]); stkmax(&savnam[5]);
+    stkmax(&kwn[20]); stkmax(&kwt[20]);
+    if (stkend > 32639) fatal("compiler image too large");
+}
+
+stkuse(p) {
+    extern stkend;
+    int stkend;
+    /* The fast observer has a larger high-address stack than real V1. */
+    if (p < 0) return;
+    if (p < stkend + 128) fatal("compiler stack exhausted");
+}
+
+stkchk() {
+    int probe;
+    stkuse(&probe);
+}
+
 lexini(fd) {
 	extern inpfd, peekc, pushd, savtok, lineno;
 	int inpfd, peekc, pushd, savtok, lineno;

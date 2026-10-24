@@ -45,6 +45,7 @@ bash pdp-11/bcc-pdp/tests/ext/run.sh
 python3 pdp-11/bcc-pdp/tests/driver_cases.py
 python3 pdp-11/bcc-pdp/tests/ic_cases.py
 python3 pdp-11/bcc-pdp/tests/read_errors.py
+python3 pdp-11/bcc-pdp/tests/compiler_stack.py
 python3 pdp-11/bcc-pdp/tests/image_tools.py
 python3 pdp-11/bcc-pdp/tests/file_verification.py
 python3 pdp-11/bcc-pdp/tests/console_protocol.py
@@ -272,3 +273,9 @@ The host terminal-buffer tests open a private pseudoterminal. They do not
 read or change the terminal running the test suite. These checks cover null
 buffers, missing-argument diagnostics, failed descriptors, and a guarded
 three-word round trip. They do not establish DC11 register compatibility.
+
+For an expected full-system rejection, `--expect-diagnostic TEXT` additionally
+requires that compiler message. It must be combined with
+`--expect-compile-error`; an unrelated failure does not satisfy the check.
+The deep-parenthesis, unary-chain, and block fixtures require the stack
+exhaustion diagnostic rather than accepting any failed compilation.

@@ -11,6 +11,7 @@ PDP-11 compiler.
 - `counted_arguments.b`: reading a counted argument list beyond the declared parameters.
 - `parameter_cells.b`: walking the declared argument cells in order.
 - `label_cells.b`: replacing a label value and observing it on later calls.
+- `nested_switch.b`: leaving two nested switches with a label value.
 - `directory.b`: the historical `mkdir` name and directory status flag.
 
 ```sh

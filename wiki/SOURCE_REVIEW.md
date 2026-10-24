@@ -803,6 +803,25 @@ boundary, and retain missing-argument diagnostics. This is a buffer-safety
 fix, not the still-missing translation from host termios fields to the
 historical DC11 register layout.
 
+The restored kernel and the fast observer also provide different stack
+budgets. The kernel configuration used by these tests sets `ecore - core` to octal `040000` (16 KiB),
+whereas the observer starts V1/V2 argument stacks just below the KE11 range.
+A 16-parenthesis expression passed the observer but failed in the kernel.
+Reducing recursive parser frames made it work in the kernel too. The parser
+now reserves diagnostic space above the linked storage boundary and reports
+stack exhaustion before overwriting that storage. Header-based boundary
+tests and real-kernel rejection tests cover the guard; a passing binary-size
+check alone does not account for stack use.
+
+Three separate native switch tests exposed overwritten outer case entries,
+out-of-range branches across large bodies, and stack growth when `goto` left
+a switch. Case dispatch is now streamed as independent comparison nodes.
+A matching node removes its selector before entering the body; fall-through
+and branches into or out of the body do not remove another word. Tests cover
+32 cases in each of two nested switches, long bodies, repeated escapes,
+no match, fall-through, and negative case constants. These are implementation
+corrections to the control-flow rules, not new B syntax.
+
 ## Reference inventory
 
 "Read" below describes the review scope, not a promise that every feature in

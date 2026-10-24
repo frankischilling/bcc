@@ -69,6 +69,7 @@ main(argc, argv) int argv[]; {
 		exit(1);
 	}
 
+	stkini();
 	lexini(fdin);
 	outinit(fdout);
 	if (extflg) outs("Acompat\n");

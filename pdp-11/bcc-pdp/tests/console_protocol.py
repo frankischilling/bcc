@@ -57,6 +57,16 @@ class ConsoleProtocol(unittest.TestCase):
         with self.assertRaises(ValueError):
             protocol.program_output(raw, line, 'different')
 
+    def test_compiler_failure(self):
+        output = b'bcc: compiler stack exhausted\nb: pass failed\n'
+        self.assertTrue(protocol.compile_failure(output, False))
+        self.assertTrue(protocol.compile_failure(output, False, 'compiler stack exhausted'))
+        self.assertFalse(protocol.compile_failure(output, True))
+        self.assertFalse(protocol.compile_failure(output, False, 'different error'))
+        self.assertFalse(protocol.compile_failure(b'compiler stack exhausted\n', False))
+        self.assertFalse(protocol.compile_failure(b'I\nII\n', False))
+        self.assertTrue(protocol.compile_failure(b'b: assembler failed\n', False))
+
     def test_reject_marker_metacharacters(self):
         for marker in ('', 'a;b', 'a b', 'a\nb', '$x', "'x'"):
             with self.assertRaises(ValueError):

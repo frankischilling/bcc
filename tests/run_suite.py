@@ -91,6 +91,8 @@ def main():
                           '--compiler', str(compiler)], 'argument vector') and ok
         ok = checked_run([sys.executable, str(root / 'tests/test_unix_metadata.py'),
                           '--compiler', str(compiler)], 'Unix metadata') and ok
+        ok = checked_run([sys.executable, str(root / 'tests/test_switch_runtime.py'),
+                          '--compiler', str(compiler)], 'switch control flow') and ok
         ok = checked_run([sys.executable, str(root / 'tests/test_external_scope.py'),
                           '--compiler', str(compiler)], 'external declaration scope') and ok
         ok = checked_run([sys.executable, str(root / 'tests/test_declarations.py'),

@@ -10,45 +10,25 @@ cgswb(ldisp) {
 	outc('\n');
 }
 
-/* switch end: emit pop+exit, then dispatcher chain.  Layout:
- *      <body inline above>
- *      jmp Lpop                  ; fall-through past last case lands here too
- *  Lpop: tst (sp)+; jmp Lend
- *  Ldisp: mov (sp), r0; cmp r0, $K; jeq Lc; ... ; jmp Lpop
- *  Lend:
- */
-cgswe(ldisp, lpop, lend, ncases, table) int table[]; {
-	int i;
-	outs("\tjmp\tL");
-	outd(lpop);
-	outc('\n');
-	outs("L");
-	outd(lpop);
-	outs(":\n");
-	eop("tst\t(sp)+");
-	outs("\tjmp\tL");
-	outd(lend);
-	outc('\n');
-	outs("L");
-	outd(ldisp);
-	outs(":\n");
-	eop("mov\t(sp), r0");
-	i = 0;
-	while (i < ncases) {
-		outs("\tcmp\tr0, $");
-		outd(table[2 * i]);
-		outs(".\n");
-		outs("\tbeq\tL");
-		outd(table[2 * i + 1]);
-		outc('\n');
-		i = i + 1;
-	}
-	outs("\tjmp\tL");
-	outd(lpop);
-	outc('\n');
-	outs("L");
-	outd(lend);
-	outs(":\n");
+/* Fall-through skips each dispatch node. A match removes the saved value
+ * before entering the body, so goto, continue, and return cannot leak it. */
+cgswc(ldisp, lnext, value, lbody) {
+    cgjmp(lbody);
+    cglab(ldisp);
+    outs("\tcmp\t(sp), $"); outd(value); outs(".\n");
+    eop("beq\t1f");
+    cgjmp(lnext);
+    outs("1:\n");
+    eop("tst\t(sp)+");
+    cglab(lbody);
+}
+
+/* Ordinary fall-through skips the unmatched-dispatch cleanup. */
+cgswe(last, lend) {
+    cgjmp(lend);
+    cglab(last);
+    eop("tst\t(sp)+");
+    cglab(lend);
 }
 
 /* computed goto: r0 already holds target; jmp (r0). */

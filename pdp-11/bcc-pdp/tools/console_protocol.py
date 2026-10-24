@@ -22,3 +22,10 @@ def program_output(raw, line, marker):
     if suffix is None:
         raise ValueError('guest command has no shell completion marker')
     return text[:suffix.start()]
+
+
+def compile_failure(output, produced, diagnostic=None):
+    """Require a driver failure, no executable, and any requested message."""
+    failed = b'b: pass failed' in output or b'b: assembler failed' in output
+    requested = diagnostic is None or diagnostic.encode('utf-8') in output
+    return not produced and failed and requested

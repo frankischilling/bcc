@@ -6,7 +6,7 @@ in `bcc-pdp`.  Source: <https://www.nokia.com/bell-labs/about/dennis-m-ritchie/k
 
 Status legend:
 
-- ✔ - implemented per spec
+- ✔ - implemented path; see test coverage and limits
 - ✚ - implemented with documented deviation (see notes)
 - ⚠ - implementation differs from manual but observable behavior matches
 - ✗ - not implemented
@@ -49,7 +49,7 @@ syscall wrappers translate to machine byte addresses where needed.
 | 5.1 | compound `{...}` | ✔ |
 | 5.2 | `if (rvalue) stmt [else stmt]` | ✔ |
 | 5.3 | `while (rvalue) stmt` | ✔ |
-| 5.4 | `switch rvalue stmt` + `case constant:` | ✔ - no parens around rvalue, fall-through (no `break`).  Linear `cmp/beq` dispatcher; max 32 cases per switch (kbman diagnostic `>c` on overflow). |
+| 5.4 | `switch rvalue stmt` + `case constant:` | ✔ - parentheses optional, fall-through (no `break`).  Forward-linked comparison nodes and range-safe jumps; max 32 cases per switch (kbman diagnostic `>c` on overflow). |
 | 5.5 | `goto rvalue;` | ✔ Reads the target value and jumps indirectly, including bare named labels. Internal label cells are writable and persist across invocations. |
 | 5.6 | `return [(rvalue)];` | ✔ - bare `return` returns 0 |
 | 5.7 | rvalue statement | ✔ |
@@ -60,7 +60,7 @@ and `auto v[n]`) require `-x`; strict mode rejects them.
 
 ## V1 Deployment Limits
 
-Unix V1 gives each process 16 KB of address space.  The installed compiler
+The restored Unix V1 test configuration reserves 16 KiB for each process.  The installed compiler
 therefore runs as `b00 -> b01 -> b1`, and each binary is checked for both
 `text + data <= 16384` and `text + data + bss <= 16384`.
 
@@ -72,6 +72,17 @@ bash pdp-11/bcc-pdp/tests/check_v1_binaries.sh
 
 These totals exclude the argument frame and runtime stack. Passing the binary
 size check does not establish that every input or recursion depth fits.
+The parser checks its stack against the end of linked storage and reserves
+128 bytes for reporting exhaustion. A test derives the expected boundary
+from the native executable header, so new storage cannot silently bypass
+the guard. Deep expressions, unary chains, and blocks are tested in the
+real kernel; the fast observer gives programs a larger stack.
+
+Switch cases are emitted as they arrive rather than sharing one global case
+table. Matching dispatch removes the saved selector before entering the
+body. Fall-through, computed branches into a body, and branches out of nested
+switches therefore leave the runtime stack balanced. All compiler passes
+must be rebuilt together after the internal-record change.
 
 ## §6  Declarations
 

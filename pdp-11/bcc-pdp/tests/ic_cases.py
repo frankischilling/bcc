@@ -28,10 +28,14 @@ def main():
              ('b1', 'cl 8191\n', b'bad argument count'),
              ('b1', 'Slit 257\n', b'literal length too large'),
              ('b1', 'Slit -1\n', b'negative literal length'),
-             ('b1', 'swe 1 2 3 33\n', b'too many cases'),
-             ('b1', 'swe 1 2 3 -1\n', b'negative case count'),
+             ('b1', 'swe 1 2 3 33\n', b'bad tag'),
+             ('b1', 'swe 1 2 3 -1\n', b'bad tag'),
              ('b1', 'x'*1040+'\n', b'IC line too long'),
              ('b01', 'x'*1040+'\n', b'IC line too long')]
+    for record in ('swb -1', 'swc -1 2 3 4', 'swc 1 -2 3 4', 'swc 1 2 3 -4', 'swx -1 2', 'swx 1 -2'):
+        cases.append(('b1', record + '\n', b'bad switch label'))
+    for record in ('swc 1 2 3', 'swx 1'):
+        cases.append(('b1', record + '\n', b'bad IC integer'))
     for integer in ('32768', '-32769', '65536', '-65536', '99999999999999999999'):
         cases.append(('b1', 'n ' + integer + '\n', b'IC integer out of range'))
     for integer in ('', '-', 'x', '1x', '--1'):
