@@ -94,6 +94,7 @@ jobs:
           make -C pdp-11/bcc-pdp v1-run B=tests/run/t85_word_io_offsets.b
           make -C pdp-11/bcc-pdp v1-run B=tests/run/t87_word_exec_offset.b
           make -C pdp-11/bcc-pdp v1-run B=tests/run/t89_format_capture.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t90_label_cells.b
           bash pdp-11/bcc-pdp/tools/v1-run.sh pdp-11/bcc-pdp/tests/run/t86_word_argv_alignment.b --argument a --argument bb --argument ccc --argument dddd
           bash pdp-11/bcc-pdp/tools/v1-run.sh pdp-11/bcc-pdp/tests/run/t19a_tilde.b --expect-compile-error
           bash pdp-11/bcc-pdp/tools/v1-run.sh pdp-11/bcc-pdp/tests/run/t44_missing_label.b --expect-compile-error

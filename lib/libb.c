@@ -709,6 +709,8 @@ word b_makdir(word path, word mode) {
     return (word)mkdir(p, __bcc_unix_mode(mode, 1));
 }
 
+word b_mkdir(word path, word mode) { return b_makdir(path, mode); }
+
 /* Terminal I/O */
 
 word b_gtty(word fd, word ttstat) {

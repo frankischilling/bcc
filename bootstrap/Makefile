@@ -46,6 +46,12 @@ test: stage3
 
 	@set -e; for stage in 1 2 3; do python3 ../tests/test_docs_examples.py --bootstrap --compiler build/stage$$stage/bbc; done
 
+	@set -e; for stage in 1 2 3; do python3 ../tests/test_mkdir_runtime.py --bootstrap --compiler build/stage$$stage/bbc; done
+
+	@set -e; for stage in 1 2 3; do python3 ../tests/test_label_cells.py --bootstrap --compiler build/stage$$stage/bbc; done
+
+	@set -e; for stage in 1 2 3; do python3 ../tests/test_library_names.py --bootstrap --compiler build/stage$$stage/bbc; done
+
 clean:
 	rm -rf $(BUILD)
 	rm -f src/*.b.c

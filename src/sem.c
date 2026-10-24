@@ -101,7 +101,7 @@ static void sem_add_builtin_functions(SemState *st) {
         "open", "close", "read", "write", "creat", "seek", "openr", "openw",
         "fork", "wait", "execl", "execv",
         "chdir", "chmod", "chown", "link", "unlink", "stat", "fstat",
-        "time", "ctime", "getuid", "setuid", "makdir", "intr",
+        "time", "ctime", "getuid", "setuid", "makdir", "mkdir", "intr",
         "system", "callf",
         "gtty", "stty",
         "argc", "argv",
@@ -212,7 +212,7 @@ static void sem_check_lvalue(SemState *st, Expr *e) {
                 }
             } else if (sym->is_builtin && strcmp(sym->name, "argv") == 0) {
                 e->builtin_argv = 1;
-            } else if (sym->kind != SYM_VAR) {
+            } else if (sym->kind != SYM_VAR && sym->kind != SYM_LABEL) {
                 dief("'%s' is not a variable at %d:%d", e->as.var, e->line, e->col);
             }
             break;

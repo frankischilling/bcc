@@ -139,3 +139,24 @@ Formatting regressions check strict signed octal and unknown conversions
 separately from host compatibility formats, along with minimum integers,
 word widths, invalid bases, and embedded NULs. Read regressions ensure that
 short, zero-length, failed, and EOF reads do not erase untouched bytes.
+
+## Publishing the GitHub wiki
+
+The reviewed source pages live in `wiki/`. The GitHub wiki is a separate
+Git repository. After committing and pushing the source revision, prepare
+a local wiki checkout with:
+
+```sh
+git clone https://github.com/frankischilling/bcc.wiki.git ../bcc.wiki
+python3 scripts/sync_wiki.py ../bcc.wiki --revision HEAD --pull-request 1
+git -C ../bcc.wiki diff
+python3 scripts/sync_wiki.py ../bcc.wiki --revision HEAD --pull-request 1 --check
+```
+
+Use the relevant PR number only for an unmerged revision; omit that option
+for merged documentation. The script does not commit or push. Review the
+prepared diff, then publish it with the wiki repository's normal Git workflow.
+It preserves existing page URLs and converts repository-relative links to
+pinned source links. It refuses to copy source pages that differ from the
+requested commit, so a published page cannot quietly describe uncommitted
+changes. Unknown wiki pages are left alone.

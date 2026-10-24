@@ -125,3 +125,13 @@ Native executable conversion emits only the fixed-origin text with a stripped
 V1 header. The text length includes the 12-byte header. Incompatible V2 symbol
 and relocation metadata is discarded, not copied into a V1 section or
 reported as zero-fill memory. Conversion failure removes the partial output.
+
+Internal label cells have static lifetime, not automatic lifetime. The C
+backends store function-local numeric dispatch values in writable cells.
+The native backend emits cells after each epilogue, initialized to code
+addresses; even a bare goto loads its target through the cell. Address-of
+uses the same data-pointer units as other cells.
+
+`lib/bformat.h` is shared by the linked and inline host runtimes. It keeps
+strict formatting separate from compatibility formatting; the runtime cache
+key includes that selection and the header contents.

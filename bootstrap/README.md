@@ -65,8 +65,9 @@ diagnostic before a table write. The tests exercise each limit's rejection.
 
 ## Remaining differences
 
-Computed branches use function-local label values, including forward
-references. Strict mode uses word-addressed pointers; compatibility mode keeps
+Computed branches use writable function-local label cells, including forward
+references. Their contents persist across invocations. Source-defined functions and external data
+use private C names to avoid collisions with host library declarations. Strict mode uses word-addressed pointers; compatibility mode keeps
 byte-addressed pointers. Storage is still host-sized rather than the host
 compiler's translated 16-bit model. Function-valued calls are covered, but
 mutable function-name storage and compatibility block-scope resolution still

@@ -742,10 +742,19 @@ c_name(name) {
     return(1);
 }
 
+global_name(name) {
+    return(scat("__bbc_global_",name));
+}
+
+function_name(name) {
+    if (streq(name, "main")) return("__b_user_main");
+    return(scat("__bbc_function_",name));
+}
+
 call_name(name) {
     if (has_local(name)) return(name);
     if (streq(name, "main")) return("__b_user_main");
-    if (has_function(name)) return(name);
+    if (has_function(name)) return(function_name(name));
     if (streq(name, "char") | streq(name, "__bbc_id_char")) return("b_char");
     if (streq(name, "lchar")) return("b_lchar");
     if (streq(name, "getchar")) return("b_getchar");
@@ -788,6 +797,7 @@ call_name(name) {
     if (streq(name, "getuid")) return("b_getuid");
     if (streq(name, "setuid")) return("b_setuid");
     if (streq(name, "makdir")) return("b_makdir");
+    if (streq(name, "mkdir")) return("b_mkdir");
     if (streq(name, "intr")) return("b_intr");
     if (streq(name, "gtty")) return("b_gtty");
     if (streq(name, "stty")) return("b_stty");
@@ -908,11 +918,10 @@ primary() {
         name = TTEXT;
         next();
         if (label_id(name)) {
-            buf_str(b, "((word)");
+            buf_str(b, "__bbc_label_value_");
             buf_num(b, label_id(name));
-            buf_ch(b, ')');
         } else if (has_global(name) & !has_local(name)) {
-            buf_str(b, name); buf_str(b, "[0]");
+            buf_str(b, global_name(name)); buf_str(b, "[0]");
         } else if ((TOK != 30) & streq(name, "argv") & !has_local(name) & !has_global(name) & !has_function(name)) {
             buf_str(b, "b_argv_vector");
         } else if ((TOK != 30) & !has_local(name) & !has_global(name) & (has_function(name) | !streq(call_name(name), name))) {
@@ -973,6 +982,7 @@ postfix() {
                 }
             }
             expect(31);
+            if ((narg == 0) & streq(cname, "b_exit")) buf_str(b, "0");
             buf_ch(b, ')');
             if (wrap_malloc(name)) buf_ch(b, ')');
             lhs = buf_take(b);
@@ -1392,8 +1402,7 @@ emit_prototypes() {
     i = 0;
     while (i < NFUNS) {
         emit("word ");
-        if (streq(FUNS[i * 2], "main")) emit("__b_user_main");
-        else emit(FUNS[i * 2]);
+        emit(function_name(FUNS[i * 2]));
         emit("(");
         j = 0;
         while (j < FUNS[i * 2 + 1]) {
@@ -1407,7 +1416,7 @@ emit_prototypes() {
     i = 0;
     while (i < NGLOBS) {
         emit("extern word ");
-        emit(GLOBS[i]);
+        emit(global_name(GLOBS[i]));
         emitln("[];");
         i = i + 1;
     }
@@ -1422,7 +1431,7 @@ global_ival() {
     next();
     if (streq(name, "argv") & !has_global(name) & !has_function(name))
         name = "b_argv_vector";
-    else if (has_global(name)) name = scat(name, "[0]");
+    else if (has_global(name)) name = scat(global_name(name), "[0]");
     else name = call_name(name);
     return(scat(scat("B_ADDR(", name), ")"));
 }
@@ -1437,20 +1446,20 @@ emit_global_storage(name, size, values, count, vector) {
         if (count) emit(itoa(count)); else emit("1");
         emitln("];");
     }
-    emit("word "); emit(name); emit("[");
+    emit("word "); emit(global_name(name)); emit("[");
     if (vector | !count) emit("1"); else emit(itoa(count));
     emitln("];");
     if (!vector & !count) return(0);
     emit("static void __attribute__((constructor(102))) __bbc_init_");
     emit(name); emitln("(void) {");
     if (vector) {
-        emit(name); emit("[0] = B_PTR(__"); emit(name); emitln("_store);");
+        emit(global_name(name)); emit("[0] = B_PTR(__"); emit(name); emitln("_store);");
     }
     if (count) {
         emit("word __bbc_values[] = {"); emit(values); emitln("};");
         emit("for (int __i=0; __i<"); emit(itoa(count)); emit("; __i++) ");
         if (vector) { emit("__"); emit(name); emit("_store"); }
-        else emit(name);
+        else emit(global_name(name));
         emitln("[__i] = __bbc_values[__i];");
     }
     emitln("}");
@@ -1532,8 +1541,7 @@ global_or_func() {
         NLABELS = 0;
         next();
         emit("word ");
-        if (streq(name, "main")) emit("__b_user_main");
-        else emit(name);
+        emit(function_name(name));
         emit("(");
         first = 1;
         n = 0;
@@ -1621,11 +1629,19 @@ func_body() {
 }
 
 emit_body() {
-    auto braced;
+    auto braced, i;
     braced = TOK == 32;
     if (braced) expect(32);
     emitln("{");
     if (STRICT & !LABELPASS & (HOIST != 0)) emit(buf_take(HOIST));
+    if (!LABELPASS) {
+        i=1;
+        while (i<=NLABELS) {
+            emit("static word __bbc_label_value_"); emit(itoa(i));
+            emit(" = "); emit(itoa(i)); emitln(";");
+            i=+1;
+        }
+    }
     if (braced) {
         while (TOK != 33) block_item();
         expect(33);

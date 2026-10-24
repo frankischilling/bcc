@@ -188,27 +188,14 @@ rrname(name) char name[]; {
 }
 
 rrderef() {
-	extern pndcls;
-	int pndcls;
-	if (pndcls == 5 | pndcls == 8) return;
 	outs("dr\n");
 }
 
 rrlbl(name) char name[]; {
-	extern scls, soff;
-	int scls[], soff[];
-	int sid;
-	sid = symfnd(name);
-	if (sid < 0) sid = symadd(name, 5, newl());
-	if (scls[sid] != 5 & scls[sid] != 8) {
-		rrname(name);
-		rrderef();
-		outs("gor\n");
-		return;
-	}
-	outs("jm ");
-	outd(soff[sid]);
-	outc('\n');
+	/* Even a bare goto reads the mutable internal label cell. */
+	rrname(name);
+	rrderef();
+	outs("gor\n");
 }
 
 rrdef(name) char name[]; {
@@ -320,6 +307,14 @@ rewrt() {
 			}
 			emitpr();
 			outs("ep "); outd(nlocs); outc('\n');
+			/* Internal cells persist across invocations, outside the frame. */
+			sid = fnst;
+			while (sid < nsy) {
+				if (scls[sid] == 8) {
+					outs("lv "); outd(soff[sid]); outc('\n');
+				}
+				sid = sid + 1;
+			}
 			symtrn();
 			hdrdn = 1;
 			infun = 0;

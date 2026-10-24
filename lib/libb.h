@@ -186,6 +186,7 @@ word b_unlink(word path);
 word b_stat(word path, word bufp);
 word b_fstat(word fd, word bufp);
 word b_makdir(word path, word mode);
+word b_mkdir(word path, word mode);
 
 /* Terminal I/O */
 word b_gtty(word fd, word ttstat);

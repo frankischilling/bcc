@@ -50,7 +50,7 @@ syscall wrappers translate to machine byte addresses where needed.
 | 5.2 | `if (rvalue) stmt [else stmt]` | ✔ |
 | 5.3 | `while (rvalue) stmt` | ✔ |
 | 5.4 | `switch rvalue stmt` + `case constant:` | ✔ - no parens around rvalue, fall-through (no `break`).  Linear `cmp/beq` dispatcher; max 32 cases per switch (kbman diagnostic `>c` on overflow). |
-| 5.5 | `goto rvalue;` | ✔ - bare label name → direct `jmp Lname`; otherwise eval rvalue → `jmp (r0)`.  Label as rvalue: `mov $Lid, r0`. |
+| 5.5 | `goto rvalue;` | ✔ Reads the target value and jumps indirectly, including bare named labels. Internal label cells are writable and persist across invocations. |
 | 5.6 | `return [(rvalue)];` | ✔ - bare `return` returns 0 |
 | 5.7 | rvalue statement | ✔ |
 | 5.8 | null `;` | ✔ |
@@ -192,6 +192,11 @@ The fast runner uses an unchanged-text compatibility container to observe
 results that the pinned apout 0405 mode discards. Full-system tests remain
 separate and cover real V1 files, processes, tty state, and time registers.
 See [the test guide](../../docs/testing.md). The native compiler still needs
-work on cross-file linkage for mapped external names and mutable internal
-label cells. Table
+work on cross-file linkage for mapped external names. Table
 entries above describe implemented paths, not a claim of complete conformance.
+
+Internal label cells are emitted after the function epilogue and initialized
+to their code-entry values. Taking a label's address yields a word pointer
+to its cell; loading, replacing, and indirect branching use that storage.
+The label-cell regression checks saved values, address-based writes, bare
+and parenthesized goto, and changes retained by later calls.

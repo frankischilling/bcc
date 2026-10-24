@@ -17,7 +17,7 @@ historical B environment.
 - Formatting: `printf` and `printn`. See [formatting rules](WIKI_IO_FUNCTIONS.md).
 - Descriptors: `open`, `creat`, `close`, `read`, `write`, `seek`.
 - Filesystem: `chdir`, `chmod`, `chown`, `link`, `unlink`, `stat`, `fstat`,
-  `makdir`. See [file I/O](WIKI_FILE_IO.md).
+  `mkdir` (also available as `makdir`). See [file I/O](WIKI_FILE_IO.md).
 - Processes and identity: `fork`, `wait`, `execl`, `execv`, `exit`, `getuid`,
   `setuid`. Host permission checks remain in force.
 - Time: `time` and `ctime`, described below.

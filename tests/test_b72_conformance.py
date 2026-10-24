@@ -8,6 +8,8 @@ import tempfile
 
 
 CASES = {
+    'no_argument_exit': ('main(){extrn exit; exit(); return(9);}', 0),
+    'source_defined_exit': ('exit(){return(42);} main(){extrn exit;return(exit()!=42);}', 0),
     "bare_return_unused": ("f(){return;} main(){f();return(0);}", 0),
     "unparenthesized_return": ("main(){return 7;}", None),
     "return_expression_tail": ("main(){return(3)+4;}", None),

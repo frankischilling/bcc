@@ -149,8 +149,9 @@ in the body cannot overwrite the caller's frame.
 - Function names, including library functions, are writable cells containing
   code addresses. Calls accept values stored in variables or vectors, passed
   as parameters, selected by expressions, or returned by another call.
-  Forward label values work within their function; missing and duplicate
-  labels are rejected by the resolver.
+  Internal label names also have writable, persistent cells. Bare and
+  computed branches read the current value. Missing and duplicate labels
+  are rejected by the resolver.
 - The startup argument vector keeps at most 31 entries, including the
   program name at `argv[1]`. Its count reports only stored entries. The
   optional `main(count, values)` extension still receives user arguments

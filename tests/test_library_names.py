@@ -6,6 +6,7 @@ import subprocess
 import tempfile
 
 CASES = {
+    'mkdir-replacement': ['mkdir(n){return(n+1);} main(){auto f; extrn mkdir; f=mkdir; return(mkdir(41)!=42 | f(42)!=43);}'],
     'cross-file-function': ['main(){auto f; extrn other; f=other; return(f(7)!=10);}', 'other(n){return(n+3);}'],
     'functions': ['''
 printn(n,b) { if(n) return(printn(n-1,b)+1); return(b); }
@@ -37,19 +38,21 @@ main() { return(printf(10)!=11 | __bcc_user_r_printf(10)!=12); }
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--compiler', type=Path, required=True)
+    parser.add_argument('--bootstrap', action='store_true')
     args = parser.parse_args()
     passed = failed = 0
     with tempfile.TemporaryDirectory(prefix='bcc-library-names-') as directory:
         root = Path(directory)
-        for inline in (False, True):
-            for mode in ('host', '16'):
+        for inline in ((False,) if args.bootstrap else (False, True)):
+            for mode in (('host',) if args.bootstrap else ('host', '16')):
                 for name, sources in CASES.items():
                     paths = []
                     for index, source in enumerate(sources):
                         path = root / f'part{index}.b'
                         path.write_text(source)
                         paths.append(str(path))
-                    command = [str(args.compiler.resolve()), f'--word={mode}']
+                    command = [str(args.compiler.resolve())]
+                    if not args.bootstrap: command += [f'--word={mode}']
                     if name != 'namespace': command += ['--strict', '--pedantic']
                     if inline: command += ['--inline-runtime']
                     build = subprocess.run([*command, *paths, '-o', str(root/'case')], capture_output=True, timeout=30)

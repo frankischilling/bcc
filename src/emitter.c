@@ -271,7 +271,7 @@ static int runtime_function(const char *name) {
         "exit", "abort", "free", "alloc", "open", "close", "read", "write",
         "creat", "seek", "openr", "openw", "fork", "wait", "execl", "execv",
         "chdir", "chmod", "chown", "link", "unlink", "stat", "fstat", "time",
-        "ctime", "getuid", "setuid", "makdir", "intr", "gtty", "stty",
+        "ctime", "getuid", "setuid", "makdir", "mkdir", "intr", "gtty", "stty",
         "system", "usleep", "callf", "argc", "argv", NULL
     };
     for (size_t i = 0; names[i]; i++)
@@ -858,7 +858,7 @@ void emit_expr(FILE *out, Expr *e, const char *filename) {
                 }
             }
 
-            int add_exit_zero = (cname && strcmp(cname, "exit") == 0 && nargs == 0);
+            int add_exit_zero = (used_builtin_prefix && cname && strcmp(cname, "exit") == 0 && nargs == 0);
             if (add_exit_zero) {
                 fputs("0", out);
             }
@@ -2449,6 +2449,7 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
         "    return (word)mkdir(p, __bcc_unix_mode(mode, 1));\n"
         "}\n"
         "\n"
+        "static word b_mkdir(word path, word mode) { return b_makdir(path, mode); }\n"
         "static word b_putnum(word n) {\n"
         "    b_printn(n, (word)10);\n"
         "    return n;\n"

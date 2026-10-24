@@ -43,7 +43,7 @@ main() {
 
 ## Permission modes
 
-For host `creat`, `chmod`, and `makdir`, values through octal 077 use the V1
+For host `creat`, `chmod`, and `mkdir`/`makdir`, values through octal 077 use the V1
 permission layout: 040 set-user-ID, 020 execute, 010 owner-read, 004
 owner-write, 002 other-read, and 001 other-write. For example, 016 maps to
 host file permissions 0644, subject to the host umask. Directory read access

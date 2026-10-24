@@ -209,3 +209,10 @@ The wiki's complete examples carry executable checks. This replaces earlier
 claims of nested functions, closures, guaranteed left-to-right argument
 evaluation, and C-style automatic initialization. Tests establish the stated
 examples, not complete historical equivalence.
+
+Internal label storage now follows section 6.3 across the three backends:
+cells are function-local, writable, and retained between invocations. Tests
+exercise their addresses and both bare and computed branches after mutation.
+The host library also exposes the section 8 spelling `mkdir`; `makdir` remains
+an alias. The bootstrap accepts the historical zero-argument `exit()` call
+and separates source-defined function and data symbols from host C declarations.

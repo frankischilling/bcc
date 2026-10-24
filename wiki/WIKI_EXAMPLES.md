@@ -17,6 +17,13 @@ handwritten examples of their generated C. To inspect current generated C,
 use `bcc -E program.b`; the output depends on the compiler revision, word
 mode, pointer mode, and runtime layout.
 
+## Downloadable strict examples
+
+[`examples/b72/`](../examples/b72/README.md) contains runnable sources for
+formatting, directory creation, and persistent label cells. The same example
+checker runs these files as well as the chapter examples. Directory creation
+runs in a fresh temporary directory during tests.
+
 ## Repository examples
 
 The [`examples/`](../examples/) directory also contains larger programs:

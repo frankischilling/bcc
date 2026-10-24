@@ -56,11 +56,18 @@ cggor() {
 	eop("jmp\t(r0)");
 }
 
-/* address-of-label: emit `mov $L<lid>, r0`. */
+/* Address the internal cell in B word units, not its code-entry value. */
 cgla(lid) {
 	outs("\tmov\t$L");
 	outd(lid);
-	outs(", r0\n");
+	outs("v, r0\n");
+	eop("clc");
+	eop("ror\tr0");
+}
+
+/* Emit static storage after the function epilogue. */
+cglval(lid) {
+	outs("L"); outd(lid); outs("v:\tL"); outd(lid); outc('\n');
 }
 
 /* ---- streaming global-vector emitter ---- */

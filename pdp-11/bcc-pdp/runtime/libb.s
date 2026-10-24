@@ -743,7 +743,12 @@ B31:
 	mov	4.(sp), r0
 	jsr	pc, (r0)
 	add	$6., sp
-	jmp	B30003
+	mov	$B30003v, r0
+	clc
+	ror	r0
+	asl	r0
+	mov	(r0), r0
+	jmp	(r0)
 B32:
 	mov	r5, r0
 	sub	$6., r0
@@ -783,7 +788,12 @@ B34:
 	mov	4.(sp), r0
 	jsr	pc, (r0)
 	add	$6., sp
-	jmp	B30003
+	mov	$B30003v, r0
+	clc
+	ror	r0
+	asl	r0
+	mov	(r0), r0
+	jmp	(r0)
 B35:
 	mov	r5, r0
 	sub	$6., r0
@@ -817,7 +827,12 @@ B37:
 	mov	2.(sp), r0
 	jsr	pc, (r0)
 	add	$4., sp
-	jmp	B30003
+	mov	$B30003v, r0
+	clc
+	ror	r0
+	asl	r0
+	mov	(r0), r0
+	jmp	(r0)
 B38:
 	mov	r5, r0
 	sub	$6., r0
@@ -922,7 +937,12 @@ B45:
 	mov	r0, (r1)
 	jmp	B42
 B43:
-	jmp	B30003
+	mov	$B30003v, r0
+	clc
+	ror	r0
+	asl	r0
+	mov	(r0), r0
+	jmp	(r0)
 B41:
 	mov	$_putchar, r0
 	asr	r0
@@ -968,12 +988,18 @@ B41:
 	mov	(sp)+, r1
 	asl	r1
 	mov	r0, (r1)
-	jmp	B30003
+	mov	$B30003v, r0
+	clc
+	ror	r0
+	asl	r0
+	mov	(r0), r0
+	jmp	(r0)
 B30002:
 	mov	r5, sp
 	mov	(sp)+, r5
 	rts	pc
 B30002f = 10.
+B30003v:	B30003
 
 .text
 	.globl	___ctge

@@ -52,8 +52,9 @@ main() {
 
 `goto` accepts a label value, not just a literal label name. A label belongs
 to its function; do not branch into another function or keep a label value
-after its invocation returns. The native compiler supports saved label
-values but not the complete assignable label-cell model.
+after its invocation returns. Label cells are writable and retain their values across invocations of the
+function. The host, bootstrap, and native backends check this behavior.
+See the [runnable label-cell example](../examples/b72/label_cells.b).
 
 A value return is `return(value);`, including the parentheses. A bare
 `return;` is valid when the caller does not depend on a result.

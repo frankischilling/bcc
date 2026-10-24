@@ -14,6 +14,10 @@ python3 tests/test_docs_examples.py --bootstrap --compiler bootstrap/build/stage
 python3 tests/test_docs_examples.py --native
 ```
 
+The checker also reads reviewed sources in `examples/b72/`. Each execution
+gets its own temporary working directory, including examples that create
+files or directories.
+
 Only explicitly reviewed examples carry a `bcc-example` metadata comment.
 The checker compiles them in strict mode, executes them in a temporary
 directory, and compares output bytes and exit status. Host examples run in
