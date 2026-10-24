@@ -212,3 +212,9 @@ for these runs.
 Command-replay tests include empty arguments, long argument lists, fallback to
 standard input, and repeated replacement of unread input under a small descriptor
 limit. They run against linked and inline runtimes and all bootstrap stages.
+
+Call-frame tests cover extra arguments, missing declared arguments, mutation
+through argument addresses, recursion, nested calls, separately compiled source
+files, captured callees, and calls through both source and runtime function
+values. The native tests and counted-argument example cover supplied arguments;
+zero-filling missing arguments is tested only as a host/bootstrap extension.

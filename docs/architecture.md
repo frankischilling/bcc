@@ -164,8 +164,17 @@ is data, while its executable body has a private C name. Separate strict
 objects therefore use the same cell interface for calls and replacements.
 
 Parameter references carry a binding index after semantic analysis. The host
-emitter copies declared arguments into one per-invocation word array and
+emitter copies all supplied arguments into one per-invocation word array and
 uses those cells for reads, writes, and address-of. The whole array receives
 one translated-address registration in 16-bit mode. The bootstrap uses the
 same storage shape; its local-name lookup and compatibility block scopes keep
 a shadowing local distinct from the parameter cell.
+
+`lib/bcall.h` keeps the active argument frame and a registry of source-function
+bodies. A source call saves the callee value, evaluates its arguments, and
+passes the complete argument block to a private zero-parameter C body. The body
+copies those words into its parameter storage and zero-fills missing declared
+parameters. Calls restore the previous frame on return, including nested and
+recursive calls. Source functions compiled in separate files share the registry.
+Runtime and compatibility C function values retain their existing call path.
+The bootstrap emits the same source-function interface.

@@ -61,9 +61,17 @@ blocks. See the [parameter-cell example](../examples/b72/parameter_cells.b).
 The host and bootstrap use an explicit parameter block instead of relying
 on how a C compiler spills argument registers. In translated 16-bit mode,
 the block is registered as one object so free-list fragmentation cannot
-separate its cells. This does not yet establish a general variadic argument
-area beyond the declared parameters, or complete compatibility for missing
-arguments.
+separate its cells. All supplied arguments are retained, including those beyond
+the declared parameter names. A count or format string must tell the function
+how many cells it may read; see the [counted-argument example](../examples/b72/counted_arguments.b).
+This supports the argument-walking pattern in the reference's section 9.3.
+
+The host and bootstrap zero-fill missing declared parameters of source functions. The first two optional host `main` parameters still receive the command-line
+count and argument vector; additional declared parameters are zero.
+These are safety and compatibility extensions, not historical guarantees; native programs
+must not rely on missing arguments having a particular value. Function values
+remain opaque B values, not ordinary C function pointers. Rebuild all B objects
+when changing compiler versions because the host call interface can change.
 
 ## Function values
 

@@ -792,15 +792,26 @@ void emit_expr(FILE *out, Expr *e, const char *filename) {
             int cell_call = direct && !e->indirect_call &&
                 (source_function(direct) || (g_strict && !runtime_function(direct)));
             if (e->indirect_call || cell_call) {
-                fputs("((word (*)())B_FUNCTION_CPTR(", out);
+                unsigned id = ++expression_id;
+                size_t count = e->as.call.args.len;
+                fprintf(out, "({ word __bcc_callee_%u = ", id);
                 if (cell_call) emit_function_cell(out, direct);
                 else emit_expr(out, e->as.call.callee, filename);
-                fputs("))(", out);
-                for (size_t i = 0; i < e->as.call.args.len; i++) {
+                fprintf(out, "; word __bcc_args_%u[%zu] = {", id, count ? count : 1);
+                if (!count) fputc('0', out);
+                for (size_t i = 0; i < count; ++i) {
                     if (i) fputs(", ", out);
                     emit_expr(out, e->as.call.args.data[i], filename);
                 }
-                fputc(')', out);
+                fprintf(out, "}; __bcc_is_source_function(__bcc_callee_%u) ? "
+                        "__bcc_invoke_source(__bcc_callee_%u, %zu, __bcc_args_%u) : "
+                        "((word (*)())B_FUNCTION_CPTR(__bcc_callee_%u))(",
+                        id, id, count, id, id);
+                for (size_t i = 0; i < count; ++i) {
+                    if (i) fputs(", ", out);
+                    fprintf(out, "__bcc_args_%u[%zu]", id, i);
+                }
+                fputs("); })", out);
                 return;
             }
             int used_builtin_prefix = 0;
@@ -1447,12 +1458,12 @@ static void emit_function_body(FILE *out, Func *f, const char *filename) {
     collect_function_labels(f->body);
     fputs("{\n    B_FRAME;\n", out);
     if (f->params.len) {
-        fprintf(out, "    word __bcc_parameters[%zu] = {", f->params.len);
-        for (size_t p = 0; p < f->params.len; ++p) {
-            if (p) fputs(", ", out);
-            emit_name(out, f->params.data[p]);
-        }
-        fputs("};\n", out);
+        fputs("    size_t __bcc_count = __bcc_current_call ? __bcc_current_call->count : 0;\n", out);
+        fprintf(out, "    if (__bcc_count < %zu) __bcc_count = %zu;\n", f->params.len, f->params.len);
+        fputs("    word __bcc_parameters[__bcc_count];\n"
+              "    for (size_t __bcc_i = 0; __bcc_i < __bcc_count; ++__bcc_i)\n"
+              "        __bcc_parameters[__bcc_i] = __bcc_current_call && __bcc_i < __bcc_current_call->count\n"
+              "            ? __bcc_current_call->arguments[__bcc_i] : 0;\n", out);
         if (current_word_bits == 16)
             fputs("    (void)B_LOCAL_PTR_N(__bcc_parameters, sizeof(__bcc_parameters));\n", out);
     }
@@ -1501,14 +1512,9 @@ static void emit_function_prototypes(FILE *out, Program *prog) {
         Top *t = prog->tops.data[i];
         if (t->kind != TOP_FUNC) continue;
         Func *f = t->as.fn;
-        if (!strcmp(f->name, "main") && f->params.len > 2)
-            dief("main supports at most two host compatibility parameters");
         fputs("word ", out); emit_name(out, f->name); fputs("[1];\n", out);
         fputs("static word ", out); emit_function_body_name(out, f->name); fputc('(', out);
-        for (size_t j = 0; j < f->params.len; j++) {
-            if (j) fputs(", ", out);
-            fputs("word", out);
-        }
+        fputs("void", out);
         fputs(");\n", out);
     }
 }
@@ -1568,6 +1574,9 @@ static void emit_global_initializers(FILE *out, Program *prog, const char *filen
         fputs("    ", out); emit_function_cell(out, t->as.fn->name);
         fputs(" = B_FUNCTION(", out); emit_function_body_name(out, t->as.fn->name);
         fputs(");\n", out);
+        fprintf(out, "    static struct __bcc_source_function __bcc_function_%zu = {(void*)", i);
+        emit_function_body_name(out, t->as.fn->name);
+        fprintf(out, ", 0, 0};\n    __bcc_register_function(&__bcc_function_%zu);\n", i);
     }
     fputs("}\n", out);
     fputs("static void __b_initialize_globals(void) {\n", out);
@@ -1738,6 +1747,17 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
         fputc('\n', out);
         free(header);
     }
+    {
+        char *path = fmt("%s/bcall.h", g_libb_path);
+        size_t length;
+        char *header = read_file_all(path, &length);
+        fputs("#define B_CALL_DEFINE\n#define B_CALL_STORAGE __attribute__((common))\n", out);
+        fwrite(header, 1, length, out);
+        fputc('\n', out);
+        free(header);
+        if (!g_compilation_arena) free(path);
+    }
+
     {
         char *path = fmt("%s/bunix.h", g_libb_path);
         size_t length;
@@ -2546,12 +2566,7 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
                 emit_function_body_name(out, f->name);
                 fputc('(', out);
             }
-            for (size_t p = 0; p < f->params.len; p++) {
-                if (p) fputs(", ", out);
-                fputs("word ", out);
-                emit_name(out, (char*)f->params.data[p]);
-            }
-            fputs(")\n", out);
+            fputs("void)\n", out);
             emit_function_body(out, f, filename);
             fputc('\n', out);
             continue;
@@ -2563,11 +2578,10 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
         fputs("int main(int argc, char **argv){\n", out);
         fputs("    __b_setargs(argc, argv);\n", out);
         fputs("    __b_init();\n", out);
-        fputs("    return (int)((word (*)())B_FUNCTION_CPTR(", out);
+        fprintf(out, "    return (int)__bcc_call%zu(", main_param_count > 2 ? 2 : main_param_count);
         emit_function_cell(out, "main");
-        fputs("))(", out);
-        if (main_param_count >= 1) fputs("(word)argc", out);
-        if (main_param_count == 2) fputs(", __b_argvalues()", out);
+        if (main_param_count >= 1) fputs(", (word)argc", out);
+        if (main_param_count >= 2) fputs(", __b_argvalues()", out);
         fputs(");\n", out);
         fputs("}\n", out);
     }
@@ -2636,12 +2650,7 @@ void emit_program_c_ext(FILE *out, Program *prog, const char *filename, int byte
                 emit_function_body_name(out, f->name);
                 fputc('(', out);
             }
-            for (size_t p = 0; p < f->params.len; p++) {
-                if (p) fputs(", ", out);
-                fputs("word ", out);
-                emit_name(out, (char*)f->params.data[p]);
-            }
-            fputs(")\n", out);
+            fputs("void)\n", out);
             emit_function_body(out, f, filename);
             fputc('\n', out);
             continue;
@@ -2653,11 +2662,10 @@ void emit_program_c_ext(FILE *out, Program *prog, const char *filename, int byte
         fputs("int main(int argc, char **argv){\n", out);
         fputs("    __b_setargs(argc, argv);\n", out);
         fputs("    __b_init();\n", out);
-        fputs("    return (int)((word (*)())B_FUNCTION_CPTR(", out);
+        fprintf(out, "    return (int)__bcc_call%zu(", main_param_count > 2 ? 2 : main_param_count);
         emit_function_cell(out, "main");
-        fputs("))(", out);
-        if (main_param_count >= 1) fputs("(word)argc", out);
-        if (main_param_count == 2) fputs(", __b_argvalues()", out);
+        if (main_param_count >= 1) fputs(", (word)argc", out);
+        if (main_param_count >= 2) fputs(", __b_argvalues()", out);
         fputs(");\n", out);
         fputs("}\n", out);
     }

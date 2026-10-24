@@ -27,7 +27,7 @@ $(TARGET): $(OBJECTS)
 # Generated programs use the same runtime as the C-source compiler.
 runtime:
 	mkdir -p lib
-	cp --remove-destination ../lib/libb.c ../lib/libb.h ../lib/btarget.h ../lib/binit.h ../lib/bunix.h ../lib/bformat.h lib/
+	cp --remove-destination ../lib/libb.c ../lib/libb.h ../lib/btarget.h ../lib/binit.h ../lib/bcall.h ../lib/bunix.h ../lib/bformat.h lib/
 
 %.o: %.s
 	$(AS) -o $@ $<

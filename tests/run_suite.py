@@ -93,6 +93,8 @@ def main():
                           '--compiler', str(compiler)], 'documentation examples') and ok
         ok = checked_run([sys.executable, str(root / 'tests/test_word_arithmetic.py'),
                           '--compiler', str(compiler)], 'word arithmetic') and ok
+        ok = checked_run([sys.executable, str(root / 'tests/test_call_frames.py'),
+                          '--compiler', str(compiler)], 'B call frames') and ok
         ok = checked_run([sys.executable, str(root / 'tests/test_parameter_layout.py'),
                           '--compiler', str(compiler)], 'parameter storage') and ok
         ok = checked_run([sys.executable, str(root / 'tests/test_function_cells.py'),

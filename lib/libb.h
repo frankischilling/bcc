@@ -105,6 +105,7 @@ typedef uintptr_t uword;
 #endif
 #include "btarget.h"
 #include "binit.h"
+#include "bcall.h"
 
 /* Runtime Library Function Declarations */
 

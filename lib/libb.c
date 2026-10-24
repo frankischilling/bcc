@@ -7,6 +7,7 @@
 
 #define B_TARGET_DEFINE
 #define B_INIT_DEFINE
+#define B_CALL_DEFINE
 #include "libb.h"
 #include "bunix.h"
 

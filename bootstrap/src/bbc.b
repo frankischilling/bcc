@@ -996,13 +996,45 @@ primary() {
     fatal("bad primary expression");
 }
 
+source_call(target, arguments, count) {
+    auto b,i;
+    b=buf_new(256);
+    buf_str(b,"({word __callee=(");buf_str(b,target);
+    buf_str(b,");word __args[");
+    if(count)buf_num(b,count);else buf_ch(b,'1');
+    buf_str(b,"]={");
+    if(count)buf_str(b,arguments);else buf_ch(b,'0');
+    buf_str(b,"}; __bcc_is_source_function(__callee)?__bcc_invoke_source(__callee,");
+    buf_num(b,count);buf_str(b,",__args):((word(**)())B_FUNCTION_CPTR(__callee))(");
+    i=0;
+    while(i<count){
+        if(i)buf_ch(b,',');
+        buf_str(b,"__args[");buf_num(b,i);buf_ch(b,']');i++;
+    }
+    buf_str(b,");})");
+    return(buf_take(b));
+}
+
 postfix() {
-    auto lhs, b, first, name, cname, idx, arg, narg, fmt, wcstr;
+    auto lhs, b, first, name, cname, idx, arg, narg, fmt, wcstr, target;
     lhs = primary();
     while (1) {
         if (TOK == 30) {
             name = lhs;
             cname = call_name(name);
+            if(has_function(name) | has_local(name) | has_global(name) | !c_name(name)) {
+                if(has_function(name))target=scat(global_name(name),"[0]");else target=name;
+                b=buf_new(256);narg=0;next();
+                while(TOK!=31){
+                    if(narg)buf_ch(b,',');
+                    buf_str(b,expr(2));narg++;
+                    if(TOK!=36)break;
+                    next();
+                }
+                expect(31);
+                lhs=source_call(target,buf_take(b),narg);
+                continue;
+            }
             b = buf_new(256);
             if (wrap_malloc(name)) buf_str(b, "B_PTR(");
             if (has_function(name)) {
@@ -1470,19 +1502,12 @@ scan_functions() {
 }
 
 emit_prototypes() {
-    auto i, j;
+    auto i;
     i = 0;
     while (i < NFUNS) {
         emit("word ");
         emit(function_name(FUNS[i * 2]));
-        emit("(");
-        j = 0;
-        while (j < FUNS[i * 2 + 1]) {
-            if (j) emit(", ");
-            emit("word");
-            j = j + 1;
-        }
-        emitln(");");
+        emitln("(void);");
         emit("extern word "); emit(global_name(FUNS[i * 2])); emitln("[];");
         i = i + 1;
     }
@@ -1616,6 +1641,10 @@ global_or_func() {
         next();
         emit("word "); emit(global_name(name));
         emit("[1] = {B_FUNCTION("); emit(function_name(name)); emitln(")};");
+        emit("static struct __bcc_source_function __bbc_node_");emit(name);
+        emit("={(void**)");emit(function_name(name));emitln(",0,0};");
+        emit("static void __attribute__((constructor(101))) __bbc_register_");emit(name);
+        emit("(void){__bcc_register_function(&__bbc_node_");emit(name);emitln(");}");
         emit("word ");
         emit(function_name(name));
         emit("(");
@@ -1625,9 +1654,6 @@ global_or_func() {
             if (TOK != 1) fatal("expected parameter");
             p = TTEXT;
             add_local(p);
-            if (!first) emit(", ");
-            emit("word ");
-            emit(storage_name(p));
             first = 0;
             n = n + 1;
             next();
@@ -1637,7 +1663,7 @@ global_or_func() {
             } else break;
         }
         expect(31);
-        emit(") ");
+        emit("void) ");
         func_body();
         emitln("");
         return(0);
@@ -1711,14 +1737,10 @@ emit_body() {
     if (braced) expect(32);
     emitln("{");
     if (!LABELPASS & (PARAMCOUNT > 0)) {
-        emit("word __bbc_parameters[");emit(itoa(PARAMCOUNT));emit("] = {");
-        i=0;
-        while(i<PARAMCOUNT) {
-            if(i)emit(", ");
-            emit(storage_name(LOCALS[i]));
-            i=+1;
-        }
-        emitln("};");
+        emitln("size_t __count=__bcc_current_call?__bcc_current_call->count:0;");
+        emit("if(__count<");emit(itoa(PARAMCOUNT));emit(")__count=");emit(itoa(PARAMCOUNT));emitln(";");
+        emitln("word __bbc_parameters[__count];");
+        emitln("for(size_t __i=0;__i<__count;__i++) __bbc_parameters[__i]=__bcc_current_call && __i<__bcc_current_call->count?__bcc_current_call->arguments[__i]:0;");
     }
     if (STRICT & !LABELPASS & (HOIST != 0)) emit(buf_take(HOIST));
     if (!LABELPASS) {
@@ -1756,14 +1778,13 @@ emit_header() {
 
 emit_main_wrapper() {
     if (!HAS_MAIN) return(0);
-    if (MAIN_NARGS > 2) fatal("main supports at most two host compatibility parameters");
     emitln("int main(int argc, char ****argv) {");
     emitln("    __b_setargs(argc, argv);");
     emitln("    __b_init();");
-    emit("    return (int)((word(**)())B_FUNCTION_CPTR(");
-    emit(global_name("main")); emit("[0]))(");
-    if (MAIN_NARGS >= 1) emit("(word)argc");
-    if (MAIN_NARGS == 2) emit(", __b_argvalues()");
+    emit("    return (int)__bcc_call");emit(itoa(MAIN_NARGS>2?2:MAIN_NARGS));emit("(");
+    emit(global_name("main")); emit("[0]");
+    if (MAIN_NARGS >= 1) emit(", (word)argc");
+    if (MAIN_NARGS >= 2) emit(", __b_argvalues()");
     emitln(");");
     emitln("}");
 }

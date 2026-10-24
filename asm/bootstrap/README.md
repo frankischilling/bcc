@@ -9,7 +9,7 @@ make -C asm/bootstrap bootstrap
 ```
 
 The result is `stage1/bccasm`. Its `stage1/lib/` directory contains copies of
-the shared host runtime sources: `libb.c`, `libb.h`, `btarget.h`, `binit.h`,
+the shared host runtime sources: `libb.c`, `libb.h`, `btarget.h`, `binit.h`, `bcall.h`,
 `bunix.h`, and `bformat.h`. Compiling a B program still uses GCC and that C
 runtime; this target does not build a separate handwritten assembly runtime.
 

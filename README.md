@@ -108,6 +108,10 @@ per B word. It selects word addressing by default, as does `--strict`.
 `--byteptr` or `--wordptr` overrides that choice. `--word=32` wraps arithmetic
 but retains native pointers, which can still be truncated by arithmetic.
 
+Source functions retain all supplied argument cells, including those beyond
+the declared parameter names. The [counted-argument example](examples/b72/counted_arguments.b)
+shows how to walk such a list without depending on the host C calling convention.
+
 The host 16-bit mode does not reproduce a PDP-11 process image. The separate
 native compiler emits PDP-11 code with word-addressed data pointers; its
 runtime converts those pointers at byte-oriented syscall boundaries.

@@ -12,7 +12,7 @@ all: stage3
 
 stage1: $(STAGE1)
 
-$(STAGE1): $(SRC) $(STAGE0) ../lib/libb.c ../lib/libb.h ../lib/btarget.h ../lib/binit.h ../lib/bunix.h ../lib/bformat.h
+$(STAGE1): $(SRC) $(STAGE0) ../lib/libb.c ../lib/libb.h ../lib/btarget.h ../lib/binit.h ../lib/bcall.h ../lib/bunix.h ../lib/bformat.h
 	mkdir -p $(BUILD)/stage1
 	$(STAGE0) $(SRC) -o $(STAGE1)
 
@@ -61,6 +61,8 @@ test: stage3
 	@set -e; for stage in 1 2 3; do python3 ../tests/test_word_arithmetic.py --bootstrap --compiler build/stage$$stage/bbc; done
 
 	@set -e; for stage in 1 2 3; do python3 ../tests/test_reread_runtime.py --bootstrap --compiler build/stage$$stage/bbc; done
+
+	@set -e; for stage in 1 2 3; do python3 ../tests/test_call_frames.py --bootstrap --compiler build/stage$$stage/bbc; done
 
 clean:
 	rm -rf $(BUILD)
