@@ -955,6 +955,13 @@ modes now follow the manuals. Unsupported location values fail rather than
 silently claiming to install a handler. This does not yet implement the
 historical saved-context transfer.
 
+The restriction in B manual section 5.5 also exposed a label-representation
+bug: host label ordinals restarted in each function, so a foreign label could
+accidentally select a local branch. Host and bootstrap output now uses distinct
+persistent tokens for each function's labels and checks them before branching.
+Tests also compare identities across source files and preserve writable label
+cells. The native backend already uses distinct code locations.
+
 ## Reference inventory
 
 "Read" below describes the review scope, not a promise that every feature in

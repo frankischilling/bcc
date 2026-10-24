@@ -1429,15 +1429,15 @@ void emit_stmt(FILE *out, Stmt *s, int indent, int is_function_body, const char 
 
         case ST_GOTO:
             emit_indent(out, indent);
-            fputs("switch (", out);
+            fputs("{ word __bcc_target = ", out);
             emit_expr(out, s->as.goto_.target, filename);
-            fputs(") {\n", out);
+            fputs(";\n", out);
             for (size_t i = 0; i < function_labels.len; i++) {
                 emit_indent(out, indent + 1);
-                fprintf(out, "case %zu: goto __b_label_%zu;\n", i + 1, i + 1);
+                fprintf(out, "if (__bcc_target == __bcc_label_target_%zu) goto __b_label_%zu;\n", i + 1, i + 1);
             }
             emit_indent(out, indent + 1);
-            fputs("default: fputs(\"bcc: invalid label value\\n\", stderr); abort();\n", out);
+            fputs("fputs(\"bcc: invalid label value\\n\", stderr); abort();\n", out);
             emit_indent(out, indent);
             fputs("}\n", out);
             return;
@@ -1483,8 +1483,19 @@ static void emit_function_body(FILE *out, Func *f, const char *filename) {
             emit_auto_storage(out, locals.data[i], 1, filename);
         if (!g_compilation_arena) free(locals.data);
     }
-    for (size_t i = 0; i < function_labels.len; i++)
-        fprintf(out, "    static word __b_label_value_%zu = %zu;\n", i + 1, i + 1);
+    if (function_labels.len) {
+        fputs("    static int __bcc_labels_ready;\n", out);
+        for (size_t i = 0; i < function_labels.len; i++) {
+            fprintf(out, "    static word __bcc_label_target_%zu;\n", i + 1);
+            fprintf(out, "    static word __b_label_value_%zu;\n", i + 1);
+        }
+        fputs("    if (!__bcc_labels_ready) {\n", out);
+        for (size_t i = 0; i < function_labels.len; i++) {
+            fprintf(out, "        __bcc_label_target_%zu = __bcc_new_label();\n", i + 1);
+            fprintf(out, "        __b_label_value_%zu = __bcc_label_target_%zu;\n", i + 1, i + 1);
+        }
+        fputs("        __bcc_labels_ready = 1;\n    }\n", out);
+    }
     emit_stmt(out, f->body, 1, 1, filename);
     fputs("    return 0;\n}\n", out);
     function_labels.len = 0;

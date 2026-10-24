@@ -1418,16 +1418,16 @@ stmt() {
         next();
         e = expr(1);
         expect(37);
-        emit("switch (");
+        emit("{word __bbc_target=");
         emit(e);
-        emitln(") {");
+        emitln(";");
         i = 0;
         while (i < NLABELS) {
-            emit("case "); emit(itoa(i + 1));
-            emit(": goto __bbc_label_"); emit(itoa(i + 1)); emitln(";");
+            emit("if(__bbc_target==__bbc_label_target_");emit(itoa(i+1));
+            emit(")goto __bbc_label_");emit(itoa(i+1));emitln(";");
             i = i + 1;
         }
-        emitln("default: abort();");
+        emitln("fputs(*"bcc: invalid label value\\n*",stderr);abort();");
         emitln("}");
         return(0);
     }
@@ -1833,13 +1833,23 @@ emit_body() {
         emitln("for(size_t __i=0;__i<__count;__i++) __bbc_parameters[__i]=__bcc_current_call && __i<__bcc_current_call->count?__bcc_current_call->arguments[__i]:0;");
     }
     if (STRICT & !LABELPASS & (HOIST != 0)) emit(buf_take(HOIST));
-    if (!LABELPASS) {
+    if (!LABELPASS & (NLABELS > 0)) {
+        emitln("static int __bbc_labels_ready;");
         i=1;
         while (i<=NLABELS) {
-            emit("static word __bbc_label_value_"); emit(itoa(i));
-            emit(" = "); emit(itoa(i)); emitln(";");
+            emit("static word __bbc_label_target_");emit(itoa(i));emitln(";");
+            emit("static word __bbc_label_value_");emit(itoa(i));emitln(";");
             i=+1;
         }
+        emitln("if(!__bbc_labels_ready){");
+        i=1;
+        while (i<=NLABELS) {
+            emit("__bbc_label_target_");emit(itoa(i));emitln("=__bcc_new_label();");
+            emit("__bbc_label_value_");emit(itoa(i));
+            emit("=__bbc_label_target_");emit(itoa(i));emitln(";");
+            i=+1;
+        }
+        emitln("__bbc_labels_ready=1;}");
     }
     if (braced) {
         while (TOK != 33) block_item();

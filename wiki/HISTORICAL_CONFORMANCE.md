@@ -217,6 +217,11 @@ examples, not complete historical equivalence.
 Internal label storage now follows section 6.3 across the three backends:
 cells are function-local, writable, and retained between invocations. Tests
 exercise their addresses and both bare and computed branches after mutation.
+Host and bootstrap label values are distinct across functions and translation
+units, rather than restarting at 1 in every function. Their computed branches
+evaluate the target once and reject values from another function, as required
+by section 5.5. The tokens are internal representations, not executable host
+addresses.
 The host library also exposes the section 8 spelling `mkdir`; `makdir` remains
 an alias. The bootstrap accepts the historical zero-argument `exit()` call
 and separates source-defined function and data symbols from host C declarations.

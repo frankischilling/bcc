@@ -37,6 +37,7 @@ struct __bcc_builtin_record {
 #ifndef B_CALL_STORAGE
 #define B_CALL_STORAGE
 #endif
+B_CALL_STORAGE uword __bcc_label_serial;
 B_CALL_STORAGE struct __bcc_call_frame *__bcc_current_call;
 B_CALL_STORAGE struct __bcc_source_function *__bcc_source_functions;
 B_CALL_STORAGE struct __bcc_library_binding *__bcc_source_bindings;
@@ -44,6 +45,7 @@ B_CALL_STORAGE struct __bcc_builtin_record *__bcc_builtin_functions;
 B_CALL_STORAGE struct __bcc_builtin_record *__bcc_builtin_codes[256];
 B_CALL_STORAGE struct __bcc_builtin_record *__bcc_builtin_names[64];
 #else
+extern uword __bcc_label_serial;
 extern struct __bcc_call_frame *__bcc_current_call;
 extern struct __bcc_source_function *__bcc_source_functions;
 extern struct __bcc_library_binding *__bcc_source_bindings;
@@ -51,6 +53,16 @@ extern struct __bcc_builtin_record *__bcc_builtin_functions;
 extern struct __bcc_builtin_record *__bcc_builtin_codes[256];
 extern struct __bcc_builtin_record *__bcc_builtin_names[64];
 #endif
+
+/* Label tokens share one namespace and fit the selected B word model. */
+static inline word __bcc_new_label(void) {
+    if (__bcc_label_serial >= WORD_MASK - 1) {
+        fputs("bcc: label token space exhausted\n", stderr);
+        exit(1);
+    }
+    ++__bcc_label_serial;
+    return WVAL(__bcc_label_serial + 1);
+}
 
 static inline void __bcc_register_function(struct __bcc_source_function *node) {
     if (node->registered) return;

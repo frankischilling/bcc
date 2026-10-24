@@ -67,6 +67,8 @@ def main():
             ok = checked_run(command, name) and ok
         ok = checked_run([sys.executable, str(root / 'tests/test_b72_conformance.py'),
                           '--bcc', str(compiler)], 'B72 conformance') and ok
+        ok = checked_run([sys.executable, str(root / 'tests/test_label_token_limits.py')],
+                         'label token limits') and ok
         ok = checked_run([sys.executable, str(root / 'tests/test_intr_runtime.py'),
                           '--compiler', str(compiler)], 'interrupt modes') and ok
         ok = checked_run([sys.executable, str(root / 'tests/test_output_errors.py'),

@@ -19,6 +19,7 @@ def main():
         ('default', 'if(CALL(1))return(3);', -signal.SIGINT),
         ('restore-default', 'CALL(0);if(CALL(1))return(3);', -signal.SIGINT),
         ('restore-ignore', 'CALL(1);if(CALL(0))return(3);', 0),
+        ('unsupported-label', 'CALL(0);if(CALL(done)!=-1)return(4);', 0),
         ('unsupported-address', 'CALL(0);if(CALL(handler)!=-1)return(4);', 0),
         ('unsupported-number', 'CALL(0);if(CALL(2)!=-1)return(4);', 0),
         ('unsupported-negative', 'CALL(0);if(CALL(-1)!=-1)return(4);', 0),
@@ -36,7 +37,7 @@ def main():
                         source.write_text('handler(){return(0);}\nmain(){'
                                           'extrn intr,putchar,getchar,handler;'
                                           'auto saved;saved=intr;' + body +
-                                          "putchar('R');getchar();return(0);}\n")
+                                          "putchar('R');getchar();return(0);done:return(5);}\n")
                         label = f'intr/{bits}/{inline}/{indirect}/{name}'
                         child = None
                         try:
