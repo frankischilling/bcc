@@ -15,7 +15,7 @@ litinl(len, bytes) char bytes[]; {
 	if (id >= 256) fatal("string pool full");
 	nstr = nstr + 1;
 	outs("\n.text\n");
-	outs("\tbr\tLS");
+	outs("\tjmp\tLS");
 	outd(id);
 	outc('\n');
 	outs("S");

@@ -180,6 +180,7 @@ _main:
 	mov	sp, r5
 	sub	$2., sp
 	mov	$_argv, r0
+	mov	(r0), r0
 	mov	r0, -(sp)
 	mov	$0., r0
 	asl	r0
@@ -203,6 +204,7 @@ L12:
 	sub	$2., r0
 	mov	r0, -(sp)
 	mov	$_argv, r0
+	mov	(r0), r0
 	mov	r0, -(sp)
 	mov	$1., r0
 	asl	r0

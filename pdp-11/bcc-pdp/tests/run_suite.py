@@ -2,6 +2,7 @@
 """Compare native output as bytes; do not hide NULs or failed executions."""
 import argparse
 import os
+import json
 from pathlib import Path
 import shlex
 import subprocess
@@ -43,6 +44,17 @@ def main():
                         raise AssertionError((result.returncode, result.stderr))
                     if result.stdout != expected:
                         raise AssertionError((result.stdout, expected))
+                    files = source.with_suffix('.files.json')
+                    if files.exists():
+                        for relative, encoded in json.loads(files.read_text()).items():
+                            path = Path(relative)
+                            if path.is_absolute() or '..' in path.parts:
+                                raise AssertionError('file expectation escapes the test directory')
+                            target = work / path
+                            if encoded is None:
+                                if target.exists(): raise AssertionError(f'unexpected file: {relative}')
+                            elif target.read_bytes() != bytes.fromhex(encoded):
+                                raise AssertionError(f'wrong bytes in {relative}')
                 passed += 1
                 print(f'PASS: {source.stem}', flush=True)
             except (OSError, AssertionError, subprocess.TimeoutExpired) as error:

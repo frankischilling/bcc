@@ -29,6 +29,7 @@ B01     = $(BUILD)/b01
 B1      = $(BUILD)/b1
 BDRV    = $(BUILD)/b
 LIBB    = runtime/libb.s
+LIBRAW  = $(BUILD)/libb.raw.s
 
 .PHONY: all clean aroot install test-run v1-run v1-smoke libb
 
@@ -37,7 +38,7 @@ all: $(B00) $(B01) $(B1) $(BDRV) $(LIBB)
 libb: $(LIBB)
 
 # Compile runtime/libb.b -> libb.s using the freshly built compiler.
-$(LIBB): $(B00) $(B01) $(B1) runtime/libb.b
+$(LIBRAW): $(B00) $(B01) $(B1) runtime/libb.b
 	@cp runtime/libb.b $(AROOT)/libb.b
 	@rm -f $(AROOT)/libb.ic $(AROOT)/libb.r2 $(AROOT)/libb.s
 	cd $(AROOT) && APOUT_ROOT=. $(abspath $(APOUT)) $(abspath $(B00)) -o libb.ic libb.b
@@ -46,11 +47,12 @@ $(LIBB): $(B00) $(B01) $(B1) runtime/libb.b
 	@test -f $(AROOT)/libb.r2 || { echo "b01 failed (no libb.r2)"; exit 1; }
 	cd $(AROOT) && APOUT_ROOT=. $(abspath $(APOUT)) $(abspath $(B1)) -i libb.r2 -o libb.s
 	@test -f $(AROOT)/libb.s || { echo "b1 failed (no libb.s)"; exit 1; }
-	@sed -e 's/L\([0-9][0-9]*\)/B\1/g' -e 's/S\([0-9][0-9]*\)/C\1/g' $(AROOT)/libb.s > $(AROOT)/libb.ns
-	@mv $(AROOT)/libb.ns $(AROOT)/libb.s
 	mv $(AROOT)/libb.s $@
 	@rm -f $(AROOT)/libb.b $(AROOT)/libb.ic $(AROOT)/libb.r2
 	@echo "built: $@"
+
+$(LIBB): $(LIBRAW)
+	sed -e 's/L\([0-9][0-9]*\)/B\1/g' -e 's/S\([0-9][0-9]*\)/C\1/g' $(LIBRAW) > $@
 
 aroot: $(AROOT)/.stamp
 
@@ -124,3 +126,21 @@ test-run: all
 # boot, compile B with /bin/b, then run ./a.out.
 v1-run v1-smoke: all
 	tools/v1-run.sh $(B)
+
+.PHONY: v1-selfhost
+v1-selfhost: all
+	tools/v1-run.sh $(B) --selfhost
+
+$(V1)/tools/pdp11: $(V1)/tools/simh/makefile
+	$(MAKE) -C $(V1)/tools
+
+$(V1)/tools/simh/makefile:
+	@echo "Missing SIMH source. Run git submodule update --init --recursive pdp-11/unix-v1 from the repository root." >&2
+	@exit 1
+
+v1-run v1-smoke v1-selfhost: $(V1)/tools/pdp11
+
+$(V1)/tools/mkfs: $(V1)/tools/mkfs.c
+	$(MAKE) -C $(V1)/tools mkfs
+
+v1-run v1-smoke v1-selfhost: $(V1)/tools/mkfs

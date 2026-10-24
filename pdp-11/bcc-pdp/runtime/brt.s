@@ -24,8 +24,8 @@ schown  = 16.
 sbreak  = 17.
 sstat   = 18.
 sseek   = 19.
-stty    = 20.
-sgtty   = 21.
+stty    = 31.
+sgtty   = 32.
 ssetuid = 23.
 sgetuid = 24.
 sstime  = 25.
@@ -119,14 +119,16 @@ _read:
 	mov	$-1, r0
 	rts	pc
 
-/ ---- _open(name, mode) ----
+/ ---- _open(path, mode): convert the B terminator before the syscall. ----
 _open:
-	mov	2(sp), 0f
+	mov	2(sp), r0
+	jsr	pc, .path1
+	bes	9f
 	mov	4(sp), 0f+2
-	sys	open; 0:..; ..
-	bes	1f
+	sys	sopen; 0:.bp1; ..
+	bes	9f
 	rts	pc
-1:
+9:
 	mov	$-1, r0
 	rts	pc
 
@@ -140,23 +142,30 @@ _close:
 	mov	$-1, r0
 	rts	pc
 
-/ ---- _creat(name, mode) ----
+/ ---- _creat(path, mode): convert the B terminator before the syscall. ----
 _creat:
-	mov	2(sp), 0f
+	mov	2(sp), r0
+	jsr	pc, .path1
+	bes	9f
 	mov	4(sp), 0f+2
-	sys	creat; 0:..; ..
-	bes	1f
+	sys	screat; 0:.bp1; ..
+	bes	9f
 	rts	pc
-1:
+9:
 	mov	$-1, r0
 	rts	pc
 
-/ ---- _seek(fd, off, ptrname) ----
+/ ---- _seek(fd, offset, origin) ----
 _seek:
 	mov	2(sp), r0
 	mov	4(sp), 0f
 	mov	6(sp), 0f+2
-	sys	seek; 0:..; ..
+	sys	sseek; 0:..; ..
+	bes	9f
+	clr	r0
+	rts	pc
+9:
+	mov	$-1, r0
 	rts	pc
 
 / ---- _putstr(s) — print chars until EOT (04) ----
@@ -194,47 +203,81 @@ _putstr:
 	mov	r3, r0
 	jmp	(r2)
 
-/ ---- .div: LHS/RHS, result in R0. Restoring division, 16-bit unsigned. ----
-.globl	.div
+/ Signed division truncates toward zero; the loop divides unsigned magnitudes.
+/ Save R5 because it is the caller's frame pointer.
+.globl .div
 .div:
-	mov	(sp)+, r2
-	mov	(sp)+, r0		/ r0 = RHS (divisor)
-	mov	(sp)+, r1		/ r1 = LHS (dividend)
-	clr	r3			/ quotient
-	mov	$16., r4
+	mov (sp)+, r2
+	mov (sp)+, r0
+	mov (sp)+, r1
+	mov r5, -(sp)
+	clr r5
+	tst r1
+	bge 1f
+	neg r1
+	inc r5
 1:
-	asl	r1
-	rol	r3			/ r3:r1 shift left
-	cmp	r3, r0
-	blo	2f
-	sub	r0, r3
-	inc	r1
+	tst r0
+	bge 2f
+	neg r0
+	inc r5
 2:
-	dec	r4
-	bne	1b
-	mov	r1, r0
-	jmp	(r2)
+	clr r3
+	mov $16., r4
+3:
+	asl r1
+	rol r3
+	cmp r3, r0
+	blo 4f
+	sub r0, r3
+	inc r1
+4:
+	dec r4
+	bne 3b
+	bit $1, r5
+	beq 5f
+	neg r1
+5:
+	mov r1, r0
+	mov (sp)+, r5
+	jmp (r2)
 
-/ ---- .mod: LHS%RHS, result in R0. Same loop as .div but return remainder. ----
-.globl	.mod
+/ Remainders follow the dividend's sign for the chosen truncation rule.
+.globl .mod
 .mod:
-	mov	(sp)+, r2
-	mov	(sp)+, r0
-	mov	(sp)+, r1
-	clr	r3
-	mov	$16., r4
+	mov (sp)+, r2
+	mov (sp)+, r0
+	mov (sp)+, r1
+	mov r5, -(sp)
+	clr r5
+	tst r1
+	bge 1f
+	neg r1
+	inc r5
 1:
-	asl	r1
-	rol	r3
-	cmp	r3, r0
-	blo	2f
-	sub	r0, r3
-	inc	r1
+	tst r0
+	bge 2f
+	neg r0
 2:
-	dec	r4
-	bne	1b
-	mov	r3, r0
-	jmp	(r2)
+	clr r3
+	mov $16., r4
+3:
+	asl r1
+	rol r3
+	cmp r3, r0
+	blo 4f
+	sub r0, r3
+	inc r1
+4:
+	dec r4
+	bne 3b
+	tst r5
+	beq 5f
+	neg r3
+5:
+	mov r3, r0
+	mov (sp)+, r5
+	jmp (r2)
 
 / ---- .shl: LHS << RHS, result in R0. ----
 .globl	.shl
@@ -310,186 +353,271 @@ _lchar:
 
 / =========== kbman §8 library: V1 syscall wrappers ===========
 
-/ ---- _fork() — returns child pid in parent, 0 in child, -1 on error ----
+/ ---- _fork(): the parent skips the instruction after sys fork. ----
 _fork:
 	sys	sfork
-	bes	1f
+	br	1f
+	bcc	2f
+	mov	$-1, r0
 	rts	pc
-1:	mov	$-1, r0
+1:
+	clr	r0
+2:
 	rts	pc
 
-/ ---- _wait() — returns child pid that exited, -1 on error ----
 _wait:
 	sys	swait
-	bes	1f
+	bes	9f
 	rts	pc
-1:	mov	$-1, r0
+9:
+	mov	$-1, r0
 	rts	pc
 
-/ ---- _unlink(name) ----
 _unlink:
-	mov	2(sp), unmnam
-	sys	sunlink; unmnam
-	bes	1f
+	mov	2(sp), r0
+	jsr	pc, .path1
+	bes	9f
+	sys	sunlink; .bp1
+	bes	9f
+	clr	r0
 	rts	pc
-1:	mov	$-1, r0
+9:
+	mov	$-1, r0
 	rts	pc
-unmnam:	0
 
-/ ---- _link(old, new) ----
-_link:
-	mov	2(sp), lkold
-	mov	4(sp), lknew
-	sys	slink; lkold; lknew
-	bes	1f
-	rts	pc
-1:	mov	$-1, r0
-	rts	pc
-lkold:	0
-lknew:	0
-
-/ ---- _chdir(path) ----
 _chdir:
-	mov	2(sp), cdnam
-	sys	schdir; cdnam
-	bes	1f
+	mov	2(sp), r0
+	jsr	pc, .path1
+	bes	9f
+	sys	schdir; .bp1
+	bes	9f
+	clr	r0
 	rts	pc
-1:	mov	$-1, r0
+9:
+	mov	$-1, r0
 	rts	pc
-cdnam:	0
 
-/ ---- _chmod(path, mode) ----
+_link:
+	mov	2(sp), r0
+	jsr	pc, .path1
+	bes	9f
+	mov	4(sp), r0
+	jsr	pc, .path2
+	bes	9f
+	sys	slink; .bp1; .bp2
+	bes	9f
+	clr	r0
+	rts	pc
+9:
+	mov	$-1, r0
+	rts	pc
+
 _chmod:
-	mov	2(sp), cmnam
-	mov	4(sp), r0		/ mode in r0
-	sys	schmod; cmnam
-	bes	1f
+	mov	2(sp), r0
+	jsr	pc, .path1
+	bes	9f
+	mov	4(sp), 0f+2
+	sys	schmod; 0:.bp1; ..
+	bes	9f
+	clr	r0
 	rts	pc
-1:	mov	$-1, r0
+9:
+	mov	$-1, r0
 	rts	pc
-cmnam:	0
 
-/ ---- _chown(path, owner) ----
 _chown:
-	mov	2(sp), cwnam
-	mov	4(sp), r0		/ owner in r0
-	sys	schown; cwnam
-	bes	1f
+	mov	2(sp), r0
+	jsr	pc, .path1
+	bes	9f
+	mov	4(sp), 0f+2
+	sys	schown; 0:.bp1; ..
+	bes	9f
+	clr	r0
 	rts	pc
-1:	mov	$-1, r0
+9:
+	mov	$-1, r0
 	rts	pc
-cwnam:	0
 
-/ ---- _stat(path, statbuf) ----
 _stat:
-	mov	2(sp), stnam
-	mov	4(sp), stbuf
-	sys	sstat; stnam; stbuf
-	bes	1f
+	mov	2(sp), r0
+	jsr	pc, .path1
+	bes	9f
+	mov	4(sp), 0f+2
+	sys	sstat; 0:.bp1; ..
+	bes	9f
+	clr	r0
 	rts	pc
-1:	mov	$-1, r0
+9:
+	mov	$-1, r0
 	rts	pc
-stnam:	0
-stbuf:	0
 
-/ ---- _fstat(fd, statbuf) ----
+_makdir:
+_mkdir:
+	mov	2(sp), r0
+	jsr	pc, .path1
+	bes	9f
+	mov	4(sp), 0f+2
+	sys	smkdir; 0:.bp1; ..
+	bes	9f
+	clr	r0
+	rts	pc
+9:
+	mov	$-1, r0
+	rts	pc
+
 _fstat:
 	mov	2(sp), r0
-	mov	4(sp), fsbuf
-	sys	sfstat; fsbuf
-	bes	1f
+	mov	4(sp), 0f
+	sys	sfstat; 0:..
+	bes	9f
+	clr	r0
 	rts	pc
-1:	mov	$-1, r0
+9:
+	mov	$-1, r0
 	rts	pc
-fsbuf:	0
 
-/ ---- _setuid(uid) ----
+_stty:
+	mov	2(sp), r0
+	mov	4(sp), 0f
+	sys	stty; 0:..
+	bes	9f
+	clr	r0
+	rts	pc
+9:
+	mov	$-1, r0
+	rts	pc
+
+_gtty:
+	mov	2(sp), r0
+	mov	4(sp), 0f
+	sys	sgtty; 0:..
+	bes	9f
+	clr	r0
+	rts	pc
+9:
+	mov	$-1, r0
+	rts	pc
+
 _setuid:
 	mov	2(sp), r0
 	sys	ssetuid
-	bes	1f
+	bes	9f
+	clr	r0
 	rts	pc
-1:	mov	$-1, r0
+9:
+	mov	$-1, r0
 	rts	pc
 
-/ ---- _getuid() ----
 _getuid:
 	sys	sgetuid
 	rts	pc
 
-/ ---- _time(tvec) — store 2-word system time at *tvec ----
+/ V1 time returns the high and low words in the KE11 AC and MQ registers.
 _time:
-	sys	stime			/ kernel returns time in r0:r1
+	sys	stime
 	mov	2(sp), r2
-	mov	r0, (r2)+
-	mov	r1, (r2)
+	mov	ac, (r2)+
+	mov	mq, (r2)
+	clr	r0
 	rts	pc
 
-/ ---- _stty(fd, ttstat) ----
-_stty:
-	mov	2(sp), r0
-	mov	4(sp), styb
-	sys	stty; styb
-	bes	1f
-	rts	pc
-1:	mov	$-1, r0
-	rts	pc
-styb:	0
-
-/ ---- _gtty(fd, ttstat) ----
-_gtty:
-	mov	2(sp), r0
-	mov	4(sp), gtyb
-	sys	sgtty; gtyb
-	bes	1f
-	rts	pc
-1:	mov	$-1, r0
-	rts	pc
-gtyb:	0
-
-/ ---- _execl(path, argv...) — last arg must be 0; pass via _execv ----
-/ Caller passes a list ending with 0; we have to repackage as char**.
-/ Simplification: forward to _execv with a synthesized argv vector.
-/ For now, support up to 8 args.
-_execl:
-	mov	2(sp), exlpat		/ path
-	mov	$exlbuf, r0
-	mov	4(sp), (r0)+
-	mov	6(sp), (r0)+
-	mov	10(sp), (r0)+
-	mov	12(sp), (r0)+
-	mov	14(sp), (r0)+
-	mov	16(sp), (r0)+
-	mov	20(sp), (r0)+
-	mov	22(sp), (r0)+
-	sys	sexec; exlpat; exlbuf
-	mov	$-1, r0
-	rts	pc
-exlpat:	0
-exlbuf:	0;0;0;0;0;0;0;0
-
-/ ---- _execv(path, argv) — V1 exec syscall ----
+/ B72 execv takes a counted vector, not a zero-terminated B vector.
 _execv:
-	mov	2(sp), exnam
-	mov	4(sp), exarg
-	sys	sexec; exnam; exarg
+	mov	2(sp), r0
+	jsr	pc, .path1
+	bes	9f
+	mov	6(sp), r3
+	blt	9f
+	cmp	r3, $64.
+	bhi	9f
+	mov	r3, .ecnt
+	mov	4(sp), r4
+	mov	$.earg, .evp
+	mov	$.estr, r1
+	mov	$512., r2
+1:
+	tst	.ecnt
+	beq	2f
+	tst	r4
+	beq	9f
+	mov	(r4)+, r0
+	mov	.evp, r3
+	mov	r1, (r3)+
+	mov	r3, .evp
+	jsr	pc, .strz
+	bes	9f
+	dec	.ecnt
+	br	1b
+2:
+	mov	.evp, r3
+	clr	(r3)
+	sys	sexec; .bp1; .earg
+9:
 	mov	$-1, r0
 	rts	pc
-exnam:	0
-exarg:	0
 
-/ ---- _mkdir/_makdir(path, mode) — V1 mkdir is sys 14, but only super. ----
-/ kbman §8 lists mkdir; V1 mkdir is /bin/mkdir not a syscall on early V1.
-/ Best-effort: try sys mkdir; if it traps, return -1.
-_mkdir:
-_makdir:
-	mov	2(sp), mknam
-	mov	4(sp), r0		/ mode
-	sys	smkdir; mknam
-	bes	1f
+/ The variadic arguments already form a contiguous vector on the stack.
+_execl:
+	mov	sp, r1
+	add	$4, r1
+	clr	r2
+1:
+	tst	(r1)+
+	beq	2f
+	inc	r2
+	cmp	r2, $64.
+	bhi	9f
+	br	1b
+2:
+	mov	2(sp), r3
+	mov	sp, r0
+	add	$4, r0
+	mov	r2, -(sp)
+	mov	r0, -(sp)
+	mov	r3, -(sp)
+	jsr	pc, _execv
+	add	$6, sp
 	rts	pc
-1:	mov	$-1, r0
+9:
+	mov	$-1, r0
 	rts	pc
-mknam:	0
+
+/ Convert a B byte string to NUL-terminated syscall storage.
+/ R0 source, R1 destination, R2 remaining bytes; R4 and R5 are preserved.
+.path1:
+	mov	$.bp1, r1
+	mov	$256., r2
+	br	.strz
+.path2:
+	mov	$.bp2, r1
+	mov	$256., r2
+.strz:
+	tst	r0
+	beq	9f
+1:
+	tst	r2
+	beq	9f
+	movb	(r0)+, r3
+	beq	2f
+	cmpb	r3, $4
+	beq	2f
+	movb	r3, (r1)+
+	dec	r2
+	br	1b
+2:
+	clrb	(r1)+
+	dec	r2
+	clc
+	rts	pc
+9:
+	sec
+	rts	pc
+.even
+.ecnt: 0
+.evp: 0
+.earg: .=.+130.
+.estr: .=.+512.
+.bp1: .=.+256.
+.bp2: .=.+256.
 
 / _ctime is implemented in runtime/libb.b.

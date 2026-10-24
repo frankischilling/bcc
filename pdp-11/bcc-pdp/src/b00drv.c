@@ -9,7 +9,7 @@
  */
 
 usage() {
-	outinit(2);                              /* stderr */
+	errinit();                              /* stderr */
 	outs("usage: b00 [-x] [-o out.ic] in.b\n");
 	exit(1);
 }
@@ -17,14 +17,16 @@ usage() {
 main(argc, argv) int argv[]; {
 	extern extflg;
 	int extflg;
-	int i, fdin, fdout, in, out;
+	int i, fdin, fdout, in, out, done;
 	char p[];
 
 	i = 1;
 	in = 0;
 	out = 0;
+	done = 0;
 	while (i < argc) {
 		p = argv[i];
+		if (p[0] == '-') if (p[1] == 's') if (p[2] == 0) goto isdone;
 		if (p[0] == '-') if (p[1] == 'x') if (p[2] == 0) goto isext;
 		if (p[0] == '-') if (p[1] == 'o') if (p[2] == 0) goto isopt;
 		goto noopt;
@@ -43,6 +45,11 @@ main(argc, argv) int argv[]; {
 		} else {
 			usage();
 		}
+		goto next;
+	isdone:
+		i = i + 1;
+		if (i >= argc) usage();
+		done = argv[i];
 	next:
 		i = i + 1;
 	}
@@ -50,14 +57,14 @@ main(argc, argv) int argv[]; {
 
 	fdin = open(in, 0);
 	if (fdin < 0) {
-		outinit(2);
+		errinit();
 		outs("b00: cannot open input\n");
 		exit(1);
 	}
 	if (out) fdout = creat(out, 016);     /* V1 mode: ownr+ownw+wrldr (host 0644) */
 	else     fdout = 1;
 	if (fdout < 0) {
-		outinit(2);
+		errinit();
 		outs("b00: cannot create output\n");
 		exit(1);
 	}
@@ -67,5 +74,7 @@ main(argc, argv) int argv[]; {
 
 	gettok();
 	prog();
+	if (fdout != 1) close(fdout);
+	if (done) markok(done);
 	exit(0);
 }

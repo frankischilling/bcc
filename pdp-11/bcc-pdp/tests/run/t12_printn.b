@@ -3,4 +3,5 @@ main() {
 	extrn putchar, printn;
 	printn(255, 10);  putchar('*n');
 	printn(255, 8);   putchar('*n');
+	return(0);
 }

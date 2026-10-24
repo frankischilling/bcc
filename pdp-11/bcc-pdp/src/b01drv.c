@@ -4,9 +4,9 @@
  * references, and passes ordinary IC records through.
  */
 
-dbuf[300];
-dtag[10];
-dnm[10];
+dbuf[520]; /* 1040 bytes: enough for 256 decimal literal bytes. */
+dtag[5];
+dnm[5];
 pndcls 0;
 
 fnsy[5];
@@ -17,7 +17,7 @@ vinis[16];
 infun 0;
 
 usage() {
-	outinit(2);
+	errinit();
 	outs("usage: b01 [-i raw.ic] [-o resolved.ic]\n");
 	exit(1);
 }
@@ -25,7 +25,7 @@ usage() {
 main(argc, argv) int argv[]; {
 	extern nlab;
 	int nlab;
-	int i, ifd, ofd, in, out;
+	int i, ifd, ofd, in, out, done;
 	char p[];
 
 	nlab = 30000;
@@ -33,8 +33,10 @@ main(argc, argv) int argv[]; {
 	i = 1;
 	in = 0;
 	out = 0;
+	done = 0;
 	while (i < argc) {
 		p = argv[i];
+		if (p[0] == '-') if (p[1] == 's') if (p[2] == 0) goto isdone;
 		if (p[0] == '-') if (p[1] == 'i') if (p[2] == 0) goto isi;
 		if (p[0] == '-') if (p[1] == 'o') if (p[2] == 0) goto iso;
 		usage();
@@ -47,19 +49,25 @@ main(argc, argv) int argv[]; {
 		i = i + 1;
 		if (i >= argc) usage();
 		out = argv[i];
+		goto nxt;
+		goto nxt;
+	isdone:
+		i = i + 1;
+		if (i >= argc) usage();
+		done = argv[i];
 	nxt:
 		i = i + 1;
 	}
 
 	if (in) {
 		ifd = open(in, 0);
-		if (ifd < 0) { outinit(2); outs("b01: open\n"); exit(1); }
+		if (ifd < 0) { errinit(); outs("b01: open\n"); exit(1); }
 	} else {
 		ifd = 0;
 	}
 	if (out) {
 		ofd = creat(out, 016);
-		if (ofd < 0) { outinit(2); outs("b01: creat\n"); exit(1); }
+		if (ofd < 0) { errinit(); outs("b01: creat\n"); exit(1); }
 	} else {
 		ofd = 1;
 	}
@@ -67,6 +75,8 @@ main(argc, argv) int argv[]; {
 	icini(ifd);
 	outinit(ofd);
 	rewrt();
+	if (ofd != 1) close(ofd);
+	if (done) markok(done);
 	exit(0);
 }
 
@@ -207,7 +217,7 @@ rewrt() {
 	int idx, sz, base, sid;
 
 	while (1) {
-		if (!getln(dbuf, 300)) return;
+		if (!getln(dbuf, 1040)) return;
 		icrst();
 		nxtnam(dbuf, dtag);
 

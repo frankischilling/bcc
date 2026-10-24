@@ -16,7 +16,7 @@ getln(buf, max) char buf[]; {
 	char b[2];
 	int i, n;
 	i = 0;
-	while (i < max - 1) {
+	while (1) {
 		n = read(icfd, b, 1);
 		if (n <= 0) {
 			buf[i] = 0;
@@ -27,6 +27,7 @@ getln(buf, max) char buf[]; {
 			buf[i] = 0;
 			return (1);
 		}
+		if (i >= max - 1) fatal("IC line too long");
 		buf[i] = b[0];
 		i = i + 1;
 	}

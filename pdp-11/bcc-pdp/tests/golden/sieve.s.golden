@@ -8,6 +8,7 @@ _LIM:
 .text
 	.globl	_flags
 _flags:
+	.+2
 	0.
 	0.
 	0.
@@ -141,6 +142,7 @@ L3:
 	jmp	L1
 1:
 	mov	$_flags, r0
+	mov	(r0), r0
 	mov	r0, -(sp)
 	mov	r5, r0
 	sub	$2., r0
@@ -167,6 +169,7 @@ L3:
 	jmp	L0
 L1:
 	mov	$_flags, r0
+	mov	(r0), r0
 	mov	r0, -(sp)
 	mov	$0., r0
 	asl	r0
@@ -177,6 +180,7 @@ L1:
 	mov	(sp)+, r1
 	mov	r0, (r1)
 	mov	$_flags, r0
+	mov	(r0), r0
 	mov	r0, -(sp)
 	mov	$1., r0
 	asl	r0
@@ -211,6 +215,7 @@ L7:
 	jmp	L5
 1:
 	mov	$_flags, r0
+	mov	(r0), r0
 	mov	r0, -(sp)
 	mov	r5, r0
 	sub	$2., r0
@@ -256,6 +261,7 @@ L12:
 	jmp	L10
 1:
 	mov	$_flags, r0
+	mov	(r0), r0
 	mov	r0, -(sp)
 	mov	r5, r0
 	sub	$4., r0
@@ -329,6 +335,7 @@ L16:
 	jmp	L14
 1:
 	mov	$_flags, r0
+	mov	(r0), r0
 	mov	r0, -(sp)
 	mov	r5, r0
 	sub	$2., r0

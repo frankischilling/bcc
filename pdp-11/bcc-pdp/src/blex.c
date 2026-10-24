@@ -33,7 +33,7 @@
 tok 0;
 tval 0;
 tstr 0;
-tstrbuf[260];      /* current string literal bytes, terminated by *e=4 */
+tstrbuf[130];      /* 260 bytes: V1 C global array bounds count words. */
 tstrlen 0;         /* number of bytes in tstrbuf */
 tnam[5];           /* 5 ints = 10 bytes -- 8 chars + null + slack */
 
@@ -262,8 +262,10 @@ lexstr() {
 	c = gtch();
 	while (1) {
 		if (c == '"') break;
-		if (c < 0) break;
+		if (c < 0) fatal("unterminated string literal");
 		if (c == '*') c = rdesc();
+		if (c < 0) fatal("unterminated string literal");
+		if (n >= 255) fatal("string literal too long");
 		tstrbuf[n] = c;
 		n = n + 1;
 		c = gtch();

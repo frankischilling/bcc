@@ -1,18 +1,8 @@
 #!/bin/sh
 # install_v1.sh -- deploy b00 + b01 + b1 + driver + runtime into the V1 fs.
 #
-# Builds compiler passes with V1 cc (via apout) if not already built, then drops:
-#   build/b00                  -> fs/root/bin/b00
-#   build/b01                  -> fs/root/bin/b01
-#   build/b1                   -> fs/root/bin/b1
-#   tools/b.sh                 -> fs/root/bin/b      (driver, +x)
-#   runtime/bmain.s, brt.s     -> fs/root/usr/lib/
-#   src/*.c                    -> fs/root/usr/src/bcc/  (for self-host)
-#
-# After this, run pdp-11/unix-v1/tools/rebuild_v1.sh to repack rk0/rf0,
-# then `make run` in pdp-11/unix-v1 to boot simh.  Inside V1:
-#   b prog.b
-#   mv a.out prog
+# Install the small driver on root and the passes/runtime/sources on /usr.
+# The root disk must leave space for the kernel's fixed swap slots.
 
 set -eu
 
@@ -30,11 +20,14 @@ USR=$V1/fs/usr
 # Drop stale single-binary deploy if present.
 rm -f "$ROOT/bin/bcc" "$ROOT/bin/b.sh"
 
-# Binaries live on the root partition (/bin -> rf0:bin).
-install -m 755 "$HERE/build/b00" "$ROOT/bin/b00"
-install -m 755 "$HERE/build/b01" "$ROOT/bin/b01"
-install -m 755 "$HERE/build/b1" "$ROOT/bin/b1"
-install -m 755 "$HERE/build/b"  "$ROOT/bin/b"
+# Keep the small driver on root; compiler passes belong on the larger /usr disk.
+mkdir -p "$USR/lib/bcc" "$USR/tmp"
+for name in b00 b01 b1; do
+    install -m 755 "$HERE/build/$name" "$USR/lib/bcc/$name"
+    rm -f "$ROOT/bin/$name"
+done
+install -m 755 "$HERE/build/b" "$ROOT/bin/b"
+install -m 644 "$HERE/build/libb.raw.s" "$USR/lib/bcc/libb.ref"
 
 # Runtime + self-host sources live on /usr (rk0:lib + rk0:src/bcc).
 mkdir -p "$USR/lib"
@@ -56,7 +49,8 @@ for f in "$HERE/examples"/*.b; do
 done
 
 echo "installed:"
-echo "  $ROOT/bin/{b00,b01,b1,b}"
+echo "  $ROOT/bin/b"
+echo "  $USR/lib/bcc/{b00,b01,b1}"
 echo "  $USR/lib/{bmain.s,brt.s}"
 echo "  $USR/src/bcc/*.c"
 echo "  $USR/src/bcc/examples/*.b"

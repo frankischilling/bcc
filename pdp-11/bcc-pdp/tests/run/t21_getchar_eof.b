@@ -3,4 +3,5 @@ main() {
 	if (getchar() == '*e') putchar('E');
 	else putchar('!');
 	putchar('*n');
+	return(0);
 }

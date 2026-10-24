@@ -6,4 +6,5 @@
 *.s text eol=lf
 *.md text eol=lf
 *.pdf binary
-*.out -text
+# Expected output includes significant NULs, newlines, and trailing blanks.
+*.out -text -whitespace

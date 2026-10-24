@@ -6,8 +6,10 @@ from pathlib import Path
 import shlex
 import shutil
 import subprocess
+import struct
 import sys
 import tempfile
+from apout_image import test_image
 
 
 def main():
@@ -15,6 +17,7 @@ def main():
     v1 = root.parent / 'unix-v1'
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--timeout', type=float, default=None)
+    parser.add_argument('--raw-v1', action='store_true', help="use the emulator's uninstrumented 0405 mode")
     parser.add_argument('source', type=Path)
     parser.add_argument('arguments', nargs=argparse.REMAINDER)
     args = parser.parse_args()
@@ -55,8 +58,21 @@ def main():
         if result.stderr: sys.stderr.buffer.write(result.stderr)
         if result.returncode:
             return result.returncode if result.returncode > 0 else 1
+        header = (work / 'a.out').read_bytes()[:16]
+        if len(header) != 16:
+            raise ValueError('truncated assembler output')
+        magic, text, data, bss, *_ = struct.unpack('<8H', header)
+        if magic != 0o407:
+            raise ValueError('bad assembler output')
+        if text + data + bss + 12 > 16384:
+            raise ValueError('program exceeds 16 KB')
         subprocess.run([sys.executable, str(v1 / 'tools/fixaout.py')], cwd=work, check=True, timeout=10)
-        result = subprocess.run([str(apout), str(work / 'a.out'), *args.arguments],
+        executable = work / 'a.out'
+        if not args.raw_v1:
+            executable = work / 'test.out'
+            executable.write_bytes(test_image((work / 'a.out').read_bytes()))
+            env['APOUT_UNIX_VERSION'] = 'V2'
+        result = subprocess.run([str(apout), str(executable), *args.arguments],
                                 cwd=caller, env=env, timeout=args.timeout)
         return result.returncode if result.returncode >= 0 else 128 - result.returncode
 
@@ -64,6 +80,6 @@ def main():
 if __name__ == '__main__':
     try:
         raise SystemExit(main())
-    except (OSError, subprocess.SubprocessError) as error:
+    except (OSError, ValueError, subprocess.SubprocessError) as error:
         print(f'bcc-pdp: {error}', file=sys.stderr)
         raise SystemExit(1)

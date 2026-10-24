@@ -17,4 +17,5 @@ main() {
 		putchar('0' + i);
 	}
 	putchar(v[2]);
+	return(0);
 }

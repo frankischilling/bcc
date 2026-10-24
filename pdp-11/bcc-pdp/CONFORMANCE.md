@@ -109,24 +109,24 @@ assembly syscall wrappers and B library functions:
 | `close` | `runtime/brt.s` | V1 syscall 6 |
 | `creat` | `runtime/brt.s` | V1 syscall 8 |
 | `ctime` | `runtime/libb.b` | Converts high-word-first 60 Hz time since 1971 into 15 date characters plus NUL; tested at word/day/year boundaries and leap day |
-| `execl`, `execv` | `runtime/brt.s` | V1 syscall 11 (exec) |
+| `execl`, `execv` | `runtime/brt.s` | Counted vectors/explicit arg0; B strings converted to Unix termination before syscall 11 |
 | `exit` | `runtime/brt.s` | V1 syscall 1 |
 | `fork` | `runtime/brt.s` | V1 syscall 2 |
 | `fstat` | `runtime/brt.s` | V1 syscall 28 |
 | `getchar`, `putchar`, `putstr` | `runtime/brt.s` | via `read`/`write` |
 | `getstr` | `runtime/libb.b` | line-based read into byte string |
 | `getuid` | `runtime/brt.s` | V1 syscall 24 |
-| `gtty` | `runtime/brt.s` | V1 syscall 21 |
+| `gtty` | `runtime/brt.s` | V1 syscall 32 |
 | `link`, `unlink` | `runtime/brt.s` | V1 syscalls 9, 10 |
 | `mkdir` (called `makdir`) | `runtime/brt.s` | V1 syscall 14 (super-user only on early V1) |
 | `open`, `read`, `write` | `runtime/brt.s` | V1 syscalls 5, 3, 4 |
 | `printf` | `runtime/libb.b` | kbman §9.3 adapted for byte ptrs |
-| `printn` | `runtime/libb.b` | kbman §9.1 verbatim |
+| `printn` | `runtime/libb.b` | based on §9.1, with negative-number/base-16 extensions |
 | `seek` | `runtime/brt.s` | V1 syscall 19 |
 | `setuid` | `runtime/brt.s` | V1 syscall 23 |
 | `stat` | `runtime/brt.s` | V1 syscall 18 |
-| `stty` | `runtime/brt.s` | V1 syscall 20 |
-| `time` | `runtime/brt.s` | V1 syscall 13 |
+| `stty` | `runtime/brt.s` | V1 syscall 31 |
+| `time` | `runtime/brt.s` | V1 syscall 13; high/low words read from AC/MQ |
 | `wait` | `runtime/brt.s` | V1 syscall 7 |
 
 Predefined `argv[]` (kbman §8 last paragraph): a pointer cell and a 32-word vector populated by
@@ -170,3 +170,13 @@ This compiler avoids all of them:
 - Mirror of the same: <https://www.bell-labs.com/usr/dmr/www/kbman.html> (defunct)
 - [README.md](README.md) - build, test, deployment
 - [examples/README.md](examples/README.md) - example walkthrough
+
+## Validation limits
+
+The fast runner uses an unchanged-text compatibility container to observe
+results that the pinned apout 0405 mode discards. Full-system tests remain
+separate and cover real V1 files, processes, tty state, and time registers.
+See [the test guide](../../docs/testing.md). The native compiler still needs
+work on indirect function calls, mutable function-name storage, forward
+label values, word-addressed pointers, and external-name collisions. Table
+entries above describe implemented paths, not a claim of complete conformance.

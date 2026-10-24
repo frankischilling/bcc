@@ -119,3 +119,19 @@ guard bytes beyond the output buffer.
 [aapv1]: https://github.com/aap/b/blob/master/unix1_bdir/README
 
 [v1time]: https://www.tuhs.org/cgi-bin/utree.pl?file=V1/man/man2/time.2
+
+## Native runtime and validation
+
+The native wrappers now use inline syscall argument words, convert B path
+and exec strings to Unix termination, and implement the counted exec vector.
+The fork wrapper follows the parent/child return-instruction convention;
+time reads AC/MQ, and tty wrappers use the restored kernel's syscall table.
+Signed division and remainder use the same documented truncation choice as
+the host implementation, and printing handles the most-negative word.
+
+The fast emulator is not sufficient evidence for V1 syscall behavior. Its
+raw 0405 mode discards exit results, fork/wait PID handling is incomplete,
+and tty calls are stubs. The test runner's compatibility container exposes
+results without changing B instruction/data bytes; real-kernel tests check
+the corresponding behavior in a booted system. The image workflow also
+reserves the kernel's swap blocks before allocating compiler scratch files.

@@ -1,1132 +1,186 @@
-# BCC - B Programming Language Compiler
+# BCC
 
-BCC compiles B source through C99 and the GNU toolchain. Its language baseline
-is Ken Thompson's January 7, 1972 PDP-11 *Users' Reference to B*. The host
-runtime uses libc; it does not reproduce the Unix V1 ABI or original threaded
-object code.
+BCC compiles B programs through a C99 backend and the GNU toolchain. Its
+language baseline is Ken Thompson's January 7, 1972 PDP-11 *Users' Reference
+to B*. The repository also contains an x86-64 assembly-source build, a
+B-written bootstrap compiler, and a separate native PDP-11 compiler.
 
-The separate native compiler in [`pdp-11/bcc-pdp/`](pdp-11/bcc-pdp/) runs on
-PDP-11 Unix V1. Its pointer model and runtime have their own limitations.
+Historical compatibility is a work in progress. Syntax, word arithmetic,
+runtime interfaces, and the original Unix process image are different
+parts of that work. The [conformance notes](wiki/HISTORICAL_CONFORMANCE.md)
+record the sources, tested behavior, and remaining differences.
 
-For historical source, use:
+## Build and run
 
-```bash
+The host build needs GCC, Make, and a Unix-like environment. Tests also need
+Python 3 and Bash. Curses headers are optional unless a program uses curses.
+
+```sh
+git clone https://github.com/frankischilling/bcc.git
+cd bcc
+make
+./bcc --strict --pedantic --word=16 examples/hello.b -o hello
+./hello
+make test
+```
+
+A small B program looks like this:
+
+```b
+main() {
+    extrn printf;
+    printf("hello*n");
+    return(0);
+}
+```
+
+For a user-local installation:
+
+```sh
+make install PREFIX="$HOME/.local"
+```
+
+The installer places the compiler in `bin/` and its runtime sources in
+`bin/lib/`. Keep them together: the compiler finds the runtime relative to
+its executable. GCC is still needed when compiling B programs. `DESTDIR`
+is supported for staged installations; `make test-install` checks that an
+installed compiler can find both runtime layouts.
+
+## Choose a build
+
+- **`bcc`** is the maintained C-source host compiler. It supports shared or
+  inline runtimes, multiple input files, and host/16/32-bit word modes.
+- **[`bccasm`](asm/README.md)** builds the same compiler from checked-in
+  x86-64 GNU assembler snapshots. Source and output hashes catch stale
+  snapshots. Generated B programs use the same runtime as `bcc`.
+- **[`bootstrap/`](bootstrap/README.md)** contains a compiler written in B.
+  Its three-stage test compares generated C and runs conformance programs
+  through every stage. It currently targets host-sized storage.
+- **[`pdp-11/bcc-pdp/`](pdp-11/bcc-pdp/README.md)** is a separate compiler
+  built with the restored historical C toolchain. It emits native PDP-11
+  assembly and has both fast tests and full Unix V1 system tests.
+
+```sh
+make -C asm check
+make -C asm bootstrap
+make -C bootstrap test
+```
+
+These are different checks. Assembling a staged `bccasm` is not B
+self-hosting, and rebuilding the native C-written compiler inside Unix V1
+is not the same as the B-written bootstrap's fixed-point test.
+
+## Dialect and word modes
+
+For the selected PDP-11 dialect, use:
+
+```sh
 ./bcc --strict --pedantic --word=16 program.b -o program
 ```
 
-This selects the PDP-11 syntax checks, 16-bit arithmetic, word addresses, and
-two-byte character packing. Default mode retains host-sized words and
-compatibility syntax. See [historical conformance references](wiki/HISTORICAL_CONFORMANCE.md)
-for the source hierarchy, dialect differences, tests, and remaining gaps.
-
-## Overview
-
-B has one word-sized value representation. Integer arithmetic, addresses,
-labels, and function values use that representation. BCC supports automatic
-and external variables, vectors, functions, conditional statements, loops,
-switches, label values, and computed branches within a function.
-
-## Features
-
-### Core B Language Support
-- **Untyped language**: Single universal data type (PDP-11 word = 16 bits)
-- **Lvalue/Rvalue distinction**: Explicit address-of (`&`) and indirection (`*`) operators
-- **Auto variable declarations**: Local variables with `auto`
-- **External declarations**: Global variables with `extrn`
-- **Function definitions**: `name(args) { ... }` syntax
-- **Control structures**: `if`/`else`, `while`, and `switch`/`case`; compatibility mode also accepts `break`, `continue`, and switch defaults
-- **Arrays (vectors)**: `name[size]` with word-addressed indexing
-- **Goto and labels**: Direct and computed branches within the current function
-- **Truth values**: Relational/equality operators return 1 (true) or 0 (false)
-
-### B-Specific Features
-- **Compound assignments**: `=+`, `=-`, `=*`, `=/`, `=%`, `=&`, `=|`, `=<<`, `=>>` (variable op value)
-- **String literals**: `*e` terminated (EOT marker), not null-terminated
-- **Character handling**: `char(base, offset)` and `lchar(base, offset, value)` for byte access (endian-neutral)
-- **Escape sequences**: `*n` (newline), `*t` (tab), `*e` (end), `*0` (null), `**` (asterisk)
-- **Word packing**: Multi-character constants packed into single words
-- **Pointer arithmetic**: Explicit word-based addressing with configurable modes
-
-### Multi-File Compilation
-- **Multi-file programs**: Compile multiple B source files into single executables
-- **Cross-file function calls**: Functions in any file can call functions from other files
-- **No header files**: Automatic function visibility across all source files
-- **Shared runtime**: All files access the same B runtime library functions
-- **Flexible organization**: Split large programs across logical modules
-
-### Host runtime (`libb`)
-The libc-based runtime provides:
-- I/O functions: `putchar`, `getchar`, `print`, `printf`, `putstr`, `getstr`
-- File operations: `open`, `close`, `read`, `write`, `creat`, `seek`
-- File redirection helpers: `openr`, `openw`, `flush` for switching stdin/stdout units
-- Process control: `fork`, `wait`, `execl`, `execv`, `system` (shell-free, returns raw wait status; decode with `(rc >> 8) & 0377`)
-- Time/delay: `usleep(microseconds)` for delays and animations
-- Math helpers: `sx64(x)` sign-extends lower 16 bits to full word (for 16-bit algorithm compatibility)
-- Foreign calls: `callf` to invoke linked Fortran/GMAP/C routines by name (pass addresses; supports up to 10 args)
-
-### External Library Integration
-Link B programs with any C library:
-- **`-l LIB`**: Link with C library LIB (e.g., `-l raylib`, `-l ncurses`)
-- **`-X FLAG`**: Pass arbitrary GCC flags (e.g., `-X -O3`, `-X -I/path/to/include`)
-- **C library calls**: Host mode can call libraries such as raylib, SDL, and OpenGL; 16-bit packed storage requires explicit conversion at foreign interfaces
-- **Custom Build Options**: Include paths, defines, optimization, and linker flags
-- Dynamic loading: set `B_CALLF_LIB=/path/to/lib1.so:/path/to/lib2.so` so `callf` can find your Fortran/GMAP symbols via `dlsym` (also tries `name_` for Fortran)
-- System calls: `chdir`, `chmod`, `chown`, `link`, `unlink`, etc.
-- String manipulation and utility functions
-
-#### Fortran interop quickstart
-1. Write a shim (free-form Fortran), e.g. `shim.f90`:
-   ```fortran
-   subroutine sin2(x, y)
-     real(8)    :: x
-     integer(8) :: y
-     y = nint(sin(x) * 10000.0d0)
-   end
-
-   subroutine itimez(t)
-     integer(8) :: t
-     integer    :: values(8)
-     call date_and_time(values=values)
-     t = values(5)*100 + values(6)
-   end
-   ```
-2. Build: `gfortran -shared -fPIC shim.f90 -o libtssshim.so`
-3. Run B programs with the shim visible: `B_CALLF_LIB=./libtssshim.so ./your_program`
-4. Call from B with string names and addresses: `callf("sin2", &x, &y); callf("itimez", &t);`
-
-### Compiler Options
-- `-S`: Emit C code to stdout
-- `--asm`: Emit assembly code to stdout
-- `-c`: Compile to object file(s) without linking
-- `-E`: Emit C code to file (preprocessed output)
-- `-g`: Include debug information
-- `-Wall`: Enable all warnings (default)
-- `-Werror`: Treat warnings as errors
-- `--byteptr`: Select byte-addressed pointers explicitly
-- `--wordptr`: Select word-addressed pointers explicitly
-- `--word={host|16|32}`: Select word size/semantics (see Word Semantics Modes; mainly for historical compatibility)
-- `--keep-c`: Don't delete temporary C files after compilation
-- `--emit-c`: Generate C files with nice names (file.b → file.b.c)
-- `--inline-runtime`: Embed runtime in each generated C file (old behavior)
-- `-v`: Verbose compilation output
-- `-l LIB`: Link with C library LIB (e.g., `-l raylib`, `-l ncurses`)
-- `-X FLAG`: Pass any FLAG directly to GCC (e.g., `-X -O3`, `-X -I/path/to/include`, `-X -DMY_DEFINE=1`)
-- `--dump-tokens`: Show tokenized input
-- `--dump-ast`: Show parsed AST
-- `--dump-c`: Emit generated C code
-- `--no-line`: Disable #line directives
-- `--verbose-errors`: Use descriptive error messages instead of 2-letter codes
-
-### Strict mode
-
-`--strict` selects the PDP-11 dialect. `--pedantic` gives direct diagnostics
-for disabled compatibility syntax, including hex literals, line comments,
-backslash escapes, C-style assignments, and logical OR. Strict mode also
-rejects bracketed automatic vectors and unresolved internal names.
-
-Use `auto v 3;` for a three-word automatic vector. The words `break`,
-`continue`, and `default` are ordinary identifiers in this dialect. They can
-name declared variables or labels; they do not introduce control statements.
-Kernighan's tutorial describes another B environment that includes `break`,
-`default`, and bracketed automatic vectors. Those forms remain available in
-BCC's default compatibility mode.
+Use `auto v 3;` for a three-word automatic vector. In this dialect, `break`,
+`continue`, and `default` are ordinary identifiers, not control statements.
+The default compatibility mode accepts additional syntax, including forms
+found in other historical B implementations. Kernighan's tutorial describes
+a different environment, so it is not interchangeable with the PDP-11 manual.
 
 Adjacent operators matter:
 
 ```b
-x =* 10;     /* multiply x by 10 */
-x = *p;     /* assign the word stored through p */
-x =- 1;     /* subtract 1 from x */
+x =* 10;     /* multiply and assign */
+x = *p;     /* assign the value through p */
+x =- 1;     /* subtract and assign */
 x = -1;     /* assign negative one */
 ```
 
-The escapes `*(` and `*)` represent `{` and `}`. Addition binds more tightly
-than shifts: `1 << 2 + 1` means `1 << (2 + 1)`.
+Strings end with octal `004`. B escapes include `*n`, `*t`, `*e`, `*0`,
+`**`, `*(`, and `*)`; the last two represent braces. Addition binds more
+tightly than shifting, so `1 << 2 + 1` means `1 << (2 + 1)`.
 
-Strict syntax and a selected word size cover different parts of compatibility.
-Neither flag is a claim that every original runtime interface is reproduced.
+`--word=host` uses host-sized words. `--word=16` wraps arithmetic and
+translates B addresses through registered host storage, with two characters
+per B word. It selects word addressing by default, as does `--strict`.
+`--byteptr` or `--wordptr` overrides that choice. `--word=32` wraps arithmetic
+but retains native pointers, which can still be truncated by arithmetic.
 
-## Installation
+The 16-bit mode does not reproduce a PDP-11 process image. The separate
+native compiler still uses byte-addressed pointers, a documented difference
+from the manual's word-addressed model.
 
-### Prerequisites
-- GCC or compatible C99 compiler (we build and link with gcc and GNU binutils)
-- GNU Make
-- Python 3 for `make test`
-- Unix-like system (Linux, macOS, BSD)
+## Compiler output and runtime
 
-### Building
-```bash
-git clone <repository-url>
-cd bcc
-make
+```sh
+./bcc first.b second.b -o program
+./bcc -S program.b > program.c
+./bcc --asm program.b > program.s
+gcc program.s -ldl -lm -o program
+./bcc --emit-c --keep-c program.b -o program
 ```
 
-To install the compiler system-wide (default `/usr/local/bin`), run:
-```bash
-make install
+`-S` emits C, not assembly. `--asm` lowers the complete program through the
+C backend and emits host assembly. See the [CLI guide](docs/cli.md) for the
+other modes and flags.
+
+The host runtime provides B string and byte operations, formatted output,
+file/process functions, and compatibility helpers. Shared runtime state is
+the default and is used for multi-file programs. `--inline-runtime` embeds
+the runtime in generated C instead.
+
+The host `execv(path, argv, count)` uses a counted vector; `execl` accepts an
+explicit `arg0`. The shell-free `system` extension supports quoted arguments
+but performs no shell expansion or redirection. `callf` and `B_CALLF_LIB`
+provide host-side foreign-call support; these are not a native V1 ABI.
+
+`time` and `ctime(time, date)` use the V1 60 Hz, high-word-first clock format.
+The date buffer is caller-owned and holds 15 characters plus NUL. That
+32-bit clock wraps after roughly 2.27 years; it cannot represent today's
+full date. Host stat and terminal layouts still need historical ABI work.
+
+## Native PDP-11 tests
+
+```sh
+git submodule update --init pdp-11/unix-v1
+make -C pdp-11/bcc-pdp
+bash pdp-11/bcc-pdp/tests/run/run.sh
+bash pdp-11/bcc-pdp/tests/ext/run.sh
 ```
 
-Use `make install PREFIX=/custom/path` to override the install directory.
-
-The `bcc` executable will be created in the root directory.
-
-## Compatibility
-- **Target hosts**: Unix-like systems with libc, GNU binutils, and a GNU-compatible C compiler. Run `make test` on the target host.
-- **Pointer models**: Select byte or word addresses with `--byteptr` or `--wordptr`.
-- **Dependencies**: Requires libc at runtime (runtime library is implemented atop libc; not a freestanding syscall-only build).
-- **Linking**: Uses the GNU toolchain by default; alternate compilers may work if they honor C99 and GNU ld flags.
-
-## PDP-11 Unix V1 native compiler (`pdp-11/bcc-pdp/`)
-
-The separate compiler in [`pdp-11/bcc-pdp/`](pdp-11/bcc-pdp/) uses the
-historical C toolchain and emits native PDP-11 code. Its three compiler
-passes and driver fit the 16 KB process budget. Tests run through apout;
-that is distinct from booting the system in SIMH and rebuilding inside it.
-
-Its syntax baseline is the 1972 reference, but the implementation is not
-fully conformant. Native pointers are byte-addressed, the argument vector
-has a fixed capacity, and several syscall interfaces still need verification.
-Its date formatter now consumes the historical two-word time value. See the
-[native conformance matrix](pdp-11/bcc-pdp/CONFORMANCE.md).
-
-## Build variants and verification
-
-- [`asm/`](asm/README.md) builds `bccasm` from checked-in x86-64 GNU assembler
-  snapshots. It uses the same runtime and host tests as `bcc`.
-- [`bootstrap/`](bootstrap/README.md) contains the B-written compiler and its
-  three-stage generated-C fixed-point test.
-- [Testing guide](docs/testing.md) lists the commands for all variants and
-  explains what each result establishes.
-
-## Usage
-
-### Basic Compilation
-```bash
-# Compile B source to executable
-./bcc program.b -o program
-
-# Compile to object file
-./bcc -c program.b
-
-# Emit C code
-./bcc -S program.b
-
-# Emit assembly code
-./bcc --asm program.b
-```
-
-### Multi-File Compilation
-```bash
-# Compile multiple B files into single executable
-./bcc lib.b main.b utils.b -o myprogram
-
-# Compile to object files only (no linking)
-./bcc -c lib.b main.b utils.b
-
-# Keep generated C files for inspection
-./bcc lib.b main.b -o myprogram --keep-c
-
-# Use nice naming for generated C files (file.b → file.b.c)
-./bcc lib.b main.b -o myprogram --emit-c
-
-# Verbose compilation output
-./bcc lib.b main.b -o myprogram -v
-```
-
-**Multi-file project structure:**
-```
-myproject/
-├── lib.b        # Shared utility functions
-├── math.b       # Mathematical functions
-├── io.b         # I/O helper functions
-└── main.b       # Main program entry point
-```
-
-**Example usage:**
-```bash
-# Compile all source files together
-./bcc lib.b math.b io.b main.b -o myapp
-
-# Run the program
-./myapp
-```
-
-**Features:**
-- Functions from any B file can call functions from other B files
-- No need for forward declarations or header files
-- All files share the same runtime library
-- Generated C code is properly linked together
-
-### B Language Example
-```b
-main() {
-    auto i;
-    i = 0;
-    while (i < 10) {
-        print(i);
-        i =+ 1;
-    }
-}
-
-print(n) {
-    putchar(n + '0');
-    putchar('*n');
-}
-
-// Redirect I/O to files
-// openr/openw switch getchar/putchar to new units
-copy() {
-    openr(5, "infile");
-    openw(6, "outfile");
-    auto c;
-    while ((c = getchar()) != '*e')
-        putchar(c);
-}
-```
-
-### I/O Units (openr/openw/flush/reread)
-- One input unit (`rd.unit`) and one output unit (`wr.unit`) are active at a time; defaults are `rd.unit=0` (terminal) and `wr.unit=-1` (terminal).
-- `openr(u, "path")` / `openw(u, "path")` switch `getchar`/`getstr` or `putchar`/`putstr` to unit `u` and bind it to the given file name (empty string or negative unit resets to terminal). Units `-1..10` are supported.
-- Reopening a unit first closes any file previously on that unit; closing a unit in user code also returns the unit to the terminal.
-- `flush()` forces the current output unit to write buffered data (useful for prompts before reading on the same line).
-- `reread()` makes the next `getstr`/`getchar` read the program’s command line (call before the first read).
-
-## Documentation
-
-The language baseline is Ken Thompson's PDP-11 B reference. Kernighan's tutorial and Unix documentation provide additional dialect and implementation context.
-
-**📖 B Language Wiki**: See [the language guide](wiki/B_LANGUAGE.md) for the complete B programming language wiki homepage.
-
-**📚 Language Reference**: See [`B_LANGUAGE.md`](wiki/B_LANGUAGE.md) for comprehensive B language documentation, syntax, and examples.
-
-**Source Documentation**:
-- [B Reference Manual](https://www.nokia.com/bell-labs/about/dennis-m-ritchie/kbman.html)
-- [B Tutorial](https://www.nokia.com/bell-labs/about/dennis-m-ritchie/btut.pdf)
-- [Unix v1 Manual](https://www.nokia.com/bell-labs/about/dennis-m-ritchie/man71.pdf)
-
-**Original Sources**:
-- [Original scanned B manual](https://www.nokia.com/bell-labs/about/dennis-m-ritchie/kbman.pdf): January 7, 1972 PDP-11 reference
-
-## Technical Architecture
-
-### Compiler Pipeline
-
-BCC follows a traditional multi-stage compiler architecture with the following pipeline:
-
-1. **Lexical Analysis** (`src/lexer.c`)
-   - Single-pass tokenization with look-ahead
-   - B-specific escape sequences (`*e`, `*n`, `*t`, etc.)
-   - Character packing for multi-character constants
-   - Position tracking for error reporting
-
-2. **Syntax Analysis** (`src/parser.c`)
-   - Recursive descent parser with Pratt precedence climbing
-   - B's unique expression precedence (assignment ops bind right-to-left)
-   - AST construction with arena allocation
-   - Support for B's comma-separated initializers
-
-3. **Semantic Analysis** (`src/sem.c`)
-   - Single-pass symbol table construction
-   - Lexical scoping with nested symbol tables
-   - Automatic variable lifetime analysis
-   - Implicit extern variable handling
-   - Function signature validation
-
-4. **Code Generation** (`src/emitter.c`)
-   - AST-to-C transpilation strategy
-   - B-to-C operator mapping (e.g., `=+` → `+=`)
-   - Runtime library integration (`libb.a` functions)
-   - Pointer model abstraction (word vs byte addressing)
-
-5. **Host Compilation**
-   - Generated C code compiled with GCC
-   - Runtime library linking
-   - Executable generation
-
-### Memory Management
-
-**Arena-Based Allocation**
-- Custom arena allocator (`src/arena.c`) for compilation phase
-- 64KB chunks with linked allocation strategy
-- Zero-overhead deallocation (entire arena freed at once)
-- Mark/rewind support for backtracking during parsing
-- Separation of compilation and runtime memory
-
-**Memory Layout**
-- Compilation arena: AST nodes, symbols, strings
-- Host malloc: Parser state, file I/O buffers
-- Generated code uses standard C allocation
-
-### Key Technical Features
-
-#### B-Specific Syntax Handling
-- **Assignment Operators**: `=+`, `=-`, `=*`, `=/` (variable op value)
-- **String Literals**: `*e` termination instead of null bytes
-- **Character Constants**: Thompson B72 packs one or two characters; default extension mode also accepts three or four
-- **Array Syntax**: `name[constant]` with word-addressed semantics
-- **Comma-Separated Initializers**: B-style external variable initialization
-
-#### Expression Precedence
-B's operator precedence follows a specific hierarchy (high to low):
-```
-Postfix: () [] * & ++ --
-Unary: * & ++ --
-Multiplicative: * / %
-Additive: + -
-Shifts: << >>
-Relational: < <= > >=
-Equality: == !=
-Bitwise AND: &
-Bitwise OR: |
-Logical OR: || (extension; disabled by --strict)
-Assignment: = =+ =- =* =/ =% =& =| =<< =>>
-```
-
-#### Symbol Table Architecture
-- **Hierarchical Scoping**: Global → Function → Block scope nesting
-- **Symbol Kinds**: Variables, Functions, Labels
-- **Implicit Statics**: Undeclared variables become file-scoped statics
-- **Extern Resolution**: Runtime linking of external declarations
-
-#### Code Generation Strategy
-- **Transpilation Approach**: B AST → C source code → Native executable
-- **Runtime Library**: Comprehensive `libb.a` with 40+ functions
-- **Pointer Models**: Configurable word vs byte addressing (`--byteptr`)
-- **Helper Functions**: Complex operations (assignments, increments) use C helper functions
-
-#### Error Handling System
-- **Dual Error Formats**: Historic 2-letter codes vs verbose messages
-- **Source Context**: Error location with caret pointing to problematic token
-- **Error Codes**: Based on original B compiler diagnostics
-- **Fatal Errors**: Immediate termination with cleanup
-
-### Implementation Challenges & Solutions
-
-#### Historical Accuracy
-- **Precedence Matching**: Verified against B manual specifications
-- **Character Packing**: Implemented B's word-packing for character constants
-- **String Handling**: `*e` termination with proper runtime support
-- **Library compatibility**: Selected B interfaces are implemented over libc; historical ABI gaps remain.
-
-#### Memory Efficiency
-- **Arena Allocation**: Eliminates per-AST-node free operations
-- **String Interning**: Compilation-time string deduplication
-- **Lazy Code Generation**: AST preserved until final emission
-
-#### Performance Considerations
-- **Single-Pass Design**: Lexing → Parsing → Semantics → Codegen in one pass
-- **Minimal AST**: Only essential information retained
-- **GCC Optimization**: Leverages host compiler optimizations
-- **Memory Reuse**: Arena reset between compilation units
-
-### Testing & Validation
-
-#### Test Coverage
-- **Language Features**: Comprehensive B syntax validation
-- **Library Functions**: Runtime library testing
-- **Edge Cases**: Boundary conditions and error paths
-- **Historical Compatibility**: Comparison with known B programs
-
-#### Validation Methods
-- **AST Dumping**: Internal representation verification (`--dump-ast`)
-- **Code Emission**: Generated C code inspection (`--dump-c`)
-- **Token Stream**: Lexical analysis validation (`--dump-tokens`)
-- **Runtime Testing**: Executable behavior validation
-- **Cross-Platform**: Testing across different Unix-like systems
-
-## Build System & Development
-
-### Makefile Structure
-```makefile
-# Main targets
-all: bcc
-test: run_test_suite
-clean: remove_objects
-
-# Compilation
-CC = gcc
-CFLAGS = -std=c99 -Wall -Wextra -O2
-LDFLAGS = -lm
-
-# Object files
-OBJS = lexer.o parser.o sem.o emitter.o util.o arena.o main.o
-```
-
-### Development Workflow
-1. **Modify Source**: Edit `.c` and `.h` files in `src/`
-2. **Build**: `make` to compile the compiler
-3. **Test**: `make test` or manual testing with B programs
-4. **Debug**: Use dump flags to inspect compilation phases
-5. **Validate**: Compare output with expected B behavior
-
-### Code Organization
-```
-src/
-├── bcc.h          # Main header with type definitions
-├── main.c         # Command-line interface and compilation driver
-├── lexer.c        # Lexical analysis and tokenization
-├── parser.c       # Syntax analysis and AST construction
-├── sem.c          # Semantic analysis and symbol table
-├── emitter.c      # Code generation to C
-├── util.c         # Utilities, error handling, arena management
-├── arena.c        # Memory allocation system
-├── docs.MD        # Original B language documentation
-└── create_parser.c # Parser generation utilities
-```
-
-### Header Dependencies
-- `bcc.h`: Core types, enums, function declarations
-- System headers: `stdio.h`, `stdlib.h`, `stdint.h`, `inttypes.h`, etc.
-- POSIX headers: `unistd.h`, `sys/wait.h`, `fcntl.h`, etc.
-
-### Build Dependencies
-- **Required**: GCC, GNU Make, standard C library
-- **Optional**: GCC-specific features for optimization
-- **Testing**: Unix-like shell for test execution
-
-### Release Process
-1. **Version Tagging**: Semantic versioning for releases
-2. **Testing**: Full test suite validation
-3. **Documentation**: README updates and changelog
-4. **Distribution**: Source tarball with Makefile
-5. **Verification**: Bootstrap testing where possible
-
-## Project Structure
-
-```text
-bcc/
-  Makefile       Build and test targets
-  README.md      Build, usage, and compatibility notes
-  src/           C99 compiler
-  lib/           Shared runtime and target-address translation
-  tests/         Execution, AST, multi-file, and historical regressions
-  wiki/          Language guides and primary-source conformance notes
-  pdp-11/        Native Unix V1 compiler and historical system documentation
-  bootstrap/     B bootstrap sources
-  asm/           Generated x86-64 assembly-source build
-  examples/      Example B programs
-```
-
-### Key Files Description
-
-**Core Compiler**
-- `src/main.c`: Command-line argument parsing, compilation orchestration
-- `src/lexer.c`: Tokenization with B-specific escape sequences
-- `src/parser.c`: Recursive descent parsing with B precedence rules
-- `src/sem.c`: Symbol table management and semantic validation
-- `src/emitter.c`: C code generation with runtime library integration
-
-**Support Infrastructure**
-- `src/util.c`: Error handling, string utilities, arena management
-- `src/arena.c`: Region-based memory allocation
-- `src/bcc.h`: Type definitions, function prototypes, constants
-
-**Documentation & Testing**
-- `README.md`: Comprehensive project documentation
-- `src/docs.MD`: Scanned original B language manual
-- `*.b` files: Test programs demonstrating B features
-- `Makefile`: GNU Make build configuration
-
-### Build Configuration
-
-The Makefile provides a simple build system:
-
-```makefile
-CC = gcc
-CFLAGS = -std=c99 -Wall -Wextra -O2
-TARGET = bcc
-SOURCES = src/util.c src/lexer.c src/parser.c src/sem.c src/arena.c src/emitter.c src/main.c
-OBJECTS = $(SOURCES:.c=.o)
-
-all: $(TARGET)
-
-$(TARGET): $(OBJECTS)
-	$(CC) $(CFLAGS) -o $(TARGET) $(OBJECTS)
-
-%.o: %.c src/bcc.h
-	$(CC) $(CFLAGS) -c $< -o $@
-
-clean:
-	rm -f $(TARGET) $(OBJECTS) src/*.o
-```
-
-**Build Requirements**
-- GCC 4.8+ or C99-compatible compiler
-- GNU Make
-- Standard C library with POSIX extensions
-- Unix-like environment for runtime library functions
-
-**Build Process**
-1. Compile individual source files to object files
-2. Link objects into final `bcc` executable
-3. No external dependencies required
-4. Clean rebuild with `make clean && make`
-
-### Development Tools
-
-#### Debugging Support
-- `--dump-tokens`: Raw token stream inspection
-- `--dump-ast`: Abstract syntax tree visualization
-- `--dump-c`: Generated C code examination
-- `--verbose-errors`: Detailed error diagnostics
-
-#### Build System
-- **Makefile**: Standard GNU Make build process
-- **Dependency Tracking**: Automatic header dependency resolution
-- **Clean Targets**: Comprehensive cleanup support
-
-### Future Development Directions
-
-#### Bootstrap Goals
-- **Self-Hosting**: B compiler written in B
-- **Minimal Runtime**: B execution environment
-- **Cross-Compilation**: B-on-B for historical systems
-
-#### Historical Compatibility
-- **Unix V1-V7**: Targeting specific historical Unix versions
-- **PDP-11 Emulation**: Native architecture compatibility
-- **Library Recreation**: Complete `libb.a` reconstruction
-
-#### Advanced Features
-- **Optimization**: Constant folding, dead code elimination
-- **Debugging**: Source-level debugging support
-- **Profiling**: Performance analysis tools
-
-## TODO / Roadmap
-
-### Historical Accuracy
-- [ ] Verify expression precedence matches B exactly
-- [ ] Implement all B library functions with correct signatures
-- [ ] Test against original Unix v1 B programs
-- [ ] Validate character packing/unpacking behavior
-- [ ] Verify vector operations edge cases
-
-### B Compiler in B
-- [X] Bootstrap: Write a B compiler in B
-- [X] Self-hosting capability
-- [X] Minimal runtime for B-in-B execution
-
-### Historical Unix Compatibility
-- [ ] Target Unix V1 (1971) - Test on recovered systems
-- [ ] Target Unix V4 (1973) - Run on emulated V4 tape contents
-- [ ] Target Unix V6 (1975) - Popular for historical study
-- [ ] Target Unix V7 (1979) - "Ancestor of modern Unix"
-
-### Inspiration
-The B-in-B and historical Unix goals are inspired by [aap/b](https://github.com/aap/b), which successfully implements a B compiler that can run on historical Unix systems.
-
-## Advanced Features
-
-### Pointer Models
-
-BCC supports two pointer addressing modes to match different B implementations:
-
-**Word addressing (`--wordptr`, or the strict/16-bit default)**
-```c
-#define B_DEREF(p)   (*(word*)(uword)((uword)(p) * sizeof(word)))
-#define B_ADDR(x)    B_PTR(&(x))
-```
-- Pointers store word indices, not byte addresses
-- Array access: `arr[i]` → `*(arr + i)`
-- Compatible with original B's memory model
-
-**Byte Addressing (`--byteptr`)**
-```c
-#define B_DEREF(p)   (*(word*)(uword)(p))
-#define B_ADDR(x)    B_PTR(&(x))
-```
-- Standard byte-addressed pointers
-- Array access: `arr[i]` → `*((word*)arr + i)`
-- Matches modern C pointer semantics
-
-### Word semantics modes
-
-`--word=host` uses host-sized words and native pointers. `--word=32` wraps
-arithmetic at 32 bits while retaining host storage and pointers. These modes
-support programs that depend on a modern host environment.
-
-`--word=16` represents integer results and B addresses as 16-bit values. It
-selects word addressing by default; `--byteptr` is an explicit alternative.
-`--strict` also selects word addressing unless a pointer mode is specified.
-For example, `32767 + 1` yields `-32768`, and `-1 >> 1` yields `32767`.
-
-The address translator in `lib/btarget.h` maps registered host storage to B
-addresses. Pointer arithmetic preserves the B address rather than truncating
-a host pointer. Vectors register their full backing storage; function-local
-registrations are released on return, and `free` releases heap registrations.
-Shared compilation units use one address table. Generated C uses GNU statement
-expressions for ordered bitwise evaluation and the GCC/Clang cleanup attribute
-for 16-bit function frames. The inline runtime embeds the
-same translator for standalone generated C.
-
-Characters occupy two bytes per B word in 16-bit mode. String literals,
-`char`, `lchar`, and packed file I/O use that layout. Host storage cells remain
-`intptr_t` sized, and address translation uses host memory. This is a language
-compatibility layer, not an exact PDP-11 process image. Foreign C interfaces
-must account for the difference in storage layout.
-
-Arithmetic helpers wrap addition, subtraction, multiplication, and logical
-shifts. Signed division preserves exact results for negative operands; BCC
-chooses truncation toward zero for inexact quotients. Bitwise `&` and `|`
-evaluate their operands from left to right. BCC masks large shift counts as an implementation choice. The manual
-leaves out-of-range shifts and some negative division/remainder cases
-undefined; those choices do not establish historical conformance. Division
-by zero is not given a portable result.
-
-### Endianness and Byte Packing
-
-In word-addressed mode (`--wordptr`), `char()` and `lchar()` pack bytes into words:
-
-**Byte Packing Convention:**
-- Byte 0 is stored at the least-significant position (LSB)
-- This matches PDP-11 (little-endian) conventions
-- The shift-based implementation operates on word *values*, not memory layout
-
-**Cross-Architecture Behavior:**
-- The implementation is endian-neutral for word operations
-- `char(s, 0)` always returns the LSB of the word, regardless of host endianness
-- A compile-time warning is emitted on big-endian systems when using word-addressed mode
-
-**Important Note:**
-Mixing direct memory access (like C's `*(char*)ptr`) with B's `char()`/`lchar()` will produce different results on big-endian hosts. Always use `char()`/`lchar()` for portable byte access in B programs.
-
-**Recommendation:**
-- Use `--byteptr` (byte-addressed mode) for maximum portability
-- Word-addressed mode works correctly on little-endian systems (x86, ARM, most modern systems)
-
-### Switch Statement Implementation
-
-B's switch statements have fall-through behavior by default (no break statements exist in B). Switch statements are compiled to efficient C `for` loops with computed goto:
-
-```b
-switch (expr) {
-case 1: stmt1;
-case 2: stmt2;
-}
-```
-
-Becomes:
-```c
-for (;;) {
-    word __sw = expr;
-    goto __bsw0_dispatch;
-
-    __bsw0_case1: /* case 1 code - falls through */
-    __bsw0_case2: /* case 2 code - falls through */
-
-    __bsw0_dispatch:
-        if (__sw == 1) goto __bsw0_case1;
-        if (__sw == 2) goto __bsw0_case2;
-        goto __bsw0_end;
-
-    __bsw0_end:
-        break;
-}
-```
-
-### External Variable Initialization
-
-B supports complex external variable initialization:
-
-```b
-/* Scalar with value */
-name 42;
-
-/* Vector with size */
-name[10];
-
-/* Vector with initialization */
-name[5] 1, 2, 3, 4, 5;
-
-/* Blob initialization */
-name { 1, 2, 3 };
-```
-
-Compiled to appropriate C declarations and initialization functions.
-
-### Library Function Integration
-
-All B library functions are automatically prefixed with `b_` and linked at runtime:
-
-```b
-print(42);  // Calls b_print(42)
-getchar();  // Calls b_getchar()
-```
-
-### Error Recovery & Diagnostics
-
-**Two-Tier Error System**
-- **Historic Mode**: `ex filename:line` (compatible with original B)
-- **Verbose Mode**: `filename:line:col: error: expression syntax`
-
-**Error Categories**
-- `ex`: Expression syntax errors
-- `sx`: Statement syntax errors
-- `lv`: Lvalue required errors
-- `un`: Undefined name errors
-- `rd`: Redefinition errors
-- And more matching original B diagnostics
-
-## Technical Specifications
-
-### Language Limits
-- **Identifier Length**: Unlimited (arena allocated)
-- **Expression Nesting**: Limited by C stack/recursion
-- **Array Dimensions**: Single dimension vectors
-- **Function Parameters**: Unlimited (vector stored)
-- **String Literals**: `*e` terminated, no null termination
-
-### Memory Usage
-- **Arena Size**: 64KB chunks, grows dynamically
-- **Symbol Table**: Hierarchical with parent pointers
-- **AST Nodes**: Compact representation with unions
-- **String Storage**: Interned in compilation arena
-
-### Performance Characteristics
-- **Compilation Speed**: Linear in source size (single pass)
-- **Memory Usage**: Proportional to source complexity
-- **Generated Code**: GCC-optimized native executables
-- **Runtime Performance**: Equivalent to compiled C code
-
-### Platform Support
-- **Architecture**: x86_64, ARM64, and other GCC-supported platforms
-- **Operating System**: Linux, macOS, BSD variants, Unix-like systems
-- **C Compiler**: GCC 4.8+ or compatible C99 compiler
-- **Memory**: 64-bit address space required
-
-## Development Philosophy
-
-### Historical Fidelity
-- **Source Accuracy**: Based on Ken Thompson's January 7, 1972 PDP-11 B reference
-- **Library compatibility**: Selected B interfaces are implemented over libc; historical ABI gaps remain.
-- **Error Messages**: Historic diagnostic format preserved
-- **Semantics**: B's unique evaluation rules maintained
-
-### Modern Implementation
-- **Allocation**: Compiler syntax objects use an arena; this is not a general memory-safety guarantee.
-- **Error Handling**: Comprehensive error reporting with context
-- **Cross-Platform**: Portable C99 implementation
-- **Maintainability**: Clean separation of compilation phases
-
-### Bootstrap Vision
-The ultimate goal is a self-hosting B compiler:
-1. **Stage 1**: C implementation (current)
-2. **Stage 2**: B compiler written in B
-3. **Stage 3**: Self-hosted B-in-B compiler
-4. **Stage 4**: Historical Unix compatibility
-
-This follows the tradition of early compiler bootstrapping, where complex systems were built by successive refinement from simpler implementations.
-
-## Troubleshooting
-
-### Common Issues
-
-**Compilation Errors**
-- Check B syntax against language specification
-- Verify all variables are declared (`auto` or `extrn`)
-- Ensure proper brace matching and semicolon usage
-
-**Runtime Errors**
-- Check array bounds (B doesn't bounds-check)
-- Verify pointer operations use correct addressing mode
-- Confirm library function usage matches specifications
-
-**Library Linkage**
-- Ensure `libb.a` functions are available
-- Check pointer model consistency (`--byteptr` flag)
-- Verify external variable declarations
-
-### Debugging Techniques
-```bash
-# Examine tokenization
-./bcc --dump-tokens program.b
-
-# View parse tree
-./bcc --dump-ast program.b
-
-# Inspect generated C code
-./bcc --dump-c program.b
-
-# Verbose error messages
-./bcc --verbose-errors program.b
-```
-
-### Performance Tuning
-- Use GCC optimization flags when compiling generated code
-- Consider pointer model based on access patterns
-- Profile memory usage for large programs
-
-## Implementation Details
-
-### Runtime Library Architecture
-
-BCC uses a separate runtime library (`lib/libb.c`) that is compiled once and linked with all B programs:
-
-**Directory Structure:**
-```
-bcc/
-├── src/           # Compiler source code
-│   ├── main.c     # Driver and compilation pipeline
-│   ├── emitter.c  # C code generation
-│   └── ...
-├── lib/           # Runtime library
-│   ├── libb.h     # Runtime declarations (included by generated C)
-│   └── libb.c     # Runtime implementation (compiled separately)
-```
-
-**Compilation Pipeline:**
-1. Each `.b` file is compiled to a `.c` file that includes `libb.h`
-2. `libb.c` is compiled once to `libb.o` with matching `B_BYTEPTR` and `WORD_BITS` settings
-3. All generated `.c` files and `libb.o` are linked together
-
-**Benefits:**
-- **Smaller generated files**: Each `.c` file only contains the user's B code, not the full runtime
-- **Faster compilation**: Runtime is compiled once, not for every file
-- **True multi-file support**: No duplicate symbol conflicts
-- **Easier debugging**: Generated C is cleaner and easier to inspect
-
-**Backward Compatibility:**
-Use `--inline-runtime` to embed the runtime in each generated file (old behavior):
-```bash
-bcc --inline-runtime program.b -o program
-```
-
-### Lexical Analysis (`lexer.c`)
-
-**Token Recognition**
-- **Keywords**: `auto`, `extrn`, `if`, `else`, `while`, `switch`, `case`, `goto`, `return`
-- **Operators**: Full B operator set including compound assignments (`=+`, `=-`, `=*`, etc.)
-- **Literals**: Integer constants, character constants (packed into words), strings (`*e` terminated)
-- **Identifiers**: Alphabetic followed by alphanumerics
-- **Comments**: Block comments `/* ... */` (inherited from BCPL)
-
-**Escape Sequences**
-B supports escape sequences in strings and characters:
-- `*e`: End marker (EOT, ASCII 4)
-- `*n`: Newline (ASCII 10)
-- `*t`: Tab (ASCII 9)
-- `*0`: Null (ASCII 0)
-- `*(`, `*)`: Literal parentheses
-- `**`: Literal asterisk
-- `*'"`: Literal quotes
-
-**Position Tracking**
-- Line and column counting for error reporting
-- Filename association for multi-file error messages
-
-### Parser Implementation (`parser.c`)
-
-**Grammar Coverage**
-- **Expressions**: Full precedence climbing with B's operator hierarchy
-- **Statements**: Block, if/else, while, switch/case, goto/label, return
-- **Declarations**: Auto variables, extern declarations, function definitions
-- **Lvalues/Rvalues**: Proper handling of address-of (`&`) and indirection (`*`)
-
-**AST Structure**
-```c
-typedef enum {
-    EX_NUM, EX_STR, EX_VAR, EX_CALL, EX_INDEX,
-    EX_UNARY, EX_BINARY, EX_ASSIGN, EX_TERNARY, EX_COMMA
-} ExprKind;
-
-typedef enum {
-    ST_EMPTY, ST_BLOCK, ST_AUTO, ST_IF, ST_WHILE,
-    ST_RETURN, ST_EXPR, ST_GOTO, ST_LABEL, ST_SWITCH, ST_CASE
-} StmtKind;
-```
-
-**Key B Semantics**
-- **Lvalue contexts**: Variables, `*expr`, `arr[index]` can be assigned to
-- **Rvalue contexts**: All expressions produce word values
-- **Address-of**: `&var` produces address (word) of variable
-- **Indirection**: `*addr` treats addr as pointer and dereferences it
-
-**Parsing Strategy**
-- **Top-Down**: Recursive descent with backtracking prevention
-- **Pratt Parsing**: Expression parsing with precedence climbing
-- **Single Pass**: AST construction during parsing
-- **Error Recovery**: Fatal errors with detailed location reporting
-
-### Semantic Analysis (`sem.c`)
-
-**Symbol Management**
-- **Scope Hierarchy**: Global → Function → Block nesting
-- **Symbol Types**: Variables (auto/extern), Functions, Labels
-- **Lifetime Analysis**: Variable visibility and lifetime tracking
-- **Forward References**: Function declarations before definitions
-
-**B Type System**
-- **Untyped Language**: Everything is a machine word (PDP-11: 16 bits)
-- **No Type Checking**: All operations are valid on words
-- **Lvalue/Rvalue Distinction**: What can be assigned to vs. what produces values
-- **Pointer Semantics**: Addresses are just words, explicit indirection required
-
-**Static Analysis**
-- **Undeclared Variables**: Converted to implicit externs
-- **Duplicate Declarations**: Detected and reported
-- **Label Resolution**: Goto/label connectivity validation
-- **Constant Folding**: Compile-time expression evaluation where possible
-
-### Code Generation (`emitter.c`)
-
-**C Transpilation Strategy**
-- **Direct Mapping**: B constructs → equivalent C constructs
-- **Runtime Wrappers**: Complex operations use helper functions
-- **Library Integration**: Automatic `b_` prefixing for runtime functions
-- **Pointer Abstraction**: Configurable word/byte addressing modes
-
-**Generated Code Structure**
-```c
-// Includes and type definitions
-#include <stdio.h>
-// ... runtime headers ...
-
-typedef intptr_t word;
-typedef uintptr_t uword;
-
-// Runtime library functions
-static word b_print(word x) { /* ... */ }
-
-// User code
-word main(void) {
-    __b_init();  // Initialize globals
-    return __b_user_main();
-}
-```
-
-**Optimization Considerations**
-- **GCC Leverage**: Host compiler optimizations applied to generated code
-- **Helper Functions**: Complex operations (lvalue assignments) use optimized C functions
-- **Inline Expansion**: Simple operations inlined for performance
-
-### Runtime Library (`libb.a` Implementation)
-
-**Core Functions**
-- **I/O**: `putchar`, `getchar`, `printf` with `%d`, `%o`, `%c`, `%s` formatting
-- **Memory**: `alloc(size)` for dynamic word allocation
-- **Character Access**: `char(base, offset)` reads, `lchar(base, offset, value)` writes bytes
-- **File I/O**: `open`, `close`, `read`, `write`, `creat`, `seek`
-- **Process Control**: `fork`, `wait`, `execl`, `execv`
-- **System Calls**: `chdir`, `chmod`, `link`, `unlink`, etc.
-- **Time/Delay**: `usleep(microseconds)` for timing and animations
-
-**Math/Compatibility Helpers**
-- **`sx64(x)`**: Sign-extend lower 16 bits to full word size. Essential for porting 16-bit algorithms to 64-bit hosts. Example: `sx64(-58368)` returns `7168` (the 16-bit representation sign-extended).
-
-**B-Specific Features**
-- **String Handling**: `*e` (EOT) termination, not null bytes
-- **Word semantics**: Select 16-bit arithmetic and addresses with `--word=16`
-- **Character Packing**: Multi-character constants packed into words
-- **Pointer Models**: Configurable word vs byte addressing modes
-
-## Testing
-
-### Test Suite
-The test suite includes compile, execution, AST, multi-file, runtime, and historical cases:
-- `mixed_test.b`: Full language feature coverage
-- `bitwise_test.b`: Bitwise operator validation
-- `switch_test.b`: Switch/case statement testing
-- Various example programs demonstrating B idioms
-- **Multi-file sample**: `lib.b` + `main.b`
-  - `lib.b` provides `fact`, `fib`, and `is_prime`
-  - `main.b` calls them and prints results
-  - Build/run: `./bcc lib.b main.b -o myapp && ./myapp`
-
-### Example Programs
-The `examples/` directory contains several B programs:
-- `hello.b`: Classic hello world
-- `fib.b`: Fibonacci sequence
-- `fizzbuzz.b`: FizzBuzz challenge
-- `euclid.b`: Greatest common divisor with Euclid's algorithm
-- `sieve.b`: Sieve of Eratosthenes using vectors
-- `binary_search.b`: Search in a sorted vector
-- `hanoi.b`: Recursive Towers of Hanoi
-- `string_bytes.b`: Byte-level string editing with `char`/`lchar`
-- `digit_histogram.b`: Count digit characters in a string
-- `mandelbrot.b`: ASCII Mandelbrot fractal
-- `donut.b`: Spinning 3D ASCII donut animation (uses `sx64`, `usleep`)
-- `gol.b`: Conway's Game of Life
-- `snake.b`: Snake game
-- `brainfuck.b`: Brainfuck interpreter
-- `raylib.b`: Graphics with raylib library
-
-Run an example:
-```bash
-./bcc examples/donut.b -o donut && ./donut
-```
-
-### Testing Methodology
-- **Unit Testing**: Individual language features
-- **Integration Testing**: Complete program compilation and execution
-- **Regression Testing**: Historical B program compatibility
-- **Cross-Platform**: Validation across different Unix-like systems
-
-Run the test suite:
-```bash
-make test
-# Run only the source-based historical regressions:
-python3 tests/test_b72_conformance.py
-```
-
-`make test` stages the shell tests with Unix line endings, then runs the
-historical regressions against both runtime paths. The expected results come
-from the cited reference sections, not from BCC-generated golden output.
-
-### Validation Tools
-- **AST Inspection**: `--dump-ast` for parse tree verification
-- **Code Review**: `--dump-c` for generated C examination
-- **Token Analysis**: `--dump-tokens` for lexical correctness
-- **Error Testing**: Both error format modes validation
-
-## Error Messages
-
-BCC supports two error message formats:
-
-**Historic format (default):**
-```
-ex program.b:15
-    x = ;
-        ^
-```
-
-**Verbose format (`--verbose-errors`):**
-```
-program.b:15:7: error: expression syntax
-    x = ;
-        ^
-```
-
-## Contributing
-
-Contributions are welcome! Areas of particular interest:
-- Historical accuracy improvements
-- Additional test cases
-- Documentation enhancements
-- Performance optimizations
-
-Please ensure all changes maintain compatibility with the original B specification.
-
-## License
-
-This project is licensed under the GNU General Public License v3.0 (GPL-3.0).
+The [testing guide](docs/testing.md) explains the fast runner's compatibility
+container, byte-exact output checks, real-kernel tests, and in-system rebuild.
+The full-system tests reserve swap space in the generated disk image and
+keep compiler scratch files on the larger `/usr` disk. They do not alter the
+pinned historical source files.
+
+## Documentation and source layout
+
+- [Testing and validation](docs/testing.md)
+- [Command-line options](docs/cli.md)
+- [Compiler architecture](docs/architecture.md)
+- [Historical conformance and source hierarchy](wiki/HISTORICAL_CONFORMANCE.md)
+- [B language guide](wiki/B_LANGUAGE.md)
+- [Runtime guide](wiki/WIKI_RUNTIME_LIBRARY.md)
+- [Native compiler status](pdp-11/bcc-pdp/CONFORMANCE.md)
+
+The host compiler is in `src/`, with its runtime in `lib/`. Regression tests
+are in `tests/`; example programs are in `examples/`. Variant-specific build
+and test code stays under `asm/`, `bootstrap/`, and `pdp-11/bcc-pdp/`.
+
+Known gaps include mutable function-name storage, host stat/terminal ABI
+mapping, native word-addressed pointers, and 16-bit bootstrap storage.
+Passing tests establish the cases they check, not a claim that the compiler
+is bug-free or fully equivalent to the original implementation.
 
 ## References
 
-### Primary Sources
-- [B Reference Manual - Nokia/Bell Labs](https://www.nokia.com/bell-labs/about/dennis-m-ritchie/kbman.html)
-- [B Tutorial - Bell Labs](https://www.nokia.com/bell-labs/about/dennis-m-ritchie/btut.pdf)
-- [Unix Programmer's Manual v1, section VII excerpt](https://www.nokia.com/bell-labs/about/dennis-m-ritchie/man71.pdf)
-
-### Historical Unix
+- [Thompson's PDP-11 B manual](https://www.nokia.com/bell-labs/about/dennis-m-ritchie/kbman.html)
+  and [original scan](https://www.nokia.com/bell-labs/about/dennis-m-ritchie/kbman.pdf)
+- [Kernighan's B tutorial](https://www.nokia.com/bell-labs/about/dennis-m-ritchie/btut.pdf)
+- [November 1971 Unix manual, section VII excerpt](https://www.nokia.com/bell-labs/about/dennis-m-ritchie/man71.pdf)
+- [Setting Up UNIX](https://www.tuhs.org/Archive/Applications/Dennis_Tapes/Gao_Analysis/v4_dist/setup.pdf)
 - [Unix Heritage Society](https://www.tuhs.org/)
-- [Setting Up UNIX (distribution installation)](https://www.tuhs.org/Archive/Applications/Dennis_Tapes/Gao_Analysis/v4_dist/setup.pdf)
-- [Mike Taylor's libb.a Analysis](https://www.miketaylor.org.uk/tech/libb-a.html)
+- [aap/b reconstruction](https://github.com/aap/b)
+- [Mike Taylor's libb.a analysis](https://www.miketaylor.org.uk/tech/libb-a.html)
 
-### Inspiration
-- [aap/b - B compiler for historical Unix](https://github.com/aap/b)
-
-## Authors
-
-The language baseline is Ken Thompson's 1972 PDP-11 manual. See the [conformance note](wiki/HISTORICAL_CONFORMANCE.md) for supported behavior and documented differences.
-
-Written by @frankischilling
+Maintained by [frankischilling](https://github.com/frankischilling).
+See [LICENSE](LICENSE) for BCC's GPLv3 license. Historical materials and
+pinned dependencies retain their own license notices.

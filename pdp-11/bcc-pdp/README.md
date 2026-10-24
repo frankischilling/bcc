@@ -1,303 +1,151 @@
-# bcc-pdp
+# Native PDP-11 B compiler
 
-A B compiler for **PDP-11 Unix 1st Edition** (1972), written in V1 C and
-targeting V1. Its language baseline is Ken Thompson's
-**Users' Reference to B** (Bell Labs Technical Memorandum, 1972-01-07,
-known as "kbman").  See [CONFORMANCE.md](CONFORMANCE.md) for the
-section-by-section status matrix.
+This compiler targets the restored Unix V1 environment and emits native
+PDP-11/20 code. Its language baseline is Thompson's January 1972 B manual.
+It is written in the early C dialect accepted by the historical toolchain
+pinned under `../unix-v1`; it is not cross-compiled from C99 with modern GCC.
 
-Three PDP-11 a.out passes -- `b00` (lex + parse, emits raw intermediate
-code), `b01` (symbol classification and IC resolution), and `b1` (reads
-resolved IC, emits V1 `as`) -- keep each compiler process inside V1's
-16 KB address-space budget.  They are built by V1 `cc` (the 1972 last1120c
-compiler) running under [apout](../unix-v1/tools/apout) on the host.
-The host emulator is built with a modern C compiler; the PDP-11 compiler
-binaries are built with the historical compiler. An in-system rebuild from
-`/usr/src/bcc/` is a separate check from the apout tests.
+Three processes split the compiler: `b00` parses B into intermediate records,
+`b01` resolves names, and `b1` emits V1 assembler syntax. A small native `b`
+driver runs the passes and assembler. Arguments are arranged so the leftmost
+argument is nearest the return address; R5 is the frame pointer and R0 holds
+a function result. Multiplication and division do not require EIS instructions.
 
-- Target CPU: PDP-11/20 (no EIS -- software muldiv in `runtime/brt.s`).
-- Calling convention: args pushed left-to-right, return in R0, R5 frame.
-- Emits V1 `as` syntax; links with `as bmain.s brt.s prog.s`.
+This is not complete B72 conformance. The [status notes](CONFORMANCE.md) and
+[repository-wide source comparison](../../wiki/HISTORICAL_CONFORMANCE.md)
+describe the remaining differences.
 
-## Build
+## Build and fast tests
+
+From the repository root:
 
 ```sh
-git submodule update --init ../unix-v1
-make            # apout-V1-cc compiles src/*.c -> build/b00 + build/b01 + build/b1
+git submodule update --init pdp-11/unix-v1
+make -C pdp-11/bcc-pdp
+bash pdp-11/bcc-pdp/tests/run/run.sh
+bash pdp-11/bcc-pdp/tests/ext/run.sh
+python3 pdp-11/bcc-pdp/tests/driver_cases.py
+python3 pdp-11/bcc-pdp/tests/ic_cases.py
+python3 pdp-11/bcc-pdp/tests/image_tools.py
+bash pdp-11/bcc-pdp/tests/check_v1_binaries.sh
 ```
 
-The build does:
-
-1.  `tools/build-apout-root.sh` materializes `build/aroot/`, a unified
-    V1 filesystem (merges `fs/root` + `fs/usr` + `crt0.o`).
-2.  Sources for each binary are staged into `build/aroot/`, then
-    `apout build/aroot/bin/cc *.c` runs the actual 1972 cc binary on
-    them, producing PDP-11 `a.out` binaries under `build/`.
-
-## Compile + run a B program
+Make builds apout, assembles `crt0.o`, and prepares a private filesystem copy
+for the historical C compiler. Each B execution test uses another temporary
+copy, so intermediate files from one case cannot make another case pass.
+Expected output is compared as bytes, including NULs and trailing newlines.
+Optional `.files.json` fixtures check file contents outside the B API.
 
 ```sh
-make test-run B=tests/run/t01_hello.b
-# -> hello
+make -C pdp-11/bcc-pdp test-run B=tests/run/t01_hello.b
 ```
 
-`tools/run-apout.sh` does:
+The pinned emulator's raw 0405 mode discards exit results and mishandles
+fork/wait PIDs. For fast execution checks, `apout_image.py` wraps unchanged
+V1 instruction/data bytes in a 0407 test container and selects apout's
+V2-compatible syscall handling. The inner V1 header still branches to the
+same 040014 entry address; a skipped header word explicitly tags V2 handling.
+This exposes nonzero results; it does not prove
+real V1 kernel behavior. `tools/run-apout.sh --raw-v1 FILE.b` retains the
+unmodified emulator mode for comparison. TTY calls are stubs in apout and
+are checked only in the full-system suite.
 
-1.  Run `build/b00` under apout to compile the `.b` to raw `prog.ic`.
-2.  Run `build/b01` under apout to resolve symbols into `prog.r2`.
-3.  Run `build/b1` under apout to translate `prog.r2` to `prog.s`.
-4.  Assemble `bmain.s + brt.s + prog.s` with V1 `as` (also under apout).
-5.  Execute the resulting `a.out` under apout.
+## Full Unix V1 checks
 
-Run the canonical test suite:
+These need the nested SIMH source and Python's `pexpect` package:
 
 ```sh
-tests/run/run.sh
-tests/ext/run.sh      # opt-in -x extension mode
-# PASS t01_hello
-# PASS t02_arith
-# PASS t03_loop
-# PASS t04_if
-# PASS t05_vec
+git submodule update --init --recursive pdp-11/unix-v1
+python3 -m pip install pexpect==4.9.0
+make -C pdp-11/bcc-pdp v1-selfhost B=tests/run/t26_postfix_index.b
+make -C pdp-11/bcc-pdp v1-run B=tests/run/t27_ctime_check.b
+make -C pdp-11/bcc-pdp v1-run B=tests/v1/tty.b
 ```
 
-## Install into SIMH V1
+The self-host check rebuilds all three passes and the C-written driver inside
+Unix V1, compares each binary with the apout-built version, installs the
+rebuilt binaries, recompiles the B-written runtime and compares its assembly,
+and compiles/runs the selected B program. This is an
+in-system C rebuild, not the separate B-written bootstrap compiler.
 
-```sh
-tools/install_v1.sh           # both scripts live in bcc-pdp/tools/
-tools/rebuild_v1.sh           # repack ../unix-v1/build/rk0.dsk / rf0.dsk
-cd ../unix-v1 && make run     # boot SIMH
+The console runner checks ASCII output and treats a CPU halt or kernel panic
+as failure. Binary data assertions belong inside the test program, as in
+`t27_ctime_check.b`; the terminal can discard NUL output. Use the fast suite
+for byte-exact file and output checks.
+
+`tools/v1-run.sh FILE.b --expect-compile-error` checks that a failed pass is
+diagnosed and produces no executable. `--trace-stages` runs each pass directly
+before testing the driver and captures diagnostic progress.
+
+## Safe image layout
+
+The pinned filesystem builder leaves the kernel's swap blocks marked free.
+Without correction, larger temporary files can overwrite saved processes.
+The BCC image workflow checks that files do not overlap the reserved area,
+reserves RF blocks 432–1023, and restores the image's reserved tail after
+boot-image installation.
+
+Only the small `/bin/b` driver lives on the root disk. The three passes are
+installed in `/usr/lib/bcc/`; runtime files are in `/usr/lib/`, and sources
+are in `/usr/src/bcc/`. B compiler scratch files use `/usr/tmp/`.
+
+The generated image also changes the historical assembler/compiler scratch
+path templates from `/tmp/` to `/usr/`. These replacements have the same
+length and leave instruction bytes and binary offsets unchanged. The pinned
+source tree is not patched. Unit tests check the overlay and reserved-block
+validation. Full-system runs are serialized because staging and disk images
+are shared, and the console listener binds only to loopback.
+
+To install a rebuilt binary manually, copy it and restore its V1 execute bit.
+Do not use `mv` across the root and `/usr` filesystems:
+
+```text
+chdir /usr/src/bcc
+cc b00drv.c bstmt.c bexpr.c blex.c bemit0.c butil.c
+cp a.out /usr/lib/bcc/b00
+chmod 36 /usr/lib/bcc/b00
 ```
 
-`install_v1.sh` drops:
+Use `make v1-selfhost` for the complete checked sequence.
 
-| Host path                               | Inside V1               |
-|------------------------------------------|--------------------------|
-| `build/b00`                              | `/bin/b00` (`rf0:bin/`)  |
-| `build/b01`                              | `/bin/b01`               |
-| `build/b1`                               | `/bin/b1`                |
-| `build/b`                                | `/bin/b`  (driver)       |
-| `runtime/bmain.s`, `runtime/brt.s`       | `/usr/lib/`  (`rk0:lib/`)|
-| `src/*.c`                                | `/usr/src/bcc/`          |
-| `examples/*.b`                           | `/usr/src/bcc/examples/` |
+## Native driver and runtime
 
-V1 mounts two disks: `rf0` (root, `/`) and `rk0` (`/usr`).  Binaries live
-on root; runtime stubs and self-host sources live on usr -- mirroring
-how V1's own `cc` (`/bin/cc`) + `c0` / `c1` (`/usr/lib/c0`, `c1`) are
-laid out.
+The driver accepts `b [-x] [-v] source.b`. `-x` enables compatibility syntax;
+`-v` prints phase progress. Each compiler pass can write an explicit
+completion record with `-s FILE`. The driver requires those records and
+checks the pinned assembler's diagnostic stream, rather than relying only
+on child status that the V1 kernel does not provide. Output headers, size,
+reads, writes, and installation are checked before reporting success.
 
-After booting SIMH, log in as `root` (no password) and run:
+`runtime/brt.s` contains arithmetic helpers and syscall wrappers. Filenames
+and exec arguments are converted from B's `004` terminator to Unix NUL
+termination. `execv` takes a count, `execl` accepts an explicit `arg0`, `fork`
+uses the V1 two-return convention, and `time` reads the KE11 AC/MQ result.
+`stty` and `gtty` use syscall numbers 31 and 32.
 
-```
-# b prog.b
-# ./a.out
-```
+`runtime/libb.b` implements `printn`, `printf`, `getstr`, and the date
+formatter. Signed division truncates toward zero; remainders follow the
+dividend. Negative printing and bases above 10 are extensions to the manual's
+non-negative `printn` example.
 
-Or run the same loop non-interactively from the host:
+## Limits and differences
 
-```sh
-make v1-run B=tests/run/t01_hello.b
-```
-
-That command stages `B` into the V1 root filesystem as `v1.b`, installs the current
-`b00`/`b01`/`b1`/`b` binaries, rebuilds the disk images, boots SIMH, logs in as
-root, runs `b ./v1.b`, then runs `./a.out`.
-
-`/bin/b` is a small V1-C program that fork+exec's `/bin/b00`, `/bin/b01`,
-`/bin/b1`, then `/bin/as`, leaving the linked `a.out` in the current directory.
-V1's shell predates `$n` parameter expansion in scripts, so `b` must be
-a compiled binary, not a shell script.
-
-Self-host (rebuild all three binaries inside V1):
-
-```
-# cd /usr/src/bcc
-# cc b00drv.c bstmt.c bexpr.c blex.c bemit0.c butil.c
-# mv a.out /bin/b00
-# cc b01drv.c blex1.c bsym.c butil.c
-# mv a.out /bin/b01
-# cc b1drv.c bcg.c bcgnew.c blex1.c blit.c butil.c
-# mv a.out /bin/b1
-# cc bdrv.c
-# mv a.out /bin/b
-```
-
-## V1 C dialect quirks the source navigates
-
-| Constraint                  | Workaround used in source            |
-|-----------------------------|---------------------------------------|
-| No preprocessor             | No `#include` / `#define`; token codes inline |
-| No `void`                   | All fns implicit `int`                |
-| No `struct`                 | Parallel arrays (`snam[]`/`scls[]`/`soff[]`) |
-| No `*p` pointer declarators | `int p[]` / `char p[]` only           |
-| No `**` in K&R param decl   | `main(argc, argv) int argv[]`         |
-| No `_` in identifiers       | camelCase / no-sep (e.g. `symfnd`)    |
-| Linker symbols 7-char max   | C identifiers <=6 chars where shared  |
-| No `for` loop               | Hand-written `while`                  |
-| `+=` rejected; `=+` OK      | Explicit `i = i + 1`                  |
-| `||` rejected               | Nested `if` / range checks            |
-| Bare `&& fn()` rejected     | Stash in var first                    |
-| Locals inside blocks reject | Declare all locals at function start  |
-| Negative global init        | Init to 0, set in startup fn          |
-| Global `int` / `char` decl  | B-style `name initval;` / `arr[size];` |
-| Octal default (`42.` for dec) | Already match V1 `as` emit style     |
-
-## Layout
-
-```
-src/                      compiler + driver -- V1-clean C files
-  b00drv.c                b00 driver, argv, file IO
-  b01drv.c                b01 resolver, symbol classification
-  b1drv.c                 b1 driver, IC dispatch loop
-  bstmt.c                 statement parser, function defs (b00)
-  bexpr.c                 expression parser (b00)
-  blex.c                  lexer (b00)
-  blex1.c                 IC-record mini-scanner (b01/b1)
-  bsym.c                  symbol table (b01)
-  bemit0.c                cg primitive stubs -> raw IC records (b00)
-  bcg.c                   codegen primitives -> V1 as (b1)
-  blit.c                  streaming string-literal emit (b1)
-  butil.c                 outc/outs/outd, fatal, label counter
-  bdrv.c                  /bin/b -- fork/exec b00 + b01 + b1 + as
-runtime/
-  bmain.s                 crt0 -- argc/argv to _main + populate _argv[]
-  brt.s                   .mul / .div / .mod / .shl / .shr / .xor +
-                          char/lchar + 23 V1 syscall wrappers
-  libb.b                  printn, printf, getstr in B (kbman §9.1, §9.3)
-  libb.s                  ^^ compiled by build/b00 + build/b01 + build/b1
-tests/run/                .b end-to-end tests + expected stdout
-tools/
-  build-apout-root.sh     stage unified V1 root for apout cc
-  run-apout.sh            compile + assemble + run under apout
-  install_v1.sh           drop binaries into pdp-11/unix-v1/fs/{root,usr}/
-  rebuild_v1.sh           repack rk0.dsk / rf0.dsk after install
-build/
-  aroot/                  apout filesystem root
-  b00                     lex + parse pass (V1 a.out)
-  b01                     symbol resolver pass (V1 a.out)
-  b1                      assembly emitter pass (V1 a.out)
-  b                       driver (V1 a.out)
-```
-
-## Intermediate Code
-
-Text, one record per line.  `b00` emits raw IC, `b01` consumes declaration
-and reference records (`A*`, `R*`) and emits resolved IC for `b1`.
-
-| Tag    | Args                | Meaning                                |
-|--------|---------------------|----------------------------------------|
-| `n`    | n                   | const -> R0                            |
-| `ps`   |                     | push R0                                |
-| `bin`  | op                  | non-compare binop (+, -, *, /, ...)    |
-| `binc` | op lfa lend         | compare binop (==, !=, <, >, <=, >=)   |
-| `cl`   | name nargs          | call                                   |
-| `pr`   | name nloc retl      | prologue (retl = return label)         |
-| `ep`   |                     | epilogue                               |
-| `rt`   |                     | return jump                            |
-| `lc`   | off                 | local addr                             |
-| `ar`   | off                 | arg addr                               |
-| `dr`   |                     | deref R0                               |
-| `as`   |                     | assign  (`*TOS = R0`)                  |
-| `bf`   | l                   | branch-on-false                        |
-| `jm`   | l                   | jump                                   |
-| `lb`   | l                   | label def                              |
-| `ex`   | name                | extern addr                            |
-| `Slit` | len bytes...        | streamed string literal                |
-| `uo`   | op                  | non-! unary (`-`, `~`)                 |
-| `uon`  | l1 l2               | logical `!`                            |
-| `ao`   | isand l             | `&&` / `||` begin (isand=1 for `&&`)   |
-| `aoe`  | l                   | `&&` / `||` end                        |
-| `tq`   | l                   | ternary `?` begin                      |
-| `tc`   | lel le              | ternary `:` middle                     |
-| `te`   | le                  | ternary end                            |
-| `ix`   |                     | index (`TOS + 2*R0`)                   |
-| `ca`   | op                  | compound assign (`*TOS OP= R0`)        |
-| `cac`  | op lfa lend         | compound assign with compare op        |
-| `po`   | isinc               | post-inc/dec                           |
-| `pi`   | isinc               | pre-inc/dec                            |
-| `vi`   | slot dataoff        | vector-auto pointer init               |
-| `gw`   | name value          | (legacy) scalar word defn              |
-| `ga`   | name n ni values... | (legacy) vector defn (constants only)  |
-| `gvb`  | name n              | global-vector header                   |
-| `gvc`  | value               | one constant word                      |
-| `gvn`  | name                | one address-of-name word (kbman §7.2)  |
-| `gve`  |                     | global-vector footer (`.even`)         |
-| `swb`  | ldisp               | switch entry (push expr, jmp dispatch) |
-| `swe`  | ldisp lpop lend nc {k l}* | switch end + dispatch chain      |
-| `gor`  |                     | computed goto (`jmp (r0)`)             |
-| `Adef`/`Aend` | name / none  | function boundary consumed by `b01`    |
-| `Aauto`/`Aarg`/`Aextrn`/`Avec` | ... | declarations consumed by `b01` |
-| `Agvec`| name                | global vector symbol marker            |
-| `Rname`/`Rderef` | name / none | name reference and value coercion     |
-| `Rlbl`/`Rdef` | name         | goto-label use and label definition    |
-| `la`   | lid                 | address-of-label (mov $Llid, r0)      |
-
-## Language status - strict kbman 1972 conformance
-
-Implemented (every kbman section):
-
-| kbman § | Feature | Status |
-|---|---|---|
-| 2 | Canonical syntax | ✔ |
-| 3 | rvalues, lvalues (16-bit word) | ✔ |
-| 4.1 | primary expressions | ✔ - names, decimal & octal constants, char `'c'`/`'cc'`, strings, parens, vectors, calls |
-| 4.2 | unary `-` `!` `*` `&` `++` `--` | ✔ |
-| 4.3..4.7 | multiplicative, additive, shift, relational, equality | ✔ |
-| 4.8 | `&` (single, dual logical+bitwise) | ✔ |
-| 4.9 | `|` (single, dual logical+bitwise) | ✔ |
-| 4.10 | conditional `?:` | ✔ |
-| 4.11 | all 16 compound assigns: `= =\| =& === =!= =< =<= => =>= =<< =>> =+ =- =% =* =/` | ✔ |
-| 5.1 | compound `{...}` | ✔ |
-| 5.2 | `if/else` | ✔ |
-| 5.3 | `while` | ✔ |
-| 5.4 | `switch rvalue stmt` + `case constant:` (no parens, fall-through) | ✔ |
-| 5.5 | `goto rvalue;` (label name OR computed) | ✔ |
-| 5.6 | `return` / `return(rvalue)` | ✔ |
-| 5.7 | rvalue statement | ✔ |
-| 5.8 | null statement `;` | ✔ |
-| 6 | `auto`, `extrn`, internal (label) declarations | ✔ |
-| 7.1 | simple defn `name ival, ival, ...;` (no `=`!) | ✔ |
-| 7.2 | vector defn `name[size] ival, ival, ...;` with name initializers | ✔ |
-| 7.3 | function definitions | ✔ |
-| 8 | library: `char lchar putchar getchar putstr getstr printf printn open close creat read write seek exit fork wait link unlink chdir chmod chown stat fstat setuid getuid time stty gtty execl execv mkdir ctime` + predefined `argv` vector | ✔ |
-| 9.1 | `printn(n,b)` example - works as-is | ✔ |
-| 9.2 | `e` to ~200 digits - works (slow under apout) | ✔ |
-| 9.3 | `printf` example - adapted (see deviations) | ✔ |
-
-### Documented deviations from kbman
-
-- **Pointer model is byte-addressed.**  kbman §12 specifies word-addressed
-  lvalues with `asl` on every dereference (matching the threaded-code
-  interpreter).  This compiler emits direct PDP-11 code with byte addresses,
-  which is faster.  Affects `printf`: the manual's `adx++` to walk the
-  argument frame becomes `adx = adx + 2` here.  The B-source `runtime/libb.b`
-  documents the deviation inline.
-- **8-character identifiers.**  V1 `as` truncates linker symbols to 7
-  characters after the `_` prefix; the compiler enforces a hard 8-char
-  identifier limit to preserve uniqueness.  kbman doesn't specify a limit.
-- **`argv` is a 32-word vector.**  `argv[0]` is `argc`; `argv[1..argv[0]]`
-  are the argument string pointers.  Excess args (>31) are truncated.
-- **String terminator.**  `*e` (octal 04) per kbman §5.6.
-- **Post-1972 extensions are opt-in** with `b00 -x`, `/bin/b -x`, or
-  `B0FLAGS=-x tools/run-apout.sh`.  Strict mode rejects:
-  `~` (bitwise NOT), `^` (XOR), `&&` (short-circuit AND), `||`
-  (short-circuit OR), `=^` (compound XOR-assign), keywords `break`,
-  `continue`, and bracketed auto vectors.  Use single `&`/`|` (dual
-  logical+bitwise per kbman §4.8/4.9), `goto label;` instead of
-  `break/continue`, and `auto v 3;` instead of `auto v[3];`.
-
-### Library functions
-
-Hosted in two files:
-
-- **`runtime/brt.s`** - PDP-11 assembly: `char`, `lchar`, `putchar`,
-  `getchar`, `write`, `read`, `open`, `close`, `creat`, `seek`, `exit`,
-  `putstr`, `fork`, `wait`, `unlink`, `link`, `chdir`, `chmod`, `chown`,
-  `stat`, `fstat`, `setuid`, `getuid`, `time`, `stty`, `gtty`, `execl`,
-  `execv`, `makdir`, `ctime`, plus internal helpers `.mul .div .mod .shl .shr .xor`.
-- **`runtime/libb.b`** - written in B itself, compiled by the new passes
-  into `runtime/libb.s`: `printn` (kbman §9.1 verbatim), `printf` (kbman
-  §9.3 adapted for byte-addressed pointers), `getstr`.
-
-Predefined external `argv[]` lives in `runtime/bmain.s` and is populated
-by `start:` from the V1 kernel's argc/argv on the stack.
+- Pointers are byte-addressed, not the manual's word addresses. Vector
+  names have mutable pointer cells, and indexing loads a pointer value
+  before selecting an element.
+- Function-name storage, indirect calls, and forward label values still
+  need further native conformance work.
+- The startup argument vector keeps at most 31 user arguments and currently
+  omits the program name. Its count reports only stored entries.
+- Source strings are limited to 255 bytes plus the B terminator. Oversized
+  or unterminated literals and oversized intermediate records are rejected.
+- Syscall path conversion is limited to 255 bytes. Exec accepts up to 64
+  arguments with 512 bytes of converted argument strings.
+- The compiler has fixed symbol, vector, case, and literal tables. The
+  binary-size check covers code/data/BSS; programs also need stack space.
+- The lexer retains eight identifier characters, but assembler symbol
+  truncation can still cause collisions. Do not treat that as full support
+  for every eight-character external name.
+- Out-of-range shifts, division by zero, and some negative arithmetic cases
+  are not specified by the B manual. Implementation choices are not
+  conformance requirements.

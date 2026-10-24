@@ -8,27 +8,29 @@
  * After EOF, emitl() writes the .data section.
  */
 
-dbuf[300];
-dtag[10];
-dnm[10];
-dsb[260];
+dbuf[520]; /* 1040 bytes: enough for 256 decimal literal bytes. */
+dtag[5];
+dnm[5];
+dsb[130]; /* 260 literal bytes. */
 dsk[64];
 
 usage() {
-	outinit(2);
+	errinit();
 	outs("usage: b1 [-i IC] [-o OUT.s]\n");
 	exit(1);
 }
 
 main(argc, argv) int argv[]; {
-	int i, ifd, ofd, in, out;
+	int i, ifd, ofd, in, out, done;
 	char p[];
 
 	i = 1;
 	in = 0;
 	out = 0;
+	done = 0;
 	while (i < argc) {
 		p = argv[i];
+		if (p[0] == '-') if (p[1] == 's') if (p[2] == 0) goto isdone;
 		if (p[0] == '-') if (p[1] == 'i') if (p[2] == 0) goto isi;
 		if (p[0] == '-') if (p[1] == 'o') if (p[2] == 0) goto iso;
 		usage();
@@ -41,19 +43,25 @@ main(argc, argv) int argv[]; {
 		i = i + 1;
 		if (i >= argc) usage();
 		out = argv[i];
+		goto nxt;
+		goto nxt;
+	isdone:
+		i = i + 1;
+		if (i >= argc) usage();
+		done = argv[i];
 	nxt:
 		i = i + 1;
 	}
 
 	if (in) {
 		ifd = open(in, 0);
-		if (ifd < 0) { outinit(2); outs("b1: open ic\n"); exit(1); }
+		if (ifd < 0) { errinit(); outs("b1: open ic\n"); exit(1); }
 	} else {
 		ifd = 0;
 	}
 	if (out) {
 		ofd = creat(out, 016);   /* V1 mode: ownr+ownw+wrldr (host 0644) */
-		if (ofd < 0) { outinit(2); outs("b1: creat out\n"); exit(1); }
+		if (ofd < 0) { errinit(); outs("b1: creat out\n"); exit(1); }
 	} else {
 		ofd = 1;
 	}
@@ -62,6 +70,8 @@ main(argc, argv) int argv[]; {
 	outinit(ofd);
 	dispat();
 	emitl();
+	if (ofd != 1) close(ofd);
+	if (done) markok(done);
 	exit(0);
 }
 
@@ -129,6 +139,8 @@ disp3() {
 		lp = nxti(dbuf);
 		le = nxti(dbuf);
 		nc = nxti(dbuf);
+		if (nc < 0) fatal("negative case count");
+		if (nc > 32) fatal("too many cases");
 		ii = 0;
 		while (ii < nc) {
 			dsk[2 * ii]     = nxti(dbuf);
@@ -147,6 +159,8 @@ disp3() {
 	if (tageq(dtag, "gve")) { cggve(); return (1); }
 	if (tageq(dtag, "Slit")) {
 		slen = nxti(dbuf);
+		if (slen < 0) fatal("negative literal length");
+		if (slen > 256) fatal("literal length too large");
 		j = 0;
 		while (j < slen) {
 			dsb[j] = nxti(dbuf);
@@ -164,13 +178,13 @@ dispat() {
 	extern dbuf, dtag;
 	char dbuf[], dtag[];
 	while (1) {
-		if (!getln(dbuf, 300)) return;
+		if (!getln(dbuf, 1040)) return;
 		icrst();
 		nxtnam(dbuf, dtag);
 		if (disp1()) continue;
 		if (disp2()) continue;
 		if (disp3()) continue;
-		outinit(2);
+		errinit();
 		outs("b1: bad tag '");
 		outs(dtag);
 		outs("'\n");

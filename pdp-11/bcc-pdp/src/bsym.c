@@ -2,14 +2,14 @@
  *
  * V1 as truncates linker symbols to 6 chars after the _ prefix.
  * Globals here use unique 6-char-stable prefixes:
- *   snam  -- symbol name bytes, 10 ints/symbol (max 8 char name + null)
+ *   snam  -- symbol name bytes, 10 bytes/symbol (max 8 char name + null)
  *   scls  -- symbol class
  *   soff  -- symbol offset
  *   nsy   -- count of symbols
  *   fnst  -- index of first per-fn entry
  */
 
-snam[2000];
+snam[1000]; /* 2000 bytes, accessed as char[]. */
 scls[200];
 soff[200];
 nsy 0;

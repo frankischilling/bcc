@@ -32,6 +32,8 @@ _main:
 	mov	r0, -(sp)
 	jsr	pc, _putchar
 	tst	(sp)+
+	mov	$0., r0
+	jmp	L30000
 L30000:
 	mov	r5, sp
 	mov	(sp)+, r5

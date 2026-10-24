@@ -17,6 +17,8 @@ jobs:
         run: make CC=${{ matrix.cc }}
       - name: Run host and emitted-assembly tests
         run: make test
+      - name: Check installed runtime lookup
+        run: make test-install
       - name: Check the B-written bootstrap
         run: make -C bootstrap test
       - name: Check assembly-source builds
@@ -37,3 +39,33 @@ jobs:
           bash pdp-11/bcc-pdp/tests/run/run.sh
           bash pdp-11/bcc-pdp/tests/ext/run.sh
           bash pdp-11/bcc-pdp/tests/check_v1_binaries.sh
+          python3 pdp-11/bcc-pdp/tests/driver_cases.py
+          python3 pdp-11/bcc-pdp/tests/ic_cases.py
+          python3 pdp-11/bcc-pdp/tests/image_tools.py
+          python3 pdp-11/bcc-pdp/tests/golden.py
+
+  unix-v1:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install console test dependency
+        run: python3 -m pip install pexpect==4.9.0
+      - name: Rebuild the compiler inside Unix V1
+        run: make -C pdp-11/bcc-pdp v1-selfhost B=tests/run/t26_postfix_index.b
+      - name: Check real-kernel runtime behavior
+        run: |
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t27_ctime_check.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t32_time_registers.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t33_files.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t34_fork.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t35_execv.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/v1/tty.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t39_signed_math.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t40_print_min.b
+          bash pdp-11/bcc-pdp/tools/v1-run.sh pdp-11/bcc-pdp/tests/run/t19a_tilde.b --expect-compile-error

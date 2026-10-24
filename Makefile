@@ -35,9 +35,15 @@ clean:
 	rm -f /tmp/bcc_libb_*.o
 
 install: $(TARGET)
-	install -d $(BINDIR)
-	install -m 755 $(TARGET) $(BINDIR)/$(TARGET)
+	install -d "$(DESTDIR)$(BINDIR)" "$(DESTDIR)$(BINDIR)/lib"
+	install -m 755 $(TARGET) "$(DESTDIR)$(BINDIR)/$(TARGET)"
+	install -m 644 lib/libb.c lib/libb.h lib/btarget.h "$(DESTDIR)$(BINDIR)/lib/"
+
+test-install: $(TARGET)
+	$(PYTHON) tests/test_install.py
 
 .PHONY: all clean test-libb install test
 
 .PHONY: all clean test-libb
+
+.PHONY: test-install

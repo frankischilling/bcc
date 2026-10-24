@@ -8,20 +8,23 @@
 /* printn(n, b) - print non-negative n in base b, 2 <= b <= 16.
  * Based on kbman §9.1, with negative-number and base-16 extensions. */
 printn(n, b) {
-	extrn putchar;
-	auto a;
-
-	if (n < 0) {
-		putchar('-');
-		n = -n;
-	}
-	if (a = n / b)
-		printn(a, b);
-	a = n % b;
-	if (a < 10)
-		putchar(a + '0');
-	else
-		putchar(a - 10 + 'A');
+    extrn putchar;
+    auto a;
+    if ((b < 2) | (b > 16)) return(-1);
+    if (n < 0) {
+        putchar('-');
+        /* Divide before negating so the most-negative word still fits. */
+        a = -(n / b);
+        if (a) printn(a, b);
+        a = -(n % b);
+    } else {
+        a = n / b;
+        if (a) printn(a, b);
+        a = n % b;
+    }
+    if (a < 10) putchar(a + '0');
+    else putchar(a - 10 + 'A');
+    return(0);
 }
 
 /* getstr(s) - read chars from stdin into byte-string s; stop on newline or
