@@ -8,7 +8,7 @@
 SRC; SRCLEN; POS; LINE; COL; STRICT; WANT_NCURSES;
 TOK; TNUM; TTEXT; TTEXTLEN;
 OUT; FUNS; NFUNS; MAIN_NARGS; HAS_MAIN; GLOBS; NGLOBS;
-VERBOSE; LIBDIR; LOCALS; NLOCALS;
+VERBOSE; LIBDIR; LOCALS; NLOCALS; LABELS; NLABELS; LABELPASS;
 
 fatal(msg) {
     extrn printf, exit;
@@ -651,6 +651,24 @@ emit_c_quoted_eot(s) {
     emit("*"");
 }
 
+label_id(name) {
+    auto i;
+    i = 0;
+    while (i < NLABELS) {
+        if (streq(LABELS[i], name)) return(i + 1);
+        i = i + 1;
+    }
+    return(0);
+}
+
+add_label(name) {
+    if (label_id(name)) fatal("duplicate label");
+    if (has_local(name)) fatal("label conflicts with local variable");
+    if (NLABELS >= 2048) fatal("too many labels");
+    LABELS[NLABELS] = name;
+    NLABELS = NLABELS + 1;
+}
+
 has_local(name) {
     auto i;
     i = 0;
@@ -662,6 +680,7 @@ has_local(name) {
 }
 
 add_local(name) {
+    if (label_id(name)) fatal("local variable conflicts with label");
     if (NLOCALS >= 2048) fatal("too many local names");
     LOCALS[NLOCALS] = name;
     NLOCALS = NLOCALS + 1;
@@ -853,7 +872,11 @@ primary() {
     if (TOK == 1) {
         name = TTEXT;
         next();
-        if ((TOK != 30) & !has_local(name) & (has_function(name) | !streq(call_name(name), name))) {
+        if (label_id(name)) {
+            buf_str(b, "((word)");
+            buf_num(b, label_id(name));
+            buf_ch(b, ')');
+        } else if ((TOK != 30) & !has_local(name) & (has_function(name) | !streq(call_name(name), name))) {
             buf_str(b, "B_FUNCTION(");
             buf_str(b, call_name(name));
             buf_ch(b, ')');
@@ -1110,7 +1133,7 @@ block() {
 }
 
 stmt() {
-    auto e, name, psave, lsave, csave;
+    auto e, name, psave, lsave, csave, i;
     if (TOK == 32) {
         block();
         return(0);
@@ -1174,12 +1197,19 @@ stmt() {
     }
     if (TOK == 16) {
         next();
-        if (TOK != 1) fatal("expected label");
-        emit("goto ");
-        emit(TTEXT);
-        emitln(";");
-        next();
+        e = expr(1);
         expect(37);
+        emit("switch (");
+        emit(e);
+        emitln(") {");
+        i = 0;
+        while (i < NLABELS) {
+            emit("case "); emit(itoa(i + 1));
+            emit(": goto __bbc_label_"); emit(itoa(i + 1)); emitln(";");
+            i = i + 1;
+        }
+        emitln("default: abort();");
+        emitln("}");
         return(0);
     }
     if (TOK == 17) {
@@ -1237,8 +1267,10 @@ stmt() {
         next();
         if (TOK == 38) {
             next();
-            emit(name);
-            emitln(":");
+            if (LABELPASS) add_label(name);
+            emit("__bbc_label_");
+            emit(itoa(label_id(name)));
+            emitln(":;");
             return(0);
         }
         POS = psave;
@@ -1361,6 +1393,7 @@ global_or_func() {
     next();
     if (TOK == 30) {
         NLOCALS = 0;
+        NLABELS = 0;
         next();
         emit("word ");
         if (streq(name, "main")) emit("__b_user_main");
@@ -1482,7 +1515,29 @@ parse_program() {
     }
 }
 
+/* First collect labels using the same statement parser, then emit with
+ * all forward references known. Token state is restored exactly. */
 func_body() {
+    auto p, l, c, t, text, num, len, saved, locals;
+    extrn free;
+    p = POS; l = LINE; c = COL;
+    t = TOK; text = TTEXT; num = TNUM; len = TTEXTLEN;
+    locals = NLOCALS;
+    saved = OUT;
+    OUT = buf_new(1024);
+    NLABELS = 0;
+    LABELPASS = 1;
+    emit_body();
+    free(OUT[0]); free(OUT);
+    OUT = saved;
+    POS = p; LINE = l; COL = c;
+    TOK = t; TTEXT = text; TNUM = num; TTEXTLEN = len;
+    NLOCALS = locals;
+    LABELPASS = 0;
+    emit_body();
+}
+
+emit_body() {
     if (TOK == 32) {
         expect(32);
         emitln("{");
@@ -1534,6 +1589,9 @@ compile_to_c(inpath) {
     FUNS = malloc(2048 * &0[1]);
     GLOBS = malloc(2048 * &0[1]);
     LOCALS = malloc(2048 * &0[1]);
+    LABELS = malloc(2048 * &0[1]);
+    NLABELS = 0;
+    LABELPASS = 0;
     NLOCALS = 0;
     scan_functions();
     OUT = buf_new(1048576);

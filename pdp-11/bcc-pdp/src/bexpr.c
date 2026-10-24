@@ -83,7 +83,7 @@ isasn() {
 }
 
 /* Returns 1 if R0 holds an lvalue (address), 0 if rvalue. */
-primlv() {
+atomlv() {
 	extern tok, tval, tstr, tnam, tstrbuf, tstrlen;
 	int  tok, tval, tstr, tstrlen;
 	char tnam[], tstrbuf[];
@@ -147,29 +147,39 @@ primlv() {
 			return (0);
 		}
 		cgrname(name);
-		if (tok == '[') {
-			gettok();
-			cgdrfr();
-			cgpsh();
-			exprv();
-			if (tok != ']') fatal("expected ]");
-			gettok();
-			cgidx();
-		}
-		if (tok == 106) {                        /* T_INC */
-			gettok();
-			cgpoi(1);
-			return (0);
-		}
-		if (tok == 107) {                        /* T_DEC */
-			gettok();
-			cgpoi(0);
-			return (0);
-		}
 		return (1);
 	}
 	fatal("expected expression");
 	return (0);
+}
+
+/* Postfix indexing applies to any primary expression, not just a name. */
+primlv() {
+    extern tok;
+    int tok, lv;
+    lv = atomlv();
+    while (1) {
+        if (tok == '[') {
+            if (lv) cgdrfr();
+            gettok();
+            cgpsh();
+            exprv();
+            if (tok != ']') fatal("expected ]");
+            gettok();
+            cgidx();
+            lv = 1;
+        } else {
+            if (tok == 106) {
+                if (!lv) fatal("++ requires lvalue");
+                gettok(); cgpoi(1); return (0);
+            }
+            if (tok == 107) {
+                if (!lv) fatal("-- requires lvalue");
+                gettok(); cgpoi(0); return (0);
+            }
+            return (lv);
+        }
+    }
 }
 
 /* Prefix unaries.  Returns 1 if result is still an lvalue. */

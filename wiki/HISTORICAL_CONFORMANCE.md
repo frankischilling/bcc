@@ -94,7 +94,7 @@ is arithmetic emulation with native pointers; arithmetic on those pointers
 can still truncate them. Function values can be called through variables and expressions; mutable
 function-name cells are not yet a complete implementation of section 7.3.
 The B-written bootstrap now shares the tested expression and lexical rules,
-but computed label values and 16-bit storage are still missing there.
+including computed label values. It still lacks 16-bit storage.
 The native compiler now loads pointer values before indexing scalar and
 parameter expressions, and gives external vectors mutable pointer cells.
 It still uses byte addresses.

@@ -33,8 +33,8 @@ syntax checks. Token and AST dumps are not implemented here.
 
 ## Remaining differences
 
-The bootstrap compiler does not yet implement computed label values. It also
-uses host-sized, byte-addressed storage rather than the host compiler's
-16-bit address translation. Function-valued calls are covered, but mutable
+Computed branches use function-local label values, including forward
+references. The bootstrap compiler still uses host-sized, byte-addressed
+storage rather than the host compiler's 16-bit address translation. Function-valued calls are covered, but mutable
 function-name storage and complete block-scope resolution still need work.
 Those are separate from the generated-C fixed-point check.

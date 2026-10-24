@@ -9,8 +9,6 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'tests'))
 from test_b72_conformance import CASES
 
-# Computed label values require a separate bootstrap implementation.
-LABEL_VALUES = {'computed_goto', 'conditional_goto', 'goto_call', 'nested_label'}
 
 
 def main():
@@ -20,8 +18,6 @@ def main():
         for stage in (1, 2, 3):
             compiler = ROOT / f'bootstrap/build/stage{stage}/bbc'
             for name, (source, expected) in CASES.items():
-                if name in LABEL_VALUES:
-                    continue
                 path = work / 'case.b'
                 path.write_text(source + '\n')
                 try:
