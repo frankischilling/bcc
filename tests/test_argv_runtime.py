@@ -18,7 +18,7 @@ old=argv; v[0]=42; argv=v; if(argv[0]!=42)return(1);
 *(&argv)=old; return(argv[0]!=3);}'''],
     'local-shadow': ['''main(){auto argv 1; argv[0]=37; return(argv[0]!=37);}'''],
     'global-shadow': ['''argv[1] 37; main(){extrn argv; return(argv[0]!=37);}'''],
-    'function-shadow': ['''argv(){return(37);} main(){auto f; f=argv; return(argv()!=37 | f()!=37);}'''],
+    'function-shadow': ['''argv(){return(37);} main(){extrn argv; auto f; f=argv; return(argv()!=37 | f()!=37);}'''],
     'cross-file': ['''main(){extrn check; return(check());}''',
                    '''check(){extrn argv,argc,char; return(argv[0]!=3 | argc()!=3 | char(argv[2],0)!='a' | char(argv(2),0)!='b');}'''],
     'initializer': ['''ref argv; main(){extrn ref,argv; return(*ref!=argv | argv[0]!=3);}'''],

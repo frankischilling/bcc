@@ -32,6 +32,12 @@ compiling. Strict mode rejects names longer than eight characters; ordinary
 compatibility mode keeps long names. `--strict --pedantic` selects the
 bootstrap compiler's stricter syntax checks. Token and AST dumps are not implemented here.
 
+Strict external declarations are checked per function and must precede use.
+Top-level definitions no longer bypass `extrn`, and declarations cannot turn
+a parameter, automatic variable, or label into an external. The compiler
+checks a limit of 2,048 external names per function. Bare calls retain the
+existing implicit-external compatibility rule.
+
 Strict declaration prefixes bind to the following statement. Automatic cells
 are emitted at function entry, with vector pointer initialization left at each
 declaration. This preserves function-wide storage through nested blocks and

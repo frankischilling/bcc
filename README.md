@@ -90,6 +90,12 @@ The default compatibility mode accepts additional syntax, including forms
 found in other historical B implementations. Kernighan's tutorial describes
 a different environment, so it is not interchangeable with the PDP-11 manual.
 
+In strict mode, define external data at file scope and declare it with `extrn`
+inside each function that uses it. A definition elsewhere in the file does
+not make the name visible in every function. The declaration must precede
+its first use. Function values need the same declaration, except for a
+function's own name. Bare calls still infer an external for compatibility.
+
 Adjacent operators matter:
 
 ```b

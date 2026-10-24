@@ -71,6 +71,7 @@ main(argc, argv) int argv[]; {
 
 	lexini(fdin);
 	outinit(fdout);
+	if (extflg) outs("Acompat\n");
 
 	gettok();
 	prog();

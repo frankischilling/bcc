@@ -1,4 +1,4 @@
-/* blex.c -- lexer.  Strict 1972 kbman conformance.
+/* blex.c -- lexer for the selected January 1972 B dialect.
  *
  * Tokens (all defined as literal ints in switches below):
  *   0   T_EOF

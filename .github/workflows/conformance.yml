@@ -66,6 +66,7 @@ jobs:
           python3 pdp-11/bcc-pdp/tests/ic_cases.py
           python3 pdp-11/bcc-pdp/tests/read_errors.py
           python3 pdp-11/bcc-pdp/tests/argv_storage.py
+          python3 tests/test_external_scope.py --native
           python3 pdp-11/bcc-pdp/tests/image_tools.py
           python3 pdp-11/bcc-pdp/tests/file_verification.py
           python3 pdp-11/bcc-pdp/tests/console_protocol.py

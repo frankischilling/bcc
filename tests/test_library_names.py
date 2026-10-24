@@ -31,7 +31,7 @@ main() {
 '''],
     'variables': ['''
 time 17;
-main() { auto printf; printf=19; return(time!=17 | printf!=19); }
+main() { extrn time; auto printf; printf=19; return(time!=17 | printf!=19); }
 '''],
     'multiple-files': ['''
 main() { auto f,n; extrn printf; n=7; f=printf; return(printf(&n)!=10 | f(&n)!=10); }

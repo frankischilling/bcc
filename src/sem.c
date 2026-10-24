@@ -54,6 +54,7 @@ static SemState *sem_state_new(const char *filename) {
     st->implicit_statics.cap = 0;
     memset(&st->global_refs, 0, sizeof(st->global_refs));
     st->program = NULL;
+    st->function_name = NULL;
 
     return st;
 }
@@ -190,6 +191,21 @@ static void mark_global_reference(SemState *st, Expr *e, Symbol *sym) {
         vec_push(&st->global_refs, sdup(e->as.var));
 }
 
+/* Global definitions supply linkage, not a declaration in every function. */
+static Symbol *scope_find_value(SemState *st, const char *name) {
+    Symbol *sym = scope_find(st->current, name);
+    if (!g_strict || !st->function_name) return sym;
+    for (Scope *scope = st->current; scope && scope->parent; scope = scope->parent) {
+        for (size_t i = 0; i < scope->symbols.len; i++) {
+            Symbol *local = scope->symbols.data[i];
+            if (strcmp(local->name, name) == 0) return local;
+        }
+    }
+    if (is_extern_name(st, name) || strcmp(st->function_name, name) == 0)
+        return sym;
+    return NULL;
+}
+
 // Semantic Checking Functions
 
 // Forward declarations
@@ -202,7 +218,7 @@ static void sem_check_lvalue(SemState *st, Expr *e) {
 
     switch (e->kind) {
         case EX_VAR: {
-            Symbol *sym = scope_find(st->current, e->as.var);
+            Symbol *sym = scope_find_value(st, e->as.var);
             mark_global_reference(st, e, sym);
             if (!sym) {
                 if (g_strict && !is_extern_name(st, e->as.var))
@@ -246,7 +262,7 @@ static void sem_check_expr(SemState *st, Expr *e) {
     switch (e->kind) {
         case EX_VAR: {
             // Check if variable is declared or extern
-            Symbol *sym = scope_find(st->current, e->as.var);
+            Symbol *sym = scope_find_value(st, e->as.var);
             mark_global_reference(st, e, sym);
             e->builtin_argv = sym && sym->is_builtin && strcmp(sym->name, "argv") == 0;
             e->function_value = sym && sym->kind == SYM_FUNC && !e->builtin_argv;
@@ -263,12 +279,13 @@ static void sem_check_expr(SemState *st, Expr *e) {
             // Check if callee is a function/variable before recursing
             if (e->as.call.callee->kind == EX_VAR) {
                 const char *fname = e->as.call.callee->as.var;
-                Symbol *sym = scope_find(st->current, fname);
+                Symbol *sym = scope_find_value(st, fname);
                 if (!sym) {
                     // Not found: assume implicit extern function
                     if (!is_extern_name(st, fname)) {
                         vec_push(&st->extern_names, sdup(fname));
                     }
+                    sym = scope_find_value(st, fname);
                 } else if (sym->kind != SYM_VAR && sym->kind != SYM_FUNC) {
                     dief("'%s' is not callable at %d:%d", fname, e->line, e->col);
                 }
@@ -349,7 +366,8 @@ static void sem_check_stmt(SemState *st, Stmt *s) {
             for (size_t i = 0; i < s->as.autodecl.decls.len; i++) {
                 DeclItem *item = s->as.autodecl.decls.data[i];
 
-                if (scope_has_in_current(st->current, item->name)) {
+                if (scope_has_in_current(st->current, item->name) ||
+                    (g_strict && is_extern_name(st, item->name))) {
                     error_at_location(st->filename, s->line, s->col, ERR_REDECLARATION, item->name);
                 }
 
@@ -390,6 +408,8 @@ static void sem_check_stmt(SemState *st, Stmt *s) {
             // extern statements: record names so we don't treat them as implicit statics
             for (size_t i = 0; i < s->as.extrn.names.len; i++) {
                 char *name = s->as.extrn.names.data[i];
+                if (g_strict && scope_has_in_current(st->current, name))
+                    dief("external declaration conflicts with local name '%s'", name);
                 if (!is_extern_name(st, name)) {
                     vec_push(&st->extern_names, sdup(name));
                 }
@@ -447,6 +467,10 @@ static void sem_collect_labels(SemState *st, Stmt *s) {
 
 // Check function
 static void sem_check_func(SemState *st, Func *f) {
+    Vec saved_externs = st->extern_names;
+    const char *saved_function = st->function_name;
+    if (g_strict) memset(&st->extern_names, 0, sizeof(st->extern_names));
+    st->function_name = f->name;
     // Add function parameters to scope
     sem_push_scope(st);
 
@@ -467,6 +491,8 @@ static void sem_check_func(SemState *st, Func *f) {
     sem_check_stmt(st, f->body);
 
     sem_pop_scope(st);
+    if (g_strict) st->extern_names = saved_externs;
+    st->function_name = saved_function;
 }
 
 // Check switch fallthrough
@@ -504,7 +530,8 @@ static void sem_check_top(SemState *st, Top *t) {
             for (size_t i = 0; i < s->as.autodecl.decls.len; i++) {
                 DeclItem *item = s->as.autodecl.decls.data[i];
 
-                if (scope_has_in_current(st->current, item->name)) {
+                if (scope_has_in_current(st->current, item->name) ||
+                    (g_strict && is_extern_name(st, item->name))) {
                     error_at_location(st->filename, s->line, s->col, ERR_REDECLARATION, item->name);
                 }
 

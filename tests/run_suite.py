@@ -89,6 +89,8 @@ def main():
                           '--compiler', str(compiler)], 'argument vector') and ok
         ok = checked_run([sys.executable, str(root / 'tests/test_unix_metadata.py'),
                           '--compiler', str(compiler)], 'Unix metadata') and ok
+        ok = checked_run([sys.executable, str(root / 'tests/test_external_scope.py'),
+                          '--compiler', str(compiler)], 'external declaration scope') and ok
         ok = checked_run([sys.executable, str(root / 'tests/test_declarations.py'),
                           '--compiler', str(compiler)], 'declaration statements') and ok
         ok = checked_run([sys.executable, str(root / 'tests/test_docs_examples.py'),

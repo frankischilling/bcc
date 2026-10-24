@@ -783,6 +783,19 @@ and `n 1x` silently became constants. Boundary tests retain both -32768 and
 out-of-range values. This validates the compiler's internal format; it does
 not change B's separately documented wrapping literal scanner.
 
+A separate scope audit against sections 6.1 and 6.3 found that all three
+implementations made top-level data definitions visible inside functions
+without `extrn`. The native resolver also rejected a local label sharing a
+name with an otherwise undeclared external object. The manual requires an
+external declaration before first use in each function; an unbound internal
+name must instead resolve to a label. Bare-call inference remains a documented
+compatibility exception, and a function's own name is available for recursion.
+Strict lookup now separates those linkage definitions from declarations in
+each function. New cross-backend tests check use-before-declaration,
+function-local declarations, saved function values, local shadowing, and
+declaration conflicts. Broader regression checks remain necessary; these
+cases do not establish complete language conformance.
+
 ## Reference inventory
 
 "Read" below describes the review scope, not a promise that every feature in

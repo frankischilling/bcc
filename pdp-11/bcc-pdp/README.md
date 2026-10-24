@@ -140,6 +140,11 @@ ABI change. Handwritten code calls a public function through its cell, as in
 still allow an implicit external declaration for compatibility; an undeclared
 name used as an ordinary value remains a function-local label reference.
 
+Strict external declarations belong to the function that contains them.
+Global definitions do not make data or saved function values visible without
+`extrn`. Local labels can share names with undeclared external objects.
+Compatibility mode retains the older implicit-global lookup.
+
 Declarations can prefix any statement, including conditional and loop bodies.
 Automatic storage is reserved per function invocation; vector pointer cells
 are initialized when their declarations execute. The assembler resolves a

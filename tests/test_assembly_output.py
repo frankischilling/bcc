@@ -9,7 +9,7 @@ from test_b72_conformance import CASES, WORD_CASES
 EXTRA = {
     'globals_calls_loops': ('g 7; v[3] 3,4,5; twice(n){return(n*2);} main(){extrn g,v; auto i,s; s=g; i=0; while(i<3){s=+v[i]; i++;} return(twice(s));}', 38, b''),
     'recursion_and_output': ('f(n){if(n<2)return(1); return(n*f(n-1));} main(){extrn putchar; putchar(\'B\'); putchar(\'*n\'); return(f(5));}', 120, b'B\n'),
-    'function_value': ('f(){return(37);} main(){auto p; p=f; return(p());}', 37, b''),
+    'function_value': ('f(){return(37);} main(){extrn f; auto p; p=f; return(p());}', 37, b''),
     'branch_value': ('main(){auto p; p=done; goto p; return(3); done:return(61);}', 61, b''),
 }
 

@@ -8,6 +8,7 @@ dbuf[520]; /* 1040 bytes: enough for 256 decimal literal bytes. */
 dtag[5];
 dnm[5];
 pndcls 0;
+compat 0;
 
 fnsy[5];
 nlocs 0;
@@ -147,12 +148,27 @@ regsym(name, cls, off) char name[]; {
 	return (sid);
 }
 
+/* Keep linkage names out of strict function scope until declared. */
+symloc(name) char name[]; {
+    extern compat, infun, fnst, fnsy;
+    int compat, infun, fnst, sid;
+    char fnsy[];
+    sid = symfnd(name);
+    if (!compat) if (infun) if (sid < fnst)
+        if (!nameq(name, fnsy)) return(-1);
+    return(sid);
+}
+
 regext(name) char name[]; {
-	extern scls;
-	int scls[];
+	extern scls, compat, infun, fnst;
+	int scls[], compat, infun, fnst;
 	int sid, cls;
 	sid = symfnd(name);
 	if (sid < 0) return (symadd(name, 3, 0));
+    if (!compat) if (infun) {
+        if (sid < fnst) return(symadd(name, 3, 0));
+        if (scls[sid] != 3) fatal("external declaration follows internal use");
+    }
 	cls = scls[sid];
 	if (cls == 4) return (sid);
 	if (cls == 7) return (sid);
@@ -164,7 +180,7 @@ rrname(name) char name[]; {
 	extern scls, soff, pndcls;
 	int scls[], soff[], pndcls;
 	int sid;
-	sid = symfnd(name);
+	sid = symloc(name);
 	/* An undeclared internal name denotes a function-local label. */
 	if (sid < 0) sid = symadd(name, 5, newl());
 	pndcls = scls[sid];
@@ -202,7 +218,7 @@ rrdef(name) char name[]; {
 	extern scls, soff;
 	int scls[], soff[];
 	int sid;
-	sid = symfnd(name);
+	sid = symloc(name);
 	if (sid < 0) sid = symadd(name, 5, newl());
 	if (scls[sid] == 8) fatal("duplicate label");
 	if (scls[sid] != 5) fatal("label name collision");
@@ -214,9 +230,9 @@ rrdef(name) char name[]; {
 
 rewrt() {
 	extern dbuf, dtag, dnm, fnsy, nlocs, hdrdn, pndcls;
-	extern infun, fnst, nsy, scls, soff, ghbuf, ghlen, ghon, glits;
+	extern infun, fnst, nsy, scls, soff, ghbuf, ghlen, ghon, glits, compat;
 	char dbuf[], dtag[], dnm[], fnsy[], ghbuf[];
-	int nlocs, hdrdn, pndcls, infun, fnst, nsy, ghlen, ghon, glits;
+	int nlocs, hdrdn, pndcls, infun, fnst, nsy, ghlen, ghon, glits, compat;
 	int scls[], soff[];
 	int idx, sz, base, sid;
 
@@ -227,6 +243,7 @@ rewrt() {
 		}
 		icrst();
 		nxtnam(dbuf, dtag);
+        if (tageq(dtag, "Acompat")) { compat = 1; continue; }
 
 		if (tageq(dtag, "Gstr")) {
 			if (!ghon) fatal("literal outside global definition");
@@ -327,7 +344,7 @@ rewrt() {
 		if (tageq(dtag, "Rname") | tageq(dtag, "Rcall")) {
 			nxtnam(dbuf, dnm);
 			/* Preserve implicit external declarations for bare calls. */
-			if (tageq(dtag, "Rcall")) if (symfnd(dnm) < 0) regext(dnm);
+			if (tageq(dtag, "Rcall")) if (symloc(dnm) < 0) regext(dnm);
 			rrname(dnm);
 			continue;
 		}

@@ -322,6 +322,7 @@ typedef struct {
     Vec implicit_statics;  // char* - undeclared variables that become static
     Vec global_refs;       // char* - referenced external storage
     Program *program;
+    const char *function_name;
 } SemState;
 
 typedef struct {

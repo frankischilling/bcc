@@ -55,6 +55,16 @@ initialization at the declaration. Declaration prefixes are grouped with their
 following statement, so an `if` or `while` controls both. Compatibility mode
 keeps the existing C-style block scoping.
 
+## Function declarations
+
+Strict name lookup separates linkage metadata from function declarations.
+An external definition supplies storage but does not implicitly declare its
+name in each function. Parameters, automatic names, and labels have function
+scope; `extrn` declarations are tracked per function and before use. A
+function can refer to its own name. The existing bare-call inference remains
+a compatibility exception, not permission to use an undeclared function
+value elsewhere in an expression.
+
 ## External storage
 
 Every B external data object is a C array of cells. Reading its B name reads

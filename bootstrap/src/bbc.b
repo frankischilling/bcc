@@ -9,6 +9,7 @@ SRC; SRCLEN; POS; LINE; COL; STRICT; WANT_NCURSES;
 TOK; TNUM; TTEXT; TTEXTLEN;
 HOIST; OUT; FUNS; NFUNS; MAIN_NARGS; HAS_MAIN; GLOBS; NGLOBS;
 ALLFUNS; NALLFUNS; ALLGLOBS; NALLGLOBS;
+EXTERNS[2048]; NEXTERNS; CURFUNC;
 VERBOSE; LIBDIR; LOCALS; NLOCALS; LABELS; NLABELS; LABELPASS; PARAMCOUNT;
 
 CWORDS[] "auto","break","case","char","const","continue","default",
@@ -731,6 +732,24 @@ emit_c_quoted_eot(s) {
     emit("*"");
 }
 
+has_extern(name) {
+    auto i;
+    i = 0;
+    while (i < NEXTERNS) {
+        if (streq(EXTERNS[i], name)) return(1);
+        i = i + 1;
+    }
+    return(0);
+}
+
+add_extern(name) {
+    if (has_extern(name)) return(0);
+    if (has_local(name) | label_id(name)) fatal("external declaration conflicts with local name");
+    if (NEXTERNS >= 2048) fatal("too many external names");
+    EXTERNS[NEXTERNS] = name;
+    NEXTERNS = NEXTERNS + 1;
+}
+
 label_id(name) {
     auto i;
     i = 0;
@@ -744,6 +763,7 @@ label_id(name) {
 add_label(name) {
     if (label_id(name)) fatal("duplicate label");
     if (has_local(name)) fatal("label conflicts with local variable");
+    if (STRICT & has_extern(name)) fatal("label conflicts with external name");
     if (NLABELS >= 2048) fatal("too many labels");
     LABELS[NLABELS] = name;
     NLABELS = NLABELS + 1;
@@ -761,6 +781,7 @@ has_local(name) {
 
 add_local(name) {
     if (STRICT & has_local(name)) fatal("duplicate local name");
+    if (STRICT & has_extern(name)) fatal("local variable conflicts with external name");
     if (label_id(name)) fatal("local variable conflicts with label");
     if (NLOCALS >= 2048) fatal("too many local names");
     LOCALS[NLOCALS] = name;
@@ -990,6 +1011,11 @@ primary() {
     if (TOK == 1) {
         name = TTEXT;
         next();
+        if (STRICT & !LABELPASS & (CURFUNC != 0)) {
+            if ((TOK == 30) & !has_local(name) & !label_id(name)) add_extern(name);
+            if (!has_local(name) & !label_id(name) & !has_extern(name))
+                if (!streq(name, CURFUNC)) fatal("undefined internal name");
+        }
         if (label_id(name)) {
             buf_str(b, "__bbc_label_value_");
             buf_num(b, label_id(name));
@@ -1289,6 +1315,7 @@ extrn_stmt() {
     expect(11);
     while (1) {
         if (TOK != 1) fatal("expected extrn name");
+        if (STRICT & (CURFUNC != 0)) add_extern(TTEXT);
         next();
         if (TOK != 36) break;
         next();
@@ -1501,6 +1528,7 @@ scan_functions() {
     extrn free;
     NFUNS = 0; NGLOBS = 0; MAIN_NARGS = 0; HAS_MAIN = 0;
     NLOCALS = 0; NLABELS = 0; LABELPASS = 1; PARAMCOUNT = 0;
+    NEXTERNS = 0; CURFUNC = 0;
     OUT = buf_new(1024);
     next();
     while (TOK != 0) {
@@ -1511,7 +1539,8 @@ scan_functions() {
             if(TOK!=1) fatal("expected definition");
             name = TTEXT; next();
             if (TOK == 30) {
-                NLOCALS = 0; NLABELS = 0; n = 0; next();
+                NLOCALS = 0; NLABELS = 0; NEXTERNS = 0; CURFUNC = name;
+                n = 0; next();
                 while (TOK != 31) {
                     if(TOK!=1) fatal("expected parameter");
                     add_local(TTEXT); n = n + 1; next();
@@ -1523,7 +1552,7 @@ scan_functions() {
                 add_fun(name, n);
                 if(streq(name,"main")) { MAIN_NARGS=n; HAS_MAIN=1; }
                 stmt();
-                NLOCALS = 0; NLABELS = 0;
+                NLOCALS = 0; NLABELS = 0; NEXTERNS = 0; CURFUNC = 0;
             } else {
                 add_global(name);
                 while ((TOK != 37)&(TOK != 0)) next();
@@ -1676,6 +1705,7 @@ merge_project() {
 
 global_or_func() {
     auto name, n, first, p, size, init, braced;
+    NEXTERNS = 0; CURFUNC = 0;
     NLOCALS = 0;
     NLABELS = 0;
     PARAMCOUNT = 0;
@@ -1683,6 +1713,7 @@ global_or_func() {
     name = TTEXT;
     next();
     if (TOK == 30) {
+        CURFUNC = name;
         NLOCALS = 0;
         NLABELS = 0;
         next();
@@ -1768,6 +1799,7 @@ func_body() {
     saved = OUT;
     OUT = buf_new(1024);
     NLABELS = 0;
+    NEXTERNS = 0;
     LABELPASS = 1;
     HOIST = buf_new(1024);
     emit_body();
@@ -1776,6 +1808,7 @@ func_body() {
     POS = p; LINE = l; COL = c;
     TOK = t; TTEXT = text; TNUM = num; TTEXTLEN = len;
     NLOCALS = locals;
+    NEXTERNS = 0;
     LABELPASS = 0;
     emit_body();
     free(HOIST[0]); free(HOIST); HOIST = 0;
