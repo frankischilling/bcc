@@ -112,6 +112,32 @@ was also read. It identifies itself as a hand transcription of the 1971
 library page, so it is an alternative rendition rather than an independent
 language specification.
 
+### Full first-edition manual
+
+The complete OCR of the [November 1971 manual](https://www.tuhs.org/Archive/Distributions/Research/Dennis_v1/UNIX_ProgrammersManual_Nov71.pdf)
+was read. Damaged characters and numerical tables still need checks against
+original pages before they become test expectations.
+
+The system-call pages make several distinctions that a host wrapper can hide:
+`open` uses zero for reading and any nonzero mode for writing; `read` may
+return fewer bytes than requested; an open file survives its last directory
+link until it is closed. `stat` uses a 34-byte record, not a modern host
+`struct stat`. Ordinary-file seek offsets and block-device offsets also have
+different units.
+
+The November terminal interface passes three words: two DC11 control/status
+register values and a mode word. Bit `010` disables echo. Raw mode bypasses
+line editing and the special treatment of EOT, interrupt, and quit characters.
+The console device is different: its page says `stty` and `gtty` do not apply.
+These are target-specific interfaces, not an invitation to expose host
+`termios` fields directly.
+
+The manual documents defects as well as contracts: `tell` does not work,
+`ctime` does not wrap correctly at the year boundary, and `cmp` can miss an
+extra trailing byte in an odd-sized file. BCC should not reproduce those
+failures. Bootstrap checks need exact lengths and bytes rather than trusting
+that historical comparison utility alone.
+
 ### Assembler, linker, and file formats
 
 The complete [assembler](https://www.tuhs.org/cgi-bin/utree.pl?file=V1/man/man1/as.1),
@@ -140,6 +166,32 @@ loads objects in order and searches libraries for unresolved references.
 BCC's native runtime-label selection is not an implementation of that archive
 linker. The linker's documented fixed temporary files also explain why
 concurrent restored-tool invocations need isolation.
+
+## June 1972 Unix is not the first edition
+
+The body of the [second-edition manual](https://www.tuhs.org/Archive/Distributions/Research/Dennis_v2/v2man.pdf)
+was read, including its command, syscall, library, device, and file-format
+sections. The front-matter indexes were only partly inspected. OCR damage
+still limits exact readings of some tables and operators.
+
+Its preface warns that installations differ and that the assembler and
+loader have just been reorganized. The new executable header has eight
+words, begins with `0407`, and is excluded from the loaded text. Text, data,
+and bss have separate sizes; relocation has a word per text or data word.
+The introductory ordering of file sections conflicts with the later offset
+formulas, so an implementation needs surviving objects and tool source too.
+This format must not replace the first edition's six-word `0405` header.
+
+The terminal mode bit `010` now enables echo, the opposite of the November
+1971 description. Library input/output buffers grow from 134 to 518 bytes.
+The `wait` page describes a packed termination status in MQ, while `exit`
+provides the child's low status byte. These changes need explicit version
+boundaries in host emulation and restored-system tests.
+
+The B command is now documented as `bc`, with object-file compilation,
+optional suppression of linking, and libraries under `/usr/lib`. Its page
+still lists restrictions on external initializers as bugs. Supporting the
+language's valid initializers does not require copying those defects.
 
 ## Related languages and historical context
 
@@ -184,6 +236,68 @@ Those differences matter when citing a page or interpreting a symbol.
 The account also distinguishes early compiler behavior from what the manual
 actually specifies. Modern BCPL operators and lexical conventions must not be
 projected backward onto the version from which B developed.
+
+### BCPL manuals and later changes
+
+The complete OCR texts of the [1967 reference](https://softwarepreservation.computerhistory.org/BCPL/project_mac/Richards-BCPL-ReferenceManual.pdf)
+and [April 1973 manual](https://people.csail.mit.edu/saltzer/Multics/MHP-Saltzer-060508/filedrawers/177.bcpl/Scan%202.PDF)
+were read, along with the complete extracted [November 1974 manual](https://softwarepreservation.computerhistory.org/BCPL/cambridge/richards-manual-1974.pdf).
+Some symbols in the scans remain uncertain. The editions differ; none is a
+substitute for the selected B manual.
+
+The 1967 text describes a highest-subscript vector bound, all-ones true,
+mutable function cells, a numeric global vector, and implementation-dependent
+parts of arithmetic. Its argument-list rule requires enough formal parameters
+for the longest call. That is not a reason to impose the same restriction on
+PDP-11 B.
+
+The 1973 and 1974 manuals distinguish truth-value and bit contexts, describe
+contiguous argument cells, and provide explicit mechanisms for non-local
+transfers. They also document the IBM 370's EBCDIC characters, word model,
+and runtime. Their extension appendices separate optional facilities from
+the common language. The 1974 edition adds library and compiler facilities;
+those changes should not be attributed to the earlier edition.
+
+Richards's complete [CPL-to-BCPL account](https://www.cl.cam.ac.uk/~mr10/cpl2bcpl.pdf)
+was read. It explains the small abstract machine, pointer arithmetic, static
+free variables, and global-vector linkage, while also discussing much later
+language changes. It is valuable design history, not a single dated language
+specification.
+
+The [CTSS distribution page](https://www.cl.cam.ac.uk/~mr10/BCPLCTSS.html)
+and [Tripos archive page](https://www.cl.cam.ac.uk/~mr10/Archive.html) were
+read as overviews, not as reviews of every archived file. The CTSS page
+separates preserved 1968 source from a modified version for a modern runtime.
+That distinction must remain visible when using it for comparison.
+
+The complete [BCPL preservation catalog](https://softwarepreservation.computerhistory.org/BCPL/)
+was read. It separates ports, source archives, later extensions, and
+retrospective accounts, sometimes recording conflicting recollections.
+Its TX-2 and Essex histories distinguish an intermediate-code compiler from
+the target backend, relocatable output, and loader needed to finish a port.
+The catalog is a guide to those artifacts, not evidence that every linked
+artifact has been inspected.
+
+The supplied Cambridge book PDF contains only a three-page table of
+contents. It was read, but the book itself was not available from that file.
+Archive.org metadata likewise identifies editions and download derivatives;
+it does not establish language rules.
+
+### The 1974 C manuals
+
+The complete OCR text of the [January 1974 memorandum](https://cm-bell-labs.github.io/who/dmr/cman74.pdf)
+and the complete extracted text of the [other supplied C manual](https://cm-bell-labs.github.io/who/dmr/cman.pdf)
+were read, including examples and appendices. The second copy includes an
+additional implementation-differences appendix. Neither describes the earliest
+C compiler used by the restored Unix environment exactly.
+
+These manuals retain some B-era conventions, including octal digits 8 and 9,
+but differ from B in types, array and function values, and right-shift behavior.
+Their contiguous-argument `printf` example depends on the contemporary ABI;
+it does not justify treating separate parameters as an array in modern ISO C.
+The implementation appendix also names known compiler defects and differences
+between Unix and GCOS. Intended rules, actual compiler behavior, and target
+layout must be checked separately.
 
 ### Eh, November 1976
 
@@ -359,6 +473,41 @@ checks must therefore establish exact lengths and bytes, not merely trust a
 quiet invocation of an old comparison tool. The other command pages describe
 the surrounding tools and their limitations, not additional B syntax.
 
+### What the restoration repositories establish
+
+The README files for [aap/b's Unix restoration](https://github.com/aap/b/tree/master/unix1_bdir),
+[rswier/pdp11-B](https://github.com/rswier/pdp11-B),
+[the PDP-7 restoration](https://github.com/DoctorWkt/pdp7-unix),
+[its TMG branch](https://github.com/philbudne/pdp7-unix/tree/tmg),
+[June 1972 Unix](https://github.com/DoctorWkt/unix-jun72), and
+[V2 beta](https://github.com/TheBrokenPipe/Research-UNIX-V2-Beta) were read.
+They describe different reconstructed systems, seed tools, patches, and
+memory layouts. A restoration's name is not enough to identify its ABI.
+Some preparatory processing runs on the host rather than inside old Unix.
+
+The complete [TMG reconstruction notes](https://github.com/philbudne/pdp7-unix/blob/tmg/misc/tmg-notes.txt)
+and [reconstructed B grammar](https://github.com/philbudne/pdp7-unix/blob/tmg/src/other/pbtmg/b.t)
+were also read. The notes label uncertainties and missing material. The
+grammar is an incomplete dialect, not another authoritative statement of
+PDP-11 B. The notes describe an especially useful bootstrap distinction:
+a translator can reproduce its generated text while the target assembler
+still cannot assemble that text. Source-level agreement is not an executable
+self-hosting result.
+
+The [CHM release article](https://computerhistory.org/blog/the-earliest-unix-code-an-anniversary-source-code-release/)
+contains provisional identifications of early listings. Later analysis can
+revise those identifications; a tentative attribution should stay tentative.
+Directory indexes and the V4 setup document were read as provenance and
+environment evidence, not as a claim that every linked distribution was
+reviewed.
+
+The [aap/abc](https://github.com/aap/abc) and [dbc](https://github.com/dobyrch/dbc)
+READMEs describe modern implementations with their own restrictions. The
+former is marked obsolete and derives from an early C compiler; the latter
+uses LLVM and documents unsupported cases. Neither is a substitute for the
+contemporary B manual, and neither README review establishes whole-tree
+correctness.
+
 ## Compiler structure and bootstrap evidence
 
 ### BCPL's intermediate-code bootstrap
@@ -393,6 +542,12 @@ promises for a new B implementation.
 The paper helps explain the historical B runtime. It does not require BCC
 to use that runtime to implement the language, or make threaded output the
 same thing as a native compiler bootstrap.
+
+Dewar's complete [1975 indirect-threaded-code paper](https://figforth.org.uk/library/Indirect.Threaded.Code.p330-dewar.pdf)
+was read separately. It adds an indirection through an address cell and
+explains the resulting operand and representation choices. Its measured
+tradeoffs remain machine-specific. Neither threaded-code paper specifies
+BCC's source-language semantics.
 
 ### What a fixed point proves
 
@@ -476,12 +631,12 @@ in the inventory so that missing or duplicated material is visible.
 | --- | --- | --- |
 | 001 | [GitHub - frankischilling/bcc: A modern compiler for Ken Thompson's B programming language, transl...](https://github.com/frankischilling/bcc) | Retrieved; not yet reviewed |
 | 002 | [Thompson's B Manual](https://cm-bell-labs.github.io/who/dmr/kbman.html) | Read in full |
-| 003 | [kbman.pdfA](https://cm-bell-labs.github.io/who/dmr/kbman.pdfA) | Supplied URL is 404; corrected PDF checked on pages 13-14 |
+| 003 | [kbman.pdfA](https://cm-bell-labs.github.io/who/dmr/kbman.pdfA) | Original PDF checked on pages 13-14; full HTML read |
 | 004 | [btut.pdf](https://cm-bell-labs.github.io/who/dmr/btut.pdf) | Read in full |
-| 005 | [btut.ms](https://www.nokia.com/bell-labs/about/dennis-m-ritchie/btut.html) | Retrieved; not yet reviewed |
+| 005 | [btut.ms](https://www.nokia.com/bell-labs/about/dennis-m-ritchie/btut.html) | HTML rendition read; omitted appendix and transcription defects noted |
 | 006 | [bref.ms](https://cm-bell-labs.github.io/who/dmr/bref.html) | Read in full |
 | 007 | [bref.pdf](https://cm-bell-labs.github.io/who/dmr/bref.pdf) | PDF rendition: selected sections checked |
-| 008 | [B Programming Language Manuals : University of Waterloo : Free Download, Borrow, and Streaming : ...](https://archive.org/details/b-reference-manual) | Retrieved; not yet reviewed |
+| 008 | [B Programming Language Manuals : University of Waterloo : Free Download, Borrow, and Streaming : ...](https://archive.org/details/b-reference-manual) | Catalog description and download inventory read |
 | 009 | [B Reference Manual.pdf](https://archive.org/download/b-reference-manual/B%20Reference%20Manual.pdf) | PDF retrieval returned 503; OCR copy is available at 010 |
 | 010 | [B Reference Manual_djvu.txt](https://archive.org/download/b-reference-manual/B%20Reference%20Manual_djvu.txt) | Complete supplied OCR read; damaged syntax and tables need scan checks |
 | 011 | [User's Reference to B V4.0.pdf](https://archive.org/download/b-reference-manual/User%27s%20Reference%20to%20B%20V4.0.pdf) | Larger PDF retrieved; not yet reviewed |
@@ -491,9 +646,9 @@ in the inventory so that missing or duplicated material is visible.
 
 | ID | Reference | Review status |
 | --- | --- | --- |
-| 013 | [UNIX_ProgrammersManual_Nov71.pdf](https://www.tuhs.org/Archive/Distributions/Research/Dennis_v1/UNIX_ProgrammersManual_Nov71.pdf) | OCR available; not yet reviewed |
-| 014 | [Index of /Archive/Distributions/Research/Dennis_v1](https://www.tuhs.org/Archive/Distributions/Research/Dennis_v1/) | Retrieved; not yet reviewed |
-| 015 | [Unix Manual, first edition](https://www.tuhs.org/Archive/Distributions/Research/Dennis_v1/1stEdman.html) | Retrieved; not yet reviewed |
+| 013 | [UNIX_ProgrammersManual_Nov71.pdf](https://www.tuhs.org/Archive/Distributions/Research/Dennis_v1/UNIX_ProgrammersManual_Nov71.pdf) | Complete scan OCR read; ambiguous glyphs and tables need visual checks |
+| 014 | [Index of /Archive/Distributions/Research/Dennis_v1](https://www.tuhs.org/Archive/Distributions/Research/Dennis_v1/) | Directory index read; linked contents not exhaustively reviewed |
+| 015 | [Unix Manual, first edition](https://www.tuhs.org/Archive/Distributions/Research/Dennis_v1/1stEdman.html) | Complete provenance and index page read |
 | 016 | [V1/man/man7/bc.7](https://www.tuhs.org/cgi-bin/utree.pl?file=V1/man/man7/bc.7) | Read in full |
 | 017 | [V1/man/man7/ba.7](https://www.tuhs.org/cgi-bin/utree.pl?file=V1/man/man7/ba.7) | Read in full |
 | 018 | [man71.pdf](https://www.nokia.com/bell-labs/about/dennis-m-ritchie/man71.pdf) | Read in full |
@@ -508,40 +663,40 @@ in the inventory so that missing or duplicated material is visible.
 | 027 | [man12.pdf](https://www.nokia.com/bell-labs/about/dennis-m-ritchie/man12.pdf) | Read in full |
 | 028 | [V1/man/man5/a.out.5](https://www.tuhs.org/cgi-bin/utree.pl?file=V1/man/man5/a.out.5) | Read in full |
 | 029 | [V1/man/man5/archive.5](https://www.tuhs.org/cgi-bin/utree.pl?file=V1/man/man5/archive.5) | Read in full |
-| 030 | [v2man.pdf](https://www.tuhs.org/Archive/Distributions/Research/Dennis_v2/v2man.pdf) | Retrieved; not yet reviewed |
-| 031 | [Index of /Archive/Distributions/Research/Dennis_v2](https://www.tuhs.org/Archive/Distributions/Research/Dennis_v2/) | Retrieved; not yet reviewed |
-| 032 | [Index of /Archive/Distributions/Research/1972_stuff](https://www.tuhs.org/Archive/Distributions/Research/1972_stuff/) | Retrieved; not yet reviewed |
-| 033 | [Index of /Archive/Applications/Dennis_Tapes](https://www.tuhs.org/Archive/Applications/Dennis_Tapes/) | Retrieved; not yet reviewed |
-| 034 | [Index of /Archive/Applications/Dennis_Tapes/Gao_Analysis](https://www.tuhs.org/Archive/Applications/Dennis_Tapes/Gao_Analysis/) | Retrieved; not yet reviewed |
-| 035 | [Index of /Archive/Distributions/Research/McIlroy_v0](https://www.tuhs.org/Archive/Distributions/Research/McIlroy_v0/) | Retrieved; not yet reviewed |
-| 036 | [the-earliest-unix-code-an-anniversary-source-code-release](https://computerhistory.org/blog/the-earliest-unix-code-an-anniversary-source-code-release/) | Not retrieved: 403: Forbidden |
+| 030 | [v2man.pdf](https://www.tuhs.org/Archive/Distributions/Research/Dennis_v2/v2man.pdf) | Manual body read in full; contents index partially inspected; OCR glyph checks remain |
+| 031 | [Index of /Archive/Distributions/Research/Dennis_v2](https://www.tuhs.org/Archive/Distributions/Research/Dennis_v2/) | Directory index read; linked contents not exhaustively reviewed |
+| 032 | [Index of /Archive/Distributions/Research/1972_stuff](https://www.tuhs.org/Archive/Distributions/Research/1972_stuff/) | Directory index read; linked contents not exhaustively reviewed |
+| 033 | [Index of /Archive/Applications/Dennis_Tapes](https://www.tuhs.org/Archive/Applications/Dennis_Tapes/) | Directory index read; linked contents not exhaustively reviewed |
+| 034 | [Index of /Archive/Applications/Dennis_Tapes/Gao_Analysis](https://www.tuhs.org/Archive/Applications/Dennis_Tapes/Gao_Analysis/) | Directory index read; linked contents not exhaustively reviewed |
+| 035 | [Index of /Archive/Distributions/Research/McIlroy_v0](https://www.tuhs.org/Archive/Distributions/Research/McIlroy_v0/) | Directory index read; linked contents not exhaustively reviewed |
+| 036 | [the-earliest-unix-code-an-anniversary-source-code-release](https://computerhistory.org/blog/the-earliest-unix-code-an-anniversary-source-code-release/) | Complete museum article read through web retrieval; direct fetch failed |
 | 037 | [102785108](https://www.computerhistory.org/collections/catalog/102785108) | Not retrieved: 403: Forbidden |
-| 038 | [setup.pdf](https://www.tuhs.org/Archive/Applications/Dennis_Tapes/Gao_Analysis/v4_dist/setup.pdf) | Retrieved; not yet reviewed |
-| 039 | [Index of /Archive/Applications/Dennis_Tapes/Gao_Analysis/v4_dist](https://www.tuhs.org/Archive/Applications/Dennis_Tapes/Gao_Analysis/v4_dist/) | Retrieved; not yet reviewed |
+| 038 | [setup.pdf](https://www.tuhs.org/Archive/Applications/Dennis_Tapes/Gao_Analysis/v4_dist/setup.pdf) | Complete setup document read |
+| 039 | [Index of /Archive/Applications/Dennis_Tapes/Gao_Analysis/v4_dist](https://www.tuhs.org/Archive/Applications/Dennis_Tapes/Gao_Analysis/v4_dist/) | Directory index read; linked contents not exhaustively reviewed |
 
 ### Restorations and implementation evidence
 
 | ID | Reference | Review status |
 | --- | --- | --- |
 | 040 | [GitHub - aap/b: B compiler · GitHub](https://github.com/aap/b) | Project README read; source tree not exhaustively reviewed |
-| 041 | [b/unix1_bdir at master · aap/b · GitHub](https://github.com/aap/b/tree/master/unix1_bdir) | Retrieved; not yet reviewed |
+| 041 | [b/unix1_bdir at master · aap/b · GitHub](https://github.com/aap/b/tree/master/unix1_bdir) | Complete project or directory README read; not a full source-tree audit |
 | 042 | [TUHS B compiler restored](https://www.tuhs.org/pipermail/tuhs/2023-July/028602.html) | Read in full |
 | 043 | [B](https://squoze.net/B/) | Not retrieved: 503: Service Unavailable |
 | 044 | [programs](https://squoze.net/B/programs/) | Not retrieved: 503: Service Unavailable |
 | 045 | [install](https://squoze.net/B/install) | Not retrieved: 503: Service Unavailable |
-| 046 | [GitHub - rswier/pdp11-B: A project to recreate the B compiler for the PDP-11 as authentically as ...](https://github.com/rswier/pdp11-B) | Retrieved; not yet reviewed |
-| 047 | [GitHub - DoctorWkt/pdp7-unix: A project to resurrect Unix on the PDP-7 from a scan of the origina...](https://github.com/DoctorWkt/pdp7-unix) | Retrieved; not yet reviewed |
+| 046 | [GitHub - rswier/pdp11-B: A project to recreate the B compiler for the PDP-11 as authentically as ...](https://github.com/rswier/pdp11-B) | Complete project or directory README read; not a full source-tree audit |
+| 047 | [GitHub - DoctorWkt/pdp7-unix: A project to resurrect Unix on the PDP-7 from a scan of the origina...](https://github.com/DoctorWkt/pdp7-unix) | Complete project or directory README read; not a full source-tree audit |
 | 048 | [TUHS Listing of early Unix source code from the Computer History Museum.](https://www.tuhs.org/pipermail/tuhs/2025-May/031942.html) | Read in full |
-| 049 | [GitHub - philbudne/pdp7-unix at tmg · GitHub](https://github.com/philbudne/pdp7-unix/tree/tmg) | Retrieved; not yet reviewed |
-| 050 | [pdp7-unix/blob/tmg/misc/tmg-notes.txt](https://github.com/philbudne/pdp7-unix/blob/tmg/misc/tmg-notes.txt) | Retrieved; not yet reviewed |
-| 051 | [pdp7-unix/blob/tmg/src/other/pbtmg/b.t](https://github.com/philbudne/pdp7-unix/blob/tmg/src/other/pbtmg/b.t) | Retrieved; not yet reviewed |
-| 052 | [GitHub - DoctorWkt/unix-jun72: The working source code to PDP-11 Unix from 1972. · GitHub](https://github.com/DoctorWkt/unix-jun72) | Retrieved; not yet reviewed |
-| 053 | [GitHub - TheBrokenPipe/Research-UNIX-V2-Beta: A Research UNIX V2 beta from 1972 brought back to l...](https://github.com/TheBrokenPipe/Research-UNIX-V2-Beta) | Retrieved; not yet reviewed |
+| 049 | [GitHub - philbudne/pdp7-unix at tmg · GitHub](https://github.com/philbudne/pdp7-unix/tree/tmg) | Complete project or directory README read; not a full source-tree audit |
+| 050 | [pdp7-unix/blob/tmg/misc/tmg-notes.txt](https://github.com/philbudne/pdp7-unix/blob/tmg/misc/tmg-notes.txt) | Complete raw reconstruction notes read; author marks uncertainties |
+| 051 | [pdp7-unix/blob/tmg/src/other/pbtmg/b.t](https://github.com/philbudne/pdp7-unix/blob/tmg/src/other/pbtmg/b.t) | Complete raw reconstructed TMG B grammar read; incomplete dialect |
+| 052 | [GitHub - DoctorWkt/unix-jun72: The working source code to PDP-11 Unix from 1972. · GitHub](https://github.com/DoctorWkt/unix-jun72) | Complete project or directory README read; not a full source-tree audit |
+| 053 | [GitHub - TheBrokenPipe/Research-UNIX-V2-Beta: A Research UNIX V2 beta from 1972 brought back to l...](https://github.com/TheBrokenPipe/Research-UNIX-V2-Beta) | Complete project or directory README read; not a full source-tree audit |
 | 054 | [TUHS 1972 UNIX V2 "Beta" Resurrected](https://www.tuhs.org/pipermail/tuhs/2025-February/031420.html) | Read in full |
-| 055 | [GitHub - aap/abc: (OBSOLETE) A B Compiler for x86 · GitHub](https://github.com/aap/abc) | Retrieved; not yet reviewed |
-| 056 | [GitHub - dobyrch/dbc: B compiler front end implemented using Flex+Bison+LLVM · GitHub](https://github.com/dobyrch/dbc) | Retrieved; not yet reviewed |
+| 055 | [GitHub - aap/abc: (OBSOLETE) A B Compiler for x86 · GitHub](https://github.com/aap/abc) | Complete project or directory README read; not a full source-tree audit |
+| 056 | [GitHub - dobyrch/dbc: B compiler front end implemented using Flex+Bison+LLVM · GitHub](https://github.com/dobyrch/dbc) | Complete project or directory README read; not a full source-tree audit |
 | 057 | [toomey.pdf](https://www.usenix.org/event/usenix09/tech/full_papers/toomey/toomey.pdf) | Full paper read through web retrieval; direct download failed |
-| 058 | [restoration-early-unix-artifacts](https://www.usenix.org/conference/usenix-09/restoration-early-unix-artifacts) | Not retrieved: 403: Forbidden |
+| 058 | [restoration-early-unix-artifacts](https://www.usenix.org/conference/usenix-09/restoration-early-unix-artifacts) | Conference entry read; paper reviewed separately |
 
 ### Waterloo and GCOS documentation
 
@@ -573,8 +728,8 @@ in the inventory so that missing or duplicated material is visible.
 | 077 | [Chistory](https://cm-bell-labs.github.io/who/dmr/chist.html) | Read in full |
 | 078 | [Early Unix history and evolution](https://cm-bell-labs.github.io/who/dmr/hist.html) | Read in full |
 | 079 | [Primeval C: two very early compilers](https://cm-bell-labs.github.io/who/dmr/primevalC.html) | Read in full |
-| 080 | [cman74.pdf](https://cm-bell-labs.github.io/who/dmr/cman74.pdf) | OCR available; not yet reviewed |
-| 081 | [cman.pdf](https://cm-bell-labs.github.io/who/dmr/cman.pdf) | Retrieved; not yet reviewed |
+| 080 | [cman74.pdf](https://cm-bell-labs.github.io/who/dmr/cman74.pdf) | Complete scan OCR read; damaged glyphs need visual checks |
+| 081 | [cman.pdf](https://cm-bell-labs.github.io/who/dmr/cman.pdf) | Complete manual text read, including examples and appendices |
 | 082 | [HOPL C Transcript](https://cm-bell-labs.github.io/who/dmr/hopl.html) | Read in full |
 | 083 | [CS-76-45.pdf](https://cs.uwaterloo.ca/research/tr/1976/CS-76-45.pdf) | Full OCR text read; ambiguous symbols need visual checks |
 
@@ -582,20 +737,20 @@ in the inventory so that missing or duplicated material is visible.
 
 | ID | Reference | Review status |
 | --- | --- | --- |
-| 084 | [History of BCPL](https://softwarepreservation.computerhistory.org/BCPL/) | Retrieved; not yet reviewed |
-| 085 | [Richards-BCPL-ReferenceManual.pdf](https://softwarepreservation.computerhistory.org/BCPL/project_mac/Richards-BCPL-ReferenceManual.pdf) | OCR available; not yet reviewed |
+| 084 | [History of BCPL](https://softwarepreservation.computerhistory.org/BCPL/) | Complete preservation catalog read; linked artifacts not all reviewed |
+| 085 | [Richards-BCPL-ReferenceManual.pdf](https://softwarepreservation.computerhistory.org/BCPL/project_mac/Richards-BCPL-ReferenceManual.pdf) | Full original-scan OCR read; exact glyphs need visual checks |
 | 086 | [BCPL Reference Manual (1967)](https://cm-bell-labs.github.io/who/dmr/bcpl.html) | Read in full |
 | 087 | [1476793.1476880](https://dl.acm.org/doi/10.1145/1476793.1476880) | Not retrieved: 403: Forbidden |
 | 088 | [spe.4380010204](https://onlinelibrary.wiley.com/doi/10.1002/spe.4380010204) | Not retrieved: 403: Forbidden |
 | 089 | [Richards-Intcode_for_BCPL-1975.pdf](https://softwarepreservation.computerhistory.org/BCPL/cambridge/Richards-Intcode_for_BCPL-1975.pdf) | Full text and appendix read; listing transcription issues remain |
 | 090 | [Richards-Bootstrapping_BCPL-1973.pdf](https://softwarepreservation.computerhistory.org/BCPL/cambridge/Richards-Bootstrapping_BCPL-1973.pdf) | Read in full |
-| 091 | [Scan 2.PDF](https://people.csail.mit.edu/saltzer/Multics/MHP-Saltzer-060508/filedrawers/177.bcpl/Scan%202.PDF) | OCR available; not yet reviewed |
-| 092 | [richards-manual-1974.pdf](https://softwarepreservation.computerhistory.org/BCPL/cambridge/richards-manual-1974.pdf) | Retrieved; not yet reviewed |
+| 091 | [Scan 2.PDF](https://people.csail.mit.edu/saltzer/Multics/MHP-Saltzer-060508/filedrawers/177.bcpl/Scan%202.PDF) | Full 1973 manual OCR read, including appendices; glyph checks remain |
+| 092 | [richards-manual-1974.pdf](https://softwarepreservation.computerhistory.org/BCPL/cambridge/richards-manual-1974.pdf) | Complete 1974 manual text read, including appendices |
 | 093 | [bcpl-language-and-its-compiler](https://www.cambridge.org/bd/universitypress/subjects/computer-science/programming-languages-and-applied-logic/bcpl-language-and-its-compiler?format=PB&isbn=9780521286817) | Not retrieved: 403: Forbidden |
-| 094 | [9780521286817_toc.pdf](https://assets.cambridge.org/97805212/86817/toc/9780521286817_toc.pdf) | Retrieved; not yet reviewed |
-| 095 | [BCPLCTSS](https://www.cl.cam.ac.uk/~mr10/BCPLCTSS.html) | Retrieved; not yet reviewed |
-| 096 | [BCPL and Tripos Archive](https://www.cl.cam.ac.uk/~mr10/Archive.html) | Retrieved; not yet reviewed |
-| 097 | [cpl2bcpl.pdf](https://www.cl.cam.ac.uk/~mr10/cpl2bcpl.pdf) | Retrieved; not yet reviewed |
+| 094 | [9780521286817_toc.pdf](https://assets.cambridge.org/97805212/86817/toc/9780521286817_toc.pdf) | Complete three-page table of contents read; not the book |
+| 095 | [BCPLCTSS](https://www.cl.cam.ac.uk/~mr10/BCPLCTSS.html) | Distribution overview read; archive source not exhaustively reviewed |
+| 096 | [BCPL and Tripos Archive](https://www.cl.cam.ac.uk/~mr10/Archive.html) | Archive overview read; linked files not exhaustively reviewed |
+| 097 | [cpl2bcpl.pdf](https://www.cl.cam.ac.uk/~mr10/cpl2bcpl.pdf) | Complete paper read |
 | 098 | [bcplman.pdf](https://www.cl.cam.ac.uk/~mr10/bcplman.pdf) | Retrieved; not yet reviewed |
 
 ### Threaded code and bootstrap trust
@@ -605,7 +760,7 @@ in the inventory so that missing or duplicated material is visible.
 | 099 | [362248.362270](https://dl.acm.org/doi/10.1145/362248.362270) | Not retrieved: 403: Forbidden |
 | 100 | [threaded_code.pdf](https://www.ittc.ku.edu/~kulkarni/teaching/archieve/EECS800-Spring-2008/threaded_code.pdf) | Complete Bell paper read; adjacent article excluded |
 | 101 | [360825.360849](https://dl.acm.org/doi/10.1145/360825.360849) | Not retrieved: 403: Forbidden |
-| 102 | [Indirect.Threaded.Code.p330-dewar.pdf](https://figforth.org.uk/library/Indirect.Threaded.Code.p330-dewar.pdf) | Not retrieved: 465: Unknown |
+| 102 | [Indirect.Threaded.Code.p330-dewar.pdf](https://figforth.org.uk/library/Indirect.Threaded.Code.p330-dewar.pdf) | Complete two-page paper read through web retrieval; figures need visual checks |
 | 103 | [Thompson_1984_ReflectionsonTrustingTrust.pdf](https://www.cs.cmu.edu/~rdriley/487/papers/Thompson_1984_ReflectionsonTrustingTrust.pdf) | Full lecture text read; code figures not independently transcribed |
 | 104 | [358198.358210](https://dl.acm.org/doi/10.1145/358198.358210) | Not retrieved: 403: Forbidden |
 
@@ -625,10 +780,10 @@ in the inventory so that missing or duplicated material is visible.
 | --- | --- | --- |
 | 110 | [n1256.pdf](https://www.open-std.org/jtc1/sc22/wg14/www/docs/n1256.pdf) | Retrieved; not yet reviewed |
 | 111 | [Top (Using the GNU Compiler Collection (GCC))](https://gcc.gnu.org/onlinedocs/gcc/) | Retrieved; not yet reviewed |
-| 112 | [C Extensions (Using the GNU Compiler Collection (GCC))](https://gcc.gnu.org/onlinedocs/gcc/C-Extensions.html) | Retrieved; not yet reviewed |
+| 112 | [C Extensions (Using the GNU Compiler Collection (GCC))](https://gcc.gnu.org/onlinedocs/gcc/C-Extensions.html) | Extension overview read; linked extension chapters not all reviewed |
 | 113 | [Top (Using as)](https://sourceware.org/binutils/docs/as/) | Retrieved; not yet reviewed |
 | 114 | [Top (LD)](https://sourceware.org/binutils/docs/ld/) | Retrieved; not yet reviewed |
-| 115 | [x86 psABIs / x86-64 psABI · GitLab](https://gitlab.com/x86-psABIs/x86-64-ABI) | Retrieved; not yet reviewed |
+| 115 | [x86 psABIs / x86-64 psABI · GitLab](https://gitlab.com/x86-psABIs/x86-64-ABI) | Only project metadata retrieved; ABI document not present |
 
 ### Repository snapshots and catalog records
 
@@ -643,7 +798,7 @@ in the inventory so that missing or duplicated material is visible.
 | 122 | [bcc/blob/c16e24a6013a5e84d71b1aacfea5f43aab3fddd0/pdp-11/NOTES_ASSEMBLY.md](https://github.com/frankischilling/bcc/blob/c16e24a6013a5e84d71b1aacfea5f43aab3fddd0/pdp-11/NOTES_ASSEMBLY.md) | Retrieved; not yet reviewed |
 | 123 | [bcc/blob/c16e24a6013a5e84d71b1aacfea5f43aab3fddd0/pdp-11/unix-v1-docs/README.md](https://github.com/frankischilling/bcc/blob/c16e24a6013a5e84d71b1aacfea5f43aab3fddd0/pdp-11/unix-v1-docs/README.md) | Retrieved; not yet reviewed |
 | 124 | [bcc/blob/c16e24a6013a5e84d71b1aacfea5f43aab3fddd0/wiki/B_LANGUAGE.md](https://github.com/frankischilling/bcc/blob/c16e24a6013a5e84d71b1aacfea5f43aab3fddd0/wiki/B_LANGUAGE.md) | Retrieved; not yet reviewed |
-| 125 | [b-reference-manual](https://archive.org/metadata/b-reference-manual) | Retrieved; not yet reviewed |
+| 125 | [b-reference-manual](https://archive.org/metadata/b-reference-manual) | Complete archive metadata read; not a language specification |
 | 126 | [bcc/blob/main/README.md](https://github.com/frankischilling/bcc/blob/main/README.md) | Retrieved; not yet reviewed |
 | 127 | [bcc/blob/main/pdp-11/bcc-pdp/README.md](https://github.com/frankischilling/bcc/blob/main/pdp-11/bcc-pdp/README.md) | Retrieved; not yet reviewed |
 | 128 | [bcc/blob/main/asm/README.md](https://github.com/frankischilling/bcc/blob/main/asm/README.md) | Retrieved; not yet reviewed |
