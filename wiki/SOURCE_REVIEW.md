@@ -124,10 +124,15 @@ The assembler's punctuation, numeric labels, string syntax, and predefined
 system-call names differ from DEC PAL-11R. Its output includes symbols and
 relocation information; it is not a modern GNU object format.
 
-The early executable has a six-word header beginning with octal `0205`.
-Its text size includes that header. Symbols occupy twelve-byte entries,
-and relocation uses a variable-length bit encoding. These details must not
-be replaced with the later `0407` layout by assumption.
+The early executable has a six-word header beginning with octal `0405`.
+The manual prints `0205` beside `br .+14`, but that number is inconsistent
+with the instruction. The original scan confirms the printed typo; DEC's
+[BR description](https://pdos.csail.mit.edu/6.828/2005/readings/pdp11-40.pdf#page=83)
+gives opcode `0400` plus the word displacement. Skipping the twelve-byte
+header requires displacement five, hence `0405`, as used by BCC's native
+image writer. Its text size includes the header. Symbols occupy twelve-byte
+entries, and relocation uses a variable-length bit encoding. These details
+must not be replaced with the later `0407` layout by assumption.
 
 An archive starts with octal `0177555`, uses sixteen-byte member headers,
 and pads odd-sized members without changing their recorded size. The linker
@@ -478,7 +483,7 @@ in the inventory so that missing or duplicated material is visible.
 | 105 | [PDP-11_Handbook_Second_Edition_1970.pdf](https://www.bitsavers.org/pdf/dec/pdp11/1120/PDP-11_Handbook_Second_Edition_1970.pdf) | Not retrieved: 403: Forbidden |
 | 106 | [KA11_ProcessorMan_Sep1970.pdf](https://bitsavers.trailing-edge.com/pdf/dec/pdp11/1120/KA11_ProcessorMan_Sep1970.pdf) | Not retrieved: 403: Forbidden |
 | 107 | [KE11-A_ExtendedArithElem.pdf](https://bitsavers.trailing-edge.com/pdf/dec/pdp11/1120/KE11-A_ExtendedArithElem.pdf) | Not retrieved: 403: Forbidden |
-| 108 | [pdp11-40.pdf](https://pdos.csail.mit.edu/6.828/2005/readings/pdp11-40.pdf) | Retrieved; not yet reviewed |
+| 108 | [pdp11-40.pdf](https://pdos.csail.mit.edu/6.828/2005/readings/pdp11-40.pdf) | BR instruction checked on PDF page 83; remainder pending |
 | 109 | [PDP-11_40_Processor_Handbook_1972.pdf](https://bitsavers.trailing-edge.com/pdf/dec/pdp11/handbooks/PDP-11_40_Processor_Handbook_1972.pdf) | Not retrieved: 403: Forbidden |
 
 ### Host language and toolchain references
