@@ -176,7 +176,8 @@ passes the complete argument block to a private zero-parameter C body. The body
 copies those words into its parameter storage and zero-fills missing declared
 parameters. Calls restore the previous frame on return, including nested and
 recursive calls. Source functions compiled in separate files share the registry.
-Runtime and compatibility C function values retain their existing call path.
+Runtime function values use checked word-array adapters. Compatibility C
+function values retain their foreign-call path.
 The bootstrap emits the same source-function interface.
 
 Named binding records retain a B name and its cell address, separately from
@@ -186,3 +187,12 @@ calls can therefore find a supplied definition without depending on C symbol
 interposition or the compilation order of separate files. Formatting and line-input
 callbacks use the same argument-frame path as other B calls. Private string and
 syscall marshalling still uses the runtime's own byte-access helpers.
+
+`lib/bprimitives.h` owns the default library cells and their adapters. A
+registry indexes names and original code values separately: replacing a cell
+changes later named calls without invalidating a saved original value.
+Supplied B definitions redirect the name entry to their own cell. Inline
+modules share weak cell definitions and I/O state; each module can register
+its private runtime bodies. The adapters check the argument count before
+calling a typed C helper. Formatting reads from a bounded word array for B
+calls and from `va_list` for the public C entry point.

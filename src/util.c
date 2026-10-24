@@ -476,3 +476,18 @@ const char *get_error_message(ErrorCode code) {
         default:                    return "unknown error";
     }
 }
+
+int b_library_function(const char *name) {
+    static const char *names[] = {
+        "char", "lchar", "getchar", "getchr", "putchr", "getstr", "putstr",
+        "flush", "reread", "printf", "printn", "putnum", "print", "putchar",
+        "exit", "abort", "free", "alloc", "open", "close", "read", "write",
+        "creat", "seek", "openr", "openw", "fork", "wait", "execl", "execv",
+        "chdir", "chmod", "chown", "link", "unlink", "stat", "fstat", "time",
+        "ctime", "getuid", "setuid", "makdir", "mkdir", "intr", "gtty", "stty",
+        "system", "usleep", "callf", "argc", "argv", NULL
+    };
+    for (size_t i = 0; names[i]; i++)
+        if (strcmp(name, names[i]) == 0) return 1;
+    return 0;
+}

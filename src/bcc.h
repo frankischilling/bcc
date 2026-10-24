@@ -494,4 +494,6 @@ void dump_token_stream(Parser *P);
 void dump_ast_program(Program *prog);
 int run_gcc(const char *cfile, const char *out_exe, int compile_only, int debug, int wall, int wextra, int werror, Vec *extra_args);
 
+int b_library_function(const char *name);
+
 #endif // BCC_H

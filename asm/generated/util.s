@@ -2037,6 +2037,222 @@ error_at_location:
 	.cfi_endproc
 .LFE22:
 	.size	error_at_location, .-error_at_location
+	.section	.rodata.str1.1
+.LC72:
+	.string	"char"
+	.text
+	.p2align 4
+	.globl	b_library_function
+	.type	b_library_function, @function
+b_library_function:
+.LFB31:
+	.cfi_startproc
+	pushq	%rbp
+	.cfi_def_cfa_offset 16
+	.cfi_offset 6, -16
+	leaq	.LC72(%rip), %rsi
+	movq	%rdi, %rbp
+	pushq	%rbx
+	.cfi_def_cfa_offset 24
+	.cfi_offset 3, -24
+	leaq	8+names.0(%rip), %rbx
+	subq	$8, %rsp
+	.cfi_def_cfa_offset 32
+	jmp	.L289
+	.p2align 4,,10
+	.p2align 3
+.L294:
+	movq	(%rbx), %rsi
+	addq	$8, %rbx
+	testq	%rsi, %rsi
+	je	.L293
+.L289:
+	movq	%rbp, %rdi
+	call	strcmp@PLT
+	testl	%eax, %eax
+	jne	.L294
+	addq	$8, %rsp
+	.cfi_remember_state
+	.cfi_def_cfa_offset 24
+	movl	$1, %eax
+	popq	%rbx
+	.cfi_def_cfa_offset 16
+	popq	%rbp
+	.cfi_def_cfa_offset 8
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L293:
+	.cfi_restore_state
+	addq	$8, %rsp
+	.cfi_def_cfa_offset 24
+	xorl	%eax, %eax
+	popq	%rbx
+	.cfi_def_cfa_offset 16
+	popq	%rbp
+	.cfi_def_cfa_offset 8
+	ret
+	.cfi_endproc
+.LFE31:
+	.size	b_library_function, .-b_library_function
+	.section	.rodata.str1.1
+.LC73:
+	.string	"lchar"
+.LC74:
+	.string	"getchar"
+.LC75:
+	.string	"getchr"
+.LC76:
+	.string	"putchr"
+.LC77:
+	.string	"getstr"
+.LC78:
+	.string	"putstr"
+.LC79:
+	.string	"flush"
+.LC80:
+	.string	"reread"
+.LC81:
+	.string	"printf"
+.LC82:
+	.string	"printn"
+.LC83:
+	.string	"putnum"
+.LC84:
+	.string	"print"
+.LC85:
+	.string	"putchar"
+.LC86:
+	.string	"exit"
+.LC87:
+	.string	"abort"
+.LC88:
+	.string	"free"
+.LC89:
+	.string	"alloc"
+.LC90:
+	.string	"open"
+.LC91:
+	.string	"close"
+.LC92:
+	.string	"read"
+.LC93:
+	.string	"write"
+.LC94:
+	.string	"creat"
+.LC95:
+	.string	"seek"
+.LC96:
+	.string	"openr"
+.LC97:
+	.string	"openw"
+.LC98:
+	.string	"fork"
+.LC99:
+	.string	"wait"
+.LC100:
+	.string	"execl"
+.LC101:
+	.string	"execv"
+.LC102:
+	.string	"chdir"
+.LC103:
+	.string	"chmod"
+.LC104:
+	.string	"chown"
+.LC105:
+	.string	"link"
+.LC106:
+	.string	"unlink"
+.LC107:
+	.string	"stat"
+.LC108:
+	.string	"fstat"
+.LC109:
+	.string	"time"
+.LC110:
+	.string	"ctime"
+.LC111:
+	.string	"getuid"
+.LC112:
+	.string	"setuid"
+.LC113:
+	.string	"makdir"
+.LC114:
+	.string	"mkdir"
+.LC115:
+	.string	"intr"
+.LC116:
+	.string	"gtty"
+.LC117:
+	.string	"stty"
+.LC118:
+	.string	"system"
+.LC119:
+	.string	"usleep"
+.LC120:
+	.string	"callf"
+.LC121:
+	.string	"argc"
+.LC122:
+	.string	"argv"
+	.section	.data.rel.ro.local,"aw"
+	.align 32
+	.type	names.0, @object
+	.size	names.0, 416
+names.0:
+	.quad	.LC72
+	.quad	.LC73
+	.quad	.LC74
+	.quad	.LC75
+	.quad	.LC76
+	.quad	.LC77
+	.quad	.LC78
+	.quad	.LC79
+	.quad	.LC80
+	.quad	.LC81
+	.quad	.LC82
+	.quad	.LC83
+	.quad	.LC84
+	.quad	.LC85
+	.quad	.LC86
+	.quad	.LC87
+	.quad	.LC88
+	.quad	.LC89
+	.quad	.LC90
+	.quad	.LC91
+	.quad	.LC92
+	.quad	.LC93
+	.quad	.LC94
+	.quad	.LC95
+	.quad	.LC96
+	.quad	.LC97
+	.quad	.LC98
+	.quad	.LC99
+	.quad	.LC100
+	.quad	.LC101
+	.quad	.LC102
+	.quad	.LC103
+	.quad	.LC104
+	.quad	.LC105
+	.quad	.LC106
+	.quad	.LC107
+	.quad	.LC108
+	.quad	.LC109
+	.quad	.LC110
+	.quad	.LC111
+	.quad	.LC112
+	.quad	.LC113
+	.quad	.LC114
+	.quad	.LC115
+	.quad	.LC116
+	.quad	.LC117
+	.quad	.LC118
+	.quad	.LC119
+	.quad	.LC120
+	.quad	.LC121
+	.quad	.LC122
+	.quad	0
 	.globl	g_pedantic
 	.bss
 	.align 4

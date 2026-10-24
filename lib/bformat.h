@@ -9,12 +9,12 @@
 #endif
 
 static word __bcc_format_putchar(word character) {
-    word *cell = __bcc_source_binding("putchar");
+    word *cell = __bcc_binding_cell("putchar");
     return cell ? __bcc_call1(*cell, character) : b_putchar(character);
 }
 
 static word __bcc_format_char(word string, word index) {
-    word *cell = __bcc_source_binding("char");
+    word *cell = __bcc_binding_cell("char");
     return cell ? __bcc_call2(*cell, string, index) : b_char(string, index);
 }
 
@@ -52,26 +52,48 @@ static void __bcc_format_signed(word value, unsigned base) {
 __bcc_format_linkage word b_printn(word value, word base) {
     base = WVAL(base);
     if (base < 2 || base > 16) return -1;
-    __bcc_format_signed(value, (unsigned)base);
+    value = WVAL(value);
+    word quotient, digit;
+    if (value < 0) {
+        __bcc_format_putchar('-');
+        quotient = -(value / base);
+        digit = -(value % base);
+    } else {
+        quotient = value / base;
+        digit = value % base;
+    }
+    if (quotient) __bcc_library_call2("printn", b_printn, quotient, base);
+    __bcc_format_putchar(digit < 10 ? digit + '0' : digit - 10 + 'A');
     return 0;
 }
 
 /* The reference printf supplies a magnitude to printn. The minimum signed
  * word has no positive counterpart, so retain the negative-number extension. */
 static void __bcc_format_number(word value, unsigned base) {
-    word *cell = __bcc_source_binding("printn");
+    word *cell = __bcc_binding_cell("printn");
     if (!cell) { __bcc_format_signed(value, base); return; }
     value = WVAL(value);
-    if (__bcc_is_source_function(*cell) && value < 0 && WNEG(value) >= 0) {
+    if (value < 0 && WNEG(value) >= 0) {
         __bcc_format_putchar('-');
         value = WNEG(value);
     }
     (void)__bcc_call2(*cell, value, (word)base);
 }
 
-__bcc_format_linkage word b_printf(word fmt, ...) {
-    va_list args;
-    va_start(args, fmt);
+struct __bcc_format_arguments {
+    va_list *list;
+    const word *words;
+    size_t count, index;
+};
+
+static int __bcc_format_next(struct __bcc_format_arguments *arguments, word *value) {
+    if (arguments->list) { *value = va_arg(*arguments->list, word); return 1; }
+    if (arguments->index >= arguments->count) return 0;
+    *value = arguments->words[arguments->index++];
+    return 1;
+}
+
+static word __bcc_format_run(word fmt, struct __bcc_format_arguments *arguments) {
     word i = 0;
     for (;;) {
         word ch = __bcc_format_char(fmt, i++);
@@ -101,7 +123,11 @@ __bcc_format_linkage word b_printf(word fmt, ...) {
             --i;
             continue;
         }
-        word value = va_arg(args, word);
+        word value;
+        if (!__bcc_format_next(arguments, &value)) {
+            fprintf(stderr, "bcc: printf argument list is too short\n");
+            return -1;
+        }
         switch (kind) {
         case 'd':
         case 257:
@@ -137,8 +163,22 @@ __bcc_format_linkage word b_printf(word fmt, ...) {
         }
         }
     }
-    va_end(args);
     return 0;
+}
+
+static word __bcc_printf_words(size_t count, const word *words) {
+    if (!count) return -1;
+    struct __bcc_format_arguments arguments = {NULL, words + 1, count - 1, 0};
+    return __bcc_format_run(words[0], &arguments);
+}
+
+__bcc_format_linkage word b_printf(word fmt, ...) {
+    va_list list;
+    va_start(list, fmt);
+    struct __bcc_format_arguments arguments = {&list, NULL, 0, 0};
+    word result = __bcc_format_run(fmt, &arguments);
+    va_end(list);
+    return result;
 }
 
 #endif

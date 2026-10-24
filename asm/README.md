@@ -29,7 +29,7 @@ and link with the host C toolchain. Regeneration requires an x86-64 GCC
 host; these are not portable assembly sources or NASM input.
 
 B programs use the same C runtime as the main compiler. The build places
-`libb.c`, `libb.h`, `btarget.h`, `binit.h`, `bcall.h`, `bunix.h`, and `bformat.h` beside the executable so shared-runtime
+`libb.c`, `libb.h`, `btarget.h`, `binit.h`, `bcall.h`, `bunix.h`, `bformat.h`, and `bprimitives.h` beside the executable so shared-runtime
 compilation works in every supported word mode. The older handwritten
 `runtime.s` is retained as historical project material but is not linked:
 it does not implement the current translated-address ABI.

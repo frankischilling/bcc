@@ -213,7 +213,7 @@ static void sem_check_lvalue(SemState *st, Expr *e) {
                 }
             } else if (sym->is_builtin && strcmp(sym->name, "argv") == 0) {
                 e->builtin_argv = 1;
-            } else if (sym->kind == SYM_FUNC && !sym->is_builtin) {
+            } else if (sym->kind == SYM_FUNC && (!sym->is_builtin || b_library_function(sym->name))) {
                 e->function_value = 1;
             } else if (sym->kind != SYM_VAR && sym->kind != SYM_LABEL) {
                 dief("'%s' is not a variable at %d:%d", e->as.var, e->line, e->col);

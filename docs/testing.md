@@ -236,3 +236,9 @@ They cover each name position, parameters and labels, the eight-character bound,
 encoding collisions, and separate host objects. The native fast checks and a
 full-system fixture exercise the same byte alphabet without relying on terminal
 editing. Octal checks include the documented 09 and 018 forms.
+
+The library-binding suite also saves, replaces, and restores runtime-owned
+cells, including through external address initializers and across input
+files. It checks saved variadic function values, extra argument evaluation,
+missing-argument diagnostics, and shared inline-runtime output state. The
+bootstrap runs the same applicable cases through all three stages.

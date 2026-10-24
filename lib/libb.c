@@ -832,3 +832,5 @@ void __b_init(void) {
     __bcc_run_initializers();
 }
 
+
+#include "bprimitives.h"

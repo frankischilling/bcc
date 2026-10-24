@@ -870,6 +870,7 @@ call_name(name) {
     if (streq(name, "stty")) return("b_stty");
     if (streq(name, "system")) return("b_system");
     if (streq(name, "usleep")) return("b_usleep");
+    if (streq(name, "callf")) return("b_callf_dispatch");
     if (streq(name, "argc")) return("b_argc");
     if (streq(name, "argv")) return("b_argv");
     return(name);
@@ -997,10 +998,8 @@ primary() {
         } else if ((TOK != 30) & !has_local(name) & has_function(name)) {
             buf_str(b, global_name(name)); buf_str(b, "[0]");
         } else if ((TOK != 30) & !has_local(name) & !has_global(name) & !streq(call_name(name), name)) {
-            buf_str(b, "__bcc_library_value(*"");c_escape_to(b,binding_name(name));
-            buf_str(b, "*",B_FUNCTION(");
-            buf_str(b, call_name(name));
-            buf_str(b, "))");
+            buf_str(b, "(**__bcc_binding_cell(*"");c_escape_to(b,binding_name(name));
+            buf_str(b, "*"))");
         } else if (has_local(name)) {
             buf_ch(b, '('); buf_str(b, local_name(name)); buf_ch(b, ')');
         } else buf_str(b, name);
@@ -1026,7 +1025,8 @@ source_call(target, arguments, count) {
     if(count)buf_num(b,count);else buf_ch(b,'1');
     buf_str(b,"]={");
     if(count)buf_str(b,arguments);else buf_ch(b,'0');
-    buf_str(b,"}; __bcc_is_source_function(__callee)?__bcc_invoke_source(__callee,");
+    buf_str(b,"}; word __builtin_result; __bcc_try_builtin(__callee,");
+    buf_num(b,count);buf_str(b,",__args,&__builtin_result)?__builtin_result:__bcc_is_source_function(__callee)?__bcc_invoke_source(__callee,");
     buf_num(b,count);buf_str(b,",__args):((word(**)())B_FUNCTION_CPTR(__callee))(");
     i=0;
     while(i<count){
@@ -1037,15 +1037,12 @@ source_call(target, arguments, count) {
     return(buf_take(b));
 }
 
-library_call(name, arguments, count, fallback) {
+library_call(name, arguments, count) {
     auto b;
-    b=buf_new(256);
-    buf_str(b,"({word **__binding=__bcc_source_binding(*"");
-    c_escape_to(b,binding_name(name));
-    buf_str(b,"*" );__binding?");
-    buf_str(b,source_call("**__binding",arguments,count));
-    buf_ch(b,':');buf_str(b,fallback);buf_str(b,";})");
-    return(buf_take(b));
+    b=buf_new(128);
+    buf_str(b,"**__bcc_binding_cell(*"");
+    c_escape_to(b,binding_name(name));buf_str(b,"*" )");
+    return(source_call(buf_take(b),arguments,count));
 }
 
 postfix() {
@@ -1112,7 +1109,7 @@ postfix() {
             buf_ch(b, ')');
             if (wrap_malloc(name)) buf_ch(b, ')');
             lhs = buf_take(b);
-            if(library)lhs=library_call(name,buf_take(raw),narg,lhs);
+            if(library)lhs=library_call(name,buf_take(raw),narg);
         } else if (TOK == 34) {
             next();
             idx = expr(1);
@@ -1569,7 +1566,12 @@ global_ival() {
     if (streq(name, "argv") & !has_global(name) & !has_function(name))
         name = "b_argv_vector";
     else if (has_global(name) | has_function(name)) name = scat(global_name(name), "[0]");
-    else name = call_name(name);
+    else if(!streq(call_name(name),name)) {
+        auto b;
+        b=buf_new(128);buf_str(b,"B_ADDR(**__bcc_binding_cell(*"");
+        c_escape_to(b,binding_name(name));buf_str(b,"*"))");
+        return(buf_take(b));
+    } else name = call_name(name);
     return(scat(scat("B_ADDR(", name), ")"));
 }
 

@@ -12,7 +12,7 @@ all: stage3
 
 stage1: $(STAGE1)
 
-$(STAGE1): $(SRC) $(STAGE0) ../lib/libb.c ../lib/libb.h ../lib/btarget.h ../lib/binit.h ../lib/bcall.h ../lib/bunix.h ../lib/bformat.h
+$(STAGE1): $(SRC) $(STAGE0) ../lib/libb.c ../lib/libb.h ../lib/btarget.h ../lib/binit.h ../lib/bcall.h ../lib/bunix.h ../lib/bformat.h ../lib/bprimitives.h
 	mkdir -p $(BUILD)/stage1
 	$(STAGE0) $(SRC) -o $(STAGE1)
 

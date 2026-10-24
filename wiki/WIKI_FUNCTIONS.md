@@ -98,11 +98,11 @@ the name or its address, and a saved copy of the previous value still calls
 the original body. See the [runnable function-cell example](../examples/b72/function_cells.b).
 Cells are initialized once, not each time the function is called.
 
-The host and bootstrap do not yet give every built-in runtime name this
-same writable-cell interface. A B definition can replace a library name in
-source-level calls, but internal bundled-runtime calls still use their own
-helpers. The native runtime supports those writable library cells and
-interposition too. Keep this distinction separate from source-function cells.
+Library function names also have writable cells in the host, bootstrap, and
+native runtimes. A saved value keeps calling the original implementation
+after the cell changes. The host's formatting and line-input helpers resolve
+the relevant B-level callbacks through those cells; private syscall and
+byte-marshalling helpers do not. See the [runtime binding rules](WIKI_RUNTIME_LIBRARY.md#writable-library-bindings).
 
 BCC does not promise C ABI compatibility for arbitrary B function values.
 Use documented host interoperability facilities where needed, and keep those

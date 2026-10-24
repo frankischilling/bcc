@@ -93,16 +93,15 @@ structure. Disk addresses are unavailable and creation time uses host status-
 change time; these approximations are documented in the runtime guide. Terminal
 interfaces still need separate ABI conformance work. The 32-bit mode
 is arithmetic emulation with native pointers; arithmetic on those pointers
-can still truncate them. Source-defined function names now have writable
-cells, and calls read the current value. Saved values, address-based changes,
-and cross-file references are tested. Built-in host runtime names still lack
-the complete writable-cell/interposition model.
-B source can define library names such as `printn` and `printf`, as the
-manual's examples do. The host and assembly-source compilers use those
-source definitions for direct calls and function values, including calls
-between input files compiled together. Internal calls made by a bundled
-runtime routine still use that runtime's own helpers; this is not full
-library interposition or support for the manual's stack-walking `printf`.
+can still truncate them. Source-defined and runtime-owned function names have
+writable cells. Calls read their current values, while saved function values
+retain the original bodies. Address-based changes and cross-file references
+are tested. B definitions can replace library names such as `printn` and
+`printf`, as the manual's examples do. Formatting and line-input callbacks
+follow those definitions, including separately compiled providers. Private
+syscall and byte-marshalling helpers remain internal. Source functions receive
+contiguous copies of all supplied arguments, so a routine can walk beyond its
+last named parameter as the manual's `printf` example does.
 The B-written bootstrap now shares the tested expression and lexical rules,
 including computed label values and writable source-function cells. Its strict mode now uses word-addressed
 pointers, while compatibility mode keeps byte addresses. It still lacks

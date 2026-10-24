@@ -277,20 +277,7 @@ static void emit_name(FILE *out, const char *name) {
     fputs(get_mangled_name(name), out);
 }
 
-static int runtime_function(const char *name) {
-    static const char *names[] = {
-        "char", "lchar", "getchar", "getchr", "putchr", "getstr", "putstr",
-        "flush", "reread", "printf", "printn", "putnum", "print", "putchar",
-        "exit", "abort", "free", "alloc", "open", "close", "read", "write",
-        "creat", "seek", "openr", "openw", "fork", "wait", "execl", "execv",
-        "chdir", "chmod", "chown", "link", "unlink", "stat", "fstat", "time",
-        "ctime", "getuid", "setuid", "makdir", "mkdir", "intr", "gtty", "stty",
-        "system", "usleep", "callf", "argc", "argv", NULL
-    };
-    for (size_t i = 0; names[i]; i++)
-        if (strcmp(name, names[i]) == 0) return 1;
-    return 0;
-}
+static int runtime_function(const char *name) { return b_library_function(name); }
 
 static void emit_function_body_name(FILE *out, const char *name) {
     if (!strcmp(name, "main")) fputs("__b_user_main", out);
@@ -780,10 +767,12 @@ static void emit_b_call(FILE *out, Expr *e, const char *filename,
         if (i) fputs(", ", out);
         emit_expr(out, e->as.call.args.data[i], filename);
     }
-    fprintf(out, "}; __bcc_is_source_function(__bcc_callee_%u) ? "
+    fprintf(out, "}; word __bcc_builtin_result_%u; "
+            "__bcc_try_builtin(__bcc_callee_%u, %zu, __bcc_args_%u, &__bcc_builtin_result_%u) ? "
+            "__bcc_builtin_result_%u : __bcc_is_source_function(__bcc_callee_%u) ? "
             "__bcc_invoke_source(__bcc_callee_%u, %zu, __bcc_args_%u) : "
             "((word (*)())B_FUNCTION_CPTR(__bcc_callee_%u))(",
-            id, id, count, id, id);
+            id, id, count, id, id, id, id, id, count, id, id);
     for (size_t i = 0; i < count; ++i) {
         if (i) fputs(", ", out);
         fprintf(out, "__bcc_args_%u[%zu]", id, i);
@@ -811,14 +800,11 @@ void emit_expr(FILE *out, Expr *e, const char *filename) {
             else if (e->function_value && source_function(e->as.var)) {
                 emit_function_cell(out, e->as.var);
             } else if (e->function_value) {
-                int library = runtime_function(e->as.var);
-                if (library) {
-                    fputs("__bcc_library_value(", out); emit_c_string(out, e->as.var); fputs(", ", out);
+                if (runtime_function(e->as.var)) {
+                    fputs("(*__bcc_binding_cell(", out); emit_c_string(out, e->as.var); fputs("))", out);
+                } else {
+                    fputs("B_FUNCTION(", out); emit_function_name(out, e->as.var); fputc(')', out);
                 }
-                fputs("B_FUNCTION(", out);
-                emit_function_name(out, e->as.var);
-                fputc(')', out);
-                if (library) fputc(')', out);
             } else if (e->global_value == 2) {
                 fprintf(out, "__b_external_%s", get_mangled_name(e->as.var));
             } else {
@@ -844,28 +830,15 @@ void emit_expr(FILE *out, Expr *e, const char *filename) {
             // Check if callee is a builtin function that needs b_ prefix
             if (e->as.call.callee->kind == EX_VAR) {
                 const char *name = e->as.call.callee->as.var;
-                if (strcmp(name, "callf") == 0 && !source_function(name)) {
-                    size_t nargs = e->as.call.args.len;
-                    size_t extra = (nargs > 0) ? (nargs - 1) : 0; /* args after name */
-                    fprintf(out, "b_callf_dispatch(%zu", extra);
-                    for (size_t i = 0; i < nargs; i++) {
-                        fputs(", ", out);
-                        emit_expr(out, (Expr*)e->as.call.args.data[i], filename);
-                    }
-                    fputc(')', out);
-                    return;
-                }
                 used_builtin_prefix = runtime_function(name) && !source_function(name);
             }
-            unsigned binding = 0;
             if (used_builtin_prefix) {
-                binding = ++expression_id;
-                fprintf(out, "({ word *__bcc_binding_%u = __bcc_source_binding(", binding);
-                emit_c_string(out, direct);
-                fprintf(out, "); word __bcc_result_%u; if (__bcc_binding_%u) __bcc_result_%u = ",
-                        binding, binding, binding);
+                unsigned binding = ++expression_id;
+                fprintf(out, "({ word *__bcc_binding_%u = __bcc_binding_cell(", binding);
+                emit_c_string(out, direct); fputs("); ", out);
                 emit_b_call(out, e, filename, NULL, binding);
-                fprintf(out, "; else __bcc_result_%u = ", binding);
+                fputs("; })", out);
+                return;
             }
             const char *cname = NULL;
             int wrap_ret_ptr = 0;
@@ -975,7 +948,6 @@ void emit_expr(FILE *out, Expr *e, const char *filename) {
             fputc(')', out);
             if (wrap_ret_ptr) fputc(')', out);
             if (printf_wrap_s) free(printf_wrap_s);
-            if (binding) fprintf(out, "; __bcc_result_%u; })", binding);
             return;
         }
 
@@ -1172,6 +1144,10 @@ void emit_expr(FILE *out, Expr *e, const char *filename) {
 
 void emit_ival_expr(FILE *out, Expr *e, const char *filename){
     if (e->kind == EX_VAR) {
+        if (runtime_function(e->as.var) && !predefined_argv(e->as.var)) {
+            fputs("B_ADDR(*__bcc_binding_cell(", out); emit_c_string(out, e->as.var); fputs("))", out);
+            return;
+        }
         fputs("B_ADDR(", out);
         if (predefined_argv(e->as.var)) fputs("b_argv_vector", out);
         else if (global_data_kind(e->as.var) == 2)
@@ -1819,10 +1795,10 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
 "    }\n"
 "    __bcc_run_initializers();\n"
 "}\n"
-"static int rd_fd = 0;  /* current input fd */\n"
-"static int wr_fd = 1;  /* current output fd */\n"
-"static word rd_unit = 0; /* exposed to B if needed */\n"
-"static word wr_unit = (word)-1;\n"
+"int b_rd_fd __attribute__((weak)) = 0;\n#define rd_fd b_rd_fd\n"
+"int b_wr_fd __attribute__((weak)) = 1;\n#define wr_fd b_wr_fd\n"
+"word b_rd_unit __attribute__((weak)) = 0;\n#define rd_unit b_rd_unit\n"
+"word b_wr_unit __attribute__((weak)) = (word)-1;\n#define wr_unit b_wr_unit\n"
 "static void __b_sync_rd(void){\n"
 "    if (rd_unit < 0) {\n"
 "        if (rd_fd != 0 && rd_fd > 2) close(rd_fd);\n"
@@ -2569,6 +2545,17 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
         "\n",
         out
     );
+
+    {
+        char *path = fmt("%s/bprimitives.h", g_libb_path);
+        size_t length;
+        char *header = read_file_all(path, &length);
+        fputs("#define B_BUILTIN_STORAGE __attribute__((weak))\n", out);
+        fwrite(header, 1, length, out);
+        fputc('\n', out);
+        free(header);
+        if (!g_compilation_arena) free(path);
+    }
 
     // Emit Thompson B packed strings (works for both pointer modes)
     if (string_pool.len > 0) {

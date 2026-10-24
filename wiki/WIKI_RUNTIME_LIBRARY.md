@@ -30,7 +30,7 @@ implements every host helper. The host ABI declarations are in
 [`libb.h`](../lib/libb.h), and source-name binding is in
 [`src/emitter.c`](../src/emitter.c).
 
-## Supplied library bindings
+## Writable library bindings
 
 A program can supply its own function or data cell for a library name.
 Formatting follows those bindings when it calls `char`, `putchar`, and
@@ -41,10 +41,19 @@ when the provider was compiled into a separate object. Ordinary separate
 B-object linking still requires strict mode when a name is not a known
 runtime entry; compatibility mode also exposes C calls.
 
-This is not yet writable storage for every host-owned built-in. Without a
-supplied source cell, taking a built-in's address or replacing its binding
-still has the documented host limits. The dynamic C-call bridge is a host
-interop helper, not an ordinary historical library binding.
+The host and bootstrap also give runtime-owned functions writable cells.
+You can save `putchar`, replace it through its name or `&putchar`, and restore
+it without defining a replacement cell in the source. Saved function values
+continue to call the original body. Cells and input/output state are shared
+across inline-runtime modules. See the [save-and-restore example](../examples/b72/library_cells.b).
+
+Built-in calls use the actual B argument count. Fixed-arity helpers ignore
+extra arguments after evaluating them; missing required arguments produce a
+runtime diagnostic. `printf` checks that a conversion has an argument, and
+`execl` requires its terminating zero within the supplied list. These checks
+are host safety behavior, not promises made by historical B. `callf` uses the
+same cell interface, but remains a host interoperability extension limited to
+ten arguments after the symbol name.
 
 ## Host command-line replay
 
@@ -168,15 +177,16 @@ symbols using the host ABI. `B_CALLF_LIB` selects an optional shared library;
 any library loaded this way executes native code in the program's process.
 See [`lib/libb.c`](../lib/libb.c) for dispatch, argument conversion, and
 supported built-in shims before defining an external wrapper. No arbitrary
-foreign ABI or floating-point argument convention is promised.
+foreign ABI or floating-point argument convention is promised. Arguments are
+converted from B addresses to host pointers, not passed as scalar numbers.
+An external wrapper must match that pointer-based interface.
 
 ## Replacement and error handling
 
-Source-defined library functions replace host source-level calls, including
-function values. Internal calls within the bundled host runtime still use
-its own helpers. All three compilers support writable cells for source-defined functions.
-The native runtime also exposes writable library cells and interposition;
-the host and bootstrap still lack that complete runtime interface.
+Source-defined and default library functions have writable cells. Replacement
+changes later calls through the cell, not values saved before the assignment.
+The callback rules above distinguish replaceable B-level calls from private
+runtime helpers.
 
 Return conventions are per function, not a universal zero/success rule.
 In particular, printing and string helpers should not be used as reliable
