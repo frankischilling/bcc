@@ -162,3 +162,10 @@ Host source-function cells change the generated object ABI: rebuild all B
 objects with the same compiler and runtime modes. A function's public binding
 is data, while its executable body has a private C name. Separate strict
 objects therefore use the same cell interface for calls and replacements.
+
+Parameter references carry a binding index after semantic analysis. The host
+emitter copies declared arguments into one per-invocation word array and
+uses those cells for reads, writes, and address-of. The whole array receives
+one translated-address registration in 16-bit mode. The bootstrap uses the
+same storage shape; its local-name lookup and compatibility block scopes keep
+a shadowing local distinct from the parameter cell.

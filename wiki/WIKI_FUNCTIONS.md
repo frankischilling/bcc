@@ -50,6 +50,21 @@ main() {
 }
 ```
 
+## Parameter storage
+
+Declared parameters occupy consecutive word cells in declaration order.
+Taking the first parameter's address and indexing that block reaches the
+following declared parameters. Writing through such an address changes the
+parameter, not the caller's original variable. Recursive calls have separate
+blocks. See the [parameter-cell example](../examples/b72/parameter_cells.b).
+
+The host and bootstrap use an explicit parameter block instead of relying
+on how a C compiler spills argument registers. In translated 16-bit mode,
+the block is registered as one object so free-list fragmentation cannot
+separate its cells. This does not yet establish a general variadic argument
+area beyond the declared parameters, or complete compatibility for missing
+arguments.
+
 ## Function values
 
 A function value can be stored in a variable, passed as an argument, or

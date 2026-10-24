@@ -9,7 +9,7 @@ SRC; SRCLEN; POS; LINE; COL; STRICT; WANT_NCURSES;
 TOK; TNUM; TTEXT; TTEXTLEN;
 HOIST; OUT; FUNS; NFUNS; MAIN_NARGS; HAS_MAIN; GLOBS; NGLOBS;
 ALLFUNS; NALLFUNS; ALLGLOBS; NALLGLOBS;
-VERBOSE; LIBDIR; LOCALS; NLOCALS; LABELS; NLABELS; LABELPASS;
+VERBOSE; LIBDIR; LOCALS; NLOCALS; LABELS; NLABELS; LABELPASS; PARAMCOUNT;
 
 CWORDS[] "auto","break","case","char","const","continue","default",
     "do","double","else","enum","extern","float","for","goto","if",
@@ -742,8 +742,22 @@ c_name(name) {
     return(1);
 }
 
-local_name(name) {
+storage_name(name) {
     return(scat("__bbc_local_",name));
+}
+
+local_name(name) {
+    auto i;
+    i=NLOCALS-1;
+    while(i>=0) {
+        if(streq(LOCALS[i],name)) {
+            if(i<PARAMCOUNT)
+                return(scat(scat("__bbc_parameters[",itoa(i)),"]"));
+            return(storage_name(name));
+        }
+        i = i - 1;
+    }
+    return(storage_name(name));
 }
 
 global_name(name) {
@@ -1134,7 +1148,7 @@ auto_decl() {
         if (TOK != 1) fatal("expected auto name");
         name = TTEXT;
         add_local(name);
-        name = local_name(name);
+        name = storage_name(name);
         next(); size = 0;
         if (TOK == 34) {
             if (STRICT) fatal("bracketed auto vector is not strict B");
@@ -1181,26 +1195,31 @@ block_item() {
 }
 
 block() {
+    auto scope;
+    scope=NLOCALS;
     expect(32);
     emitln("{");
     while (TOK != 33) block_item();
     expect(33);
     emitln("}");
+    if(!STRICT) NLOCALS=scope;
 }
 
 stmt() {
-    auto e, name, psave, lsave, csave, i;
+    auto e, name, psave, lsave, csave, i, scope;
     if (TOK == 32) {
         block();
         return(0);
     }
     if ((TOK == 10) | (TOK == 11)) {
+        scope=NLOCALS;
         emitln("{");
         while ((TOK == 10) | (TOK == 11)) {
             if (TOK == 10) auto_decl(); else extrn_stmt();
         }
         stmt();
         emitln("}");
+        if(!STRICT) NLOCALS=scope;
         return(0);
     }
     if (TOK == 12) {
@@ -1373,7 +1392,7 @@ scan_functions() {
     auto name, n;
     extrn free;
     NFUNS = 0; NGLOBS = 0; MAIN_NARGS = 0; HAS_MAIN = 0;
-    NLOCALS = 0; NLABELS = 0; LABELPASS = 1;
+    NLOCALS = 0; NLABELS = 0; LABELPASS = 1; PARAMCOUNT = 0;
     OUT = buf_new(1024);
     next();
     while (TOK != 0) {
@@ -1549,6 +1568,7 @@ global_or_func() {
     auto name, n, first, p, size, init, braced;
     NLOCALS = 0;
     NLABELS = 0;
+    PARAMCOUNT = 0;
     if (TOK != 1) fatal("expected top-level name");
     name = TTEXT;
     next();
@@ -1569,7 +1589,7 @@ global_or_func() {
             add_local(p);
             if (!first) emit(", ");
             emit("word ");
-            emit(local_name(p));
+            emit(storage_name(p));
             first = 0;
             n = n + 1;
             next();
@@ -1630,6 +1650,7 @@ func_body() {
     p = POS; l = LINE; c = COL;
     t = TOK; text = TTEXT; num = TNUM; len = TTEXTLEN;
     locals = NLOCALS;
+    PARAMCOUNT = locals;
     saved = OUT;
     OUT = buf_new(1024);
     NLABELS = 0;
@@ -1651,6 +1672,16 @@ emit_body() {
     braced = TOK == 32;
     if (braced) expect(32);
     emitln("{");
+    if (!LABELPASS & (PARAMCOUNT > 0)) {
+        emit("word __bbc_parameters[");emit(itoa(PARAMCOUNT));emit("] = {");
+        i=0;
+        while(i<PARAMCOUNT) {
+            if(i)emit(", ");
+            emit(storage_name(LOCALS[i]));
+            i=+1;
+        }
+        emitln("};");
+    }
     if (STRICT & !LABELPASS & (HOIST != 0)) emit(buf_take(HOIST));
     if (!LABELPASS) {
         i=1;

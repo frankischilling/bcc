@@ -178,6 +178,7 @@ static int has_data_declaration(Program *prog, const char *name) {
 }
 
 static void mark_global_reference(SemState *st, Expr *e, Symbol *sym) {
+    e->parameter_index = sym ? sym->parameter_index : 0;
     if (sym && sym->kind == SYM_VAR && sym->is_extern)
         e->global_value = 1;
     else if (!sym && is_extern_name(st, e->as.var) && !is_function_name(st, e->as.var))
@@ -457,6 +458,7 @@ static void sem_check_func(SemState *st, Func *f) {
         }
 
         Symbol *sym = symbol_new(SYM_VAR, param_name, 0, 0); // line/col not meaningful for params
+        sym->parameter_index = i + 1;
         scope_add(st->current, sym);
     }
 

@@ -7,6 +7,7 @@ PDP-11 compiler.
 - `formatting.b`: signed decimal/octal, packed character pairs, and the
   historical handling of repeated percent signs.
 - `function_cells.b`: replacing a source function while retaining its old value.
+- `parameter_cells.b`: walking the declared argument cells in order.
 - `label_cells.b`: replacing a label value and observing it on later calls.
 - `directory.b`: the historical `mkdir` name and directory status flag.
 

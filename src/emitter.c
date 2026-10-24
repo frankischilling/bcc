@@ -775,6 +775,7 @@ void emit_expr(FILE *out, Expr *e, const char *filename) {
         case EX_VAR: {
             int id = label_id(e->as.var);
             if (id) fprintf(out, "__b_label_value_%d", id);
+            else if (e->parameter_index) fprintf(out, "__bcc_parameters[%zu]", e->parameter_index - 1);
             else if (e->builtin_argv) fputs("b_argv_vector", out);
             else if (e->function_value && source_function(e->as.var)) {
                 emit_function_cell(out, e->as.var);
@@ -1469,18 +1470,22 @@ static void emit_function_body(FILE *out, Func *f, const char *filename) {
     function_labels.len = 0;
     collect_function_labels(f->body);
     fputs("{\n    B_FRAME;\n", out);
+    if (f->params.len) {
+        fprintf(out, "    word __bcc_parameters[%zu] = {", f->params.len);
+        for (size_t p = 0; p < f->params.len; ++p) {
+            if (p) fputs(", ", out);
+            emit_name(out, f->params.data[p]);
+        }
+        fputs("};\n", out);
+        if (current_word_bits == 16)
+            fputs("    (void)B_LOCAL_PTR_N(__bcc_parameters, sizeof(__bcc_parameters));\n", out);
+    }
     if (g_strict) {
         Vec locals = {0};
         collect_function_autos(f->body, &locals);
         for (size_t i = 0; i < locals.len; ++i)
             emit_auto_storage(out, locals.data[i], 1, filename);
         if (!g_compilation_arena) free(locals.data);
-    }
-    if (current_word_bits == 16) {
-        for (size_t p = 0; p < f->params.len; p++) {
-            const char *name = get_mangled_name(f->params.data[p]);
-            fprintf(out, "    (void)B_LOCAL_PTR_N(&%s, sizeof(%s));\n", name, name);
-        }
     }
     for (size_t i = 0; i < function_labels.len; i++)
         fprintf(out, "    static word __b_label_value_%zu = %zu;\n", i + 1, i + 1);

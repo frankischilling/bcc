@@ -191,3 +191,9 @@ locked scope. The fast runner copies the compiler passes, emulator, and
 runtime under a shared lock, then executes those private copies. Lock tests
 exercise two Make processes and a shell-script/Make pair against shared
 scratch files, including nested entry points.
+
+Parameter-layout checks cover adjacent cells, mutation through their addresses,
+call-by-value, recursive invocations, retained heap allocations between freed
+frames, cross-file calls, callable parameters, and compatibility-mode local
+shadowing. The common argument-cell case also runs on native PDP-11 and in
+Unix V1.

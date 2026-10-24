@@ -164,6 +164,7 @@ struct Expr {
     int builtin_argv;   /* The predefined argv vector, not argv(i). */
     int global_value;   /* 1: B storage cell; 2: external or host macro. */
     int indirect_call;  /* The callee is an evaluated B word. */
+    size_t parameter_index; /* One-based index in the invocation parameter block. */
     size_t string_len; // EX_STR byte length, excluding the implicit *e
     union {
         long num;          // EX_NUM
@@ -296,6 +297,7 @@ typedef struct Symbol {
     int line, col;        // declaration location
     int is_extern;        // for variables: declared with extrn
     int is_builtin;       // default library binding, not a source definition
+    size_t parameter_index; /* Zero for non-parameter bindings. */
     union {
         struct {
             int has_size;     // 0 for scalars, 1 for vectors
