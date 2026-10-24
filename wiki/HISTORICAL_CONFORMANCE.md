@@ -103,7 +103,8 @@ The B-written bootstrap now shares the tested expression and lexical rules,
 including computed label values. It still lacks 16-bit storage.
 The native compiler now loads pointer values before indexing scalar and
 parameter expressions, and gives external vectors mutable pointer cells.
-It still uses byte addresses.
+It resolves forward label values within their function and diagnoses missing
+or duplicate labels before assembly. It still uses byte addresses.
 
 The host clock and both date formatters use the [V1 time representation][v1time]:
 32 bits of 60 Hz ticks since January 1, 1971, high word first. `ctime(time,date)`

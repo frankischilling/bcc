@@ -82,7 +82,8 @@ Vector slot holds pointer
 to data area, initialized at function entry by the resolved `vi` IC record.
 ✔ `extrn NAME, ...` - register external reference.
 ✔ Internal labels: `name :` declares; first reference to undeclared name
-in expression context creates an implicit C_EXTRN.
+in expression context creates a forward label reference. Labels are scoped
+to their function; unresolved and duplicate definitions are rejected.
 
 ## §7  External Definitions
 
@@ -178,7 +179,7 @@ The fast runner uses an unchanged-text compatibility container to observe
 results that the pinned apout 0405 mode discards. Full-system tests remain
 separate and cover real V1 files, processes, tty state, and time registers.
 See [the test guide](../../docs/testing.md). The native compiler still needs
-work on indirect function calls, mutable function-name storage, forward
-label values, word-addressed pointers, and cross-file linkage for mapped
+work on indirect function calls, mutable function-name storage,
+word-addressed pointers, and cross-file linkage for mapped
 external names. Table
 entries above describe implemented paths, not a claim of complete conformance.

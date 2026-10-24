@@ -151,9 +151,10 @@ rrname(name) char name[]; {
 	int scls[], soff[], pndcls;
 	int sid;
 	sid = symfnd(name);
-	if (sid < 0) sid = symadd(name, 3, 0);
+	/* An undeclared internal name denotes a function-local label. */
+	if (sid < 0) sid = symadd(name, 5, newl());
 	pndcls = scls[sid];
-	if (pndcls == 5) {
+	if (pndcls == 5 | pndcls == 8) {
 		outs("la "); outd(soff[sid]); outc('\n');
 		return;
 	}
@@ -175,7 +176,7 @@ rrname(name) char name[]; {
 rrderef() {
 	extern pndcls;
 	int pndcls;
-	if (pndcls == 5) return;
+	if (pndcls == 5 | pndcls == 8) return;
 	outs("dr\n");
 }
 
@@ -185,7 +186,7 @@ rrlbl(name) char name[]; {
 	int sid;
 	sid = symfnd(name);
 	if (sid < 0) sid = symadd(name, 5, newl());
-	if (scls[sid] != 5) {
+	if (scls[sid] != 5 & scls[sid] != 8) {
 		rrname(name);
 		rrderef();
 		outs("gor\n");
@@ -202,7 +203,9 @@ rrdef(name) char name[]; {
 	int sid;
 	sid = symfnd(name);
 	if (sid < 0) sid = symadd(name, 5, newl());
+	if (scls[sid] == 8) fatal("duplicate label");
 	if (scls[sid] != 5) fatal("label name collision");
+	scls[sid] = 8;
 	outs("lb ");
 	outd(soff[sid]);
 	outc('\n');
@@ -270,6 +273,11 @@ rewrt() {
 			continue;
 		}
 		if (tageq(dtag, "Aend")) {
+			sid = fnst;
+			while (sid < nsy) {
+				if (scls[sid] == 5) fatal("undefined internal label");
+				sid = sid + 1;
+			}
 			emitpr();
 			outs("ep\n");
 			symtrn();

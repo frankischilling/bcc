@@ -133,8 +133,9 @@ non-negative `printn` example.
 - Pointers are byte-addressed, not the manual's word addresses. Vector
   names have mutable pointer cells, and indexing loads a pointer value
   before selecting an element.
-- Function-name storage, indirect calls, and forward label values still
-  need further native conformance work.
+- Function-name storage and indirect calls still need further native
+  conformance work. Forward label values work within their function; missing
+  and duplicate labels are rejected by the resolver.
 - The startup argument vector keeps at most 31 user arguments and currently
   omits the program name. Its count reports only stored entries.
 - Source strings are limited to 255 bytes plus the B terminator. Oversized

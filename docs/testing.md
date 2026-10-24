@@ -70,6 +70,7 @@ make -C pdp-11/bcc-pdp v1-run B=tests/run/t33_files.b
 make -C pdp-11/bcc-pdp v1-run B=tests/run/t34_fork.b
 make -C pdp-11/bcc-pdp v1-run B=tests/run/t35_execv.b
 make -C pdp-11/bcc-pdp v1-run B=tests/run/t41_eight_names.b
+make -C pdp-11/bcc-pdp v1-run B=tests/run/t43_forward_labels.b
 make -C pdp-11/bcc-pdp v1-run B=tests/v1/tty.b
 bash pdp-11/bcc-pdp/tools/v1-run.sh pdp-11/bcc-pdp/tests/run/t19a_tilde.b --expect-compile-error
 ```
