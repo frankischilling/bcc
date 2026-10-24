@@ -31,6 +31,16 @@ supported; shell expansion and redirection are not performed.
 compiling. `--strict --pedantic` selects the bootstrap compiler's stricter
 syntax checks. Token and AST dumps are not implemented here.
 
+Character constants must contain at least one character. Strict mode allows
+one or two; compatibility mode allows up to four. Unfinished constants fail
+compilation rather than producing a partial value.
+
+External vectors allocate the larger of the declared size and initializer
+count. The tests compile size assertions as well as running programs, so
+extra allocation and truncated initializer lists cannot pass unnoticed.
+The C backends reserve a backing word for an empty vector, but it has no
+usable elements.
+
 ## Remaining differences
 
 Computed branches use function-local label values, including forward
@@ -38,7 +48,3 @@ references. The bootstrap compiler still uses host-sized, byte-addressed
 storage rather than the host compiler's 16-bit address translation. Function-valued calls are covered, but mutable
 function-name storage and complete block-scope resolution still need work.
 Those are separate from the generated-C fixed-point check.
-
-Character constants must contain at least one character. Strict mode allows
-one or two; compatibility mode allows up to four. Unfinished constants fail
-compilation rather than producing a partial value.

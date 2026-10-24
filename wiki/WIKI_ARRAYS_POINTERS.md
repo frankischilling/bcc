@@ -5,7 +5,10 @@ for automatic vectors and `goto` for loop exits. It supports computed branches
 within the current function. See [historical conformance references](HISTORICAL_CONFORMANCE.md)
 for the dialect rules and source evidence.
 
-B's array and pointer system works with word-sized values. BCC's command-line compiler uses byte-addressed pointers by default while preserving word-sized array elements and B-style pointer operations.
+These examples use word-addressed mode (`--wordptr`, or strict mode), where
+adding one to a pointer advances by one B word. In the default byte-addressed
+compatibility mode, adding one advances by one byte; vector indexing still
+selects whole words.
 
 ---
 
@@ -24,7 +27,7 @@ arr[5] = 42;     // Access word at index 5
 - **Word Size**: `host`, `16`, or `32` depending on `--word=`
 - **Pointer Units**: Byte addresses in the current command-line compiler
 - **Array Indexing**: Word-based offsets
-- **Pointer Arithmetic**: Word-sized steps
+- **Pointer Arithmetic**: Word-sized steps in word-addressed mode
 
 ### Word vs Byte Addressing
 
@@ -49,6 +52,18 @@ auto buffer 256;        // 256 words
 
 // Array with initialization
 auto data 5;
+```
+
+### External Vectors
+
+An external vector uses its bracketed value as a size, not a final index.
+The allocated element count is the larger of that size and the number of
+initializers. This follows section 7.2 of the PDP-11 B reference.
+
+```b
+values[3];             /* three elements, indexed 0 through 2 */
+more[2] 1,2,3,4;       /* four elements; keep every initializer */
+inferred[] 7,8,9;      /* three elements */
 ```
 
 ### Dynamic Arrays

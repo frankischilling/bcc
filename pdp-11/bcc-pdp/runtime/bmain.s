@@ -18,12 +18,9 @@ start:
 	/ argv[0] is the program name, argv[1..argc-1] are the user args.
 	mov	sp, r0
 	mov	(r0)+, r1	/ r1 = argc; r0 = &argv[0]
-	tst	(r0)+		/ skip program name in the current compatibility layout
 
 	/ Populate _argv[] (kbman §8: predefined external).
-	/ Current layout: _argv[0] excludes the program name;
-	/ _argv[1..argv[0]] are the user-supplied parameter strings.
-	dec	r1		/ subtract progname from count
+	/ _argv[0] includes the program name, stored at _argv[1].
 	mov	r1, r3		/ r3 = remaining count
 	mov	$_argv+4, r2	/ r2 = &_argv[1]
 	cmp	r3, $31.
@@ -40,8 +37,13 @@ start:
 2:
 
 	/ Old-style direct push of argc/argv on stack for backwards compat
-	mov	$_argv+4, -(sp)	/ argv pointer (skip _argv[0])
-	mov	_argv+2, -(sp)	/ user-arg count
+	mov	$_argv+6, -(sp)	/ compatibility main: skip count and program name
+	mov	_argv+2, r0
+	dec	r0			/ compatibility main receives user-arg count
+	bge	4f
+	clr	r0			/ exec may supply an empty argument vector
+4:
+	mov	r0, -(sp)
 	jsr	pc, _main
 	add	$4, sp		/ drop pushed args
 	sys	exit		/ kernel reads r0 as exit status

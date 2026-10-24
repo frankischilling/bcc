@@ -26,7 +26,8 @@ primary sources and the limits of that mode.
 
 ### Memory Model
 
-- **Byte-addressed (compatibility default):** Standard byte-addressed pointers (modern C semantics)
+- **Byte-addressed (compatibility default):** Pointer values are byte addresses;
+  adding one advances one byte, while vector indexing selects whole words
 - **Word-addressed:** `--wordptr`, strict mode, and 16-bit mode select word addresses unless `--byteptr` is explicit
 - **Character Packing:** Thompson B72 character constants are one or two bytes; default extension mode also accepts three or four
 - **String Termination:** Strings use `*e` (EOT, ASCII 4) as terminator, not null bytes

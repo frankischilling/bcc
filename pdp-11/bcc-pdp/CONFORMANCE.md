@@ -133,9 +133,11 @@ assembly syscall wrappers and B library functions:
 Predefined `argv[]` (kbman §8 last paragraph): a pointer cell and a 32-word vector populated by
 `runtime/bmain.s` from the V1 kernel argument frame.  `argv[0] = argc`,
 `argv[1..argv[0]]` are byte-address pointers to argument strings.
-The current implementation omits the program name and keeps at most 31 user
-arguments; the count reports only stored entries. This is a compatibility
-limit, not full reproduction of the historical argument vector.
+The program name occupies `argv[1]`; user arguments start at `argv[2]`.
+At most 31 string pointers fit, and the count reports only stored entries.
+Strings retain the kernel's NUL terminator. The fixed capacity is a limit,
+not full reproduction of the historical argument vector. For compatibility,
+optional `main(count, values)` parameters exclude the program name.
 
 ## §9  Examples
 

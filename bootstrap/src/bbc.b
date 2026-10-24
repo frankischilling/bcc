@@ -1388,7 +1388,7 @@ emit_prototypes() {
 }
 
 global_or_func() {
-    auto name, n, first, p, size, init, empty;
+    auto name, n, first, p, size, init, braced;
     if (TOK != 1) fatal("expected top-level name");
     name = TTEXT;
     next();
@@ -1423,57 +1423,42 @@ global_or_func() {
     }
     if (TOK == 34) {
         next();
-        empty = 0;
-        if (TOK == 35) {
-            empty = 1;
-            next();
-        } else {
+        size = "0";
+        if (TOK == 35) next();
+        else {
             size = expr(1);
             expect(35);
         }
+        /* Collect initializers before choosing max(size, count). */
+        init = buf_new(128);
+        n = 0;
+        braced = TOK == 32;
+        if (braced) next();
+        while (TOK != 37) {
+            if (braced & (TOK == 33)) break;
+            p = expr(2);
+            if (n) buf_str(init, ", ");
+            buf_str(init, p);
+            n = n + 1;
+            if (TOK == 36) next();
+            else break;
+        }
+        if (braced) expect(33);
         emit("static word __");
         emit(name);
-        emit("_store");
-        if (!empty) {
-            emit("[");
-            emit(size);
-            emit("]");
+        emit("_store[(");
+        emit(size);
+        emit(") > ");
+        if (n) emit(itoa(n)); else emit("1");
+        emit(" ? ("); emit(size); emit(") : ");
+        if (n) emit(itoa(n)); else emit("1");
+        emit("]");
+        if (n) {
+            emit(" = {"); emit(buf_take(init)); emit("}");
         }
-        if (TOK == 32) {
-            next();
-            if (empty) emit("[]");
-            emit(" = {");
-            first = 1;
-            while (TOK != 33) {
-                init = expr(2);
-                if (!first) emit(", ");
-                emit(init);
-                first = 0;
-                if (TOK == 36) next();
-                else break;
-            }
-            expect(33);
-            emitln("};");
-        } else if (TOK != 37) {
-            emit(" = {");
-            first = 1;
-            while (TOK != 37) {
-                init = expr(2);
-                if (!first) emit(", ");
-                emit(init);
-                first = 0;
-                if (TOK == 36) next();
-                else break;
-            }
-            emitln("};");
-        } else {
-            emitln(";");
-        }
-        emit("word ");
-        emit(name);
-        emit(" = B_PTR(__");
-        emit(name);
-        emitln("_store);");
+        emitln(";");
+        emit("word "); emit(name);
+        emit(" = B_PTR(__"); emit(name); emitln("_store);");
         expect(37);
         return(0);
     }

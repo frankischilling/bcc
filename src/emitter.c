@@ -2476,7 +2476,7 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
                     long bv = 0;
                     if (try_eval_const_expr(item->as.var.bound, &bv)) {
                         if (bv < 0) bv = 0;
-                        outer_len = (size_t)(bv + 1);
+                        outer_len = (size_t)bv;
                     } else {
                         outer_len = init_len ? init_len : 1;
                     }
@@ -2559,7 +2559,7 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
                         long bv = 0;
                         if (try_eval_const_expr(item->as.var.bound, &bv)) {
                             if (bv < 0) bv = 0;
-                            outer_len = (size_t)(bv + 1);
+                            outer_len = (size_t)bv;
                         } else outer_len = init_len ? init_len : 1;
                         if (init_len > outer_len) outer_len = init_len;
                     } else outer_len = init_len ? init_len : 1;
@@ -2740,7 +2740,7 @@ void emit_program_c_ext(FILE *out, Program *prog, const char *filename, int byte
                     long bv = 0;
                     if (try_eval_const_expr(item->as.var.bound, &bv)) {
                         if (bv < 0) bv = 0;
-                        outer_len = (size_t)(bv + 1);
+                        outer_len = (size_t)bv;
                     } else {
                         outer_len = init_len ? init_len : 1;
                     }
@@ -2817,7 +2817,7 @@ void emit_program_c_ext(FILE *out, Program *prog, const char *filename, int byte
                         long bv = 0;
                         if (try_eval_const_expr(item->as.var.bound, &bv)) {
                             if (bv < 0) bv = 0;
-                            outer_len = (size_t)(bv + 1);
+                            outer_len = (size_t)bv;
                         } else outer_len = init_len ? init_len : 1;
                         if (init_len > outer_len) outer_len = init_len;
                     } else outer_len = init_len ? init_len : 1;

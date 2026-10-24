@@ -8,21 +8,25 @@ prnt(s) {
 	i = 0;
 	while (1) {
 		c = char(s, i);
-		if (c == 0) return;        /* C-string terminated for V1 argv */
-		if (c == 4) return;        /* *e EOT (B convention) */
+		if (c == 0) return;		/* C-string terminated for V1 argv */
+		if (c == 4) return;		/* *e EOT (B convention) */
 		putchar(c);
 		i = i + 1;
 	}
+	return(0);
 }
 
 main() {
 	extrn argv, prnt, putchar;
 	auto i, n;
 	n = argv[0];
-	i = 1;
+	if (n != 3) return(1);
+	if (!argv[1]) return(2);
+	i = 2;		/* Skip the program name. */
 	while (i <= n) {
 		prnt(argv[i]);
 		putchar('*n');
 		i = i + 1;
 	}
+	return(0);
 }

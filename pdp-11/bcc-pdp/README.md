@@ -136,8 +136,10 @@ non-negative `printn` example.
 - Function-name storage and indirect calls still need further native
   conformance work. Forward label values work within their function; missing
   and duplicate labels are rejected by the resolver.
-- The startup argument vector keeps at most 31 user arguments and currently
-  omits the program name. Its count reports only stored entries.
+- The startup argument vector keeps at most 31 entries, including the
+  program name at `argv[1]`. Its count reports only stored entries. The
+  optional `main(count, values)` extension still receives user arguments
+  only, excluding the program name.
 - Character constants require one or two characters; empty, oversized,
   and unfinished constants are rejected.
 - Source strings are limited to 255 bytes plus the B terminator. Oversized
