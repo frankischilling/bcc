@@ -13,7 +13,9 @@ Status legend:
 
 ## §1–2  Introduction & Canonical Syntax
 
-✔ Full BNF in `src/bstmt.c` and `src/bexpr.c`.
+The parser lives in `src/bstmt.c` and `src/bexpr.c`. It does not yet cover
+the full grammar: declarations are restricted to the beginning of a braced
+function body, and string constants are not accepted as external initializers.
 ✔ Reserved keywords: `auto extrn case if else while switch goto return` (9 only;
 the strict 1972 set).
 ✔ All operators per §2 grammar.
@@ -29,17 +31,17 @@ word-addressed; this compiler is byte-addressed. See
 
 | § | Topic | Status |
 |---|---|---|
-| 4.1 | Primary | ✔ name, decimal/octal const, char `'c'`/`'cc'`, string, `(...)`, `v[i]`, `f(...)` |
+| 4.1 | Primary | ✚ names, numeric/character/string constants, parentheses, and indexing; direct calls work, but general function-valued calls remain incomplete |
 | 4.2 | Unary `-` `!` `*` `&` `++` `--` | ✔ - `~` removed (not in kbman) |
 | 4.3 | Multiplicative `*` `/` `%` | ✔ via runtime `.mul .div .mod` |
 | 4.4 | Additive `+` `-` | ✔ |
 | 4.5 | Shift `<<` `>>` | ✔ via runtime `.shl .shr` |
 | 4.6 | Relational `<` `<=` `>` `>=` | ✔ |
 | 4.7 | Equality `==` `!=` | ✔ |
-| 4.8 | AND `&` (dual logical+bitwise) | ✔ - `&&` removed |
-| 4.9 | OR `|` (dual logical+bitwise) | ✔ - `||` removed |
+| 4.8 | AND `&` (bitwise) | ✔ - `&&` removed |
+| 4.9 | OR `|` (bitwise) | ✔ - `||` removed |
 | 4.10 | Conditional `?:` | ✔ |
-| 4.11 | All 16 compound assigns | ✔ - `=^` removed (not in kbman binary set) |
+| 4.11 | All 15 B72 compound assigns | ✔ - `=^` removed (not in kbman binary set) |
 
 ## §5  Statements
 
@@ -63,24 +65,28 @@ Unix V1 gives each process 16 KB of address space.  The installed compiler
 therefore runs as `b00 -> b01 -> b1`, and each binary is checked for both
 `text + data <= 16384` and `text + data + bss <= 16384`.
 
-Current installed budgets:
+Measured `text + data + bss` for the current sources:
 
 | Binary | Role | Current total |
 |---|---|---:|
-| `b00` | lex + parse + raw IC | 15304 bytes |
-| `b01` | symbols + IC resolution | 10474 bytes |
-| `b1` | assembly emitter | 12504 bytes |
-| `b` | driver | 2016 bytes |
+| `b00` | lex + parse + raw IC | 15722 bytes |
+| `b01` | symbols + IC resolution | 9550 bytes |
+| `b1` | assembly emitter | 15700 bytes |
+| `b` | driver | 4082 bytes |
+
+These totals exclude the argument frame and runtime stack. Passing the binary
+size check does not establish that every input or recursion depth fits.
 
 ## §6  Declarations
 
-✔ `auto NAME [const]` - scalar or historical vector autos (`auto v 3`).
+✚ Scalar and historical vector autos (`auto v 3`) work at the start of a
+braced function body. Numeric and character-valued extents are accepted.
 Vector slots hold mutable pointers, for both automatic and external vectors.
 Indexing a scalar or parameter loads its pointer value before selecting an element.
 The pointer still uses byte units, so this does not resolve the §12 deviation.
 Vector slot holds pointer
 to data area, initialized at function entry by the resolved `vi` IC record.
-✔ `extrn NAME, ...` - register external reference.
+✚ `extrn NAME, ...` registers an external reference in the same declaration prefix.
 ✔ Internal labels: `name :` declares; first reference to undeclared name
 in expression context creates a forward label reference. Labels are scoped
 to their function; unresolved and duplicate definitions are rejected.
@@ -89,12 +95,13 @@ to their function; unresolved and duplicate definitions are rejected.
 
 | § | Form | Status |
 |---|---|---|
-| 7.1 | `name {ival, ival, ...} ;` | ✔ - no `=` between name and ivals (matches kbman) |
-| 7.2 | `name [size] {ival, ival, ...} ;` | ✔ - ivals can be constants OR names (address-of) |
-| 7.3 | `name(args) stmt` | ✔ |
+| 7.1 | `name {ival, ival, ...} ;` | ✚ contiguous cells; numeric/character values and external addresses, but no string initializers |
+| 7.2 | `name [size] {ival, ival, ...} ;` | ✚ numeric/character values and external addresses; no string initializers |
+| 7.3 | `name(args) stmt` | ✚ ordinary statement bodies work; declaration statements still require the braced prefix |
 
-`ival` accepts a constant or a name; a name initializer emits the mapped assembler symbol
-(byte address of the named external) at the data slot.
+A name initializer emits the mapped assembler symbol (the byte address of
+the named external) at the data slot. Unlike the manual, the native parser
+currently rejects string initializers such as `message "hello";`.
 
 ## §8  Library Functions
 
@@ -151,7 +158,7 @@ optional `main(count, values)` parameters exclude the program name.
 ⚠ Direct PDP-11 codegen, not threaded code.
 - kbman §12 describes a threaded-code interpreter (`r3 = PC`, `r4 = display`,
   `r5 = stack`).  This compiler emits direct calls and arithmetic instead;
-  faster (2-5×), no interpreter loop, but produces larger code.
+  there is no interpreter loop. No comparative speed claim is made here.
 - Lvalues are byte addresses (kbman §12 uses word addresses `asr` shift).
 
 ## §13  Nasties
@@ -159,9 +166,10 @@ optional `main(count, values)` parameters exclude the program name.
 The kbman "nasties" list documents bugs in the original implementation.
 The implementation addresses several of them:
 
-1. ✔ All operator combinations parse correctly.
-2. ✔ Single-pass IC dispatch handles every record type.
-3. ✔ All 16 compound assigns (`=&`, `===`, `=!=`, `=<=`, `=<`, `=>=`, `=>`,
+1. Regression tests cover the supported operators; they do not prove that
+   every combination parses correctly.
+2. The IC dispatcher checks record lengths and rejects unknown records.
+3. ✔ All 15 B72 compound assigns (`=&`, `===`, `=!=`, `=<=`, `=<`, `=>=`, `=>`,
    `=/`) implemented - kbman noted these as `bilib` gaps.
 4. ✔ External vector init by name works (`emitg → cggvn`).
 5. External symbols are prefixed or mapped to private names, rather than
@@ -182,6 +190,6 @@ results that the pinned apout 0405 mode discards. Full-system tests remain
 separate and cover real V1 files, processes, tty state, and time registers.
 See [the test guide](../../docs/testing.md). The native compiler still needs
 work on indirect function calls, mutable function-name storage,
-word-addressed pointers, and cross-file linkage for mapped
-external names. Table
+word-addressed pointers, declaration-statement grammar, string-valued
+external initializers, and cross-file linkage for mapped external names. Table
 entries above describe implemented paths, not a claim of complete conformance.
