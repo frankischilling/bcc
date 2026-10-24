@@ -93,9 +93,14 @@ vsize() {
 
 /* Emit one ival (kbman §7.0): constant OR name (address-of). */
 gival() {
-	extern tok, tnam;
-	int tok;
-	char tnam[];
+	extern tok, tnam, tstrbuf, tstrlen;
+	int tok, tstrlen;
+	char tnam[], tstrbuf[];
+	if (tok == 3) {
+		cgslt(tstrbuf, tstrlen, 1);
+		gettok();
+		return;
+	}
 	if (tok == 1) {                     /* T_NAME */
 		cggvn(tnam);
 		gettok();

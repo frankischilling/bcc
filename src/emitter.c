@@ -5,6 +5,7 @@
 /* Packed B strings, terminated by octal 004. */
 
 typedef struct {
+    const char *source;
     const char *str;
     size_t length;
     int id;
@@ -16,12 +17,14 @@ static Vec string_pool;  // Vec<StringEntry>
 static int get_string_id(const char *s, size_t length) {
     for (size_t i = 0; i < string_pool.len; i++) {
         StringEntry *e = (StringEntry*)string_pool.data[i];
-        if (e->length == length && memcmp(e->str, s, length) == 0) return e->id;
+        /* A literal is writable. Equal bytes in another occurrence must not alias. */
+        if (e->source == s) return e->id;
     }
 
     StringEntry *e = xmalloc(sizeof(StringEntry));
     char *copy = xmalloc(length + 1);
     memcpy(copy, s, length + 1);
+    e->source = s;
     e->str = copy;
     e->length = length;
     e->id = (int)string_pool.len;

@@ -98,6 +98,14 @@ cggvn(name) char name[]; {
 	gvinit = gvinit + 1;
 }
 
+cggvl(id) {
+    extern gvinit, nstr;
+    int gvinit, nstr;
+    if (id < 0 | id >= nstr) fatal("bad literal reference");
+    outs("\tS"); outd(id); outc('\n');
+    gvinit = gvinit + 1;
+}
+
 cggve() {
 	extern gvnstor, gvinit;
 	int gvnstor, gvinit;

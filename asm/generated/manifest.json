@@ -13,7 +13,7 @@
     "src/parser.c": "e9099b6c777b6b2f691477a851847ddf3ab932303d1e2382d0444422eec4cbfe",
     "src/sem.c": "18323c03839dd7ebe61bfc358bcdcc09a390601887d24a6b76c14d4c242d5140",
     "src/arena.c": "735d6995a469578b6707df4103bb7e837a16bcc7701e3c11dcea90ee1bb1bb52",
-    "src/emitter.c": "bcae0a95c69f450bea1c95631a3f10e48ff48da722df98c6f057071a91cd5fed",
+    "src/emitter.c": "365ed22f97bd27abe093d70d66890525673acb8087b26543a6aa2cfc8edb38a0",
     "src/main.c": "f9eeba3f80035a09e1e4db0f52fd9c7e38f1748a24f09e0e329dbd6ba4e1964b"
   },
   "assembly": {
@@ -22,7 +22,7 @@
     "parser.s": "27e0535fb95cba44bda3b3c59cad888b0cdc15850054dadcc7815200c8df7b8b",
     "sem.s": "12632137fddec46081bf78e5de46e8478d11568b2e88b06aea4724b1f4311235",
     "arena.s": "01ec3c3805064581f6daea98a1607b24ae2fc14900d058761f516f272c129665",
-    "emitter.s": "3cacab9426b45028080051653adfe50bb147373991221eb026c4006bd0d13ae6",
+    "emitter.s": "9ff9019afece9790bdbb3aa51b4cb55d718e3dcf8b92a3bf5abf651affcf4daa",
     "main.s": "f3d563820f980ae32bed90fc83a188bb920036f4a12b345bb03d198912cb0c85"
   }
 }

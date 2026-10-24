@@ -16,6 +16,32 @@ nvini 0;
 vinis[16];
 infun 0;
 
+/* Delay only the short initializer records, not their literal bytes. */
+ghbuf[1024];
+ghlen 0;
+ghon 0;
+glits 0;
+
+ghchar(c) {
+	extern ghbuf, ghlen;
+	char ghbuf[];
+	int ghlen;
+	if (ghlen >= 2047) fatal("global records too large");
+	ghbuf[ghlen++] = c;
+	ghbuf[ghlen] = 0;
+}
+
+ghtext(s) char s[]; {
+	int i;
+	i = 0;
+	while (s[i]) ghchar(s[i++]);
+}
+
+ghnum(n) {
+	if (n >= 10) ghnum(n / 10);
+	ghchar(n % 10 + '0');
+}
+
 usage() {
 	errinit();
 	outs("usage: b01 [-i raw.ic] [-o resolved.ic]\n");
@@ -213,16 +239,39 @@ rrdef(name) char name[]; {
 
 rewrt() {
 	extern dbuf, dtag, dnm, fnsy, nlocs, nvini, vinis, hdrdn, pndcls;
-	extern infun, fnst, nsy, scls, soff;
-	char dbuf[], dtag[], dnm[], fnsy[];
-	int nlocs, nvini, hdrdn, pndcls, infun, fnst, nsy;
+	extern infun, fnst, nsy, scls, soff, ghbuf, ghlen, ghon, glits;
+	char dbuf[], dtag[], dnm[], fnsy[], ghbuf[];
+	int nlocs, nvini, hdrdn, pndcls, infun, fnst, nsy, ghlen, ghon, glits;
 	int vinis[], scls[], soff[];
 	int idx, sz, base, sid;
 
 	while (1) {
-		if (!getln(dbuf, 1040)) return;
+		if (!getln(dbuf, 1040)) {
+			if (ghon) fatal("unfinished global definition");
+			return;
+		}
 		icrst();
 		nxtnam(dbuf, dtag);
+
+		if (tageq(dtag, "Gstr")) {
+			if (!ghon) fatal("literal outside global definition");
+			outs("Glit"); outs(&dbuf[4]); outc('\n');
+			ghtext("gvl "); ghnum(glits); ghchar('\n');
+			glits = glits + 1;
+			continue;
+		}
+		if (tageq(dtag, "Slit")) glits = glits + 1;
+		if (tageq(dtag, "gvc") | tageq(dtag, "gvn")) {
+			if (!ghon) fatal("initializer outside definition");
+			ghtext(dbuf); ghchar('\n');
+			continue;
+		}
+		if (tageq(dtag, "gve")) {
+			if (!ghon) fatal("global end without definition");
+			outs(ghbuf); echoln(dbuf);
+			ghon = 0;
+			continue;
+		}
 
 		if (tageq(dtag, "Adef")) {
 			nxtnam(dbuf, dnm);
@@ -317,9 +366,10 @@ rewrt() {
 			nxtnam(dbuf, dnm);
 			idx = nxti(dbuf);
 			if (symfnd(dnm) < 0) symadd(dnm, 3, 0);
-			outs(dtag); outc(' ');
-			outs(dnm); outc(' ');
-			outd(idx); outc('\n');
+			if (ghon) fatal("nested global definition");
+			ghon = 1;
+			ghlen = 0;
+			ghtext(dbuf); ghchar('\n');
 			pndcls = 0;
 			continue;
 		}

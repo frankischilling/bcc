@@ -15,7 +15,7 @@ Status legend:
 
 The parser lives in `src/bstmt.c` and `src/bexpr.c`. It does not yet cover
 the full grammar: declarations are restricted to the beginning of a braced
-function body, and string constants are not accepted as external initializers.
+function body.
 ✔ Reserved keywords: `auto extrn case if else while switch goto return` (9 only;
 the strict 1972 set).
 ✔ All operators per §2 grammar.
@@ -69,9 +69,9 @@ Measured `text + data + bss` for the current sources:
 
 | Binary | Role | Current total |
 |---|---|---:|
-| `b00` | lex + parse + raw IC | 15758 bytes |
-| `b01` | symbols + IC resolution | 9626 bytes |
-| `b1` | assembly emitter | 15726 bytes |
+| `b00` | lex + parse + raw IC | 15604 bytes |
+| `b01` | symbols + IC resolution | 12366 bytes |
+| `b1` | assembly emitter | 15618 bytes |
 | `b` | driver | 4082 bytes |
 
 These totals exclude the argument frame and runtime stack. Passing the binary
@@ -95,13 +95,15 @@ to their function; unresolved and duplicate definitions are rejected.
 
 | § | Form | Status |
 |---|---|---|
-| 7.1 | `name {ival, ival, ...} ;` | ✚ contiguous cells; numeric/character values and external addresses, but no string initializers |
-| 7.2 | `name [size] {ival, ival, ...} ;` | ✚ numeric/character values and external addresses; no string initializers |
+| 7.1 | `name {ival, ival, ...} ;` | ✔ contiguous cells; numeric, character, and string constants or external addresses |
+| 7.2 | `name [size] {ival, ival, ...} ;` | ✔ numeric, character, and string constants or external addresses |
 | 7.3 | `name(args) stmt` | ✚ ordinary statement bodies work; declaration statements still require the braced prefix |
 
 A name initializer emits the mapped assembler symbol (the byte address of
-the named external) at the data slot. Unlike the manual, the native parser
-currently rejects string initializers such as `message "hello";`.
+the named external) at the data slot. String initializers hold the address
+of writable, B-terminated byte storage. Empty strings and embedded NULs
+are preserved. Tests interleave strings with numeric cells and definitions
+with function bodies, so literal emission cannot break contiguous storage.
 
 Function names are mutable cells initialized to code addresses. Taking `&f`
 addresses the cell; reading `f` obtains its current function value. This also
@@ -194,6 +196,6 @@ The fast runner uses an unchanged-text compatibility container to observe
 results that the pinned apout 0405 mode discards. Full-system tests remain
 separate and cover real V1 files, processes, tty state, and time registers.
 See [the test guide](../../docs/testing.md). The native compiler still needs
-work on word-addressed pointers, declaration-statement grammar, string-valued
-external initializers, and cross-file linkage for mapped external names. Table
+work on word-addressed pointers, declaration-statement grammar,
+and cross-file linkage for mapped external names. Table
 entries above describe implemented paths, not a claim of complete conformance.

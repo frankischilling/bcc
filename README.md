@@ -59,7 +59,9 @@ installed compiler can find both runtime layouts.
   through every stage. It currently targets host-sized storage.
 - **[`pdp-11/bcc-pdp/`](pdp-11/bcc-pdp/README.md)** is a separate compiler
   built with the restored historical C toolchain. It emits native PDP-11
-  assembly and has both fast tests and full Unix V1 system tests.
+  assembly, supports mutable function cells and general function-valued
+  calls, and accepts string-valued external initializers. It has both fast
+  tests and full Unix V1 system tests.
 
 ```sh
 make -C asm check

@@ -37,6 +37,11 @@ NUL-terminated strings. Compatibility calls retain a separate zero-based
 array of EOT-terminated strings. Generated main wrappers obtain that array
 directly; they must not reconstruct it from a pointer to the first string.
 
+String storage is keyed by literal occurrence, not by byte content. Each
+occurrence has writable storage that persists across calls. Equal literals
+elsewhere do not share mutations through `lchar`. The collection and emission
+passes reuse the same occurrence rather than allocating storage per evaluation.
+
 ## External storage
 
 Every B external data object is a C array of cells. Reading its B name reads
@@ -81,6 +86,10 @@ still uses byte-addressed B pointers. Public B function symbols address mutable
 cells initialized to the function body. Every call saves the callee value on
 the stack, evaluates and reverses the arguments into the existing ABI order,
 then calls that saved address. Cleanup removes the arguments and the saved
-callee. Arithmetic helpers with private dot-prefixed names remain direct
+callee. For external string initializers, `b01` buffers the short definition
+and cell records while streaming literal bytes first. The cells are emitted
+together afterward, with references to the literal labels. This avoids
+putting string bytes between adjacent cells or retaining every literal in
+the compiler's small address space. Arithmetic helpers with private dot-prefixed names remain direct
 assembly calls. The test guide distinguishes fast
 emulation from full-system Unix V1 behavior and documents the image safeguards.

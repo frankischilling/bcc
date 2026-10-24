@@ -36,5 +36,3 @@ litinl(len, bytes) char bytes[]; {
 	outs(":\n");
 	return (id);
 }
-
-emitl() { }

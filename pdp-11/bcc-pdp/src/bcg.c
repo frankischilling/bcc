@@ -111,17 +111,6 @@ cgbinc(op, lfa, lend) {
 	fatal("cgbinc: unhandled op");
 }
 
-/* Return 1 if op is a compare op (needs 2 labels). */
-iscmp(op) {
-	if (op == 100) return (1);
-	if (op == 101) return (1);
-	if (op == '<')  return (1);
-	if (op == '>')  return (1);
-	if (op == 102) return (1);
-	if (op == 103) return (1);
-	return (0);
-}
-
 cgcll(nargs) {
 	int i;
 	if (nargs < 0 | nargs > 8190) fatal("bad argument count");
@@ -199,24 +188,6 @@ cggwd(name, val) char name[]; {
 	outs(":\n\t");
 	asnum(val);
 	outc('\n');
-	outs("\t.even\n");
-}
-
-cggar(name, n, ninit, vals) char name[]; int vals[]; {
-	int i;
-	outs("\n.text\n\t.globl\t");
-	cgsym(name);
-	outc('\n');
-	cgsym(name);
-	outs(":\n");
-	i = 0;
-	while (i < n) {
-		outc('\t');
-		if (i < ninit) asnum(vals[i]);
-		else           asnum(0);
-		outc('\n');
-		i = i + 1;
-	}
 	outs("\t.even\n");
 }
 

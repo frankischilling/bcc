@@ -6,7 +6,7 @@
  * Default IC = stdin, OUT = stdout.  Reads records line by line via
  * blex1; each line begins with a tag (n, ps, bin, binc, cl, pr, ...)
  * followed by space-separated decimal args (or a name for pr/ex).
- * After EOF, emitl() writes the .data section.
+ * Literals and data cells are emitted as their records arrive.
  */
 
 dbuf[520]; /* 1040 bytes: enough for 256 decimal literal bytes. */
@@ -76,7 +76,6 @@ main(argc, argv) int argv[]; {
 	icini(ifd);
 	outinit(ofd);
 	dispat();
-	emitl();
 	if (ofd != 1) close(ofd);
 	if (done) markok(done);
 	exit(0);
@@ -163,8 +162,9 @@ disp3() {
 	if (tageq(dtag, "gvb")) { nxtnam(dbuf, dnm); a = nxti(dbuf); cggvb(dnm, a); return (1); }
 	if (tageq(dtag, "gvc")) { a = nxti(dbuf); cggvc(a); return (1); }
 	if (tageq(dtag, "gvn")) { nxtnam(dbuf, dnm); cggvn(dnm); return (1); }
+	if (tageq(dtag, "gvl")) { a = nxti(dbuf); cggvl(a); return (1); }
 	if (tageq(dtag, "gve")) { cggve(); return (1); }
-	if (tageq(dtag, "Slit")) {
+	if (tageq(dtag, "Slit") | tageq(dtag, "Glit")) {
 		slen = nxti(dbuf);
 		if (slen < 0) fatal("negative literal length");
 		if (slen > 256) fatal("literal length too large");
@@ -174,7 +174,7 @@ disp3() {
 			j = j + 1;
 		}
 		sid = litinl(slen, dsb);
-		cgsta(sid);
+		if (tageq(dtag, "Slit")) cgsta(sid);
 		return (1);
 	}
 	return (0);

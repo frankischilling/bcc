@@ -101,7 +101,7 @@ atomlv() {
 		return (0);
 	}
 	if (tok == 3) {                          /* T_STR */
-		cgslt(tstrbuf, tstrlen);
+		cgslt(tstrbuf, tstrlen, 0);
 		gettok();
 		return (0);
 	}

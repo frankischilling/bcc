@@ -37,8 +37,6 @@ cgcll(nargs) {
 	outd(nargs); outc('\n');
 }
 
-cgpro(name, nloc) char name[]; { }
-
 cgepi()  { outs("Aend\n"); }
 cgret()  { outs("rt\n"); }
 
@@ -60,10 +58,10 @@ cgrname(name, call) char name[]; {
 cgrlbl(name) char name[]; { outs("Rlbl "); outs(name); outc('\n'); }
 cgrdef(name) char name[]; { outs("Rdef "); outs(name); outc('\n'); }
 
-/* Raw inline string literal: tag=Slit, len, then len decimal bytes. */
-cgslt(buf, len) char buf[]; {
+/* Literal record: Slit in an expression, Gstr in a global initializer. */
+cgslt(buf, len, global) char buf[]; {
 	int j, b;
-	outs("Slit ");
+	if (global) outs("Gstr "); else outs("Slit ");
 	outd(len);
 	j = 0;
 	while (j < len) {
@@ -178,27 +176,6 @@ cggvn(name) char name[]; {
 }
 
 cggve() { outs("gve\n"); }
-
-cggwd(name, val) char name[]; {
-	outs("gw ");
-	outs(name); outc(' ');
-	outd(val); outc('\n');
-}
-
-cggar(name, n, ninit, vals) char name[]; int vals[]; {
-	int i;
-	outs("ga ");
-	outs(name); outc(' ');
-	outd(n); outc(' ');
-	outd(ninit);
-	i = 0;
-	while (i < ninit) {
-		outc(' ');
-		outd(vals[i]);
-		i = i + 1;
-	}
-	outc('\n');
-}
 
 /* A vector has a mutable pointer cell before its elements. */
 cggvp(name, n) char name[]; {

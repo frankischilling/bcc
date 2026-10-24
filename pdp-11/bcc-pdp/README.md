@@ -150,8 +150,12 @@ name used as an ordinary value remains a function-local label reference.
   only, excluding the program name.
 - Character constants require one or two characters; empty, oversized,
   and unfinished constants are rejected.
-- Source strings are limited to 255 bytes plus the B terminator. Oversized
-  or unterminated literals and oversized intermediate records are rejected.
+- Source strings, including external initializers, are limited to 255 bytes
+  plus the B terminator. One source file can contain up to 256 literal
+  occurrences; each external definition accepts up to 128 initializers.
+  Oversized or unterminated literals and oversized intermediate records are
+  rejected. The resolver delays at most 2,047 bytes of short global records
+  while streaming literal bytes before the contiguous data cells.
 - Syscall path conversion is limited to 255 bytes. Exec accepts up to 64
   arguments with 512 bytes of converted argument strings.
 - Numeric and character constants can specify vector sizes. The front end
