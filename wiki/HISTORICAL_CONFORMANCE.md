@@ -88,8 +88,10 @@ The C99 compiler translates 16-bit B addresses through registered host
 storage. It keeps host-sized storage cells and relies on GNU-compatible C
 extensions. This does not reproduce an original process image, threaded
 object code, or the Unix V1 syscall ABI. The host exec wrappers now accept the counted vector and explicit arg0
-from section 8, converting packed B strings before calling libc. Runtime
-stat and terminal interfaces still need separate ABI conformance work. The 32-bit mode
+from section 8, converting packed B strings before calling libc. Host status calls now fill the V1 field layout rather than copying a host
+structure. Disk addresses are unavailable and creation time uses host status-
+change time; these approximations are documented in the runtime guide. Terminal
+interfaces still need separate ABI conformance work. The 32-bit mode
 is arithmetic emulation with native pointers; arithmetic on those pointers
 can still truncate them. Function values can be called through variables and expressions; mutable
 function-name cells are not yet a complete implementation of section 7.3.
@@ -100,7 +102,9 @@ between input files compiled together. Internal calls made by a bundled
 runtime routine still use that runtime's own helpers; this is not full
 library interposition or support for the manual's stack-walking `printf`.
 The B-written bootstrap now shares the tested expression and lexical rules,
-including computed label values. It still lacks 16-bit storage.
+including computed label values. Its strict mode now uses word-addressed
+pointers, while compatibility mode keeps byte addresses. It still lacks
+16-bit storage.
 The native compiler now loads pointer values before indexing scalar and
 parameter expressions, and gives external vectors mutable pointer cells.
 It resolves forward label values within their function and diagnoses missing

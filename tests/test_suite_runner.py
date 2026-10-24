@@ -2,6 +2,10 @@
 """Regression tests for the test runner itself."""
 import contextlib
 import io
+import os
+from pathlib import Path
+import shutil
+import tempfile
 import subprocess
 import unittest
 from unittest.mock import patch
@@ -31,6 +35,30 @@ class SuiteResults(unittest.TestCase):
 
     def test_last_summary(self):
         self.assertFalse(self.check('Results: 3 passed, 0 failed\nResults: 0 passed, 2 failed\n'))
+
+
+class ShellIsolation(unittest.TestCase):
+    def test_cleanup_preserves_neighbor(self):
+        fd, filename = tempfile.mkstemp(prefix='word_test_neighbor_')
+        os.close(fd)
+        neighbor = Path(filename)
+        try:
+            with tempfile.TemporaryDirectory(prefix='bcc-runner-test-') as directory:
+                root = Path(directory)
+                (root/'tests').mkdir()
+                temporary = root/'temporary files'; temporary.mkdir()
+                source = Path(__file__).resolve().parent/'test_word_semantics.sh'
+                script = root/'tests'/source.name
+                shutil.copyfile(source, script)
+                compiler = root/'bcc'
+                compiler.write_text('#!/bin/sh\nexit 1\n')
+                compiler.chmod(0o755)
+                result = subprocess.run(['bash', str(script)], env={**os.environ, 'TMPDIR': str(temporary)}, capture_output=True, timeout=30)
+                self.assertEqual(result.returncode, 1)
+                self.assertTrue(neighbor.exists())
+                self.assertEqual(list(temporary.iterdir()), [])
+        finally:
+            neighbor.unlink(missing_ok=True)
 
 
 if __name__ == '__main__':

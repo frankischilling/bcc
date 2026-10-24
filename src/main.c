@@ -108,7 +108,7 @@ static char *compile_libb(int verbose, int byteptr, int word_bits) {
     /* Include headers in the cache key so the compiler and runtime use the
      * same address model, including when multiple checkouts share /tmp. */
     uint64_t key = UINT64_C(14695981039346656037);
-    const char *dependencies[] = {"libb.c", "libb.h", "btarget.h", "binit.h"};
+    const char *dependencies[] = {"libb.c", "libb.h", "btarget.h", "binit.h", "bunix.h"};
     for (size_t i = 0; i < sizeof(dependencies) / sizeof(dependencies[0]); i++) {
         char path[8192];
         snprintf(path, sizeof(path), "%s/%s", g_libb_dir, dependencies[i]);

@@ -113,3 +113,8 @@ which code was instrumented and whether leak checking was available.
 word/runtime layouts and each bootstrap stage. Native tests use the same
 positive source files. The suite also rejects malformed name lists, missing
 bodies, duplicate locals, and malformed parameter lists.
+
+`tests/test_unix_metadata.py` checks status fields against controlled host
+files, including size/time wraparound, guard cells, failed calls, directory
+flags, and historical permission conversion. It runs both host layouts and
+word modes, plus the three bootstrap stages.

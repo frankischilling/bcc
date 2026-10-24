@@ -6,6 +6,7 @@ import subprocess
 import tempfile
 
 CASES = {
+    'word-pointer-step': ['main(){auto v 3,p;v[1]=37;p=v+1;return(*p!=37 | p!= &v[1] | p-v!=1);}'],
     'literal-storage': ['text(){return("same");} other(){return("same");} main(){auto p;extrn text,other,char,lchar;p=text();lchar(p,0,122);return(char(text(),0)!=122 | char(other(),0)!=115);}'],
     'mixed-string-cells': ['mixed 11,"ab*0c",22,"",33; main(){auto p; extrn mixed,char,lchar; p= &mixed; if(p[0]!=11 | p[2]!=22 | p[4]!=33)return(1); if(char(p[1],2)!=0 | char(p[1],3)!=\'c\' | char(p[1],4)!=004 | char(p[3],0)!=004)return(2); lchar(p[1],0,\'z\');return(char(p[1],0)!=\'z\');}'],
     'interleaved-string-definitions': ['before(){return("before");} values[4] "one","two"; after(){return("after");} main(){extrn values,before,after,char; return(char(values[0],0)!=\'o\' | char(values[1],0)!=\'t\' | values[2]!=0 | values[3]!=0 | char(before(),0)!=\'b\' | char(after(),0)!=\'a\');}'],

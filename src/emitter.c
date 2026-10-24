@@ -1709,6 +1709,14 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
         fputc('\n', out);
         free(header);
     }
+    {
+        char *path = fmt("%s/bunix.h", g_libb_path);
+        size_t length;
+        char *header = read_file_all(path, &length);
+        fwrite(header, 1, length, out);
+        fputc('\n', out);
+        free(header);
+    }
     fputs(
 "static void __b_init(void) {\n"
 "    if (!__bcc_runtime_initialized) {\n"
@@ -2263,7 +2271,7 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
 "}\n"
         "static word b_creat(word name, word mode) {\n"
         "    const char *p = __b_cstr(name);\n"
-        "    return (word)creat(p, (mode_t)mode);\n"
+        "    return (word)creat(p, __bcc_unix_mode(mode, 0));\n"
         "}\n"
         "static word b_seek(word fd, word offset, word whence) {\n"
         "    off_t r = lseek((int)fd, (off_t)offset, (int)whence);\n"
@@ -2503,7 +2511,7 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
         "/* System functions with actual implementations */\n"
         "static word b_chmod(word path, word mode) {\n"
         "    const char *p = __b_cstr(path);\n"
-        "    return (word)chmod(p, (mode_t)mode);\n"
+        "    return (word)chmod(p, __bcc_unix_mode(mode, 0));\n"
         "}\n"
         "static word b_chown(word path, word owner) {\n"
         "    const char *p = __b_cstr(path);\n"
@@ -2515,37 +2523,28 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
         "    return (word)link(o, n);\n"
         "}\n"
         "static word b_stat(word path, word bufp) {\n"
+        "    if (!bufp) { errno = EFAULT; return -1; }\n"
         "    const char *p = __b_cstr(path);\n"
         "    struct stat st;\n"
         "    if (stat(p, &st) != 0) return -1;\n"
-        "    if (bufp) {\n"
-        "        unsigned char *b = (unsigned char*)B_CPTR(bufp);\n"
-        "        for (int i = 0; i < 20*sizeof(word); i++) b[i] = 0;\n"
-        "        size_t n = sizeof(st);\n"
-        "        if (n > 20*sizeof(word)) n = 20*sizeof(word);\n"
-        "        memcpy(b, &st, n);\n"
-        "    }\n"
+        "    __bcc_unix_stat((word*)B_CPTR(bufp), &st);\n"
         "    return 0;\n"
         "}\n"
         "\n"
         "static word b_fstat(word fd, word bufp) {\n"
+        "    if (!bufp) { errno = EFAULT; return -1; }\n"
         "    struct stat st;\n"
         "    if (fstat((int)fd, &st) != 0) return -1;\n"
-        "    if (bufp) {\n"
-        "        unsigned char *b = (unsigned char*)B_CPTR(bufp);\n"
-        "        for (int i = 0; i < 20*sizeof(word); i++) b[i] = 0;\n"
-        "        size_t n = sizeof(st);\n"
-        "        if (n > 20*sizeof(word)) n = 20*sizeof(word);\n"
-        "        memcpy(b, &st, n);\n"
-        "    }\n"
+        "    __bcc_unix_stat((word*)B_CPTR(bufp), &st);\n"
         "    return 0;\n"
         "}\n"
+        "\n"
         "static word b_setuid(word uid) {\n"
         "    return (word)setuid((uid_t)uid);\n"
         "}\n"
         "static word b_makdir(word path, word mode) {\n"
         "    const char *p = __b_cstr(path);\n"
-        "    return (word)mkdir(p, (mode_t)mode);\n"
+        "    return (word)mkdir(p, __bcc_unix_mode(mode, 1));\n"
         "}\n"
         "\n"
         "/* printn(number, base) - print number in specified base (from B manual) */\n"

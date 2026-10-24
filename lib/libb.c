@@ -8,6 +8,7 @@
 #define B_TARGET_DEFINE
 #define B_INIT_DEFINE
 #include "libb.h"
+#include "bunix.h"
 
 /* Global I/O State */
 
@@ -607,7 +608,7 @@ word b_write(word fd, word buf, word n) {
 
 word b_creat(word name, word mode) {
     const char *p = __b_cstr(name);
-    return (word)creat(p, (mode_t)mode);
+    return (word)creat(p, __bcc_unix_mode(mode, 0));
 }
 
 word b_seek(word fd, word offset, word whence) {
@@ -786,7 +787,7 @@ word b_chdir(word path) {
 
 word b_chmod(word path, word mode) {
     const char *p = __b_cstr(path);
-    return (word)chmod(p, (mode_t)mode);
+    return (word)chmod(p, __bcc_unix_mode(mode, 0));
 }
 
 word b_chown(word path, word owner) {
@@ -806,35 +807,25 @@ word b_unlink(word path) {
 }
 
 word b_stat(word path, word bufp) {
+    if (!bufp) { errno = EFAULT; return -1; }
     const char *p = __b_cstr(path);
     struct stat st;
     if (stat(p, &st) != 0) return -1;
-    if (bufp) {
-        unsigned char *b = (unsigned char*)B_CPTR(bufp);
-        for (int i = 0; i < 20*(int)sizeof(word); i++) b[i] = 0;
-        size_t n = sizeof(st);
-        if (n > 20*sizeof(word)) n = 20*sizeof(word);
-        memcpy(b, &st, n);
-    }
+    __bcc_unix_stat((word*)B_CPTR(bufp), &st);
     return 0;
 }
 
 word b_fstat(word fd, word bufp) {
+    if (!bufp) { errno = EFAULT; return -1; }
     struct stat st;
     if (fstat((int)fd, &st) != 0) return -1;
-    if (bufp) {
-        unsigned char *b = (unsigned char*)B_CPTR(bufp);
-        for (int i = 0; i < 20*(int)sizeof(word); i++) b[i] = 0;
-        size_t n = sizeof(st);
-        if (n > 20*sizeof(word)) n = 20*sizeof(word);
-        memcpy(b, &st, n);
-    }
+    __bcc_unix_stat((word*)B_CPTR(bufp), &st);
     return 0;
 }
 
 word b_makdir(word path, word mode) {
     const char *p = __b_cstr(path);
-    return (word)mkdir(p, (mode_t)mode);
+    return (word)mkdir(p, __bcc_unix_mode(mode, 1));
 }
 
 /* Terminal I/O */

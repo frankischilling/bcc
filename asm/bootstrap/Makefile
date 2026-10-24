@@ -41,8 +41,8 @@ $(TARGET): $(OBJECTS) | $(STAGE)
 $(STAGE)/obj/%.o: ../generated/%.s | $(STAGE)/obj
 	$(AS) -o $@ $<
 
-$(RUNTIME): ../../lib/libb.c ../../lib/libb.h ../../lib/btarget.h ../../lib/binit.h | $(STAGE)/lib
-	cp --remove-destination ../../lib/libb.c ../../lib/libb.h ../../lib/btarget.h ../../lib/binit.h $(STAGE)/lib/
+$(RUNTIME): ../../lib/libb.c ../../lib/libb.h ../../lib/btarget.h ../../lib/binit.h ../../lib/bunix.h | $(STAGE)/lib
+	cp --remove-destination ../../lib/libb.c ../../lib/libb.h ../../lib/btarget.h ../../lib/binit.h ../../lib/bunix.h $(STAGE)/lib/
 
 $(STAGE):
 	mkdir -p $@

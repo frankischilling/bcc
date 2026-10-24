@@ -66,7 +66,9 @@ diagnostic before a table write. The tests exercise each limit's rejection.
 ## Remaining differences
 
 Computed branches use function-local label values, including forward
-references. The bootstrap compiler still uses host-sized, byte-addressed
-storage rather than the host compiler's 16-bit address translation. Function-valued calls are covered, but mutable
-function-name storage and complete block-scope resolution still need work.
+references. Strict mode uses word-addressed pointers; compatibility mode keeps
+byte-addressed pointers. Storage is still host-sized rather than the host
+compiler's translated 16-bit model. Function-valued calls are covered, but
+mutable function-name storage and compatibility block-scope resolution still
+need work.
 These limits are separate from the generated-C fixed-point check.

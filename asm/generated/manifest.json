@@ -13,8 +13,8 @@
     "src/parser.c": "4aa070a8b42fc75b2a395b450b98b63337591a91606ee0caade2ec0a1933e3d5",
     "src/sem.c": "c37a06abc5b8907989ac5ccae9eb3563c145eef3ed4e5ebe4760c318b9c6e4d8",
     "src/arena.c": "735d6995a469578b6707df4103bb7e837a16bcc7701e3c11dcea90ee1bb1bb52",
-    "src/emitter.c": "1c1cc5fdd9e3072220a7ca9185af59ab3441191c1066d150fb91cbe72ad52bb1",
-    "src/main.c": "f9eeba3f80035a09e1e4db0f52fd9c7e38f1748a24f09e0e329dbd6ba4e1964b"
+    "src/emitter.c": "78f9052be8c6e49bb57cd603e429cf1792856ad1cf225a253d80be9b7b027c8b",
+    "src/main.c": "81e865330e3a0efce87ddcbe6ebfb09abbb9094571a805c2d4e301ee3c000181"
   },
   "assembly": {
     "util.s": "22b32fa9c6eb492d5a8463404981c8aeccb881c8b8613d304b5cb20c61ccd8fd",
@@ -22,7 +22,7 @@
     "parser.s": "760fe74cf19162c4b255bb510f4cc8c9e5e949f45292b1ab59b366a1dd5d6164",
     "sem.s": "e5cdc36e03039263f2e7f7f8a227e3bac19d5a25ebb5f97d7257cb2fae168d27",
     "arena.s": "01ec3c3805064581f6daea98a1607b24ae2fc14900d058761f516f272c129665",
-    "emitter.s": "62cc72815cbe3445d68f4ed9de56bea0278a04662c2f0adac9bd512b57f33de7",
-    "main.s": "f3d563820f980ae32bed90fc83a188bb920036f4a12b345bb03d198912cb0c85"
+    "emitter.s": "e8cb244113e562e63aa7819b68ed41ef1fa4aaf844001ffae3ccfe6f0bf96625",
+    "main.s": "838e306fe44bcac836210fcb93a51aaaa6c0692346ee0116bed96c895c79719b"
   }
 }

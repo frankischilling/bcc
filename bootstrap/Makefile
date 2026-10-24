@@ -12,7 +12,7 @@ all: stage3
 
 stage1: $(STAGE1)
 
-$(STAGE1): $(SRC) $(STAGE0) ../lib/libb.c ../lib/libb.h ../lib/btarget.h ../lib/binit.h
+$(STAGE1): $(SRC) $(STAGE0) ../lib/libb.c ../lib/libb.h ../lib/btarget.h ../lib/binit.h ../lib/bunix.h
 	mkdir -p $(BUILD)/stage1
 	$(STAGE0) $(SRC) -o $(STAGE1)
 
@@ -37,6 +37,8 @@ test: stage3
 	@set -e; for stage in 1 2 3; do python3 ../tests/test_argv_runtime.py --bootstrap --compiler build/stage$$stage/bbc; done
 	@set -e; for stage in 1 2 3; do python3 ../tests/test_global_storage.py --bootstrap --compiler build/stage$$stage/bbc; done
 	@for stage in 1 2 3; do python3 ../tests/test_declarations.py --bootstrap --compiler build/stage$$stage/bbc || exit 1; done
+
+	@for stage in 1 2 3; do python3 ../tests/test_unix_metadata.py --bootstrap --compiler build/stage$$stage/bbc || exit 1; done
 
 clean:
 	rm -rf $(BUILD)

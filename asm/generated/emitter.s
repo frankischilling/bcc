@@ -3866,7 +3866,7 @@ emit_expr:
 	.p2align 3
 .L868:
 	movq	(%rsp), %rbx
-	leaq	CSWTCH.154(%rip), %rdx
+	leaq	CSWTCH.156(%rip), %rdx
 	movl	$40, %edi
 	movl	(%rdx,%rax,4), %r12d
 	movq	%rbx, %rsi
@@ -7719,8 +7719,12 @@ emit_function_body:
 	.align 8
 .LC176:
 	.string	"#define B_INIT_DEFINE\n#define B_INIT_STORAGE __attribute__((common))\n"
-	.align 8
+	.section	.rodata.str1.1
 .LC177:
+	.string	"%s/bunix.h"
+	.section	.rodata.str1.8
+	.align 8
+.LC178:
 	.ascii	"static void __b_init(void) {\n    if (!__bcc_runtime_initial"
 	.ascii	"ized) {\n        setvbuf(stdout, NULL, _IONBF, 0);\n        "
 	.ascii	"__bcc_runtime_initialized = 1;\n    }\n    __bcc_run_initial"
@@ -8024,214 +8028,209 @@ emit_function_body:
 	.ascii	"(count);\n#else\n    return (word)write((int)fd, B_CPTR(buf)"
 	.ascii	", (size_t)n);\n#endif\n}\nstatic word b_creat(word name, wor"
 	.ascii	"d mode) {\n    const char *p = __b_cstr(name);\n    return ("
-	.ascii	"word)creat(p, (mode_t)mode);\n}\nstatic word b_seek(word fd,"
-	.ascii	" word offset, word whence) {\n    off_t r = lseek((int)fd, ("
-	.ascii	"off_t)offset, (int)whence);\n    return (r < 0) ? (word)-1 :"
-	.ascii	" (word)0;\n}\n\n/* Process control functions - with actual i"
-	.ascii	"mplementations */\nstatic word b_fork(void) {\n    return (w"
-	.ascii	"ord)fork();\n}\nstatic word __b_wait_status;\n\nstatic word "
-	.ascii	"b_wait(void) {\n    int st = 0;\n    pid_t pid = wait(&st);\n"
-	.ascii	"    __b_wait_status = (word)st;\n    return (word)pid;\n}\n/"
-	.ascii	"* B72 section 8 passes exactly count argument strings, inclu"
-	.ascii	"ding arg0. */\nstatic word b_execv(word path, word argv, wor"
-	.ascii	"d count) {\n    if (count < 0 || count > 255 || (count && !a"
-	.ascii	"rgv)) return -1;\n    c"
-	.ascii	"har *name = __b_dup_bstr(path);\n    if (!name) return -1;\n"
-	.ascii	"    char *arguments[256];\n    word *values = count ? (word*"
-	.ascii	")B_CPTR(argv) : NULL;\n    size_t n = (size_t)count, i = 0;\n"
-	.ascii	"    for (; i < n; i++) {\n        if (!values[i]) break;\n  "
-	.ascii	"      arguments[i] = __b_dup_bstr(values[i]);\n        if (!"
-	.ascii	"arguments[i]) break;\n    }\n    if (i == n) {\n        argu"
-	.ascii	"ments[n] = NULL;\n        execv(name, arguments);\n    }\n  "
-	.ascii	"  while (i) free(arguments[--i]);\n    free(name);\n    retu"
-	.ascii	"rn -1;\n}\n\nstatic word b_execl(word path, ...) {\n    char"
-	.ascii	" *name = __b_dup_bstr(path);\n    if (!name) return -1;\n   "
-	.ascii	" char *arguments[256];\n    size_t n = 0;\n    int complete "
-	.ascii	"= 0;\n    va_list ap;\n    va_start(ap, path);\n    while (n"
-	.ascii	" < 255) {\n        word value = va_arg(ap, word);\n        i"
-	.ascii	"f (!value) { complete = 1; break; }\n        arguments[n] = "
-	.ascii	"__b_dup_bstr(value);\n        if (!arguments[n]) break;\n   "
-	.ascii	"     n++;\n    }\n    va_end(ap);\n    if (complete) {\n    "
-	.ascii	"    arguments[n] = NULL;\n        execv(name, arguments);\n "
-	.ascii	"   }\n    while (n) free(arguments[--n]);\n    free(name);\n"
-	.ascii	"    return -1;\n}\n\nstatic word b_system(word cmd) {\n    /"
-	.ascii	"* Split arguments without invoking a shell or expanding thei"
-	.ascii	"r contents. */\n    char *line = __b_dup_bstr(cmd);\n    if "
-	.ascii	"(!line) return -1;\n    char *argv[128];\n    size_t argc = "
-	.ascii	"0;\n    char *p = line, *q = line;\n    while (*p) {\n      "
-	.ascii	"  while (*p && isspace((unsigned char)*p)) p++;\n        if "
-	.ascii	"(!*p) break;\n        if (argc + 1 >= sizeof(argv)/sizeof(ar"
-	.ascii	"gv[0])) { free(line); return -1; }\n        argv[argc++] = q"
-	.ascii	";\n        int quote = 0;\n        while (*p && (quote || !i"
-	.ascii	"sspace((unsigned char)*p))) {\n            unsigned char c ="
-	.ascii	" (unsigned char)*p++;\n            if (c == '\\\\' && quote "
-	.ascii	"!= '\\'') {\n                if (!*p) { free(line); return -"
-	.ascii	"1; }\n                *q++ = *p++;\n            } else if (c"
-	.ascii	" == '\\'' || c == '\"') {\n                if (!quote) quote"
-	.ascii	" = c;\n                else if (quote == c) quote = 0;\n    "
-	.ascii	"            else *q++ = (char)c;\n            } else *q++ = "
-	.ascii	"(char)c;\n        }\n        if "
-	.ascii	"(quote) { free(line); return -1; }\n        if (*p) p++;\n  "
-	.ascii	"      *q++ = 0;\n    }\n    if (argc == 0) { free(line); ret"
-	.ascii	"urn -1; }\n    argv[argc] = NULL;\n    pid_t pid = fork();\n"
-	.ascii	"    if (pid == 0) {\n        execvp(argv[0], argv);\n       "
-	.ascii	" _exit(127);\n    }\n    if (pid < 0) { free(line); return -"
-	.ascii	"1; }\n    int st = 0;\n    pid_t w;\n    do { w = waitpid(pi"
-	.ascii	"d, &st, 0); } while (w < 0 && errno == EINTR);\n    free(lin"
-	.ascii	"e);\n    if (w < 0) return -1;\n    return (word)st;\n}\n\ns"
-	.ascii	"tatic word b_usleep(word usec) {\n    usleep((useconds_t)use"
-	.ascii	"c);\n    return 0;\n}\n\nstatic word b_callf_dispatch(int na"
-	.ascii	"rgs, word name, ...) {\n    static int __b_callf_dl_done = 0"
-	.ascii	";\n    if (!__b_callf_dl_done) {\n        __b_callf_dl_done "
-	.ascii	"= 1;\n        const char *env = getenv(\"B_CALLF_LIB\");\n  "
-	.ascii	"      if (env && *env) {\n            const char *p = env;\n"
-	.ascii	"            while (*p) {\n                const char *start "
-	.ascii	"= p;\n                while (*p && *p != ':') p++;\n        "
-	.ascii	"        size_t len = (size_t)(p - start);\n                i"
-	.ascii	"f (len) {\n                    char *path = (char*)malloc(le"
-	.ascii	"n + 1);\n                    if (path) {\n                  "
-	.ascii	"      memcpy(path, start, len);\n                        pat"
-	.ascii	"h[len] = '\\0';\n                        (void)dlopen(path, "
-	.ascii	"RTLD_NOW | RTLD_GLOBAL);\n                        free(path)"
-	.ascii	";\n                    }\n                }\n               "
-	.ascii	" if (*p == ':') p++;\n            }\n        }\n    }\n    i"
-	.ascii	"f (nargs < 0 || nargs > 10) return -1;\n    if (name == 0) r"
-	.ascii	"eturn -1;\n \n    char sym[256];\n    __b_bstr_to_cstr(name,"
-	.ascii	" sym, sizeof(sym));\n \n    void *fn = dlsym(RTLD_DEFAULT, s"
-	.ascii	"ym);\n    if (!fn) {\n        size_t len = strlen(sym);\n   "
-	.ascii	"     if (len + 2 < sizeof(sym)) {\n            sym[len] = '_"
-	.ascii	"'; sym[len + 1] = '\\0';\n            fn = dlsym(RTLD_DEFAUL"
-	.ascii	"T, sym);\n            sym[len] = '\\0';\n        }\n    }\n "
-	.ascii	"   if (!fn) return -1;\n \n    void *args[10] = {0};\n    va"
-	.ascii	"_list ap;\n    va_start(ap, name);\n    for (int i = 0; i < "
-	.ascii	"nargs && i < 10; i++) {\n        word w = va_arg(ap, word);\n"
-	.ascii	"        args[i] = B_CPTR(w);\n    }\n"
-	.ascii	"    va_end(ap);\n \n    word r = 0;\n    switch (nargs) {\n "
-	.ascii	"   case 0: r = ((word (*)(void))fn)(); break;\n    case 1: r"
-	.ascii	" = ((word (*)(void*))fn)(args[0]); break;\n    case 2: r = ("
-	.ascii	"(word (*)(void*, void*))fn)(args[0], args[1]); break;\n    c"
-	.ascii	"ase 3: r = ((word (*)(void*, void*, void*))fn)(args[0], args"
-	.ascii	"[1], args[2]); break;\n    case 4: r = ((word (*)(void*, voi"
-	.ascii	"d*, void*, void*))fn)(args[0], args[1], args[2], args[3]); b"
-	.ascii	"reak;\n    case 5: r = ((word (*)(void*, void*, void*, void*"
-	.ascii	", void*))fn)(args[0], args[1], args[2], args[3], args[4]); b"
-	.ascii	"reak;\n    case 6: r = ((word (*)(void*, void*, void*, void*"
-	.ascii	", void*, void*))fn)(args[0], args[1], args[2], args[3], args"
-	.ascii	"[4], args[5]); break;\n    case 7: r = ((word (*)(void*, voi"
-	.ascii	"d*, void*, void*, void*, void*, void*))fn)(args[0], args[1],"
-	.ascii	" args[2], args[3], args[4], args[5], args[6]); break;\n    c"
-	.ascii	"ase 8: r = ((word (*)(void*, void*, void*, void*, void*, voi"
-	.ascii	"d*, void*, void*))fn)(args[0], args[1], args[2], args[3], ar"
-	.ascii	"gs[4], args[5], args[6], args[7]); break;\n    case 9: r = ("
-	.ascii	"(word (*)(void*, void*, void*, void*, void*, void*, void*, v"
-	.ascii	"oid*, void*))fn)(args[0], args[1], args[2], args[3], args[4]"
-	.ascii	", args[5], args[6], args[7], args[8]); break;\n    case 10: "
-	.ascii	"r = ((word (*)(void*, void*, void*, void*, void*, void*, voi"
-	.ascii	"d*, void*, void*, void*))fn)(args[0], args[1], args[2], args"
-	.ascii	"[3], args[4], args[5], args[6], args[7], args[8], args[9]); "
-	.ascii	"break;\n    default: return -1;\n    }\n    return r;\n}\n\n"
-	.ascii	"/* System functions - with actual implementations where poss"
-	.ascii	"ible */\n/* Unix V1 counts 60 Hz ticks since 1971, high word"
-	.ascii	" first (time(II)). */\nstatic word b_time(word tvp) {\n    s"
-	.ascii	"truct timespec now;\n    if (clock_gettime(CLOCK_REALTIME, &"
-	.ascii	"now) != 0) return -1;\n    if (tvp) {\n        uint64_t elap"
-	.ascii	"sed = (uint64_t)now.tv_sec - UINT64_C(31536000);\n        ui"
-	.ascii	"nt32_t ticks = (uint32_t)(elapsed * 60 + (uint64_t)now.tv_ns"
-	.ascii	"ec * 60 / 1000000000);\n        word *tv = (word*)B_CPTR(tvp"
-	.ascii	");\n        tv[0] = WVAL(ticks >> 16);\n        tv[1] = WVAL"
-	.ascii	"(ticks & 65535);\n    }\n    return 0;\n}\n\n/* B72 sec"
-	.ascii	"tion 8 specifies a caller-owned, 16-byte date buffer. */\nst"
-	.ascii	"atic word b_ctime(word tvp, word date) {\n    if (!tvp || !d"
-	.ascii	"ate) return -1;\n    word *tv = (word*)B_CPTR(tvp);\n    uin"
-	.ascii	"t32_t ticks = ((uint32_t)(uint16_t)tv[0] << 16) | (uint16_t)"
-	.ascii	"tv[1];\n    unsigned days = ticks / 5184000U;\n    unsigned "
-	.ascii	"seconds = ticks / 60U % 86400U;\n    unsigned year = 1971, m"
-	.ascii	"onth = 0;\n    while (days >= (year % 4 == 0 ? 366U : 365U))"
-	.ascii	" {\n        days -= year % 4 == 0 ? 366U : 365U;\n        ye"
-	.ascii	"ar++;\n    }\n    static const unsigned lengths[] = {31,28,3"
-	.ascii	"1,30,31,30,31,31,30,31,30,31};\n    static const char *month"
-	.ascii	"s[] = {\"Jan\",\"Feb\",\"Mar\",\"Apr\",\"May\",\"Jun\",\"Jul"
-	.ascii	"\",\"Aug\",\"Sep\",\"Oct\",\"Nov\",\"Dec\"};\n    for (;;) {"
-	.ascii	"\n        unsigned length = lengths[month] + (month == 1 && "
-	.ascii	"year % 4 == 0);\n        if (days < length) break;\n        "
-	.ascii	"days -= length;\n        month++;\n    }\n    char text[16];"
-	.ascii	"\n    snprintf(text, sizeof(text), \"%s %2u %02u:%02u:%02u\""
-	.ascii	", months[month], days + 1,\n             seconds / 3600, sec"
-	.ascii	"onds / 60 % 60, seconds % 60);\n    for (size_t i = 0; i < s"
-	.ascii	"izeof(text); i++) b_lchar(date, (word)i, (word)(unsigned cha"
-	.ascii	"r)text[i]);\n    return 0;\n}\n\nstatic word b_getuid(void) "
-	.ascii	"{\n    return (word)getuid();\n}\nstatic word b_chdir(word p"
-	.ascii	"ath) {\n    const char *p = __b_cstr(path);\n    return (wor"
-	.ascii	"d)chdir(p);\n}\nstatic word b_unlink(word path) {\n    const"
-	.ascii	" char *p = __b_cstr(path);\n    return (word)unlink(p);\n}\n"
-	.ascii	"\n/* System functions with actual implementations */\nstatic"
-	.ascii	" word b_chmod(word path, word mode) {\n    const char *p = _"
-	.ascii	"_b_cstr(path);\n    return (word)chmod(p, (mode_t)mode);\n}\n"
-	.ascii	"static word b_chown(word path, word owner) {\n    const char"
-	.ascii	" *p = __b_cstr(path);\n    return (word)chown(p, (uid_t)owne"
-	.ascii	"r, (gid_t)-1);\n}\nstatic word b_link(word old, word new) {\n"
-	.ascii	"    const char *o = __b_cstr(old);\n    const char *n = __b_"
-	.ascii	"cstr(new);\n    return (word)link(o, n);\n}\nstatic word b_s"
-	.ascii	"tat(word path, word bufp) {\n    const char *p = __b_cstr(pa"
-	.ascii	"th);\n    struct stat st;\n    if (stat(p, &st) != 0) return"
-	.ascii	" -1;\n    if (bufp) {\n        unsigned ch"
-	.ascii	"ar *b = (unsigned char*)B_CPTR(bufp);\n        for (int i = "
-	.ascii	"0; i < 20*sizeof(word); i++) b[i] = 0;\n        size_t n = s"
-	.ascii	"izeof(st);\n        if (n > 20*sizeof(word)) n = 20*sizeof(w"
-	.ascii	"ord);\n        memcpy(b, &st, n);\n    }\n    return 0;\n}\n"
-	.ascii	"\nstatic word b_fstat(word fd, word bufp) {\n    struct stat"
-	.ascii	" st;\n    if (fstat((int)fd, &st) != 0) return -1;\n    if ("
-	.ascii	"bufp) {\n        unsigned char *b = (unsigned char*)B_CPTR(b"
-	.ascii	"ufp);\n        for (int i = 0; i < 20*sizeof(word); i++) b[i"
-	.ascii	"] = 0;\n        size_t n = sizeof(st);\n        if (n > 20*s"
-	.ascii	"izeof(word)) n = 20*sizeof(word);\n        memcpy(b, &st, n)"
-	.ascii	";\n    }\n    return 0;\n}\nstatic word b_setuid(word uid) {"
-	.ascii	"\n    return (word)setuid((uid_t)uid);\n}\nstatic word b_mak"
-	.ascii	"dir(word path, word mode) {\n    const char *p = __b_cstr(pa"
-	.ascii	"th);\n    return (word)mkdir(p, (mode_t)mode);\n}\n\n/* prin"
-	.ascii	"tn(number, base) - print number in specified base (from B ma"
-	.ascii	"nual) */\nstatic word b_printn(word n, word base) {\n    // "
-	.ascii	"Handle negative numbers for decimal only\n    if (base == 10"
-	.ascii	" && (int16_t)n < 0) {\n        b_putchar('-');\n        n = "
-	.ascii	"(word)(-(int16_t)n);\n    }\n    b_printn_u(n, base);\n    r"
-	.ascii	"eturn n;\n}\nstatic word b_putnum(word n) {\n    b_printn(n,"
-	.ascii	" (word)10);\n    return n;\n}\nstatic volatile sig_atomic_t "
-	.ascii	"__b_got_intr = 0;\n\nstatic void __b_sigint(int sig){ (void)"
-	.ascii	"sig; __b_got_intr = 1; }\n\nstatic word b_gtty(word fd, word"
-	.ascii	" ttstat){\n    struct termios t;\n    if (tcgetattr((int)fd,"
-	.ascii	" &t) < 0) return -1;\n\n    word *vec = (word*)B_CPTR(ttstat"
-	.ascii	");\n    vec[0] = (word)t.c_iflag;\n    vec[1] = (word)t.c_of"
-	.ascii	"lag;\n    vec[2] = (word)t.c_lflag;\n    return 0;\n}\n\nsta"
-	.ascii	"tic word b_stty(word fd, word ttstat){\n    struct termios t"
-	.ascii	";\n    if (tcgetattr((int)fd, &t) < 0) return -1;\n\n    wor"
-	.ascii	"d *vec = (word*)B_CPTR(ttstat);\n    t.c_iflag = (tcflag_t)v"
-	.ascii	"ec[0];\n    t.c_oflag = (tcflag_t)vec[1];\n    t.c_lflag = ("
-	.ascii	"tcflag_t)vec[2];\n    return (word)tcsetattr((int)fd, TCSANO"
-	.ascii	"W, &t);\n}\nstatic word b_intr(word on) {\n    /* Set up int"
-	.ascii	"errupt handling */\n    /* on != 0: catch interrupts, on == "
-	.ascii	"0: restore default */\n    if ("
-	.string	"on) {\n        __b_got_intr = 0;\n        if (signal(SIGINT, __b_sigint) == SIG_ERR) return -1;\n    } else {\n        if (signal(SIGINT, SIG_DFL) == SIG_ERR) return -1;\n    }\n    return 0;\n}\n\n/* Builtin aliases for B source */\n\n"
+	.ascii	"word)creat(p, __bcc_unix_mode(mode, 0));\n}\nstatic word b_s"
+	.ascii	"eek(word fd, word offset, word whence) {\n    off_t r = lsee"
+	.ascii	"k((int)fd, (off_t)offset, (int)whence);\n    return (r < 0) "
+	.ascii	"? (word)-1 : (word)0;\n}\n\n/* Process control functions - w"
+	.ascii	"ith actual implementations */\nstatic word b_fork(void) {\n "
+	.ascii	"   return (word)fork();\n}\nstatic word __b_wait_status;\n\n"
+	.ascii	"static word b_wait(void) {\n    int st = 0;\n    pid_t pid ="
+	.ascii	" wait(&st);\n    __b_wait_status = (word)st;\n    return (wo"
+	.ascii	"rd)pid;\n}\n/* B72 section 8 passes exactly count argument s"
+	.ascii	"trings, including arg0. */\nstatic word b_execv(word path, w"
+	.ascii	"ord argv, word count) {\n    if (count < 0 || count > 255 ||"
+	.ascii	" (count && !argv)) retu"
+	.ascii	"rn -1;\n    char *name = __b_dup_bstr(path);\n    if (!name)"
+	.ascii	" return -1;\n    char *arguments[256];\n    word *values = c"
+	.ascii	"ount ? (word*)B_CPTR(argv) : NULL;\n    size_t n = (size_t)c"
+	.ascii	"ount, i = 0;\n    for (; i < n; i++) {\n        if (!values["
+	.ascii	"i]) break;\n        arguments[i] = __b_dup_bstr(values[i]);\n"
+	.ascii	"        if (!arguments[i]) break;\n    }\n    if (i == n) {\n"
+	.ascii	"        arguments[n] = NULL;\n        execv(name, arguments)"
+	.ascii	";\n    }\n    while (i) free(arguments[--i]);\n    free(name"
+	.ascii	");\n    return -1;\n}\n\nstatic word b_execl(word path, ...)"
+	.ascii	" {\n    char *name = __b_dup_bstr(path);\n    if (!name) ret"
+	.ascii	"urn -1;\n    char *arguments[256];\n    size_t n = 0;\n    i"
+	.ascii	"nt complete = 0;\n    va_list ap;\n    va_start(ap, path);\n"
+	.ascii	"    while (n < 255) {\n        word value = va_arg(ap, word)"
+	.ascii	";\n        if (!value) { complete = 1; break; }\n        arg"
+	.ascii	"uments[n] = __b_dup_bstr(value);\n        if (!arguments[n])"
+	.ascii	" break;\n        n++;\n    }\n    va_end(ap);\n    if (compl"
+	.ascii	"ete) {\n        arguments[n] = NULL;\n        execv(name, ar"
+	.ascii	"guments);\n    }\n    while (n) free(arguments[--n]);\n    f"
+	.ascii	"ree(name);\n    return -1;\n}\n\nstatic word b_system(word c"
+	.ascii	"md) {\n    /* Split arguments without invoking a shell or ex"
+	.ascii	"panding their contents. */\n    char *line = __b_dup_bstr(cm"
+	.ascii	"d);\n    if (!line) return -1;\n    char *argv[128];\n    si"
+	.ascii	"ze_t argc = 0;\n    char *p = line, *q = line;\n    while (*"
+	.ascii	"p) {\n        while (*p && isspace((unsigned char)*p)) p++;\n"
+	.ascii	"        if (!*p) break;\n        if (argc + 1 >= sizeof(argv"
+	.ascii	")/sizeof(argv[0])) { free(line); return -1; }\n        argv["
+	.ascii	"argc++] = q;\n        int quote = 0;\n        while (*p && ("
+	.ascii	"quote || !isspace((unsigned char)*p))) {\n            unsign"
+	.ascii	"ed char c = (unsigned char)*p++;\n            if (c == '\\\\"
+	.ascii	"' && quote != '\\'') {\n                if (!*p) { free(line"
+	.ascii	"); return -1; }\n                *q++ = *p++;\n            }"
+	.ascii	" else if (c == '\\'' || c == '\"') {\n                if (!q"
+	.ascii	"uote) quote = c;\n                else if (quote == c) quote"
+	.ascii	" = 0;\n                else *q++ = (char)c;\n            } e"
+	.ascii	"lse *q++ = (char)c;\n        }"
+	.ascii	"\n        if (quote) { free(line); return -1; }\n        if "
+	.ascii	"(*p) p++;\n        *q++ = 0;\n    }\n    if (argc == 0) { fr"
+	.ascii	"ee(line); return -1; }\n    argv[argc] = NULL;\n    pid_t pi"
+	.ascii	"d = fork();\n    if (pid == 0) {\n        execvp(argv[0], ar"
+	.ascii	"gv);\n        _exit(127);\n    }\n    if (pid < 0) { free(li"
+	.ascii	"ne); return -1; }\n    int st = 0;\n    pid_t w;\n    do { w"
+	.ascii	" = waitpid(pid, &st, 0); } while (w < 0 && errno == EINTR);\n"
+	.ascii	"    free(line);\n    if (w < 0) return -1;\n    return (word"
+	.ascii	")st;\n}\n\nstatic word b_usleep(word usec) {\n    usleep((us"
+	.ascii	"econds_t)usec);\n    return 0;\n}\n\nstatic word b_callf_dis"
+	.ascii	"patch(int nargs, word name, ...) {\n    static int __b_callf"
+	.ascii	"_dl_done = 0;\n    if (!__b_callf_dl_done) {\n        __b_ca"
+	.ascii	"llf_dl_done = 1;\n        const char *env = getenv(\"B_CALLF"
+	.ascii	"_LIB\");\n        if (env && *env) {\n            const char"
+	.ascii	" *p = env;\n            while (*p) {\n                const "
+	.ascii	"char *start = p;\n                while (*p && *p != ':') p+"
+	.ascii	"+;\n                size_t len = (size_t)(p - start);\n     "
+	.ascii	"           if (len) {\n                    char *path = (cha"
+	.ascii	"r*)malloc(len + 1);\n                    if (path) {\n      "
+	.ascii	"                  memcpy(path, start, len);\n               "
+	.ascii	"         path[len] = '\\0';\n                        (void)d"
+	.ascii	"lopen(path, RTLD_NOW | RTLD_GLOBAL);\n                      "
+	.ascii	"  free(path);\n                    }\n                }\n   "
+	.ascii	"             if (*p == ':') p++;\n            }\n        }\n"
+	.ascii	"    }\n    if (nargs < 0 || nargs > 10) return -1;\n    if ("
+	.ascii	"name == 0) return -1;\n \n    char sym[256];\n    __b_bstr_t"
+	.ascii	"o_cstr(name, sym, sizeof(sym));\n \n    void *fn = dlsym(RTL"
+	.ascii	"D_DEFAULT, sym);\n    if (!fn) {\n        size_t len = strle"
+	.ascii	"n(sym);\n        if (len + 2 < sizeof(sym)) {\n            s"
+	.ascii	"ym[len] = '_'; sym[len + 1] = '\\0';\n            fn = dlsym"
+	.ascii	"(RTLD_DEFAULT, sym);\n            sym[len] = '\\0';\n       "
+	.ascii	" }\n    }\n    if (!fn) return -1;\n \n    void *args[10] = "
+	.ascii	"{0};\n    va_list ap;\n    va_start(ap, name);\n    for (int"
+	.ascii	" i = 0; i < nargs && i < 10; i++) {\n        word w = va_arg"
+	.ascii	"(ap, word);\n        args[i] = B_CPT"
+	.ascii	"R(w);\n    }\n    va_end(ap);\n \n    word r = 0;\n    switc"
+	.ascii	"h (nargs) {\n    case 0: r = ((word (*)(void))fn)(); break;\n"
+	.ascii	"    case 1: r = ((word (*)(void*))fn)(args[0]); break;\n    "
+	.ascii	"case 2: r = ((word (*)(void*, void*))fn)(args[0], args[1]); "
+	.ascii	"break;\n    case 3: r = ((word (*)(void*, void*, void*))fn)("
+	.ascii	"args[0], args[1], args[2]); break;\n    case 4: r = ((word ("
+	.ascii	"*)(void*, void*, void*, void*))fn)(args[0], args[1], args[2]"
+	.ascii	", args[3]); break;\n    case 5: r = ((word (*)(void*, void*,"
+	.ascii	" void*, void*, void*))fn)(args[0], args[1], args[2], args[3]"
+	.ascii	", args[4]); break;\n    case 6: r = ((word (*)(void*, void*,"
+	.ascii	" void*, void*, void*, void*))fn)(args[0], args[1], args[2], "
+	.ascii	"args[3], args[4], args[5]); break;\n    case 7: r = ((word ("
+	.ascii	"*)(void*, void*, void*, void*, void*, void*, void*))fn)(args"
+	.ascii	"[0], args[1], args[2], args[3], args[4], args[5], args[6]); "
+	.ascii	"break;\n    case 8: r = ((word (*)(void*, void*, void*, void"
+	.ascii	"*, void*, void*, void*, void*))fn)(args[0], args[1], args[2]"
+	.ascii	", args[3], args[4], args[5], args[6], args[7]); break;\n    "
+	.ascii	"case 9: r = ((word (*)(void*, void*, void*, void*, void*, vo"
+	.ascii	"id*, void*, void*, void*))fn)(args[0], args[1], args[2], arg"
+	.ascii	"s[3], args[4], args[5], args[6], args[7], args[8]); break;\n"
+	.ascii	"    case 10: r = ((word (*)(void*, void*, void*, void*, void"
+	.ascii	"*, void*, void*, void*, void*, void*))fn)(args[0], args[1], "
+	.ascii	"args[2], args[3], args[4], args[5], args[6], args[7], args[8"
+	.ascii	"], args[9]); break;\n    default: return -1;\n    }\n    ret"
+	.ascii	"urn r;\n}\n\n/* System functions - with actual implementatio"
+	.ascii	"ns where possible */\n/* Unix V1 counts 60 Hz ticks since 19"
+	.ascii	"71, high word first (time(II)). */\nstatic word b_time(word "
+	.ascii	"tvp) {\n    struct timespec now;\n    if (clock_gettime(CLOC"
+	.ascii	"K_REALTIME, &now) != 0) return -1;\n    if (tvp) {\n        "
+	.ascii	"uint64_t elapsed = (uint64_t)now.tv_sec - UINT64_C(31536000)"
+	.ascii	";\n        uint32_t ticks = (uint32_t)(elapsed * 60 + (uint6"
+	.ascii	"4_t)now.tv_nsec * 60 / 1000000000);\n        word *tv = (wor"
+	.ascii	"d*)B_CPTR(tvp);\n        tv[0] = WVAL(ticks >> 16);\n       "
+	.ascii	" tv[1] = WVAL(ticks & 65535);\n    }\n    return 0;\n}"
+	.ascii	"\n\n/* B72 section 8 specifies a caller-owned, 16-byte date "
+	.ascii	"buffer. */\nstatic word b_ctime(word tvp, word date) {\n    "
+	.ascii	"if (!tvp || !date) return -1;\n    word *tv = (word*)B_CPTR("
+	.ascii	"tvp);\n    uint32_t ticks = ((uint32_t)(uint16_t)tv[0] << 16"
+	.ascii	") | (uint16_t)tv[1];\n    unsigned days = ticks / 5184000U;\n"
+	.ascii	"    unsigned seconds = ticks / 60U % 86400U;\n    unsigned y"
+	.ascii	"ear = 1971, month = 0;\n    while (days >= (year % 4 == 0 ? "
+	.ascii	"366U : 365U)) {\n        days -= year % 4 == 0 ? 366U : 365U"
+	.ascii	";\n        year++;\n    }\n    static const unsigned lengths"
+	.ascii	"[] = {31,28,31,30,31,30,31,31,30,31,30,31};\n    static cons"
+	.ascii	"t char *months[] = {\"Jan\",\"Feb\",\"Mar\",\"Apr\",\"May\","
+	.ascii	"\"Jun\",\"Jul\",\"Aug\",\"Sep\",\"Oct\",\"Nov\",\"Dec\"};\n "
+	.ascii	"   for (;;) {\n        unsigned length = lengths[month] + (m"
+	.ascii	"onth == 1 && year % 4 == 0);\n        if (days < length) bre"
+	.ascii	"ak;\n        days -= length;\n        month++;\n    }\n    c"
+	.ascii	"har text[16];\n    snprintf(text, sizeof(text), \"%s %2u %02"
+	.ascii	"u:%02u:%02u\", months[month], days + 1,\n             second"
+	.ascii	"s / 3600, seconds / 60 % 60, seconds % 60);\n    for (size_t"
+	.ascii	" i = 0; i < sizeof(text); i++) b_lchar(date, (word)i, (word)"
+	.ascii	"(unsigned char)text[i]);\n    return 0;\n}\n\nstatic word b_"
+	.ascii	"getuid(void) {\n    return (word)getuid();\n}\nstatic word b"
+	.ascii	"_chdir(word path) {\n    const char *p = __b_cstr(path);\n  "
+	.ascii	"  return (word)chdir(p);\n}\nstatic word b_unlink(word path)"
+	.ascii	" {\n    const char *p = __b_cstr(path);\n    return (word)un"
+	.ascii	"link(p);\n}\n\n/* System functions with actual implementatio"
+	.ascii	"ns */\nstatic word b_chmod(word path, word mode) {\n    cons"
+	.ascii	"t char *p = __b_cstr(path);\n    return (word)chmod(p, __bcc"
+	.ascii	"_unix_mode(mode, 0));\n}\nstatic word b_chown(word path, wor"
+	.ascii	"d owner) {\n    const char *p = __b_cstr(path);\n    return "
+	.ascii	"(word)chown(p, (uid_t)owner, (gid_t)-1);\n}\nstatic word b_l"
+	.ascii	"ink(word old, word new) {\n    const char *o = __b_cstr(old)"
+	.ascii	";\n    const char *n = __b_cstr(new);\n    return (word)link"
+	.ascii	"(o, n);\n}\nstatic word b_stat(word path, word bufp) {\n    "
+	.ascii	"if (!bufp) { errno = EFAULT; return -1; }\n    const char *p"
+	.ascii	" = __b_cstr(path);\n    struct stat st;\n   "
+	.ascii	" if (stat(p, &st) != 0) return -1;\n    __bcc_unix_stat((wor"
+	.ascii	"d*)B_CPTR(bufp), &st);\n    return 0;\n}\n\nstatic word b_fs"
+	.ascii	"tat(word fd, word bufp) {\n    if (!bufp) { errno = EFAULT; "
+	.ascii	"return -1; }\n    struct stat st;\n    if (fstat((int)fd, &s"
+	.ascii	"t) != 0) return -1;\n    __bcc_unix_stat((word*)B_CPTR(bufp)"
+	.ascii	", &st);\n    return 0;\n}\n\nstatic word b_setuid(word uid) "
+	.ascii	"{\n    return (word)setuid((uid_t)uid);\n}\nstatic word b_ma"
+	.ascii	"kdir(word path, word mode) {\n    const char *p = __b_cstr(p"
+	.ascii	"ath);\n    return (word)mkdir(p, __bcc_unix_mode(mode, 1));\n"
+	.ascii	"}\n\n/* printn(number, base) - print number in specified bas"
+	.ascii	"e (from B manual) */\nstatic word b_printn(word n, word base"
+	.ascii	") {\n    // Handle negative numbers for decimal only\n    if"
+	.ascii	" (base == 10 && (int16_t)n < 0) {\n        b_putchar('-');\n"
+	.ascii	"        n = (word)(-(int16_t)n);\n    }\n    b_printn_u(n, b"
+	.ascii	"ase);\n    return n;\n}\nstatic word b_putnum(word n) {\n   "
+	.ascii	" b_printn(n, (word)10);\n    return n;\n}\nstatic volatile s"
+	.ascii	"ig_atomic_t __b_got_intr = 0;\n\nstatic void __b_sigint(int "
+	.ascii	"sig){ (void)sig; __b_got_intr = 1; }\n\nstatic word b_gtty(w"
+	.ascii	"ord fd, word ttstat){\n    struct termios t;\n    if (tcgeta"
+	.ascii	"ttr((int)fd, &t) < 0) return -1;\n\n    word *vec = (word*)B"
+	.ascii	"_CPTR(ttstat);\n    vec[0] = (word)t.c_iflag;\n    vec[1] = "
+	.ascii	"(word)t.c_oflag;\n    vec[2] = (word)t.c_lflag;\n    return "
+	.ascii	"0;\n}\n\nstatic word b_stty(word fd, word ttstat){\n    stru"
+	.ascii	"ct termios t;\n    if (tcgetattr((int)fd, &t) < 0) return -1"
+	.ascii	";\n\n    word *vec = (word*)B_CPTR(ttstat);\n    t.c_iflag ="
+	.ascii	" (tcflag_t)vec[0];\n    t.c_oflag = (tcflag_t)vec[1];\n    t"
+	.ascii	".c_lflag = (tcflag_t)vec[2];\n    return (word)tcsetattr((in"
+	.ascii	"t)fd, TCSANOW, &t);\n}\nstatic word b_intr(word on) {\n    /"
+	.ascii	"* Set up interrupt handling */\n    /* on != 0: catch interr"
+	.ascii	"upts, on =="
+	.string	" 0: restore default */\n    if (on) {\n        __b_got_intr = 0;\n        if (signal(SIGINT, __b_sigint) == SIG_ERR) return -1;\n    } else {\n        if (signal(SIGINT, SIG_DFL) == SIG_ERR) return -1;\n    }\n    return 0;\n}\n\n/* Builtin aliases for B source */\n\n"
 	.section	.rodata.str1.1
-.LC178:
+.LC179:
 	.string	"word __b_user_main("
 	.section	.rodata.str1.8
 	.align 8
-.LC179:
+.LC180:
 	.string	"int main(int argc, char **argv){\n"
 	.section	.rodata.str1.1
-.LC180:
-	.string	"    __b_setargs(argc, argv);\n"
 .LC181:
+	.string	"    __b_setargs(argc, argv);\n"
+.LC182:
 	.string	"    __b_init();\n"
 	.section	.rodata.str1.8
 	.align 8
-.LC182:
+.LC183:
 	.string	"    return (int)__b_user_main();\n"
 	.align 8
-.LC183:
+.LC184:
 	.string	"    return (int)__b_user_main((word)argc);\n"
 	.align 8
-.LC184:
+.LC185:
 	.string	"    return (int)__b_user_main((word)argc, __b_argvalues());\n"
 	.text
 	.p2align 4
@@ -8347,10 +8346,28 @@ emit_program_c:
 	call	fputc@PLT
 	movq	%rbp, %rdi
 	call	free@PLT
-	movq	%rbx, %rcx
-	movl	$28225, %edx
-	movl	$1, %esi
+	movq	g_libb_path(%rip), %rsi
 	leaq	.LC177(%rip), %rdi
+	xorl	%eax, %eax
+	call	fmt@PLT
+	movq	%r13, %rsi
+	movq	%rax, %rdi
+	call	read_file_all@PLT
+	movq	40(%rsp), %rdx
+	movq	%rbx, %rcx
+	movl	$1, %esi
+	movq	%rax, %rdi
+	movq	%rax, %rbp
+	call	fwrite@PLT
+	movq	%rbx, %rsi
+	movl	$10, %edi
+	call	fputc@PLT
+	movq	%rbp, %rdi
+	call	free@PLT
+	movq	%rbx, %rcx
+	movl	$27946, %edx
+	movl	$1, %esi
+	leaq	.LC178(%rip), %rdi
 	call	fwrite@PLT
 	cmpq	$0, 8+string_pool(%rip)
 	jne	.L1544
@@ -8425,7 +8442,7 @@ emit_program_c:
 	movq	%rbx, %rcx
 	movl	$19, %edx
 	movl	$1, %esi
-	leaq	.LC178(%rip), %rdi
+	leaq	.LC179(%rip), %rdi
 	movq	%rax, 24(%rsp)
 	call	fwrite@PLT
 	movl	$1, 20(%rsp)
@@ -8481,17 +8498,17 @@ emit_program_c:
 	movq	%rbx, %rcx
 	movl	$33, %edx
 	movl	$1, %esi
-	leaq	.LC179(%rip), %rdi
+	leaq	.LC180(%rip), %rdi
 	call	fwrite@PLT
 	movq	%rbx, %rcx
 	movl	$29, %edx
 	movl	$1, %esi
-	leaq	.LC180(%rip), %rdi
+	leaq	.LC181(%rip), %rdi
 	call	fwrite@PLT
 	movq	%rbx, %rcx
 	movl	$16, %edx
 	movl	$1, %esi
-	leaq	.LC181(%rip), %rdi
+	leaq	.LC182(%rip), %rdi
 	call	fwrite@PLT
 	cmpq	$0, 24(%rsp)
 	je	.L1528
@@ -8502,7 +8519,7 @@ emit_program_c:
 	movq	%rbx, %rcx
 	movl	$60, %edx
 	movl	$1, %esi
-	leaq	.LC184(%rip), %rdi
+	leaq	.LC185(%rip), %rdi
 	call	fwrite@PLT
 	jmp	.L1526
 	.p2align 4,,10
@@ -8529,7 +8546,7 @@ emit_program_c:
 	movq	%rbx, %rcx
 	movl	$33, %edx
 	movl	$1, %esi
-	leaq	.LC182(%rip), %rdi
+	leaq	.LC183(%rip), %rdi
 	call	fwrite@PLT
 .L1526:
 	addq	$56, %rsp
@@ -8578,7 +8595,7 @@ emit_program_c:
 	movq	%rbx, %rcx
 	movl	$43, %edx
 	movl	$1, %esi
-	leaq	.LC183(%rip), %rdi
+	leaq	.LC184(%rip), %rdi
 	call	fwrite@PLT
 	jmp	.L1526
 	.cfi_endproc
@@ -8586,14 +8603,14 @@ emit_program_c:
 	.size	emit_program_c, .-emit_program_c
 	.section	.rodata.str1.8
 	.align 8
-.LC185:
+.LC186:
 	.string	"/* Generated by BCC - B Compiler */\n"
 	.section	.rodata.str1.1
-.LC186:
+.LC187:
 	.string	"#include \"libb.h\"\n\n"
 	.section	.rodata.str1.8
 	.align 8
-.LC187:
+.LC188:
 	.string	"#include <ncurses.h>\n#include <panel.h>\n\n"
 	.text
 	.p2align 4
@@ -8642,7 +8659,7 @@ emit_program_c_ext:
 	movq	%rbp, %rcx
 	movl	$36, %edx
 	movl	$1, %esi
-	leaq	.LC185(%rip), %rdi
+	leaq	.LC186(%rip), %rdi
 	call	fwrite@PLT
 	xorl	%edx, %edx
 	testl	%r13d, %r13d
@@ -8659,7 +8676,7 @@ emit_program_c_ext:
 	movl	$19, %edx
 	movq	%rbp, %rcx
 	movl	$1, %esi
-	leaq	.LC186(%rip), %rdi
+	leaq	.LC187(%rip), %rdi
 	call	fwrite@PLT
 	movl	g_use_curses(%rip), %edx
 	testl	%edx, %edx
@@ -8732,7 +8749,7 @@ emit_program_c_ext:
 	movq	%rbp, %rcx
 	movl	$41, %edx
 	movl	$1, %esi
-	leaq	.LC187(%rip), %rdi
+	leaq	.LC188(%rip), %rdi
 	call	fwrite@PLT
 	cmpq	$0, 8+string_pool(%rip)
 	je	.L1552
@@ -8743,17 +8760,17 @@ emit_program_c_ext:
 	movq	%rbp, %rcx
 	movl	$33, %edx
 	movl	$1, %esi
-	leaq	.LC179(%rip), %rdi
+	leaq	.LC180(%rip), %rdi
 	call	fwrite@PLT
 	movq	%rbp, %rcx
 	movl	$29, %edx
 	movl	$1, %esi
-	leaq	.LC180(%rip), %rdi
+	leaq	.LC181(%rip), %rdi
 	call	fwrite@PLT
 	movq	%rbp, %rcx
 	movl	$16, %edx
 	movl	$1, %esi
-	leaq	.LC181(%rip), %rdi
+	leaq	.LC182(%rip), %rdi
 	call	fwrite@PLT
 	cmpq	$0, 24(%rsp)
 	je	.L1568
@@ -8765,7 +8782,7 @@ emit_program_c_ext:
 	movq	%rbp, %rcx
 	movl	$33, %edx
 	movl	$1, %esi
-	leaq	.LC182(%rip), %rdi
+	leaq	.LC183(%rip), %rdi
 	call	fwrite@PLT
 .L1566:
 	addq	$40, %rsp
@@ -8809,7 +8826,7 @@ emit_program_c_ext:
 	movq	%rbp, %rcx
 	movl	$19, %edx
 	movl	$1, %esi
-	leaq	.LC178(%rip), %rdi
+	leaq	.LC179(%rip), %rdi
 	movq	%rax, 24(%rsp)
 	call	fwrite@PLT
 	movl	$1, 20(%rsp)
@@ -8905,14 +8922,14 @@ emit_program_c_ext:
 	movq	%rbp, %rcx
 	movl	$60, %edx
 	movl	$1, %esi
-	leaq	.LC184(%rip), %rdi
+	leaq	.LC185(%rip), %rdi
 	call	fwrite@PLT
 	jmp	.L1566
 .L1588:
 	movq	%rbp, %rcx
 	movl	$43, %edx
 	movl	$1, %esi
-	leaq	.LC183(%rip), %rdi
+	leaq	.LC184(%rip), %rdi
 	call	fwrite@PLT
 	jmp	.L1566
 	.cfi_endproc
@@ -8920,9 +8937,9 @@ emit_program_c_ext:
 	.size	emit_program_c_ext, .-emit_program_c_ext
 	.section	.rodata
 	.align 16
-	.type	CSWTCH.154, @object
-	.size	CSWTCH.154, 24
-CSWTCH.154:
+	.type	CSWTCH.156, @object
+	.size	CSWTCH.156, 24
+CSWTCH.156:
 	.long	24
 	.long	25
 	.long	26
@@ -8930,95 +8947,95 @@ CSWTCH.154:
 	.long	22
 	.long	23
 	.section	.rodata.str1.1
-.LC188:
-	.string	"lchar"
 .LC189:
-	.string	"getchar"
+	.string	"lchar"
 .LC190:
-	.string	"getchr"
+	.string	"getchar"
 .LC191:
-	.string	"putchr"
+	.string	"getchr"
 .LC192:
-	.string	"getstr"
+	.string	"putchr"
 .LC193:
-	.string	"putstr"
+	.string	"getstr"
 .LC194:
-	.string	"flush"
+	.string	"putstr"
 .LC195:
-	.string	"reread"
+	.string	"flush"
 .LC196:
-	.string	"printn"
+	.string	"reread"
 .LC197:
-	.string	"putnum"
+	.string	"printn"
 .LC198:
-	.string	"print"
+	.string	"putnum"
 .LC199:
-	.string	"putchar"
+	.string	"print"
 .LC200:
-	.string	"abort"
+	.string	"putchar"
 .LC201:
-	.string	"free"
+	.string	"abort"
 .LC202:
-	.string	"alloc"
+	.string	"free"
 .LC203:
-	.string	"open"
+	.string	"alloc"
 .LC204:
-	.string	"close"
+	.string	"open"
 .LC205:
-	.string	"read"
+	.string	"close"
 .LC206:
-	.string	"write"
+	.string	"read"
 .LC207:
-	.string	"creat"
+	.string	"write"
 .LC208:
-	.string	"seek"
+	.string	"creat"
 .LC209:
-	.string	"openr"
+	.string	"seek"
 .LC210:
-	.string	"openw"
+	.string	"openr"
 .LC211:
-	.string	"fork"
+	.string	"openw"
 .LC212:
-	.string	"wait"
+	.string	"fork"
 .LC213:
-	.string	"execl"
+	.string	"wait"
 .LC214:
-	.string	"execv"
+	.string	"execl"
 .LC215:
-	.string	"chdir"
+	.string	"execv"
 .LC216:
-	.string	"chmod"
+	.string	"chdir"
 .LC217:
-	.string	"chown"
+	.string	"chmod"
 .LC218:
-	.string	"link"
+	.string	"chown"
 .LC219:
-	.string	"unlink"
+	.string	"link"
 .LC220:
-	.string	"stat"
+	.string	"unlink"
 .LC221:
-	.string	"fstat"
+	.string	"stat"
 .LC222:
-	.string	"time"
+	.string	"fstat"
 .LC223:
-	.string	"ctime"
+	.string	"time"
 .LC224:
-	.string	"getuid"
+	.string	"ctime"
 .LC225:
-	.string	"setuid"
+	.string	"getuid"
 .LC226:
-	.string	"makdir"
+	.string	"setuid"
 .LC227:
-	.string	"intr"
+	.string	"makdir"
 .LC228:
-	.string	"gtty"
+	.string	"intr"
 .LC229:
-	.string	"stty"
+	.string	"gtty"
 .LC230:
-	.string	"system"
+	.string	"stty"
 .LC231:
-	.string	"usleep"
+	.string	"system"
 .LC232:
+	.string	"usleep"
+.LC233:
 	.string	"argc"
 	.section	.data.rel.ro.local,"aw"
 	.align 32
@@ -9026,7 +9043,6 @@ CSWTCH.154:
 	.size	names.0, 408
 names.0:
 	.quad	.LC13
-	.quad	.LC188
 	.quad	.LC189
 	.quad	.LC190
 	.quad	.LC191
@@ -9034,13 +9050,13 @@ names.0:
 	.quad	.LC193
 	.quad	.LC194
 	.quad	.LC195
-	.quad	.LC76
 	.quad	.LC196
+	.quad	.LC76
 	.quad	.LC197
 	.quad	.LC198
 	.quad	.LC199
-	.quad	.LC83
 	.quad	.LC200
+	.quad	.LC83
 	.quad	.LC201
 	.quad	.LC202
 	.quad	.LC203
@@ -9072,8 +9088,9 @@ names.0:
 	.quad	.LC229
 	.quad	.LC230
 	.quad	.LC231
-	.quad	.LC71
 	.quad	.LC232
+	.quad	.LC71
+	.quad	.LC233
 	.quad	.LC34
 	.quad	0
 	.globl	g_libb_path
@@ -9096,101 +9113,101 @@ g_libb_path:
 	.local	current_program
 	.comm	current_program,8,8
 	.section	.rodata.str1.1
-.LC233:
-	.string	"break"
 .LC234:
-	.string	"case"
+	.string	"break"
 .LC235:
-	.string	"const"
+	.string	"case"
 .LC236:
-	.string	"continue"
+	.string	"const"
 .LC237:
-	.string	"default"
+	.string	"continue"
 .LC238:
-	.string	"do"
+	.string	"default"
 .LC239:
-	.string	"double"
+	.string	"do"
 .LC240:
-	.string	"else"
+	.string	"double"
 .LC241:
-	.string	"enum"
+	.string	"else"
 .LC242:
-	.string	"extern"
+	.string	"enum"
 .LC243:
-	.string	"float"
+	.string	"extern"
 .LC244:
-	.string	"for"
+	.string	"float"
 .LC245:
-	.string	"goto"
+	.string	"for"
 .LC246:
-	.string	"if"
+	.string	"goto"
 .LC247:
-	.string	"inline"
+	.string	"if"
 .LC248:
-	.string	"int"
+	.string	"inline"
 .LC249:
-	.string	"long"
+	.string	"int"
 .LC250:
-	.string	"register"
+	.string	"long"
 .LC251:
-	.string	"restrict"
+	.string	"register"
 .LC252:
-	.string	"short"
+	.string	"restrict"
 .LC253:
-	.string	"signed"
+	.string	"short"
 .LC254:
-	.string	"sizeof"
+	.string	"signed"
 .LC255:
-	.string	"static"
+	.string	"sizeof"
 .LC256:
-	.string	"struct"
+	.string	"static"
 .LC257:
-	.string	"switch"
+	.string	"struct"
 .LC258:
-	.string	"typedef"
+	.string	"switch"
 .LC259:
-	.string	"union"
+	.string	"typedef"
 .LC260:
-	.string	"unsigned"
+	.string	"union"
 .LC261:
-	.string	"void"
+	.string	"unsigned"
 .LC262:
-	.string	"volatile"
+	.string	"void"
 .LC263:
-	.string	"while"
+	.string	"volatile"
 .LC264:
-	.string	"_Bool"
+	.string	"while"
 .LC265:
-	.string	"_Complex"
+	.string	"_Bool"
 .LC266:
-	.string	"_Imaginary"
+	.string	"_Complex"
 .LC267:
-	.string	"_Alignas"
+	.string	"_Imaginary"
 .LC268:
-	.string	"_Alignof"
+	.string	"_Alignas"
 .LC269:
-	.string	"_Atomic"
+	.string	"_Alignof"
 .LC270:
-	.string	"_Generic"
+	.string	"_Atomic"
 .LC271:
-	.string	"_Noreturn"
+	.string	"_Generic"
 .LC272:
-	.string	"_Static_assert"
+	.string	"_Noreturn"
 .LC273:
-	.string	"_Thread_local"
+	.string	"_Static_assert"
 .LC274:
-	.string	"NULL"
+	.string	"_Thread_local"
 .LC275:
-	.string	"true"
+	.string	"NULL"
 .LC276:
-	.string	"false"
+	.string	"true"
 .LC277:
-	.string	"bool"
+	.string	"false"
 .LC278:
-	.string	"B_PTR"
+	.string	"bool"
 .LC279:
-	.string	"B_ADDR"
+	.string	"B_PTR"
 .LC280:
+	.string	"B_ADDR"
+.LC281:
 	.string	"B_DEREF"
 	.section	.data.rel.ro.local
 	.align 32
@@ -9198,10 +9215,9 @@ g_libb_path:
 	.size	c_keywords, 424
 c_keywords:
 	.quad	.LC14
-	.quad	.LC233
 	.quad	.LC234
-	.quad	.LC13
 	.quad	.LC235
+	.quad	.LC13
 	.quad	.LC236
 	.quad	.LC237
 	.quad	.LC238
@@ -9218,8 +9234,8 @@ c_keywords:
 	.quad	.LC249
 	.quad	.LC250
 	.quad	.LC251
-	.quad	.LC138
 	.quad	.LC252
+	.quad	.LC138
 	.quad	.LC253
 	.quad	.LC254
 	.quad	.LC255
@@ -9245,10 +9261,11 @@ c_keywords:
 	.quad	.LC275
 	.quad	.LC276
 	.quad	.LC277
-	.quad	.LC30
 	.quad	.LC278
+	.quad	.LC30
 	.quad	.LC279
 	.quad	.LC280
+	.quad	.LC281
 	.quad	0
 	.local	name_map
 	.comm	name_map,24,16

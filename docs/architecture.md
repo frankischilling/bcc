@@ -102,3 +102,13 @@ putting string bytes between adjacent cells or retaining every literal in
 the compiler's small address space. Arithmetic helpers with private dot-prefixed names remain direct
 assembly calls. The test guide distinguishes fast
 emulation from full-system Unix V1 behavior and documents the image safeguards.
+
+`lib/bunix.h` provides the Unix V1 metadata and permission conversions shared
+by the linked and inline host runtimes. Status records are written field by
+field into B cells, never copied from the host structure. Installed and staged
+compilers carry this header, and it participates in the runtime cache key.
+
+Bootstrap strict mode passes the same word-addressing selection to generated
+C and the linked runtime. Compatibility mode keeps byte-addressed pointers.
+The pointer-step and guarded status-buffer tests catch mismatches between
+those two compilation units.

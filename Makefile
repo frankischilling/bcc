@@ -37,7 +37,7 @@ clean:
 install: $(TARGET)
 	install -d "$(DESTDIR)$(BINDIR)" "$(DESTDIR)$(BINDIR)/lib"
 	install -m 755 $(TARGET) "$(DESTDIR)$(BINDIR)/$(TARGET)"
-	install -m 644 lib/libb.c lib/libb.h lib/btarget.h lib/binit.h "$(DESTDIR)$(BINDIR)/lib/"
+	install -m 644 lib/libb.c lib/libb.h lib/btarget.h lib/binit.h lib/bunix.h "$(DESTDIR)$(BINDIR)/lib/"
 
 test-install: $(TARGET)
 	$(PYTHON) tests/test_install.py

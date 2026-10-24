@@ -352,6 +352,33 @@ makdir(path, mode) → 0 or -1
 
 ### File Information
 
+`stat` and `fstat` use the [November 1971 status layout](https://www.tuhs.org/cgi-bin/utree.pl?file=V1/man/man2/stat.2),
+not the host's `struct stat`. Supply 20 B cells. On success, the first 17
+contain 16-bit fields; the last three are untouched. A failed call does not
+change the buffer. Null buffers are rejected.
+
+- Cell 0: the low 16 bits of the inode number.
+- Cell 1: V1 allocation, directory, large-file, and permission flags.
+- Cell 2: link count in the low byte and owner ID in the high byte.
+- Cell 3: file size modulo 65,536.
+- Cells 4 through 11: zero, because host block addresses are not V1 disk addresses.
+- Cells 12-13 and 14-15: creation and modification times, high word first,
+  measured in 60 Hz ticks since 1971 with 32-bit wraparound.
+- Cell 16: zero (reserved).
+
+The host's status-change time substitutes for unavailable creation time.
+The large-file flag reflects a size above 4,096 bytes. Group-specific access
+cannot be represented by V1's owner/non-owner flags. These are explicit host
+approximations, not a reconstructed disk inode. Use 16-bit mode when byte
+access to this record must follow PDP-11 offsets.
+
+For `creat`, `chmod`, and `makdir`, modes from 0 through octal 077 use the
+historical permission bits. For example, 016 creates a regular file with
+POSIX mode 0644 before the host umask. Directory read permission also grants
+host search permission, so `makdir(path,016)` maps to 0755. Larger mode values
+retain the existing POSIX-mode extension, such as 0640. Host umask and access
+checks still apply.
+
 ```b
 // Get file status
 stat(path, buffer) → 0 or -1
