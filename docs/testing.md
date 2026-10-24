@@ -18,7 +18,8 @@ make -C bootstrap test
 The host runner checks suite exit status and reported failures, and rejects
 missing summaries or zero executed tests. It covers both runtime layouts,
 16-bit translated addresses, function values, emitted assembly, process
-arguments, clock/date conversion, and source-defined library names. Tests of the runner guard against
+arguments, clock/date conversion, source-defined library names, and packed
+character output. Character tests check exact bytes rather than terminal text. Tests of the runner guard against
 false-green reports.
 
 `bccasm` runs the same host suite. The B-written compiler runs lexical and

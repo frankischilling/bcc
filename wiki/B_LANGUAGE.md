@@ -38,6 +38,10 @@ In word-addressed mode, `char()` and `lchar()` use little-endian byte packing:
 - This matches PDP-11 conventions
 - Byte-addressed pointers are the command-line compiler default
 
+Character constants are numeric values with the first character high:
+`'AB'` is 16706. Do not confuse this with the low-byte-first layout of
+characters in string storage.
+
 ---
 
 ## Syntax and Features
@@ -45,7 +49,7 @@ In word-addressed mode, `char()` and `lchar()` use little-endian byte packing:
 ### Program Structure
 
 A B program consists of:
-- External variable declarations (`extrn`) — **variables only, not functions**
+- External declarations (`extrn`) for data and function names
 - Function definitions
 - Global variable definitions
 

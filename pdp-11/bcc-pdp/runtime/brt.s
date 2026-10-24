@@ -75,6 +75,12 @@ _exit:
 _putchar:
 	mov	2(sp), pcbuf
 	mov	$1, r0			/ fd = stdout
+	tstb	pcbuf+1
+	beq	1f
+	swab	pcbuf			/ packed pair: high byte first
+	sys	swrite; pcbuf; 2.
+	rts	pc
+1:
 	sys	swrite; pcbuf; 1.
 	rts	pc
 pcbuf:	0

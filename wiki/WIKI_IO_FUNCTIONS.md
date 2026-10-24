@@ -31,16 +31,20 @@ flush() → 0
 putchar('A');              // Output 'A'
 putchar(65);               // Output 'A' (ASCII value)
 putchar('H'); putchar('i'); putchar('*n');  // Output "Hi" + newline
-putchar('hi!');            // Outputs "hi!" (multi-byte character constant)
+putchar('Hi');             // Outputs both characters
+putchar('*n*n');           // Outputs two newlines
 putstr("hello");           // Outputs "hello"
 putstr("prompt?"); flush(); getstr(buf);    // Prompt and read same line
 ```
 
 **Implementation Notes:**
 - Returns the character written
-- Emits each non-zero byte packed into the word (so multi-character constants print multiple bytes)
+- Writes the low 16 bits high-byte first when the high byte is nonzero;
+  otherwise writes just the low byte. NUL bytes are not dropped.
+- Longer character constants are a syntax extension, not a way to print
+  whole strings. Use `putstr` for strings.
 - No error indication
-- Buffers output for efficiency
+- Writes directly to the selected output descriptor
 
 ### Basic Character Input
 

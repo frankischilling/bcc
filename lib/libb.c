@@ -45,8 +45,10 @@ word b_print(word x) {
 
 word b_putchar(word c) {
     __b_sync_wr();
-    unsigned char ch = (unsigned char)(c & 0xFF);
-    (void)write(b_wr_fd, &ch, 1);
+    /* Packed character pairs are written high byte first. */
+    unsigned char bytes[2] = {(unsigned char)((uword)c >> 8), (unsigned char)c};
+    size_t start = bytes[0] ? 0 : 1;
+    (void)write(b_wr_fd, bytes + start, 2 - start);
     return c;
 }
 

@@ -335,11 +335,10 @@ Token lx_next(Lexer *L) {
 
             chars[count++] = ch & 0xFF;
         }
-        /* Pack 1-4 characters into word (right-justified, zero-filled) */
-        long val = chars[0];
-        if (count > 1) val |= ((long)chars[1] << 8);
-        if (count > 2) val |= ((long)chars[2] << 16);
-        if (count > 3) val |= ((long)chars[3] << 24);
+        /* Character constants are right-adjusted, first character high.
+           This is not the byte order of a string stored in memory. */
+        unsigned long val = 0;
+        for (int i = 0; i < count; i++) val = (val << 8) | (unsigned)chars[i];
         Token t = mk_tok(TK_CHR, line, col, L->filename);
         t.num = val;
         return t;

@@ -106,6 +106,12 @@ parameter expressions, and gives external vectors mutable pointer cells.
 It resolves forward label values within their function and diagnoses missing
 or duplicate labels before assembly. It still uses byte addresses.
 
+The manual's example 9.2 ends with a packed pair of newlines passed to
+`putchar`. Character constants use high-byte-first numeric packing, and
+`putchar` emits both bytes when the high byte is nonzero. This differs from
+little-endian string storage. Tests compare exact bytes, including NULs,
+across host, inline, bootstrap, and native runtimes.
+
 The host clock and both date formatters use the [V1 time representation][v1time]:
 32 bits of 60 Hz ticks since January 1, 1971, high word first. `ctime(time,date)`
 writes 15 characters and a NUL into the caller's 16-byte buffer, without a

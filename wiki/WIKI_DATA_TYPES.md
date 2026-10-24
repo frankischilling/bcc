@@ -137,7 +137,7 @@ B packs character constants into words. Thompson B72 supports one or two charact
 ### Packed Characters
 ```b
 'AB'     // Two characters packed: 'A' in high byte, 'B' in low byte
-'Hi'     // Packed string "Hi"
+'Hi'     // Numeric character pair, not a string pointer
 ```
 
 Three- and four-byte character constants compile in default mode, but are rejected by `--strict --pedantic`.

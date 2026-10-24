@@ -48,17 +48,17 @@ WORD_CASES = {
     "pointer_parameter": "f(p){return(*(p+1));} main(){auto v 3; v[1]=11; return(f(v)!=11);}",
     "word_literal": "main(){auto x; x=0177777; return(x!=-1 | 0177777!=-1);}",
     "exact_signed_division": "main(){auto x; x= -6; x=/2; return(x!=-3 | 6/-2!=-3 | -6/-2!=3);}",
-    "packed_word": "main(){auto v 2; v[0]='ab'; v[1]='cd'; return(char(v,0)!='a' | char(v,1)!='b' | char(v,2)!='c' | char(v,3)!='d');}",
-    "packed_string": "main(){auto p; p=\"abcd\"; return(char(p,2)!='c' | *(p+1)!='cd');}",
+    "packed_word": "main(){auto v 2; v[0]='ab'; v[1]='cd'; return(char(v,0)!='b' | char(v,1)!='a' | char(v,2)!='d' | char(v,3)!='c');}",
+    "packed_string": "main(){auto p; p=\"abcd\"; return(char(p,2)!='c' | *(p+1)!='dc');}",
     "write_character": "main(){auto v 2; v[0]=0; v[1]=0; lchar(v,2,'z'); return(v[1]!='z' | char(v,2)!='z');}",
-    "mutable_string": 'main(){auto p; p="abcd"; lchar(p,2,\'z\'); return(char(p,2)!=\'z\' | *(p+1)!=\'zd\');}',
+    "mutable_string": 'main(){auto p; p="abcd"; lchar(p,2,\'z\'); return(char(p,2)!=\'z\' | *(p+1)!=\'dz\');}',
     "embedded_zero_word": 'main(){auto p; p="a*0b"; return(char(p,1)!=0 | char(p,2)!=\'b\' | char(p,3)!=004);}',
     "computed_goto_word": "main(){auto p; p=done; p=p+0; goto p; return(1); done:return(0);}",
     "global_vector": "v[3] 1,2,3; main(){extrn v; auto p; p=v+1; return(*p!=2 | &v[1]!=p);}",
     "high_address": "main(){auto large,p; large=alloc(32760); p=alloc(20); *p=7; *(p+1)=9; if(p>=0)return(1); if(*p!=7 | *(p+1)!=9)return(2); free(p); free(large); return(0);}",
     "frame_reuse": "f(n){auto v 3; v[0]=n; if(n>0)f(n-1); return(v[0]!=n);} main(){auto i; i=0; while(i++<200){if(f(40))return(1);} return(0);}",
     "heap_reuse": "main(){auto i,p; i=0; while(i++<1000){p=alloc(100); *(p+99)=7; if(*(p+99)!=7)return(1); free(p);} return(0);}",
-    "word_file_io": 'main(){auto fd,v 4; fd=creat("packed.tmp",0600); if(fd<0)return(1); if(write(fd,"abcd",4)!=4)return(2); close(fd); fd=open("packed.tmp",0); if(fd<0)return(3); v[0]=v[1]=0; if(read(fd,v,4)!=4)return(4); close(fd); unlink("packed.tmp"); return(v[0]!=\'ab\' | v[1]!=\'cd\');}',
+    "word_file_io": 'main(){auto fd,v 4; fd=creat("packed.tmp",0600); if(fd<0)return(1); if(write(fd,"abcd",4)!=4)return(2); close(fd); fd=open("packed.tmp",0); if(fd<0)return(3); v[0]=v[1]=0; if(read(fd,v,4)!=4)return(4); close(fd); unlink("packed.tmp"); return(v[0]!=\'ba\' | v[1]!=\'dc\');}',
 }
 
 

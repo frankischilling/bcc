@@ -1,6 +1,8 @@
 # Runtime Library (libb.a)
 
-B programs rely on a comprehensive runtime library (`libb.a`) that provides essential operating system interfaces, I/O operations, string manipulation, and compatibility helpers. This page documents the runtime library shipped with BCC.
+This page describes BCC's runtime: character and file I/O, string helpers,
+process operations, and host compatibility functions. See the conformance
+notes for differences from the historical Unix interface.
 
 ---
 
@@ -33,11 +35,20 @@ getstr(buffer_ptr) → buffer_ptr
 **Examples:**
 ```b
 putchar('A');           // Output 'A'
-putchar(42 + '0');      // Output '4' (42 in ASCII)
+putchar(4 + '0');       // Output '4'
+putchar('AB');          // Output both characters
+putchar('*n*n');        // Output two newlines
 auto ch = getchar();    // Read next character
 putstr("hello");        // Output "hello"
 auto buf 20; getstr(buf); putstr(buf); // Echo a line into the buffer
 ```
+
+Character constants put the first character in the high byte: `'AB'` is
+16706. `putchar` writes that byte first when it is nonzero, then the low
+byte. A zero high byte means a single-character write, including NUL.
+String storage has a separate byte order; on the little-endian target,
+`'AB'` stored in a word is not the same as the first word of `"AB"`.
+The `putchr` extension writes only the low byte.
 
 **Error Handling:**
 - `getchar()` returns `*e` (EOT, ASCII 4) on EOF
