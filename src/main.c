@@ -108,7 +108,7 @@ static char *compile_libb(int verbose, int byteptr, int word_bits) {
     /* Include headers in the cache key so the compiler and runtime use the
      * same address model, including when multiple checkouts share /tmp. */
     uint64_t key = UINT64_C(14695981039346656037);
-    const char *dependencies[] = {"libb.c", "libb.h", "btarget.h", "binit.h", "bunix.h"};
+    const char *dependencies[] = {"libb.c", "libb.h", "btarget.h", "binit.h", "bunix.h", "bformat.h"};
     for (size_t i = 0; i < sizeof(dependencies) / sizeof(dependencies[0]); i++) {
         char path[8192];
         snprintf(path, sizeof(path), "%s/%s", g_libb_dir, dependencies[i]);
@@ -122,7 +122,7 @@ static char *compile_libb(int verbose, int byteptr, int word_bits) {
         if (ferror(input)) dief("cannot read runtime dependency %s", path);
         fclose(input);
     }
-    snprintf(libb_o_path, sizeof(libb_o_path), "/tmp/bcc_libb_%016" PRIx64 "_%d_%d.o", key, byteptr, word_bits);
+    snprintf(libb_o_path, sizeof(libb_o_path), "/tmp/bcc_libb_%016" PRIx64 "_%d_%d_%d.o", key, byteptr, word_bits, g_strict ? 1 : 0);
     
     /* Check if libb.c exists */
     if (access(libb_c_path, R_OK) != 0) {
@@ -137,10 +137,12 @@ static char *compile_libb(int verbose, int byteptr, int word_bits) {
         char include_flag[8192];
         char byteptr_flag[64];
         char wordbits_flag[64];
+        char strict_flag[64];
         
         snprintf(include_flag, sizeof(include_flag), "-I%s", g_libb_dir);
         snprintf(byteptr_flag, sizeof(byteptr_flag), "-DB_BYTEPTR=%d", byteptr ? 1 : 0);
         snprintf(wordbits_flag, sizeof(wordbits_flag), "-DWORD_BITS=%d", word_bits);
+        snprintf(strict_flag, sizeof(strict_flag), "-D__bcc_strict_runtime=%d", g_strict ? 1 : 0);
         
         char temporary[8192];
         snprintf(temporary, sizeof(temporary), "%s.XXXXXX", libb_o_path);
@@ -149,7 +151,7 @@ static char *compile_libb(int verbose, int byteptr, int word_bits) {
         close(fd);
         const char *argv[] = {
             "gcc", "-std=c99", "-O2", "-c",
-            include_flag, byteptr_flag, wordbits_flag,
+            include_flag, byteptr_flag, wordbits_flag, strict_flag,
             libb_c_path, "-o", temporary, NULL
         };
         

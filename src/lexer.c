@@ -51,7 +51,7 @@ static int parse_backslash_escape(Lexer *L, int line, int col) {
     if (!EXT_ENABLED(EXT_BACKSLASH_ESC)) {
         if (g_pedantic) {
             error_at_location(L->filename, line, col, ERR_EXPR_SYNTAX,
-                "backslash escapes are not allowed in strict B mode (use --extensions or *-escapes)");
+                "backslash escapes are not allowed in strict B mode (use *-escapes or omit --strict)");
         }
         /* If not pedantic, just return the backslash as literal */
         return '\\';
@@ -100,7 +100,7 @@ void lx_skip_ws_and_comments(Lexer *L) {
             if (!EXT_ENABLED(EXT_LINE_COMMENTS)) {
                 if (g_pedantic) {
                     error_at_location(L->filename, L->line, L->col, ERR_EXPR_SYNTAX,
-                        "// comments are not allowed in strict B mode (use --extensions or /* */)");
+                        "// comments are not allowed in strict B mode (use /* */ or omit --strict)");
                 }
                 /* If not pedantic, treat as division operators */
                 break;
@@ -193,7 +193,7 @@ Token lx_next(Lexer *L) {
                 if (!EXT_ENABLED(EXT_HEX_LITERALS)) {
                     if (g_pedantic) {
                         error_at_location(L->filename, line, col, ERR_EXPR_SYNTAX,
-                            "hexadecimal literals are not allowed in strict B mode (use --extensions or octal)");
+                            "hexadecimal literals are not allowed in strict B mode (use octal or omit --strict)");
                     }
                     /* If not pedantic, treat 0x as octal 0 followed by identifier x */
                     lx_get(L); /* consume just the 0 */

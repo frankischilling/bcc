@@ -125,3 +125,17 @@ argument alignment. `tests/argv_storage.py` also checks the fixed argument
 capacity and startup rejection before copies reach program data. The real
 V1 runner accepts repeated `--argument` options for simple shell words; it
 rejects shell metacharacters rather than interpolating them into commands.
+
+## Reviewed documentation examples
+
+`tests/test_docs_examples.py` compiles and runs marked examples from the
+README, wiki, and guides. The host suite checks shared and inline runtimes;
+each bootstrap stage and the native CI job check examples marked for them.
+Expected output is compared as bytes, so embedded NULs cannot disappear in
+text normalization. See the [wiki test guide](../wiki/WIKI_TESTS.md) for
+metadata and focused commands.
+
+Formatting regressions check strict signed octal and unknown conversions
+separately from host compatibility formats, along with minimum integers,
+word widths, invalid bases, and embedded NULs. Read regressions ensure that
+short, zero-length, failed, and EOF reads do not erase untouched bytes.

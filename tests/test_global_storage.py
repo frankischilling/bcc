@@ -64,7 +64,7 @@ def main():
                 for index, text in enumerate(sources):
                     path = root/f'part{index}.b'; path.write_text(text+'\n'); paths.append(str(path))
                 command = [str(args.compiler.resolve())]
-                if name != 'compat-long-name': command += ['--strict', '--pedantic']
+                if name != 'compat-long-name' and name not in HOST_COMPAT_CASES: command += ['--strict', '--pedantic']
                 if not args.bootstrap: command += [f'--word={mode}']
                 if inline: command += ['--inline-runtime']
                 build = subprocess.run([*command, *paths, '-o', str(root/'case')], capture_output=True, timeout=30)

@@ -26,6 +26,7 @@ make test
 
 A small B program looks like this:
 
+<!-- bcc-example {"stdout":"hello\n","native":true,"bootstrap":true} -->
 ```b
 main() {
     extrn printf;

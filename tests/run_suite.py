@@ -87,6 +87,12 @@ def main():
                           '--compiler', str(compiler)], 'Unix metadata') and ok
         ok = checked_run([sys.executable, str(root / 'tests/test_declarations.py'),
                           '--compiler', str(compiler)], 'declaration statements') and ok
+        ok = checked_run([sys.executable, str(root / 'tests/test_docs_examples.py'),
+                          '--compiler', str(compiler)], 'documentation examples') and ok
+        ok = checked_run([sys.executable, str(root / 'tests/test_read_runtime.py'),
+                          '--compiler', str(compiler)], 'read buffer preservation') and ok
+        ok = checked_run([sys.executable, str(root / 'tests/test_number_formatting.py'),
+                          '--compiler', str(compiler)], 'number formatting') and ok
         ok = checked_run([sys.executable, str(root / 'tests/test_global_storage.py'),
                           '--compiler', str(compiler)], 'global storage') and ok
     print('All host suites passed.' if ok else 'Host suite failed.')

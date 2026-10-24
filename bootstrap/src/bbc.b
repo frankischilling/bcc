@@ -1216,6 +1216,7 @@ stmt() {
             emit(e);
             emit(")");
         } else if (TOK != 37) {
+            if (STRICT) fatal("return value requires parentheses");
             e = expr(1);
             emit(" (");
             emit(e);
@@ -1641,6 +1642,8 @@ emit_header() {
         emitln("#include <ncurses.h>");
         emitln("#include <panel.h>");
     }
+    if (STRICT) emitln("#define __bcc_strict_runtime 1");
+    else emitln("#define __bcc_strict_runtime 0");
     if (STRICT) emitln("#define B_BYTEPTR 0");
     else emitln("#define B_BYTEPTR 1");
     emitln("#define WORD_BITS 0");
@@ -1747,8 +1750,8 @@ build_cmd(cfiles, nc, out, extras, nextra) {
     b = buf_new(4096);
     buf_str(b, "gcc -std=c99 -O2 -Wno-implicit-function-declaration -I ");
     cmdarg(b, LIBDIR);
-    if (STRICT) buf_str(b, " -DB_BYTEPTR=0 -DWORD_BITS=0 -o ");
-    else buf_str(b, " -DB_BYTEPTR=1 -DWORD_BITS=0 -o ");
+    if (STRICT) buf_str(b, " -D__bcc_strict_runtime=1 -DB_BYTEPTR=0 -DWORD_BITS=0 -o ");
+    else buf_str(b, " -D__bcc_strict_runtime=0 -DB_BYTEPTR=1 -DWORD_BITS=0 -o ");
     cmdarg(b, out);
     i = 0;
     while (i < nc) {

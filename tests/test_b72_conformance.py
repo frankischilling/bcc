@@ -8,6 +8,11 @@ import tempfile
 
 
 CASES = {
+    "bare_return_unused": ("f(){return;} main(){f();return(0);}", 0),
+    "unparenthesized_return": ("main(){return 7;}", None),
+    "return_expression_tail": ("main(){return(3)+4;}", None),
+    "top_level_auto": ("auto value; main(){return(0);}", None),
+    "equal_external_initializer": ("value=3;main(){return(0);}", None),
     "eight_character_name": ("abcdefgh 37; main(){extrn abcdefgh;return(abcdefgh!=37);}", 0),
     "long_external_name": ("abcdefghi 37; main(){return(0);}", None),
     "long_local_name": ("main(){auto abcdefghi;return(0);}", None),

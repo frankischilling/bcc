@@ -188,3 +188,24 @@ format](https://www.tuhs.org/cgi-bin/utree.pl?file=V1/man/man5/a.out.5). The dri
 and host-side test converter emit stripped files with the correct field
 positions and text length. A V2 symbol-table length is not a V1 data-area
 length; copying it there had caused a real execution failure.
+
+## Formatting and documentation checks
+
+The shared and inline host runtimes use one formatting implementation.
+Strict mode follows section 9.3's signed octal, four conversions, and unknown-
+conversion fallback; compatibility formatting remains a separate interface.
+No argument is fetched for an unknown conversion. Strict string output and
+the native runtime preserve embedded NUL bytes until 004. Tests cover signed
+minimum values and the selected word width; extra printn bases remain
+explicit extensions beyond section 9.1.
+
+Strict parsers reject unparenthesized value returns, top-level auto, and
+equals-style external initializers. Bare returns no longer generate invalid
+C return statements. A host bare-return value of zero is an implementation
+choice, not a historical guarantee. Strict mode is still not a proof that
+every accepted program belongs to the exact historical grammar.
+
+The wiki's complete examples carry executable checks. This replaces earlier
+claims of nested functions, closures, guaranteed left-to-right argument
+evaluation, and C-style automatic initialization. Tests establish the stated
+examples, not complete historical equivalence.

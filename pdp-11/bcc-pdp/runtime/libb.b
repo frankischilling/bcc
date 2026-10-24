@@ -49,7 +49,7 @@ getstr(s) {
 }
 
 /* printf(fmt, x1..x9) - kbman §9.3.  Format directives:
- *   %d  decimal     %o  octal     %c  char     %s  string     %%  literal %
+ *   %d decimal, %o octal, %c character, %s B-terminated string.
  * Calling convention: cgcll reverses the pushed args so leftmost ends up
  * at TOS.  Arg layout in callee (r5 frame):  fmt at r5+4, x1 at r5+6,
  * x2 at r5+8, ...  Walking adx=&x1 by +1 advances to next user arg.
@@ -64,8 +64,6 @@ printf(fmt, x1, x2, x3, x4, x5, x6, x7, x8, x9) {
 loop:
 	while ((c = char(fmt, i)) != '%') {
 		if (c == '*e')
-			return;
-		if (c == 0)                          /* C-string null term safety */
 			return;
 		putchar(c);
 		i = i + 1;
@@ -92,7 +90,6 @@ loop:
 	if (c == 's') {
 		j = 0;
 		while ((c = char(x, j)) != '*e') {
-			if (c == 0) goto loop;       /* C-string null term safety */
 			putchar(c);
 			j = j + 1;
 		}

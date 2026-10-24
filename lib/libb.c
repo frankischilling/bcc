@@ -94,7 +94,7 @@ word b_putstr(word s) {
     word i = 0;
     for (;;) {
         word ch = b_char(s, i++);
-        if (ch == 004 || ch == 0) break;
+        if (ch == 004 || (!__bcc_strict_runtime && ch == 0)) break;
         b_putchar(ch);
     }
     return s;
@@ -305,125 +305,7 @@ word __b_pack_cstr(const char *s) {
 
 /* Printf Family */
 
-static void b_printn_u(word n, word base) {
-    word a = (word)((uword)n / (uword)base);
-    if (a) b_printn_u(a, base);
-    b_putchar((word)((uword)n % (uword)base) + '0');
-}
-
-word b_printf(word fmt, ...) {
-    va_list ap;
-    va_start(ap, fmt);
-
-    word i = 0;
-    for (;;) {
-        word ch = b_char(fmt, i++);
-        if (ch == 004 || ch == 0) break;
-        if (ch != '%') {
-            b_putchar(ch);
-            continue;
-        }
-
-        word code = b_char(fmt, i++);
-        if (code == 004) break;
-
-        word arg = va_arg(ap, word);
-
-        switch ((int)code) {
-        case 'd': {
-#if WORD_BITS == 16
-            int16_t v = (int16_t)arg;
-            if (v < 0) { b_putchar('-'); v = (int16_t)-v; }
-            if (v) b_printn_u((word)(uword)(uint16_t)v, 10);
-#elif WORD_BITS == 32
-            int32_t v = (int32_t)arg;
-            if (v < 0) { b_putchar('-'); v = -v; }
-            if (v) b_printn_u((word)(uword)(uint32_t)v, 10);
-#else
-            word v = arg;
-            if (v < 0) { b_putchar('-'); v = -v; }
-            if (v) b_printn_u((word)(uword)v, 10);
-#endif
-            else b_putchar('0');
-            break;
-        }
-        case 'o': {
-#if WORD_BITS == 16
-            uint16_t v = (uint16_t)arg;
-#elif WORD_BITS == 32
-            uint32_t v = (uint32_t)arg;
-#else
-            uword v = (uword)arg;
-#endif
-            if (v) b_printn_u((word)(uword)v, 8);
-            else b_putchar('0');
-            break;
-        }
-        case 'u': {
-            uword v = (uword)arg;
-            if (v) b_printn_u((word)v, 10);
-            else b_putchar('0');
-            break;
-        }
-        case 'p': {
-            uword v = (uword)arg;
-            b_putchar('0'); b_putchar('x');
-            int started = 0;
-            for (int shift = (int)(sizeof(uword)*8 - 4); shift >= 0; shift -= 4) {
-                int nib = (int)((v >> shift) & 0xF);
-                if (!started && nib == 0 && shift > 0) continue;
-                started = 1;
-                b_putchar((word)(nib < 10 ? ('0' + nib) : ('a' + nib - 10)));
-            }
-            if (!started) b_putchar('0');
-            break;
-        }
-        case 'z': {
-            word mod = b_char(fmt, i++);
-            if (mod == 'u') {
-                uword v = (uword)arg;
-                if (v) b_printn_u((word)v, 10);
-                else b_putchar('0');
-            } else if (mod == 'd') {
-                long v = (long)arg;
-                if (v < 0) { b_putchar('-'); v = -v; }
-                if (v) b_printn_u((word)(uword)v, 10);
-                else b_putchar('0');
-            } else {
-                b_putchar('%'); b_putchar('z'); b_putchar(mod);
-            }
-            break;
-        }
-        case 'c':
-            b_putchar(arg);
-            break;
-        case 's': {
-            word j = 0;
-            for (;;) {
-                word sc = b_char(arg, j++);
-                if (sc == 004 || sc == 0) break;
-                b_putchar(sc);
-            }
-            break;
-        }
-        default:
-            b_putchar('%'); b_putchar(code);
-            break;
-        }
-    }
-
-    va_end(ap);
-    return 0;
-}
-
-word b_printn(word n, word base) {
-    if (base == 10 && (int16_t)n < 0) {
-        b_putchar('-');
-        n = (word)(-(int16_t)n);
-    }
-    b_printn_u(n, base);
-    return n;
-}
+#include "bformat.h"
 
 word b_putnum(word n) {
     b_printn(n, (word)10);
@@ -587,7 +469,6 @@ word b_read(word fd, word buf, word n) {
     return WVAL(count);
 #else
     char *p = (char*)B_CPTR(buf);
-    if ((size_t)n < sizeof(word)) memset(p, 0, sizeof(word));
     return (word)read((int)fd, p, (size_t)n);
 #endif
 }

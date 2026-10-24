@@ -157,6 +157,7 @@ Program *parse_program_ast(Parser *P) {
             t->kind = TOP_EXTERN_DECL;
             t->as.ext_decl = parse_extern_decl(P);
         } else if (P->cur.kind == TK_AUTO) {
+            if (g_strict) error_at(&P->cur, P->source, "top-level auto is outside Thompson B72");
             t->kind = TOP_GAUTO;
             t->as.gauto = parse_auto_decl(P); // ST_AUTO
         } else if (P->cur.kind == TK_ID) {
@@ -303,6 +304,7 @@ ExternItem *parse_extern_var_def(Parser *P){
 
     // Optional: keep your extension "name = expr;"
     if (accept(P, TK_ASSIGN)) {
+        if (g_strict) error_at(&P->cur, P->source, "external '=' initializer is outside Thompson B72");
         it->as.var.vkind = EXTVAR_SCALAR;
         Init *in = new_init(INIT_EXPR, P->cur.line, P->cur.col);
         in->as.expr = parse_expr(P);
@@ -427,7 +429,13 @@ Stmt *parse_return(Parser *P) {
     expect(P, TK_RETURN);
 
     Expr *val = NULL;
-    if (P->cur.kind != TK_SEMI) val = parse_expr(P);
+    if (P->cur.kind != TK_SEMI) {
+        if (g_strict) {
+            expect(P, TK_LPAREN);
+            val = parse_expr(P);
+            expect(P, TK_RPAREN);
+        } else val = parse_expr(P);
+    }
     expect(P, TK_SEMI);
 
     Stmt *s = new_stmt(ST_RETURN, line, col);

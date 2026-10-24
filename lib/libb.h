@@ -8,6 +8,10 @@
 #ifndef LIBB_H
 #define LIBB_H
 
+#ifndef __bcc_strict_runtime
+#define __bcc_strict_runtime 0
+#endif
+
 #define _DEFAULT_SOURCE 1
 #define _XOPEN_SOURCE 700
 #define _POSIX_C_SOURCE 200809L

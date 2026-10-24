@@ -1,19 +1,19 @@
-# bccasm Bootstrap
+# Staged assembly-source build
 
-This directory bootstraps a fresh `bccasm` from the assembly sources under
-`../generated/` plus the assembly runtime in `../runtime.s`.
-
-Run:
+This target assembles and links the checked-in x86-64 GNU assembly snapshots
+under `../generated/` into a fresh compiler. It checks their recorded source
+and output hashes before building.
 
 ```sh
 make -C asm/bootstrap bootstrap
 ```
 
-Outputs:
+The result is `stage1/bccasm`. Its `stage1/lib/` directory contains copies of
+the shared host runtime sources: `libb.c`, `libb.h`, `btarget.h`, `binit.h`,
+`bunix.h`, and `bformat.h`. Compiling a B program still uses GCC and that C
+runtime; this target does not build a separate handwritten assembly runtime.
 
-- `stage1/bccasm` - freshly assembled and linked compiler
-- `stage1/lib/runtime.o` - freshly assembled runtime used by generated programs
-- `stage1/lib/libb.h` - symlink to the shared runtime ABI header
-
-The `bootstrap` target validates the stage compiler by running `../check.sh`
-with `BCC` pointed at `stage1/bccasm`.
+The `bootstrap` target runs `../check.sh` with the new compiler. This is a
+staged assembly-source build, not B-language self-compilation. For the
+compiler written in B and its three-stage fixed-point check, see
+[`../../bootstrap/`](../../bootstrap/README.md).

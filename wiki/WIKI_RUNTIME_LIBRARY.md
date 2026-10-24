@@ -1,862 +1,141 @@
-# Runtime Library (libb.a)
-
-This page describes BCC's runtime: character and file I/O, string helpers,
-process operations, and host compatibility functions. See the conformance
-notes for differences from the historical Unix interface.
-
----
-
-## Overview
-
-The B runtime library serves as the interface between B programs and the Unix operating system. All functions are automatically available to B programs without explicit declarations.
-
-**Key Characteristics:**
-- Functions are prefixed with `b_` in the generated C code
-- All parameters and return values are `word`; the width follows `--word` mode (`host`, `16`, or `32`)
-- Error handling through return codes and condition flags
-- Direct Unix system call integration
-
----
-
-## Input/Output Functions
-
-### Character I/O
-
-```b
-// Output character to stdout
-putchar(c) → c
-putstr(string_ptr) → string_ptr
-
-// Input character from stdin
-getchar() → character or EOF
-getstr(buffer_ptr) → buffer_ptr
-```
-
-**Examples:**
-```b
-putchar('A');           // Output 'A'
-putchar(4 + '0');       // Output '4'
-putchar('AB');          // Output both characters
-putchar('*n*n');        // Output two newlines
-auto ch = getchar();    // Read next character
-putstr("hello");        // Output "hello"
-auto buf 20; getstr(buf); putstr(buf); // Echo a line into the buffer
-```
-
-Character constants put the first character in the high byte: `'AB'` is
-16706. `putchar` writes that byte first when it is nonzero, then the low
-byte. A zero high byte means a single-character write, including NUL.
-String storage has a separate byte order; on the little-endian target,
-`'AB'` stored in a word is not the same as the first word of `"AB"`.
-The `putchr` extension writes only the low byte.
-
-**Error Handling:**
-- `getchar()` returns `*e` (EOT, ASCII 4) on EOF
-- No error returns for `putchar()`
-
-### Formatted Output
-
-```b
-// Print formatted string with arguments
-printf(format_string, arg1, arg2, ...) → 0
-
-// Print number followed by newline
-print(number) → number
-```
-
-**Format Specifiers:**
-- `%d` - Signed decimal integer
-- `%o` - Unsigned octal integer
-- `%c` - Character
-- `%s` - String (terminated by `*e`)
-
-**Examples:**
-```b
-printf("hello world*n");              // Simple string
-printf("value: %d*n", 42);            // Formatted number
-printf("char: %c octal: %o*n", 'A', 65); // Multiple formats
-print(123);                           // Print 123 followed by newline
-```
-
-### File I/O
-
-```b
-open(name, mode) → file_descriptor
-creat(name, mode) → file_descriptor
-close(fd) → status
-read(fd, buffer, byte_count) → count
-write(fd, buffer, byte_count) → count
-seek(fd, offset, whence) → status
-openr(unit, name) → unit
-openw(unit, name) → unit
-flush() → 0
-```
-
-**Mode Values:**
-- `open()`: 0 = read, 1 = write, 2 = read/write
-- File descriptors are Unix file descriptors
-
----
-
-## String Manipulation
-
-### Character Access
-
-```b
-// Get character at string position
-char(string_ptr, index) → character
-
-// Set character at string position
-lchar(string_ptr, index, new_char) → new_char
-```
-
-**String Representation:**
-- Strings are word arrays
-- Character constants can pack up to 4 ASCII bytes into one word (right-justified)
-- Terminated with `*e` (EOT)
-
-**Examples:**
-```b
-auto str 10;
-lchar(str, 0, 'H');
-lchar(str, 1, 'i');
-lchar(str, 2, '*e');         // Terminate string
-
-auto first = char(str, 0);   // Gets 'H'
-auto second = char(str, 1);  // Gets 'i'
-```
-
-### String Building
-
-**Common Patterns:**
-```b
-// String length
-strlen(s) {
-    auto len = 0;
-    while (char(s, len) != '*e') {
-        len =+ 1;
-    }
-    return len;
-}
-
-// String copy
-strcpy(dest, src) {
-    auto i = 0;
-    auto c;
-    while ((c = char(src, i)) != '*e') {
-        lchar(dest, i, c);
-        i =+ 1;
-    }
-    lchar(dest, i, '*e');
-    return dest;
-}
-
-// String comparison
-strcmp(s1, s2) {
-    auto i = 0;
-    auto c1, c2;
-    while (1) {
-        c1 = char(s1, i);
-        c2 = char(s2, i);
-        if (c1 != c2) return c1 - c2;
-        if (c1 == '*e') return 0;
-        i =+ 1;
-    }
-}
-```
-
----
-
-## File Operations
-
-### File Descriptors
-
-```b
-// Open existing file
-open(name_string, mode) → fd or -1
-
-// Create new file
-creat(name_string, mode) → fd or -1
-
-// Close file
-close(fd) → 0 or -1
-
-// Seek in file
-seek(fd, offset, whence) → new_position or -1
-
-// Read from file
-read(fd, buffer, count) → bytes_read or -1
-
-// Write to file
-write(fd, buffer, count) → bytes_written or -1
-```
-
-**Mode Values:**
-- `open()`: 0 = read-only, 1 = write-only, 2 = read-write
-- `creat()`: Unix file permissions (typically 017 for executable)
-- `seek()` whence: 0 = SEEK_SET, 1 = SEEK_CUR, 2 = SEEK_END
-
-**Examples:**
-```b
-// Read from file
-auto fd = open("input.txt", 0);
-if (fd < 0) {
-    printf("cannot open file*n");
-    return 1;
-}
-
-auto buffer 100;
-auto n = read(fd, buffer, 50);
-close(fd);
-```
-
-### Unit I/O
-
-```b
-openr(3, "input.txt");             // Redirect getchar/getstr
-auto ch = getchar();               // Read character
-
-openw(4, "output.txt");            // Redirect putchar/putstr/printf
-putchar('X');                      // Write character
-flush();                           // Flush current output unit
-```
-
----
-
-## Command-Line Arguments
-
-`argv` is the predefined B vector described in section 8 of the PDP-11
-reference. Declare it with `extrn argv;` before use:
-
-- `argv[0]` is the stored argument count, including the program name.
-- `argv[1]` points to the program name.
-- `argv[2]` points to the first user argument, when present.
-- These strings end in NUL, matching the native argument frame. Empty
-  arguments remain entries in the vector.
-
-The vector pointer is an assignable B cell. Local variables and same-file
-source definitions named `argv` can hide the predefined name.
-
-The host compatibility calls are separate: `argc()` returns the process
-argument count, and `argv(i)` uses zero-based indexing with the program name
-at index zero. The latter keeps EOT-terminated B strings for compatibility.
-It is a direct-call extension, not the meaning of `argv` used as a value.
-
-Host and bootstrap `main(count, values)` parameters receive the count and a
-zero-based vector of those compatibility strings. Native optional main
-parameters retain their older user-arguments-only layout; see the native
-guide for that distinction and its 31-entry predefined-vector limit.
-
-## Process Control
-
-### Process Creation
-
-```b
-// Create child process
-fork() → pid (parent) or 0 (child)
-
-// Wait for child process
-wait() → child_pid
-
-// Execute program
-execl(path, arg0, arg1, ..., 0) → -1 (error only)
-
-// Execute with argument array
-execv(path, argv_array, count) → -1 (error only)
-```
-
-**Process ID Convention:**
-- `fork()` returns 0 to child, child's PID to parent
-- `wait()` returns child's PID, stores exit status in `wait_status`
-
-**Examples:**
-```b
-auto pid = fork();
-if (pid == 0) {
-    // Child process
-    execl("/bin/ls", "ls", 0);
-} else {
-    // Parent process
-    auto child_pid = wait();
-    printf("child %d exited*n", child_pid);
-}
-```
-
-### Exit and Termination
-
-```b
-// Exit program with status
-exit(status) → (does not return)
-```
-
----
-
-## Memory Management
-
-### Dynamic Allocation
-
-```b
-// Allocate memory
-alloc(word_count) → pointer or 0
-
-// Free memory allocated by alloc()
-free(pointer) → 0
-```
-
-**Memory Model:**
-- Allocates in word units
-- Memory persists until freed or program termination
-- No garbage collection
-- Returns pointer to allocated block
-
-**Examples:**
-```b
-// Allocate array
-auto size = 100;
-auto array = alloc(size);
-
-// Use as regular array
-auto i = 0;
-while (i < size) {
-    array[i] = i * i;
-    i =+ 1;
-}
-
-// Allocate string buffer
-auto buffer = alloc(256);
-strcpy(buffer, "hello world");
-```
-
----
-
-## System Calls
-
-### File System
-
-```b
-// Change directory
-chdir(path) → 0 or -1
-
-// Get current user ID
-getuid() → uid
-
-// Set user ID
-setuid(uid) → 0 or -1
-
-// Delete file
-unlink(path) → 0 or -1
-
-// Create directory
-makdir(path, mode) → 0 or -1
-```
-
-### File Information
-
-`stat` and `fstat` use the [November 1971 status layout](https://www.tuhs.org/cgi-bin/utree.pl?file=V1/man/man2/stat.2),
-not the host's `struct stat`. Supply 20 B cells. On success, the first 17
-contain 16-bit fields; the last three are untouched. A failed call does not
-change the buffer. Null buffers are rejected.
-
-- Cell 0: the low 16 bits of the inode number.
-- Cell 1: V1 allocation, directory, large-file, and permission flags.
-- Cell 2: link count in the low byte and owner ID in the high byte.
-- Cell 3: file size modulo 65,536.
-- Cells 4 through 11: zero, because host block addresses are not V1 disk addresses.
-- Cells 12-13 and 14-15: creation and modification times, high word first,
-  measured in 60 Hz ticks since 1971 with 32-bit wraparound.
-- Cell 16: zero (reserved).
+# Runtime library
+
+The host compiler uses `lib/libb.c` and its private headers, either linked
+with generated C or embedded by `--inline-runtime`. It does not ship a
+separate historical `libb.a`. Native PDP-11 programs use assembly syscall
+wrappers and a B-written library under `pdp-11/bcc-pdp/runtime/`.
+
+These implementations share tested interfaces, but are not interchangeable
+Unix ABIs. Declare the library names you use with `extrn`. Host convenience
+functions are not evidence that those functions existed in the selected
+historical B environment.
+
+## Interface map
+
+- Characters and strings: `char`, `lchar`, `getchar`, `putchar`, `getstr`,
+  `putstr`. See [strings](WIKI_STRING_OPERATIONS.md).
+- Formatting: `printf` and `printn`. See [formatting rules](WIKI_IO_FUNCTIONS.md).
+- Descriptors: `open`, `creat`, `close`, `read`, `write`, `seek`.
+- Filesystem: `chdir`, `chmod`, `chown`, `link`, `unlink`, `stat`, `fstat`,
+  `makdir`. See [file I/O](WIKI_FILE_IO.md).
+- Processes and identity: `fork`, `wait`, `execl`, `execv`, `exit`, `getuid`,
+  `setuid`. Host permission checks remain in force.
+- Time: `time` and `ctime`, described below.
+- Terminal and interrupts: `gtty`, `stty`, `intr`, with the limits below.
+
+Host additions include `alloc`, `free`, `abort`, `system`, `usleep`, `argc`,
+function-style `argv(i)`, `getchr`, `putchr`, `print`, `putnum`, `flush`,
+`openr`, `openw`, `reread`, and `callf`. Do not assume the native compiler
+implements every host helper. The host ABI declarations are in
+[`libb.h`](../lib/libb.h), and source-name binding is in
+[`src/emitter.c`](../src/emitter.c).
+
+## Arguments and process replacement
+
+The predefined vector `argv` contains a count at index zero and the program
+name at index one. Its argument strings use Unix NUL termination. Host
+`argc()` and `argv(i)` are separate compatibility calls: their indexing
+starts at zero for the program name, and function-style `argv(i)` returns a
+B-terminated copy. Do not confuse either interface with optional main
+parameters, whose conventions differ between host and native builds.
+
+`execv(path,vector,count)` passes exactly `count` strings, including the
+new program's argument zero. `execl` takes the path followed by arguments
+and a zero sentinel. Both replace the current process on success and return
+on failure. The host wrappers convert packed strings before calling libc;
+they are not direct calls with host `char **` pointers.
+
+`fork()` returns zero in the child and a process ID in the parent, or a
+negative result on failure. `wait()` returns a process ID; do not interpret
+that value as an exit status. Host-sized process IDs need not fit in a
+16-bit B word. The fast native test observer is not a substitute for tests
+inside the restored Unix kernel.
+
+## File status
+
+Host `stat` and `fstat` use the
+[November 1971 status layout](https://www.tuhs.org/cgi-bin/utree.pl?file=V1/man/man2/stat.2),
+not a host `struct stat`. Supply 20 B cells. A successful host call fills
+17 cells and leaves the final three untouched; failure leaves the buffer
+unchanged. Null buffers are rejected.
+
+- Cell 0: low 16 bits of the inode number.
+- Cell 1: allocation, directory, large-file, and permission flags.
+- Cell 2: link count in the low byte, owner ID in the high byte.
+- Cell 3: byte size modulo 65,536.
+- Cells 4-11: zero; host disk block addresses are not V1 addresses.
+- Cells 12-13 and 14-15: creation and modification times, high word first.
+- Cell 16: zero, reserved.
 
 The host's status-change time substitutes for unavailable creation time.
-The large-file flag reflects a size above 4,096 bytes. Group-specific access
-cannot be represented by V1's owner/non-owner flags. These are explicit host
-approximations, not a reconstructed disk inode. Use 16-bit mode when byte
-access to this record must follow PDP-11 offsets.
+The large-file flag reflects a size above 4,096 bytes. V1's owner/other
+permission fields cannot represent independent host group permissions.
+Use 16-bit mode for byte access at PDP-11 offsets. These are explicit host
+approximations, not a reconstructed disk inode. Native calls use the
+restored filesystem and kernel's record.
 
-For `creat`, `chmod`, and `makdir`, modes from 0 through octal 077 use the
-historical permission bits. For example, 016 creates a regular file with
-POSIX mode 0644 before the host umask. Directory read permission also grants
-host search permission, so `makdir(path,016)` maps to 0755. Larger mode values
-retain the existing POSIX-mode extension, such as 0640. Host umask and access
-checks still apply.
+## Time and date
 
-```b
-// Get file status
-stat(path, buffer) → 0 or -1
+`time(tv)` writes two words, high word first, containing a 32-bit count of
+60 Hz ticks since January 1, 1971. The count wraps after about 2.27 years;
+it cannot encode today's date without wrapping. `ctime(tv,date)` writes
+15 printable characters and a NUL into a 16-byte destination, with no
+newline. It is not a B-terminated string.
 
-// Get file status by descriptor
-fstat(fd, buffer) → 0 or -1
-
-// Change permissions
-chmod(path, mode) → 0 or -1
-
-// Change ownership
-chown(path, uid) → 0 or -1
-
-// Create hard link
-link(old_path, new_path) → 0 or -1
-```
-
----
-
-## Time and Date
-
-`time(buffer)` fills two words with the Unix V1 clock: 60 Hz ticks since
-January 1, 1971, with the high 16 bits first. The host implementation returns
-zero on success and -1 if reading the host clock fails.
-
-`ctime(buffer, date)` writes into a caller-owned 16-byte buffer. The first
-15 bytes contain a date such as `Jan  1 00:00:00`; byte 15 is NUL. There is
-no newline. The tick counter wraps at 32 bits, so this historical interface
-is not a way to obtain today's full calendar date.
-
+<!-- bcc-example {"stdout":"Jan  1 00:00:00\n","native":true,"bootstrap":true} -->
 ```b
 main() {
-    auto timebuf 2, date 8;
-    extrn time, ctime, printf;
-    time(timebuf);
-    ctime(timebuf, date);
-    printf("represented date: %s*n", date);
+    extrn ctime, char, putchar;
+    auto tv 2, date 8, i;
+    tv[0]=0; tv[1]=0;
+    ctime(tv,date);
+    i=0;
+    while(i<15) { putchar(char(date,i)); i=+1; }
+    putchar('*n');
+    return(0);
 }
 ```
 
-This replaces the previous host-only low-word-first Unix-seconds layout and
-one-argument `ctime` extension. Existing callers must supply the date buffer.
-
-### Delay Function
-
-`usleep(microseconds)` pauses execution for the specified number of microseconds. Useful for:
-- Animation timing (e.g., the spinning donut example)
-- Rate limiting
-- Polling with delays
-
-**Limitations:**
-- No year information (wraps every ~2 years)
-- Fixed format, no customization
-- Includes trailing newline
-
----
-
-## Mathematical Functions
-
-### Arithmetic Support
-
-B provides basic arithmetic operations as part of the language, but for advanced math:
-
-```b
-// Note: B's math library is limited
-// Most mathematical functions are not available in original B
-// Modern implementations may add them
-```
-
-**Available Operations:**
-- Basic arithmetic: `+`, `-`, `*`, `/`, `%`
-- Bitwise operations: `&`, `|`, `<<`, `>>`
-- Comparison: `==`, `!=`, `<`, `<=`, `>`, `>=`
-
-### Compatibility Helpers
-
-```b
-// Sign-extend lower 16 bits to full word size
-sx64(value) → sign_extended_value
-```
-
-**Usage:**
-`sx64(x)` extracts the lower 16 bits of `x` and sign-extends them to the full word size. This is essential for porting 16-bit algorithms (like the spinning donut) to 64-bit hosts.
-
-**Examples:**
-```b
-sx64(32767);    // Returns 32767
-sx64(32768);    // Returns -32768 (sign bit set in 16-bit)
-sx64(-1);       // Returns -1
-sx64(65535);    // Returns -1 (0xFFFF sign-extended)
-```
-
-**Use Cases:**
-- Fixed-point arithmetic from 16-bit era code
-- Algorithms expecting 16-bit overflow behavior
-- Porting PDP-11 B programs to modern systems
-
-### Safe Arithmetic Macros (Internal)
-
-When using `--word=16` or `--word=32` mode, the compiler generates safe arithmetic that avoids host-C undefined behavior. These macros are used internally:
-
-| Macro | Operation | Description |
-|-------|-----------|-------------|
-| `WADD(a,b)` | `a + b` | Safe addition (unsigned, then wrap) |
-| `WSUB(a,b)` | `a - b` | Safe subtraction |
-| `WMUL(a,b)` | `a * b` | Safe multiplication |
-| `WDIV(a,b)` | `a / b` | Unsigned division |
-| `WMOD(a,b)` | `a % b` | Unsigned modulo |
-| `WSHL(a,n)` | `a << n` | Safe left shift (masked count) |
-| `WSHR(a,n)` | `a >> n` | Safe right shift (logical, masked) |
-| `WNEG(a)` | `-a` | Safe unary negation |
-
-**Safety Features:**
-- **No signed overflow UB**: All arithmetic uses unsigned intermediates
-- **No shift >= width UB**: Shift counts are masked (& 15 for 16-bit, & 31 for 32-bit)
-- **Proper logical shifts**: Right shifts are logical (fill with zeros), not arithmetic
-- **Correct word-width behavior**: Operands masked before shifts for accurate emulation
-
-**Example edge cases (16-bit mode):**
-```
--1 >> 1     → 32767  (0xFFFF >> 1 = 0x7FFF)
-1 << 15     → -32768 (sign bit set)
-1 << 20     → 16     (20 & 15 = 4, so 1 << 4)
-32767 + 1   → -32768 (overflow wrap)
-```
-
----
-
-## Terminal Control
-
-### Terminal Modes
-
-```b
-// Get terminal characteristics
-gtty(fd, buffer) → 0 or -1
-
-// Set terminal characteristics
-stty(fd, buffer) → 0 or -1
-```
-
-**Buffer Format:**
-- `buffer[0]`: Input flags (c_iflag)
-- `buffer[1]`: Output flags (c_oflag)
-- `buffer[2]`: Local flags (c_lflag)
-
-### Interrupt Handling
-
-```b
-// Set up interrupt signal handling
-intr(mode) → 0
-```
-
-**Mode Values:**
-- `mode != 0`: Install SIGINT handler
-- `mode == 0`: Restore default SIGINT behavior
-
----
-
-## Print Functions
-
-### Number Formatting
-
-```b
-// Print decimal number without newline
-putnum(number) → number
-
-// Print number in specified base
-printn(number, base) → number
-
-// Print number with newline
-print(number) → number
-```
-
-**Base Values:**
-- `8`: Octal
-- `10`: Decimal
-- `16`: Hexadecimal (if supported)
-
-**Behavior:**
-- `putnum` prints decimal digits only (no trailing newline)
-- Negative inputs print a leading `-`
-- Zero still prints `0`
-
-**Examples:**
-```b
-putnum(-42); putchar('*n');   // Print "-42" then newline via putchar
-putnum(0);                    // Print "0"
-printn(42, 10);      // Print "42"
-printn(42, 8);       // Print "52" (42 in octal)
-printn(42, 16);      // Print "2A" (42 in hex)
-```
-
----
-
-## Error Handling
-
-### Return Code Convention
-
-Most functions follow Unix conventions:
-- `0`: Success
-- `-1`: Error (check `errno` equivalent)
-
-### File Operations
-
-```b
-// Check for file errors
-auto fd = open("file.txt", 0);
-if (fd < 0) {
-    printf("cannot open file*n");
-    return 1;
-}
-```
-
-### System Calls
-
-```b
-// Handle system call errors
-if (chdir("/tmp") < 0) {
-    printf("cannot change directory*n");
-    return 1;
-}
-```
-
----
-
-## Library Organization
-
-### Function Categories
-
-1. **Core I/O**: `putchar`, `getchar`, `print`, `printf`
-2. **File I/O**: `open`, `close`, `read`, `write`, `creat`, `seek`
-3. **Unit I/O**: `openr`, `openw`, `flush`, `reread`
-4. **String Operations**: `char`, `lchar`
-5. **Process Control & Interop**: `fork`, `wait`, `execl`, `execv`, `system`, `callf`, `exit`
-6. **Memory Management**: `alloc`, `free`
-7. **File System**: `chdir`, `chmod`, `chown`, `link`, `unlink`, `stat`
-8. **System Info**: `getuid`, `setuid`, `time`, `ctime`
-9. **Terminal Control**: `gtty`, `stty`, `intr`
-
-### Implementation Notes
-
-**B to C Translation:**
-- All functions prefixed with `b_` in generated code
-- Parameters converted from B words to appropriate C types
-- Return values converted back to B words
-- Error handling mapped to B conventions
-- I/O redirection helpers `openr`/`openw`/`flush` switch the default input/output units used by `getchar`/`putchar`/`getstr`/`putstr`
-
-**System Dependencies:**
-- Unix-specific system calls
-- PDP-11 word size assumptions
-- Terminal control assumes Unix tty interface
-
----
-
-## Complete Function Reference
-
-### Alphabetical Index
-
-| Function | Signature | Description |
-|----------|-----------|-------------|
-| `alloc` | `(n) → ptr` | Allocate n words |
-| `char` | `(s, i) → c` | Get char at string position |
-| `chdir` | `(path) → 0/-1` | Change directory |
-| `chmod` | `(path, mode) → 0/-1` | Change file permissions |
-| `chown` | `(path, uid) → 0/-1` | Change file ownership |
-| `close` | `(fd) → 0/-1` | Close file descriptor |
-| `creat` | `(name, mode) → fd` | Create file |
-| `ctime` | `(time, date)` | Fill a 16-byte date buffer |
-| `execl` | `(path, ...) → -1` | Execute with arg list |
-| `execv` | `(path, argv, count) → -1` | Execute with exactly count arguments |
-| `exit` | `(status) → noreturn` | Exit program |
-| `callf` | `(name, a1...a10) → status` | Call Fortran/GMAP/C routine by name (addresses only; up to 10 args; tries `name` then `name_`) |
-| `flush` | `() → 0` | Flush current output unit |
-| `fork` | `() → pid/0` | Create child process |
-| `fstat` | `(fd, buf) → 0/-1` | Get file status by fd |
-| `getchar` | `() → c/*e` | Read stdin character |
-| `getchr` | `() → c/4` | Read raw character |
-| `getstr` | `(buf) → buf` | Read line into B string buffer |
-| `getuid` | `() → uid` | Get user ID |
-| `gtty` | `(fd, buf) → 0/-1` | Get terminal modes |
-| `intr` | `(mode) → 0` | Set interrupt handling |
-| `lchar` | `(s, i, c) → c` | Set char at string position |
-| `link` | `(old, new) → 0/-1` | Create hard link |
-| `makdir` | `(path, mode) → 0/-1` | Create directory |
-| `open` | `(name, mode) → fd` | Open file |
-| `openr` | `(fd, name) → fd` | Open read-only (dup to fd if provided) |
-| `openw` | `(fd, name) → fd` | Open write/truncate (dup to fd if provided) |
-| `print` | `(n) → n` | Print number with newline |
-| `printf` | `(fmt, ...) → 0` | Formatted output |
-| `printn` | `(n, base) → n` | Print number in base |
-| `putnum` | `(n) → n` | Print decimal number (no newline) |
-| `putchar` | `(c) → c` | Write stdout character |
-| `putchr` | `(c) → c` | Write raw character |
-| `putstr` | `(s) → s` | Write B string |
-| `read` | `(fd, buf, n) → count` | Read from file |
-| `seek` | `(fd, off, wh) → pos` | Seek in file |
-| `setuid` | `(uid) → 0/-1` | Set user ID |
-| `stat` | `(path, buf) → 0/-1` | Get file status |
-| `stime` | `(buf) → 0` | Set system time |
-| `stty` | `(fd, buf) → 0/-1` | Set terminal modes |
-| `system` | `(cmd) → status` | Execute command line without a shell; returns raw wait status (`(rc>>8)&0377` for exit code) |
-| `B_CALLF_LIB` | env var | `:`-separated `.so` list to preload for `callf` symbol lookup (loaded with `dlopen` RTLD_GLOBAL) |
-| `time` | `(buf) → 0` | Get current time |
-| `unlink` | `(path) → 0/-1` | Delete file |
-| `wait` | `() → pid` | Wait for child process |
-| `write` | `(fd, buf, n) → count` | Write to file |
-
-### Fortran interop quickstart
-```bash
-# 1) Write a shim (example in repo: shim.f90)
-gfortran -shared -fPIC shim.f90 -o libtssshim.so
-
-# 2) Run B code with the library preloaded for callf:
-B_CALLF_LIB=./libtssshim.so ./your_program
-
-# 3) Call from B using string names + addresses:
-callf("sin2", &x, &y);
-callf("itimez", &t);
-```
-
----
-
-## Usage Examples
-
-### File Processing Program
-
-```b
-main() {
-    auto infile = open("input.txt", 0);
-    auto outfile = creat("output.txt", 017);
-
-    if (infile < 0 | outfile < 0) {
-        printf("cannot open files*n");
-        return 1;
-    }
-
-    auto buffer 256;
-    auto n;
-
-    while ((n = read(infile, buffer, 256)) > 0) {
-        write(outfile, buffer, n);
-    }
-
-    close(infile);
-    close(outfile);
-
-    printf("file copied*n");
-}
-```
-
-### Redirecting Standard I/O
-
-```b
-main() {
-    openr(5, "input.txt");   // getchar/getstr now read from input.txt
-    openw(6, "output.txt");  // putchar/putstr now write to output.txt
-
-    auto c;
-    while ((c = getchar()) != '*e')
-        putchar(c);
-
-    flush();  // ensure output is written
-}
-```
-
-### Directory Listing
-
-```b
-main() {
-    // Simple directory listing using execl
-    auto pid = fork();
-
-    if (pid == 0) {
-        // Child process
-        execl("/bin/ls", "ls", "-l", 0);
-        printf("exec failed*n");
-        exit(1);
-    } else {
-        // Parent process
-        wait();
-        printf("listing complete*n");
-    }
-}
-```
-
-### String Processing
-
-```b
-main() {
-    auto input 100;
-    auto output 100;
-
-    printf("enter string: ");
-    // Read input (simplified - real implementation would loop)
-    auto i = 0;
-    auto c;
-    while ((c = getchar()) != '*n' & i < 99) {
-        lchar(input, i++, c);
-    }
-    lchar(input, i, '*e');
-
-    // Convert to uppercase
-    i = 0;
-    while ((c = char(input, i)) != '*e') {
-        if (c >= 'a' & c <= 'z') {
-            c = c + ('A' - 'a');
-        }
-        lchar(output, i, c);
-        i =+ 1;
-    }
-    lchar(output, i, '*e');
-
-    printf("result: %s*n", output);
-}
-```
-
----
-
-## Implementation Details
-
-### Function Binding
-
-Default runtime calls use C functions with a `b_` prefix. Source-defined
-functions take precedence; not every B call goes to the runtime:
-
-```b
-putchar('A');
-```
-
-Compiles to:
-```c
-b_putchar('A');
-```
-
-### Parameter Conversion
-
-B words are converted to appropriate C types:
-- Character operations: `word` → `char`
-- File descriptors: `word` → `int`
-- Pointers: `word` → appropriate pointer type
-- String operations: B string pointers → C string pointers
-
-### Error Handling
-
-B runtime functions follow these conventions:
-- Return `0` for success
-- Return `-1` for failure
-- File I/O returns actual counts or `-1`
-- Character input returns `*e` (4) for EOF
-
----
-
-## Historical Notes
-
-### Original Implementation
-
-The original `libb.a` was written in PDP-11 assembly language and provided the runtime support for B programs during early Unix development (1969-1972).
-
-### Evolution
-
-As B evolved toward C, the runtime library became the basis for C's standard library, with many functions carrying over directly.
-
-### Modern Extensions
-
-Modern B implementations may include additional functions not present in the original library, while maintaining backward compatibility.
-
----
-
-## See Also
-
-- [B Programming Language Reference](B_LANGUAGE.md)
-- [String Operations](WIKI_STRING_OPERATIONS.md)
-- [I/O Functions](WIKI_IO_FUNCTIONS.md)
-- [System Calls](WIKI_SYSTEM_CALLS.md)
-- [File I/O](WIKI_FILE_IO.md)
-- [Data Types & Literals](WIKI_DATA_TYPES.md)
-- [Control Structures](WIKI_CONTROL_STRUCTURES.md)
-- [Functions](WIKI_FUNCTIONS.md)
-- [Arrays & Pointers](WIKI_ARRAYS_POINTERS.md)
-- [Examples](WIKI_EXAMPLES.md)
+See the [V1 time entry](https://www.tuhs.org/cgi-bin/utree.pl?file=V1/man/man2/time.2)
+and the date-boundary tests for the representation, not the modern Unix
+seconds-since-1970 interface.
+
+## Terminal and signal limits
+
+The host `gtty` and `stty` wrappers currently expose three host `termios`
+flag fields: input, output, and local flags. These are not the V1 terminal
+control-word layout. Native wrappers call the restored kernel, while the
+fast emulator stubs tty operations. Test tty behavior in the full system;
+do not infer it from a fast test passing.
+
+Host `intr(on)` changes SIGINT handling. It is not an implementation of
+arbitrary historical interrupt handlers. Programs that alter terminal
+settings must save and restore them, including on error paths.
+
+## Allocation and interoperability
+
+`alloc(n)` allocates host storage for `n` B cells; `free(p)` releases it.
+Use positive, bounded sizes and do not use a pointer after freeing it.
+The translated 16-bit address pool is finite. An allocation error is not
+currently a recoverable B exception.
+
+`callf` is a host compatibility bridge, not an emulator for a Honeywell
+Fortran or GMAP calling convention. It resolves selected shims and dynamic
+symbols using the host ABI. `B_CALLF_LIB` selects an optional shared library;
+any library loaded this way executes native code in the program's process.
+See [`lib/libb.c`](../lib/libb.c) for dispatch, argument conversion, and
+supported built-in shims before defining an external wrapper. No arbitrary
+foreign ABI or floating-point argument convention is promised.
+
+## Replacement and error handling
+
+Source-defined library functions replace host source-level calls, including
+function values. Internal calls within the bundled host runtime still use
+its own helpers. The native runtime supports writable function cells and
+interposition; the host backend does not yet implement that whole model.
+
+Return conventions are per function, not a universal zero/success rule.
+In particular, printing and string helpers should not be used as reliable
+I/O error reporting. See the [conformance notes](HISTORICAL_CONFORMANCE.md)
+for remaining differences and the [testing guide](../docs/testing.md) for
+checks that distinguish host behavior from real-kernel behavior.

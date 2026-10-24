@@ -1235,9 +1235,18 @@ parse_return:
 	call	expect
 	cmpl	$18, 40(%rbx)
 	je	.L115
+	movl	g_strict(%rip), %eax
+	testl	%eax, %eax
+	je	.L116
+	movl	$13, %esi
+	movq	%rbx, %rdi
+	call	expect
 	movq	%rbx, %rdi
 	call	parse_expr
+	movl	$14, %esi
+	movq	%rbx, %rdi
 	movq	%rax, %rbp
+	call	expect
 .L115:
 	movq	%rbx, %rdi
 	movl	$18, %esi
@@ -1248,12 +1257,21 @@ parse_return:
 	movq	%r12, 4(%rax)
 	movq	%rbp, 16(%rax)
 	popq	%rbx
+	.cfi_remember_state
 	.cfi_def_cfa_offset 24
 	popq	%rbp
 	.cfi_def_cfa_offset 16
 	popq	%r12
 	.cfi_def_cfa_offset 8
 	ret
+	.p2align 4,,10
+	.p2align 3
+.L116:
+	.cfi_restore_state
+	movq	%rbx, %rdi
+	call	parse_expr
+	movq	%rax, %rbp
+	jmp	.L115
 	.cfi_endproc
 .LFE33:
 	.size	parse_return, .-parse_return
@@ -2869,7 +2887,7 @@ parse_bin_rhs:
 	pushq	%r13
 	.cfi_def_cfa_offset 32
 	.cfi_offset 13, -32
-	leaq	CSWTCH.9(%rip), %r13
+	leaq	CSWTCH.12(%rip), %r13
 	pushq	%r12
 	.cfi_def_cfa_offset 40
 	.cfi_offset 12, -40
@@ -3462,6 +3480,9 @@ parse_comma_init_list:
 	.section	.rodata.str1.8
 	.align 8
 .LC25:
+	.string	"external '=' initializer is outside Thompson B72"
+	.align 8
+.LC26:
 	.string	"bad external definition after '%s' at %d:%d"
 	.text
 	.p2align 4
@@ -3497,17 +3518,17 @@ parse_extern_var_def:
 	call	xmalloc@PLT
 	movq	%rax, %rbp
 	testq	%rax, %rax
-	je	.L346
+	je	.L350
 .L328:
 	pxor	%xmm0, %xmm0
-	leaq	40(%rbx), %r13
+	leaq	40(%rbx), %r12
 	movups	%xmm0, 0(%rbp)
 	movups	%xmm0, 16(%rbp)
 	movups	%xmm0, 32(%rbp)
 	movups	%xmm0, 48(%rbp)
 	movq	48(%rbx), %rdi
 	call	sdup@PLT
-	movq	%r13, %rdi
+	movq	%r12, %rdi
 	movq	%rax, 16(%rbp)
 	call	tok_free@PLT
 	movq	%rbx, %rsi
@@ -3525,19 +3546,19 @@ parse_extern_var_def:
 	cmpl	$19, %eax
 	je	.L329
 	cmpl	$15, %eax
-	je	.L347
+	je	.L351
 	cmpl	$18, %eax
-	je	.L348
+	je	.L352
 	cmpl	$21, %eax
-	je	.L349
+	je	.L353
 	movq	%rbx, %rdi
 	call	parse_comma_init_list
 	testq	%rax, %rax
-	je	.L340
+	je	.L354
 	cmpl	$2, 24(%rbp)
-	je	.L344
+	je	.L348
 	movl	$1, 24(%rbp)
-.L344:
+.L348:
 	movq	%rax, 56(%rbp)
 	movl	$18, %esi
 	movq	%rbx, %rdi
@@ -3558,7 +3579,7 @@ parse_extern_var_def:
 	ret
 	.p2align 4,,10
 	.p2align 3
-.L346:
+.L350:
 	.cfi_restore_state
 	leaq	.LC11(%rip), %rdi
 	xorl	%eax, %eax
@@ -3567,7 +3588,7 @@ parse_extern_var_def:
 	.p2align 4,,10
 	.p2align 3
 .L329:
-	movq	%r13, %rdi
+	movq	%r12, %rdi
 	call	tok_free@PLT
 	movq	%rbx, %rsi
 	movq	%rsp, %rdi
@@ -3582,7 +3603,7 @@ parse_extern_var_def:
 	movq	48(%rsp), %rax
 	movq	%rax, 88(%rbx)
 	movl	$2, 24(%rbp)
-	je	.L350
+	je	.L355
 	movq	%rbx, %rdi
 	call	parse_expr
 	movl	$20, %esi
@@ -3592,21 +3613,21 @@ parse_extern_var_def:
 .L333:
 	cmpl	$15, 40(%rbx)
 	movq	%rbx, %rdi
-	je	.L345
+	je	.L349
 	call	parse_comma_init_list
-	jmp	.L344
+	jmp	.L348
 	.p2align 4,,10
 	.p2align 3
-.L347:
+.L351:
 	movl	$1, 24(%rbp)
 	movq	%rbx, %rdi
-.L345:
+.L349:
 	call	parse_init_list
-	jmp	.L344
+	jmp	.L348
 	.p2align 4,,10
 	.p2align 3
-.L348:
-	movq	%r13, %rdi
+.L352:
+	movq	%r12, %rdi
 	call	tok_free@PLT
 	movq	%rbx, %rsi
 	movq	%rsp, %rdi
@@ -3624,10 +3645,10 @@ parse_extern_var_def:
 	jmp	.L326
 	.p2align 4,,10
 	.p2align 3
-.L340:
+.L354:
 	movq	16(%rbp), %rsi
 	movl	84(%rbx), %ecx
-	leaq	.LC25(%rip), %rdi
+	leaq	.LC26(%rip), %rdi
 	xorl	%eax, %eax
 	movl	80(%rbx), %edx
 	xorl	%ebp, %ebp
@@ -3635,14 +3656,13 @@ parse_extern_var_def:
 	jmp	.L326
 	.p2align 4,,10
 	.p2align 3
-.L349:
-	movq	%r13, %rdi
+.L353:
+	movq	%r12, %rdi
 	call	tok_free@PLT
 	movq	%rbx, %rsi
 	movq	%rsp, %rdi
 	call	lx_next@PLT
 	movdqu	(%rsp), %xmm0
-	movl	$40, %edi
 	movups	%xmm0, 40(%rbx)
 	movdqu	16(%rsp), %xmm0
 	movups	%xmm0, 56(%rbx)
@@ -3650,7 +3670,12 @@ parse_extern_var_def:
 	movups	%xmm0, 72(%rbx)
 	movq	48(%rsp), %rax
 	movq	%rax, 88(%rbx)
+	movl	g_strict(%rip), %eax
+	testl	%eax, %eax
+	jne	.L356
+.L341:
 	movl	$0, 24(%rbp)
+	movl	$40, %edi
 	movq	80(%rbx), %r13
 	call	xmalloc@PLT
 	movq	%rbx, %rdi
@@ -3666,8 +3691,17 @@ parse_extern_var_def:
 	jmp	.L326
 	.p2align 4,,10
 	.p2align 3
-.L350:
-	movq	%r13, %rdi
+.L356:
+	movq	96(%rbx), %rsi
+	leaq	.LC25(%rip), %rdx
+	movq	%r12, %rdi
+	xorl	%eax, %eax
+	call	error_at@PLT
+	jmp	.L341
+	.p2align 4,,10
+	.p2align 3
+.L355:
+	movq	%r12, %rdi
 	call	tok_free@PLT
 	movq	%rbx, %rsi
 	movq	%rsp, %rdi
@@ -3687,7 +3721,10 @@ parse_extern_var_def:
 	.size	parse_extern_var_def, .-parse_extern_var_def
 	.section	.rodata.str1.8
 	.align 8
-.LC26:
+.LC27:
+	.string	"top-level auto is outside Thompson B72"
+	.align 8
+.LC28:
 	.string	"unexpected token at top level: %s"
 	.text
 	.p2align 4
@@ -3713,69 +3750,73 @@ parse_program_ast:
 	subq	$8, %rsp
 	.cfi_def_cfa_offset 48
 	call	xmalloc@PLT
-	movl	40(%rbp), %edx
+	movl	40(%rbp), %ecx
 	pxor	%xmm0, %xmm0
 	movq	$0, (%rax)
 	movq	%rax, %r12
 	movups	%xmm0, 8(%rax)
-	testl	%edx, %edx
-	je	.L351
-	leaq	.LC26(%rip), %r13
-	jmp	.L358
+	testl	%ecx, %ecx
+	je	.L357
+	leaq	.LC28(%rip), %r13
+	jmp	.L365
 	.p2align 4,,10
 	.p2align 3
-.L356:
+.L361:
+	cmpl	$1, %edi
+	je	.L368
 	call	tk_name@PLT
 	movq	%r13, %rdi
 	movq	%rax, %rsi
 	xorl	%eax, %eax
 	call	dief@PLT
-.L354:
+.L360:
 	movq	%rbx, %rsi
 	movq	%r12, %rdi
 	call	vec_push@PLT
 	movl	40(%rbp), %eax
 	testl	%eax, %eax
-	je	.L351
-.L358:
+	je	.L357
+.L365:
 	movl	$16, %edi
 	call	xmalloc@PLT
 	movl	40(%rbp), %edi
 	movq	%rax, %rbx
 	cmpl	$12, %edi
-	je	.L361
+	je	.L369
 	cmpl	$5, %edi
-	je	.L362
-	cmpl	$1, %edi
-	jne	.L356
+	jne	.L361
+	movl	g_strict(%rip), %edx
+	testl	%edx, %edx
+	jne	.L370
+.L362:
+	movl	$0, (%rbx)
 	movq	%rbp, %rdi
-	call	peek_next_kind
-	cmpl	$13, %eax
-	je	.L363
-	movl	$2, (%rbx)
-	movq	%rbp, %rdi
-	call	parse_extern_var_def
+	call	parse_auto_decl
 	movq	%rax, 8(%rbx)
-	jmp	.L354
+	jmp	.L360
 	.p2align 4,,10
 	.p2align 3
-.L361:
+.L369:
 	movl	$3, (%rax)
 	movq	%rbp, %rdi
 	call	parse_extern_decl
 	movq	%rax, 8(%rbx)
-	jmp	.L354
+	jmp	.L360
 	.p2align 4,,10
 	.p2align 3
-.L362:
-	movl	$0, (%rax)
+.L368:
 	movq	%rbp, %rdi
-	call	parse_auto_decl
+	call	peek_next_kind
+	cmpl	$13, %eax
+	je	.L371
+	movl	$2, (%rbx)
+	movq	%rbp, %rdi
+	call	parse_extern_var_def
 	movq	%rax, 8(%rbx)
-	jmp	.L354
+	jmp	.L360
 	.p2align 4,,10
 	.p2align 3
-.L351:
+.L357:
 	addq	$8, %rsp
 	.cfi_remember_state
 	.cfi_def_cfa_offset 40
@@ -3791,21 +3832,30 @@ parse_program_ast:
 	ret
 	.p2align 4,,10
 	.p2align 3
-.L363:
+.L370:
 	.cfi_restore_state
+	movq	96(%rbp), %rsi
+	leaq	40(%rbp), %rdi
+	leaq	.LC27(%rip), %rdx
+	xorl	%eax, %eax
+	call	error_at@PLT
+	jmp	.L362
+	.p2align 4,,10
+	.p2align 3
+.L371:
 	movl	$1, (%rbx)
 	movq	%rbp, %rdi
 	call	parse_function
 	movq	%rax, 8(%rbx)
-	jmp	.L354
+	jmp	.L360
 	.cfi_endproc
 .LFE25:
 	.size	parse_program_ast, .-parse_program_ast
 	.section	.rodata
 	.align 32
-	.type	CSWTCH.9, @object
-	.size	CSWTCH.9, 34
-CSWTCH.9:
+	.type	CSWTCH.12, @object
+	.size	CSWTCH.12, 34
+CSWTCH.12:
 	.byte	5
 	.byte	5
 	.byte	6

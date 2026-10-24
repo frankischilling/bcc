@@ -407,7 +407,7 @@ static void collect_strings_stmt(Stmt *s) {
             collect_strings_stmt(s->as.label_.stmt);
             return;
         case ST_CASE:
-            // if your case holds exprs, add them here
+            /* Case values are numeric constants, not string expressions. */
             return;
         default:
             return;
@@ -1143,7 +1143,7 @@ void emit_ival_expr(FILE *out, Expr *e, const char *filename){
         fputc(')', out);
         return;
     }
-    // everything else uses your normal emit_expr
+    /* Other initializers use the ordinary expression emitter. */
     emit_expr(out, e, filename);
 }
 
@@ -1379,6 +1379,7 @@ void emit_stmt(FILE *out, Stmt *s, int indent, int is_function_body, const char 
         case ST_RETURN:
             emit_indent(out, indent); fputs("return", out);
             if (s->as.ret.val) { fputc(' ', out); emit_expr(out, s->as.ret.val, filename); }
+            else fputs(" 0", out);
             fputs(";\n", out);
             return;
 
@@ -1459,7 +1460,7 @@ static void emit_function_body(FILE *out, Func *f, const char *filename) {
     for (size_t i = 0; i < function_labels.len; i++)
         fprintf(out, "    static word __b_label_value_%zu = %zu;\n", i + 1, i + 1);
     emit_stmt(out, f->body, 1, 1, filename);
-    fputs("}\n", out);
+    fputs("    return 0;\n}\n", out);
     function_labels.len = 0;
 }
 
@@ -1640,11 +1641,12 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
         "\n"
         "/*\n"
         "  Pointer model:\n"
-        "    B_BYTEPTR=1  -> pointers are byte addresses (matches your formulas)\n"
-        "    B_BYTEPTR=0  -> pointers are word addresses (closer to Thompson B: E1[E2]==*(E1+E2))\n"
+        "    B_BYTEPTR=1  -> pointers are byte addresses; subscripts still index words\n"
+        "    B_BYTEPTR=0  -> pointers are word addresses: E1[E2]==*(E1+E2)\n"
         "*/\n",
         out
     );
+    fprintf(out, "#define __bcc_strict_runtime %d\n", g_strict ? 1 : 0);
     fprintf(out, "#define B_BYTEPTR %d\n", byteptr ? 1 : 0);
     fprintf(out, "#define WORD_BITS %d\n", word_bits);
     fputs(
@@ -1809,7 +1811,7 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
         "    return B_PTR_N(p, bytes);\n"
         "}\n"
         "\n"
-        "/* B library functions - compatible with Thompson's /etc/libb.a */\n"
+        "/* Host B runtime functions and compatibility helpers */\n"
         "/* String manipulation functions */\n"
         "static inline word b_load(word addr){ return B_DEREF(addr); }\n"
         "static inline void b_store(word addr, word v){ B_DEREF(addr) = WVAL(v);\n"
@@ -2037,7 +2039,7 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
 "    word i = 0;\n"
 "    for (;;) {\n"
 "        word ch = b_char(s, i++);\n"
-"        if (ch == 004 || ch == 0) break;\n"
+"        if (ch == 004 || (!__bcc_strict_runtime && ch == 0)) break;\n"
 "        b_putchar(ch);\n"
         "    }\n"
         "    return s;\n"
@@ -2077,116 +2079,17 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
         "\n"
         "#include <stdarg.h>\n"
         "\n"
-        "/* Print number in specified base (from B manual) */\n"
-        "static void b_printn_u(word n, word base) {\n"
-        "    // recursion like old implementations\n"
-        "    word a = (word)((uword)n / (uword)base);\n"
-        "    if (a) b_printn_u(a, base);\n"
-        "    b_putchar((word)((uword)n % (uword)base) + '0');\n"
-        "}\n"
-        "\n"
-        "static word b_printf(word fmt, ...){\n"
-        "    va_list ap;\n"
-        "    va_start(ap, fmt);\n"
-        "\n"
-        "    word i = 0;\n"
-        "    for (;;){\n"
-        "        word ch = b_char(fmt, i++);\n"
-        "        if (ch == 004 || ch == 0) break;  /* '*e' or NUL terminator */\n"
-        "        if (ch != '%'){ b_putchar(ch); continue; }\n"
-        "\n"
-        "        word code = b_char(fmt, i++);\n"
-        "        if (code == 004) break;\n"
-        "\n"
-        "        word arg = va_arg(ap, word);\n"
-        "\n"
-        "        switch ((int)code){\n"
-        "        case 'd': {\n"
-        "#if WORD_BITS == 16\n"
-        "            int16_t v = (int16_t)arg;\n"
-        "            if (v < 0){ b_putchar('-'); v = (int16_t)-v; }\n"
-        "            if (v) b_printn_u((word)(uword)(uint16_t)v, 10);\n"
-        "#elif WORD_BITS == 32\n"
-        "            int32_t v = (int32_t)arg;\n"
-        "            if (v < 0){ b_putchar('-'); v = -v; }\n"
-        "            if (v) b_printn_u((word)(uword)(uint32_t)v, 10);\n"
-        "#else\n"
-        "            word v = arg;\n"
-        "            if (v < 0){ b_putchar('-'); v = -v; }\n"
-        "            if (v) b_printn_u((word)(uword)v, 10);\n"
-        "#endif\n"
-        "            else b_putchar('0');\n"
-        "            break;\n"
-        "        }\n"
-        "        case 'o': {\n"
-        "#if WORD_BITS == 16\n"
-        "            uint16_t v = (uint16_t)arg;\n"
-        "#elif WORD_BITS == 32\n"
-        "            uint32_t v = (uint32_t)arg;\n"
-        "#else\n"
-        "            uword v = (uword)arg;\n"
-        "#endif\n"
-        "            if (v) b_printn_u((word)(uword)v, 8);\n"
-        "            else b_putchar('0');\n"
-        "            break;\n"
-        "        }\n"
-        "        case 'u': {\n"
-        "            uword v = (uword)arg;\n"
-        "            if (v) b_printn_u((word)v, 10);\n"
-        "            else b_putchar('0');\n"
-        "            break;\n"
-        "        }\n"
-        "        case 'p': {\n"
-        "            uword v = (uword)arg;\n"
-        "            b_putchar('0'); b_putchar('x');\n"
-        "            int started = 0;\n"
-        "            for (int shift = (int)(sizeof(uword)*8 - 4); shift >= 0; shift -= 4) {\n"
-        "                int nib = (int)((v >> shift) & 0xF);\n"
-        "                if (!started && nib == 0 && shift > 0) continue;\n"
-        "                started = 1;\n"
-        "                b_putchar((word)(nib < 10 ? ('0' + nib) : ('a' + nib - 10)));\n"
-        "            }\n"
-        "            if (!started) b_putchar('0');\n"
-        "            break;\n"
-        "        }\n"
-        "        case 'z': {\n"
-        "            word mod = b_char(fmt, i++);\n"
-        "            if (mod == 'u') {\n"
-        "                uword v = (uword)arg;\n"
-        "                if (v) b_printn_u((word)v, 10);\n"
-        "                else b_putchar('0');\n"
-        "            } else if (mod == 'd') {\n"
-        "                long v = (long)arg;\n"
-        "                if (v < 0) { b_putchar('-'); v = -v; }\n"
-        "                if (v) b_printn_u((word)(uword)v, 10);\n"
-        "                else b_putchar('0');\n"
-        "            } else {\n"
-        "                b_putchar('%'); b_putchar('z'); b_putchar(mod);\n"
-        "            }\n"
-        "            break;\n"
-        "        }\n"
-        "        case 'c':\n"
-        "            b_putchar(arg);\n"
-        "            break;\n"
-        "        case 's': {\n"
-        "            word j = 0;\n"
-        "            for (;;){\n"
-        "                word sc = b_char(arg, j++);\n"
-        "                if (sc == 004 || sc == 0) break;  /* Handle both *e and NUL termination */\n"
-        "                b_putchar(sc);\n"
-        "            }\n"
-        "            break;\n"
-        "        }\n"
-        "        default:\n"
-        "            b_putchar('%'); b_putchar(code);\n"
-        "            break;\n"
-        "        }\n"
-        "    }\n"
-        "\n"
-        "    va_end(ap);\n"
-        "    return 0;\n"
-        "}\n"
-        "\n"
+        "", out);
+    {
+        char *path = fmt("%s/bformat.h", g_libb_path);
+        size_t length;
+        char *header = read_file_all(path, &length);
+        fputs("#define __bcc_format_linkage static\n", out);
+        fwrite(header, 1, length, out);
+        fputc('\n', out);
+        free(header);
+    }
+    fputs(
         "/* File I/O functions - with actual implementations */\n"
         "#include <fcntl.h>\n"
 "static word b_open(word name, word mode){\n"
@@ -2252,7 +2155,6 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
 "    return WVAL(count);\n"
 "#else\n"
 "    char *p = (char*)B_CPTR(buf);\n"
-"    if ((size_t)n < sizeof(word)) memset(p, 0, sizeof(word));\n"
 "    return (word)read((int)fd, p, (size_t)n);\n"
 "#endif\n"
 "}\n"
@@ -2547,16 +2449,6 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
         "    return (word)mkdir(p, __bcc_unix_mode(mode, 1));\n"
         "}\n"
         "\n"
-        "/* printn(number, base) - print number in specified base (from B manual) */\n"
-        "static word b_printn(word n, word base) {\n"
-        "    // Handle negative numbers for decimal only\n"
-        "    if (base == 10 && (int16_t)n < 0) {\n"
-        "        b_putchar('-');\n"
-        "        n = (word)(-(int16_t)n);\n"
-        "    }\n"
-        "    b_printn_u(n, base);\n"
-        "    return n;\n"
-        "}\n"
         "static word b_putnum(word n) {\n"
         "    b_printn(n, (word)10);\n"
         "    return n;\n"
@@ -2688,6 +2580,7 @@ void emit_program_c_ext(FILE *out, Program *prog, const char *filename, int byte
 
     // Emit minimal preamble - configuration defines before including libb.h
     fprintf(out, "/* Generated by BCC - B Compiler */\n");
+    fprintf(out, "#define __bcc_strict_runtime %d\n", g_strict ? 1 : 0);
     fprintf(out, "#define B_BYTEPTR %d\n", byteptr ? 1 : 0);
     fprintf(out, "#define WORD_BITS %d\n", word_bits);
     fprintf(out, "#include \"libb.h\"\n\n");

@@ -1,5 +1,5 @@
 {
-  "compiler": "gcc (Debian 14.2.0-19) 14.2.0",
+  "compiler": "cc (Debian 14.2.0-19) 14.2.0",
   "flags": [
     "-std=c99",
     "-O2",
@@ -9,20 +9,20 @@
   "sources": {
     "src/bcc.h": "1c67d2496b82c67a91cfbc8dea4c116dec977b5619f406a52fe8a9a6be5cdc99",
     "src/util.c": "eb7346a6b5de99f7ccd4b575d79e36b1c748d874704ec9aa25829cbc575e48a7",
-    "src/lexer.c": "d7fb33383d0de30eb13137f6d436cd648223e5164b44c1b4011c9a068f1dafed",
-    "src/parser.c": "4aa070a8b42fc75b2a395b450b98b63337591a91606ee0caade2ec0a1933e3d5",
+    "src/lexer.c": "253a8dae85540d240827d8c5599f20465906a2fabb9b8a2648319c7ee0077395",
+    "src/parser.c": "1f02fa9072c6271d8234955ffaa0538fcf2100e47ffe68d8e7f955a4665f0cc0",
     "src/sem.c": "c37a06abc5b8907989ac5ccae9eb3563c145eef3ed4e5ebe4760c318b9c6e4d8",
     "src/arena.c": "735d6995a469578b6707df4103bb7e837a16bcc7701e3c11dcea90ee1bb1bb52",
-    "src/emitter.c": "78f9052be8c6e49bb57cd603e429cf1792856ad1cf225a253d80be9b7b027c8b",
-    "src/main.c": "81e865330e3a0efce87ddcbe6ebfb09abbb9094571a805c2d4e301ee3c000181"
+    "src/emitter.c": "a50dcf6ab92729c0b5da0c791fabdf26298c2822cf9ecdcd851fa18753592f36",
+    "src/main.c": "d7c33505329da6f919667e931200f7f39344b0f2ef9a96e2ebfdf580ad8f5ec9"
   },
   "assembly": {
     "util.s": "22b32fa9c6eb492d5a8463404981c8aeccb881c8b8613d304b5cb20c61ccd8fd",
-    "lexer.s": "2de2b4b22c1f5ee53d1ae52f20aed0f1e699d7e6336d061853e7110dd16f4858",
-    "parser.s": "760fe74cf19162c4b255bb510f4cc8c9e5e949f45292b1ab59b366a1dd5d6164",
+    "lexer.s": "0fb5cce148b277aed25c4da86ea5307616d053c89665cfac6591997abeda15b1",
+    "parser.s": "59b141cc3a3e148a99b1d5fa88845665031c2129a38e5604ebc1d2ae071bbc62",
     "sem.s": "e5cdc36e03039263f2e7f7f8a227e3bac19d5a25ebb5f97d7257cb2fae168d27",
     "arena.s": "01ec3c3805064581f6daea98a1607b24ae2fc14900d058761f516f272c129665",
-    "emitter.s": "e8cb244113e562e63aa7819b68ed41ef1fa4aaf844001ffae3ccfe6f0bf96625",
-    "main.s": "838e306fe44bcac836210fcb93a51aaaa6c0692346ee0116bed96c895c79719b"
+    "emitter.s": "7616ed5d7a3f945654579a4db150b5c1bbb8d515ce2f8d5ac22ed839ffd40298",
+    "main.s": "3779f7386c8b90e3f719b570b31e501db1f52facbcc01c9102dd84abb5ca41f6"
   }
 }

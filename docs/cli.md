@@ -34,6 +34,10 @@ and linked with GCC and `-ldl -lm`. It is not PDP-11 assembly.
 - `--inline-runtime` embeds the runtime in generated C. Otherwise, generated
   units link to the shared runtime and address state.
 
+Strict mode also selects B72 formatting and 004-only string termination in
+the host runtime. Default mode retains the documented compatibility formats
+and NUL termination. See [formatted I/O](../wiki/WIKI_IO_FUNCTIONS.md).
+
 Strict syntax and word size are independent choices. Strict or 16-bit mode
 selects word addressing unless a pointer mode was explicitly requested.
 The 32-bit mode still has the native-pointer limitation described in the

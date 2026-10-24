@@ -270,7 +270,7 @@ parse_escape:
 	.section	.rodata.str1.8,"aMS",@progbits,1
 	.align 8
 .LC2:
-	.string	"backslash escapes are not allowed in strict B mode (use --extensions or *-escapes)"
+	.string	"backslash escapes are not allowed in strict B mode (use *-escapes or omit --strict)"
 	.section	.rodata.str1.1
 .LC3:
 	.string	"unknown escape sequence \\%c"
@@ -443,7 +443,7 @@ parse_backslash_escape:
 	.section	.rodata.str1.8
 	.align 8
 .LC5:
-	.string	"// comments are not allowed in strict B mode (use --extensions or /* */)"
+	.string	"// comments are not allowed in strict B mode (use /* */ or omit --strict)"
 	.text
 	.p2align 4
 	.globl	lx_skip_ws_and_comments
@@ -780,7 +780,7 @@ mk_tok:
 	.section	.rodata.str1.8
 	.align 8
 .LC20:
-	.string	"hexadecimal literals are not allowed in strict B mode (use --extensions or octal)"
+	.string	"hexadecimal literals are not allowed in strict B mode (use octal or omit --strict)"
 	.section	.rodata.str1.1
 .LC21:
 	.string	"bad octal digit '%c'"
