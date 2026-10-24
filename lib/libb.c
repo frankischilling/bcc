@@ -717,16 +717,10 @@ word b_stty(word fd, word ttstat) {
     return (word)tcsetattr((int)fd, TCSANOW, &t);
 }
 
-static volatile sig_atomic_t __b_got_intr = 0;
-static void __b_sigint(int sig) { (void)sig; __b_got_intr = 1; }
-
-word b_intr(word on) {
-    if (on) {
-        __b_got_intr = 0;
-        if (signal(SIGINT, __b_sigint) == SIG_ERR) return -1;
-    } else {
-        if (signal(SIGINT, SIG_DFL) == SIG_ERR) return -1;
-    }
+word b_intr(word mode) {
+    /* Historical intr uses 0 for ignore and 1 for normal termination. */
+    if (mode != 0 && mode != 1) { errno = ENOSYS; return -1; }
+    if (signal(SIGINT, mode == 0 ? SIG_IGN : SIG_DFL) == SIG_ERR) return -1;
     return 0;
 }
 

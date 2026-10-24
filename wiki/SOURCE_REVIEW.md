@@ -703,7 +703,8 @@ from noisy OCR.
 ### Terminal hardware and restored-kernel boundaries
 
 The register descriptions and tables in the [September 1973 DC11 manual](https://deramp.com/downloads/mfe_archive/011-Digital%20Equipment%20Corporation/08%20PDP-11/05%20Unibus%20Options/DC11%20Asynchronous%20Line%20Interface/DC11%20Documentation/DC11-A%20Manual%20DEC-11-HDCD-D%20Sep73.pdf)
-were checked visually on PDF pages 11-12. Receiver and transmitter speed
+were checked visually on PDF pages 11-12. The complete OCR text was also read;
+not all circuit and timing diagrams have been checked visually. Receiver and transmitter speed
 selectors occupy bits 3-4, but the four rates depend on the installed clock
 option. Receiver bits 9-10 select character width; transmitter bit 8 selects
 one versus two stop bits. Other bits report hardware state or control modem
@@ -718,10 +719,9 @@ software modes from hardware behavior it cannot reproduce.
 
 ## Host toolchain and repository evidence
 
-The selected [C99 consolidated draft](https://www.open-std.org/jtc1/sc22/wg14/www/docs/n1256.pdf)
-clauses reviewed here cover integer representations, pointer conversions,
-expression sequencing, calls, shifts, inline definitions, and variable
-arguments. This is not a review of the entire standard.
+The complete extracted text of the [C99 consolidated draft](https://www.open-std.org/jtc1/sc22/wg14/www/docs/n1256.pdf)
+was read, including the annexes, bibliography, and index. It describes the
+modern host implementation language, not B72 or the restored system's early C.
 
 C's bitwise operators do not establish left-to-right operand evaluation.
 Signed overflow, oversized shifts, incompatible function calls, and reading
@@ -731,6 +731,14 @@ Pointer/integer conversions need explicit platform assumptions, and inline
 runtime definitions do not automatically share mutable state across modules.
 These clauses support separate arithmetic, call-adapter, and multi-file
 runtime tests.
+
+C string literals need not be writable or distinct, and C parameter storage
+need not be contiguous. Nonlocal jumps have lifetime and local-variable
+restrictions; signal handlers have a much smaller safe interface than normal
+functions. B's storage and control-flow rules therefore need explicit
+representations. The wide-character, locale, complex, and floating-point
+chapters do not add features to historical B. Annex J is a useful portability
+checklist, but its informative summaries do not replace the defining clauses.
 
 The GNU compiler, assembler, and linker entry pages were inspected as host
 toolchain references, not historical B specifications. Their indexes are not
@@ -938,6 +946,15 @@ compiler checks writes and closes. Bootstrap diagnostics use descriptor 2
 instead of the runtime's selected output file. These are build-reliability
 corrections, not changes to historical B's language rules.
 
+Both the November 1971 and June 1972 `intr` syscall descriptions assign 0 to
+ignore and 1 to normal interrupt termination. The preserved B library's
+`intr.s` passes those two values through and has a separate saved-context
+path for a program location. The host wrapper had reversed the basic modes
+and treated other values as requests to set an inaccessible flag. Its basic
+modes now follow the manuals. Unsupported location values fail rather than
+silently claiming to install a handler. This does not yet implement the
+historical saved-context transfer.
+
 ## Reference inventory
 
 "Read" below describes the review scope, not a promise that every feature in
@@ -1098,7 +1115,7 @@ in the inventory so that missing or duplicated material is visible.
 
 | ID | Reference | Review status |
 | --- | --- | --- |
-| 110 | [n1256.pdf](https://www.open-std.org/jtc1/sc22/wg14/www/docs/n1256.pdf) | Reviewed clauses 6.2.6.2, 6.3.2.3, 6.5, 6.5.2.2, 6.5.7, 6.7.4, and 7.15; not the whole standard |
+| 110 | [n1256.pdf](https://www.open-std.org/jtc1/sc22/wg14/www/docs/n1256.pdf) | Complete extracted text read, including annexes, bibliography, and index; a modern host-C reference, not early B or C |
 | 111 | [Top (Using the GNU Compiler Collection (GCC))](https://gcc.gnu.org/onlinedocs/gcc/) | Manual overview and relevant contents inspected; not all linked chapters |
 | 112 | [C Extensions (Using the GNU Compiler Collection (GCC))](https://gcc.gnu.org/onlinedocs/gcc/C-Extensions.html) | Extension overview read; linked extension chapters not all reviewed |
 | 113 | [Top (Using as)](https://sourceware.org/binutils/docs/as/) | Assembler overview and relevant contents inspected; not all linked chapters |

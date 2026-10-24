@@ -157,9 +157,12 @@ control-word layout. Native wrappers call the restored kernel, while the
 fast emulator stubs tty operations. Test tty behavior in the full system;
 do not infer it from a fast test passing.
 
-Host `intr(on)` changes SIGINT handling. It is not an implementation of
-arbitrary historical interrupt handlers. Programs that alter terminal
-settings must save and restore them, including on error paths.
+Host `intr(0)` ignores SIGINT and `intr(1)` restores its default termination
+behavior, matching the two special values in the historical syscall.
+Historical location-based interrupt handlers are not implemented on the
+host: other arguments return -1 without changing the current disposition.
+Programs that alter terminal settings must save and restore them, including
+on error paths.
 
 ## Allocation and interoperability
 

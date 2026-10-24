@@ -192,7 +192,7 @@ word b_mkdir(word path, word mode);
 /* Terminal I/O */
 word b_gtty(word fd, word ttstat);
 word b_stty(word fd, word ttstat);
-word b_intr(word on);
+word b_intr(word mode);
 
 /* Dynamic function calls */
 word b_callf_dispatch(int nargs, word name, ...);

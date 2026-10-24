@@ -8783,23 +8783,19 @@ emit_function_body:
 	.ascii	"\nstatic word b_mkdir(word path, word mode) { return b_makdi"
 	.ascii	"r(path, mode); }\nstatic word b_putnum(word n) {\n    __bcc_"
 	.ascii	"library_call2(\"printn\", b_pri"
-	.ascii	"ntn, n, (word)10);\n    return n;\n}\nstatic volatile sig_at"
-	.ascii	"omic_t __b_got_intr = 0;\n\nstatic void __b_sigint(int sig){"
-	.ascii	" (void)sig; __b_got_intr = 1; }\n\nstatic word b_gtty(word f"
-	.ascii	"d, word ttstat){\n    if (!ttstat) { errno = EFAULT; return "
-	.ascii	"-1; }\n    struct termios t;\n    if (tcgetattr((int)fd, &t)"
-	.ascii	" < 0) return -1;\n\n    word *vec = (word*)B_CPTR(ttstat);\n"
-	.ascii	"    vec[0] = (word)t.c_iflag;\n    vec[1] = (word)t.c_oflag;"
-	.ascii	"\n    vec[2] = (word)t.c_lflag;\n    return 0;\n}\n\nstatic "
-	.ascii	"word b_stty(word fd, word ttstat){\n    if (!ttstat) { errno"
-	.ascii	" = EFAULT; return -1; }\n    struct termios t;\n    if (tcge"
-	.ascii	"tattr((int)fd, &t) < 0) return -1;\n\n    word *vec = (word*"
-	.ascii	")B_CPTR(ttstat);\n    t.c_iflag = (tcflag_t)vec[0];\n    t.c"
-	.ascii	"_oflag = (tcflag_t)vec[1];\n    t.c_lflag = (tcflag_t)vec[2]"
-	.ascii	";\n    return (word)tcsetattr((int)fd, TCSANOW, &t);\n}\nsta"
-	.ascii	"tic word b_intr(word on) {\n    /* Set up interrupt handling"
-	.ascii	" */\n    /* on != 0: catch interrupts, on =="
-	.string	" 0: restore default */\n    if (on) {\n        __b_got_intr = 0;\n        if (signal(SIGINT, __b_sigint) == SIG_ERR) return -1;\n    } else {\n        if (signal(SIGINT, SIG_DFL) == SIG_ERR) return -1;\n    }\n    return 0;\n}\n\n/* Builtin aliases for B source */\n\n"
+	.ascii	"ntn, n, (word)10);\n    return n;\n}\nstatic word b_gtty(wor"
+	.ascii	"d fd, word ttstat){\n    if (!ttstat) { errno = EFAULT; retu"
+	.ascii	"rn -1; }\n    struct termios t;\n    if (tcgetattr((int)fd, "
+	.ascii	"&t) < 0) return -1;\n\n    word *vec = (word*)B_CPTR(ttstat)"
+	.ascii	";\n    vec[0] = (word)t.c_iflag;\n    vec[1] = (word)t.c_ofl"
+	.ascii	"ag;\n    vec[2] = (word)t.c_lflag;\n    return 0;\n}\n\nstat"
+	.ascii	"ic word b_stty(word fd, word ttstat){\n    if (!ttstat) { er"
+	.ascii	"rno = EFAULT; return -1; }\n    struct termios t;\n    if (t"
+	.ascii	"cgetattr((int)fd, &t) < 0) return -1;\n\n    word *vec = (wo"
+	.ascii	"rd*)B_CPTR(ttstat);\n    t.c_iflag = (tcflag_t)vec[0];\n    "
+	.ascii	"t.c_oflag = (tcflag_t)vec[1];\n    t.c_lflag = (tcflag_t)vec"
+	.ascii	"[2];\n    return (word)tcse"
+	.string	"tattr((int)fd, TCSANOW, &t);\n}\nstatic word b_intr(word mode) {\n    if (mode != 0 && mode != 1) { errno = ENOSYS; return -1; }\n    if (signal(SIGINT, mode == 0 ? SIG_IGN : SIG_DFL) == SIG_ERR) return -1;\n    return 0;\n}\n\n/* Builtin aliases for B source */\n\n"
 	.section	.rodata.str1.1
 .LC202:
 	.string	"%s/bprimitives.h"
@@ -9029,7 +9025,7 @@ emit_program_c:
 	movq	%r13, %rdi
 	call	free@PLT
 	movq	%rbx, %rcx
-	movl	$13168, %edx
+	movl	$12919, %edx
 	movl	$1, %esi
 	leaq	.LC201(%rip), %rdi
 	call	fwrite@PLT
