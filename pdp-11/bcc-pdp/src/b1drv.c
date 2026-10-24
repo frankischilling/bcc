@@ -5,7 +5,7 @@
  * -l selects the runtime library's private symbol namespace.
  * Default IC = stdin, OUT = stdout.  Reads records line by line via
  * blex1; each line begins with a tag (n, ps, bin, binc, cl, pr, ...)
- * followed by space-separated decimal args (or a name for cl/pr/ex).
+ * followed by space-separated decimal args (or a name for pr/ex).
  * After EOF, emitl() writes the .data section.
  */
 
@@ -91,7 +91,7 @@ disp1() {
 	if (tageq(dtag, "ps"))  { cgpsh(); return (1); }
 	if (tageq(dtag, "bin")) { a = nxti(dbuf); cgbin(a); return (1); }
 	if (tageq(dtag, "binc")){ a = nxti(dbuf); b = nxti(dbuf); c = nxti(dbuf); cgbinc(a, b, c); return (1); }
-	if (tageq(dtag, "cl"))  { nxtnam(dbuf, dnm); a = nxti(dbuf); cgcll(dnm, a); return (1); }
+	if (tageq(dtag, "cl"))  { a = nxti(dbuf); cgcll(a); return (1); }
 	if (tageq(dtag, "pr"))  { nxtnam(dbuf, dnm); a = nxti(dbuf); b = nxti(dbuf); cgpro(dnm, a, b); return (1); }
 	if (tageq(dtag, "ep"))  { cgepi(); return (1); }
 	if (tageq(dtag, "rt"))  { cgret(); return (1); }

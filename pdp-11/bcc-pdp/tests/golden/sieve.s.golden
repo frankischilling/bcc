@@ -114,6 +114,7 @@ _flags:
 .text
 	.globl	_main
 _main:
+	.+2
 	mov	r5, -(sp)
 	mov	sp, r5
 	sub	$6., sp
@@ -364,10 +365,14 @@ L19:
 	bne	1f
 	jmp	L20
 1:
+	mov	$_putchar, r0
+	mov	(r0), r0
+	mov	r0, -(sp)
 	mov	$32., r0
 	mov	r0, -(sp)
-	jsr	pc, _putchar
-	tst	(sp)+
+	mov	2.(sp), r0
+	jsr	pc, (r0)
+	add	$4., sp
 L20:
 	mov	r5, r0
 	sub	$6., r0
@@ -375,6 +380,9 @@ L20:
 	mov	$0., r0
 	mov	(sp)+, r1
 	mov	r0, (r1)
+	mov	$_printn, r0
+	mov	(r0), r0
+	mov	r0, -(sp)
 	mov	r5, r0
 	sub	$2., r0
 	mov	(r0), r0
@@ -385,8 +393,9 @@ L20:
 	mov	2.(sp), r1
 	mov	r0, 2.(sp)
 	mov	r1, 0.(sp)
-	jsr	pc, _printn
-	add	$4., sp
+	mov	4.(sp), r0
+	jsr	pc, (r0)
+	add	$6., sp
 L17:
 	mov	r5, r0
 	sub	$2., r0
@@ -402,10 +411,14 @@ L17:
 	mov	r0, (r1)
 	jmp	L13
 L14:
+	mov	$_putchar, r0
+	mov	(r0), r0
+	mov	r0, -(sp)
 	mov	$10., r0
 	mov	r0, -(sp)
-	jsr	pc, _putchar
-	tst	(sp)+
+	mov	2.(sp), r0
+	jsr	pc, (r0)
+	add	$4., sp
 L30000:
 	mov	r5, sp
 	mov	(sp)+, r5

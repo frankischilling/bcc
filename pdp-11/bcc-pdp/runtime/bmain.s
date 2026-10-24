@@ -44,7 +44,7 @@ start:
 	clr	r0			/ exec may supply an empty argument vector
 4:
 	mov	r0, -(sp)
-	jsr	pc, _main
+	jsr	pc, *_main
 	add	$4, sp		/ drop pushed args
 	sys	exit		/ kernel reads r0 as exit status
 

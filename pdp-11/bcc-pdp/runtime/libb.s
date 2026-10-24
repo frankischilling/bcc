@@ -2,6 +2,7 @@
 .text
 	.globl	_printn
 _printn:
+	.+2
 	mov	r5, -(sp)
 	mov	sp, r5
 	sub	$2., sp
@@ -56,10 +57,14 @@ B6:
 	bne	1f
 	jmp	B7
 1:
+	mov	$_putchar, r0
+	mov	(r0), r0
+	mov	r0, -(sp)
 	mov	$45., r0
 	mov	r0, -(sp)
-	jsr	pc, _putchar
-	tst	(sp)+
+	mov	2.(sp), r0
+	jsr	pc, (r0)
+	add	$4., sp
 	mov	r5, r0
 	sub	$2., r0
 	mov	r0, -(sp)
@@ -82,6 +87,9 @@ B6:
 	bne	1f
 	jmp	B8
 1:
+	mov	$_printn, r0
+	mov	(r0), r0
+	mov	r0, -(sp)
 	mov	r5, r0
 	sub	$2., r0
 	mov	(r0), r0
@@ -94,8 +102,9 @@ B6:
 	mov	2.(sp), r1
 	mov	r0, 2.(sp)
 	mov	r1, 0.(sp)
-	jsr	pc, _printn
-	add	$4., sp
+	mov	4.(sp), r0
+	jsr	pc, (r0)
+	add	$6., sp
 B8:
 	mov	r5, r0
 	sub	$2., r0
@@ -135,6 +144,9 @@ B7:
 	bne	1f
 	jmp	B10
 1:
+	mov	$_printn, r0
+	mov	(r0), r0
+	mov	r0, -(sp)
 	mov	r5, r0
 	sub	$2., r0
 	mov	(r0), r0
@@ -147,8 +159,9 @@ B7:
 	mov	2.(sp), r1
 	mov	r0, 2.(sp)
 	mov	r1, 0.(sp)
-	jsr	pc, _printn
-	add	$4., sp
+	mov	4.(sp), r0
+	jsr	pc, (r0)
+	add	$6., sp
 B10:
 	mov	r5, r0
 	sub	$2., r0
@@ -181,6 +194,9 @@ B12:
 	bne	1f
 	jmp	B13
 1:
+	mov	$_putchar, r0
+	mov	(r0), r0
+	mov	r0, -(sp)
 	mov	r5, r0
 	sub	$2., r0
 	mov	(r0), r0
@@ -189,10 +205,14 @@ B12:
 	mov	(sp)+, r1
 	add	r1, r0
 	mov	r0, -(sp)
-	jsr	pc, _putchar
-	tst	(sp)+
+	mov	2.(sp), r0
+	jsr	pc, (r0)
+	add	$4., sp
 	jmp	B14
 B13:
+	mov	$_putchar, r0
+	mov	(r0), r0
+	mov	r0, -(sp)
 	mov	r5, r0
 	sub	$2., r0
 	mov	(r0), r0
@@ -206,8 +226,9 @@ B13:
 	mov	(sp)+, r1
 	add	r1, r0
 	mov	r0, -(sp)
-	jsr	pc, _putchar
-	tst	(sp)+
+	mov	2.(sp), r0
+	jsr	pc, (r0)
+	add	$4., sp
 B14:
 	mov	$0., r0
 	jmp	B30000
@@ -219,6 +240,7 @@ B30000:
 .text
 	.globl	_getstr
 _getstr:
+	.+2
 	mov	r5, -(sp)
 	mov	sp, r5
 	sub	$4., sp
@@ -237,7 +259,12 @@ B15:
 	mov	r5, r0
 	sub	$4., r0
 	mov	r0, -(sp)
-	jsr	pc, _getchar
+	mov	$_getchar, r0
+	mov	(r0), r0
+	mov	r0, -(sp)
+	mov	0.(sp), r0
+	jsr	pc, (r0)
+	add	$2., sp
 	mov	(sp)+, r1
 	mov	r0, (r1)
 	mov	r5, r0
@@ -256,6 +283,9 @@ B18:
 	bne	1f
 	jmp	B19
 1:
+	mov	$_lchar, r0
+	mov	(r0), r0
+	mov	r0, -(sp)
 	mov	r5, r0
 	add	$4., r0
 	mov	(r0), r0
@@ -270,8 +300,9 @@ B18:
 	mov	4.(sp), r1
 	mov	r0, 4.(sp)
 	mov	r1, 0.(sp)
-	jsr	pc, _lchar
-	add	$6., sp
+	mov	6.(sp), r0
+	jsr	pc, (r0)
+	add	$8., sp
 	mov	r5, r0
 	sub	$2., r0
 	mov	(r0), r0
@@ -293,6 +324,9 @@ B21:
 	bne	1f
 	jmp	B22
 1:
+	mov	$_lchar, r0
+	mov	(r0), r0
+	mov	r0, -(sp)
 	mov	r5, r0
 	add	$4., r0
 	mov	(r0), r0
@@ -307,13 +341,17 @@ B21:
 	mov	4.(sp), r1
 	mov	r0, 4.(sp)
 	mov	r1, 0.(sp)
-	jsr	pc, _lchar
-	add	$6., sp
+	mov	6.(sp), r0
+	jsr	pc, (r0)
+	add	$8., sp
 	mov	r5, r0
 	sub	$2., r0
 	mov	(r0), r0
 	jmp	B30001
 B22:
+	mov	$_lchar, r0
+	mov	(r0), r0
+	mov	r0, -(sp)
 	mov	r5, r0
 	add	$4., r0
 	mov	(r0), r0
@@ -330,8 +368,9 @@ B22:
 	mov	4.(sp), r1
 	mov	r0, 4.(sp)
 	mov	r1, 0.(sp)
-	jsr	pc, _lchar
-	add	$6., sp
+	mov	6.(sp), r0
+	jsr	pc, (r0)
+	add	$8., sp
 	mov	r5, r0
 	sub	$2., r0
 	mov	r0, -(sp)
@@ -354,6 +393,7 @@ B30001:
 .text
 	.globl	_printf
 _printf:
+	.+2
 	mov	r5, -(sp)
 	mov	sp, r5
 	sub	$10., sp
@@ -375,6 +415,9 @@ B23:
 	mov	r5, r0
 	sub	$6., r0
 	mov	r0, -(sp)
+	mov	$_char, r0
+	mov	(r0), r0
+	mov	r0, -(sp)
 	mov	r5, r0
 	add	$4., r0
 	mov	(r0), r0
@@ -387,8 +430,9 @@ B23:
 	mov	2.(sp), r1
 	mov	r0, 2.(sp)
 	mov	r1, 0.(sp)
-	jsr	pc, _char
-	add	$4., sp
+	mov	4.(sp), r0
+	jsr	pc, (r0)
+	add	$6., sp
 	mov	(sp)+, r1
 	mov	r0, (r1)
 	mov	r0, -(sp)
@@ -442,12 +486,16 @@ B31:
 	mov	$0., r0
 	jmp	B30002
 B32:
+	mov	$_putchar, r0
+	mov	(r0), r0
+	mov	r0, -(sp)
 	mov	r5, r0
 	sub	$6., r0
 	mov	(r0), r0
 	mov	r0, -(sp)
-	jsr	pc, _putchar
-	tst	(sp)+
+	mov	2.(sp), r0
+	jsr	pc, (r0)
+	add	$4., sp
 	mov	r5, r0
 	sub	$8., r0
 	mov	r0, -(sp)
@@ -498,6 +546,9 @@ B24:
 	mov	r5, r0
 	sub	$6., r0
 	mov	r0, -(sp)
+	mov	$_char, r0
+	mov	(r0), r0
+	mov	r0, -(sp)
 	mov	r5, r0
 	add	$4., r0
 	mov	(r0), r0
@@ -510,8 +561,9 @@ B24:
 	mov	2.(sp), r1
 	mov	r0, 2.(sp)
 	mov	r1, 0.(sp)
-	jsr	pc, _char
-	add	$4., sp
+	mov	4.(sp), r0
+	jsr	pc, (r0)
+	add	$6., sp
 	mov	(sp)+, r1
 	mov	r0, (r1)
 	mov	r5, r0
@@ -542,6 +594,9 @@ B34:
 	bne	1f
 	jmp	B35
 1:
+	mov	$_printn, r0
+	mov	(r0), r0
+	mov	r0, -(sp)
 	mov	r5, r0
 	sub	$4., r0
 	mov	(r0), r0
@@ -552,8 +607,9 @@ B34:
 	mov	2.(sp), r1
 	mov	r0, 2.(sp)
 	mov	r1, 0.(sp)
-	jsr	pc, _printn
-	add	$4., sp
+	mov	4.(sp), r0
+	jsr	pc, (r0)
+	add	$6., sp
 	jmp	B30003
 B35:
 	mov	r5, r0
@@ -572,6 +628,9 @@ B37:
 	bne	1f
 	jmp	B38
 1:
+	mov	$_printn, r0
+	mov	(r0), r0
+	mov	r0, -(sp)
 	mov	r5, r0
 	sub	$4., r0
 	mov	(r0), r0
@@ -582,8 +641,9 @@ B37:
 	mov	2.(sp), r1
 	mov	r0, 2.(sp)
 	mov	r1, 0.(sp)
-	jsr	pc, _printn
-	add	$4., sp
+	mov	4.(sp), r0
+	jsr	pc, (r0)
+	add	$6., sp
 	jmp	B30003
 B38:
 	mov	r5, r0
@@ -602,12 +662,16 @@ B40:
 	bne	1f
 	jmp	B41
 1:
+	mov	$_putchar, r0
+	mov	(r0), r0
+	mov	r0, -(sp)
 	mov	r5, r0
 	sub	$4., r0
 	mov	(r0), r0
 	mov	r0, -(sp)
-	jsr	pc, _putchar
-	tst	(sp)+
+	mov	2.(sp), r0
+	jsr	pc, (r0)
+	add	$4., sp
 	jmp	B30003
 B41:
 	mov	r5, r0
@@ -636,6 +700,9 @@ B45:
 	mov	r5, r0
 	sub	$6., r0
 	mov	r0, -(sp)
+	mov	$_char, r0
+	mov	(r0), r0
+	mov	r0, -(sp)
 	mov	r5, r0
 	sub	$4., r0
 	mov	(r0), r0
@@ -648,8 +715,9 @@ B45:
 	mov	2.(sp), r1
 	mov	r0, 2.(sp)
 	mov	r1, 0.(sp)
-	jsr	pc, _char
-	add	$4., sp
+	mov	4.(sp), r0
+	jsr	pc, (r0)
+	add	$6., sp
 	mov	(sp)+, r1
 	mov	r0, (r1)
 	mov	r0, -(sp)
@@ -683,12 +751,16 @@ B50:
 1:
 	jmp	B30003
 B51:
+	mov	$_putchar, r0
+	mov	(r0), r0
+	mov	r0, -(sp)
 	mov	r5, r0
 	sub	$6., r0
 	mov	(r0), r0
 	mov	r0, -(sp)
-	jsr	pc, _putchar
-	tst	(sp)+
+	mov	2.(sp), r0
+	jsr	pc, (r0)
+	add	$4., sp
 	mov	r5, r0
 	sub	$10., r0
 	mov	r0, -(sp)
@@ -705,10 +777,14 @@ B51:
 B46:
 	jmp	B30003
 B44:
+	mov	$_putchar, r0
+	mov	(r0), r0
+	mov	r0, -(sp)
 	mov	$37., r0
 	mov	r0, -(sp)
-	jsr	pc, _putchar
-	tst	(sp)+
+	mov	2.(sp), r0
+	jsr	pc, (r0)
+	add	$4., sp
 	mov	r5, r0
 	sub	$8., r0
 	mov	r0, -(sp)
@@ -744,6 +820,7 @@ B30002:
 .text
 	.globl	___ctge
 ___ctge:
+	.+2
 	mov	r5, -(sp)
 	mov	sp, r5
 	mov	r5, r0
@@ -826,8 +903,12 @@ B30004:
 .text
 	.globl	J0
 J0:
+	.+2
 	mov	r5, -(sp)
 	mov	sp, r5
+	mov	$_lchar, r0
+	mov	(r0), r0
+	mov	r0, -(sp)
 	mov	r5, r0
 	add	$4., r0
 	mov	(r0), r0
@@ -852,8 +933,12 @@ J0:
 	mov	4.(sp), r1
 	mov	r0, 4.(sp)
 	mov	r1, 0.(sp)
-	jsr	pc, _lchar
-	add	$6., sp
+	mov	6.(sp), r0
+	jsr	pc, (r0)
+	add	$8., sp
+	mov	$_lchar, r0
+	mov	(r0), r0
+	mov	r0, -(sp)
 	mov	r5, r0
 	add	$4., r0
 	mov	(r0), r0
@@ -882,8 +967,9 @@ J0:
 	mov	4.(sp), r1
 	mov	r0, 4.(sp)
 	mov	r1, 0.(sp)
-	jsr	pc, _lchar
-	add	$6., sp
+	mov	6.(sp), r0
+	jsr	pc, (r0)
+	add	$8., sp
 B30005:
 	mov	r5, sp
 	mov	(sp)+, r5
@@ -910,6 +996,7 @@ J1:
 .text
 	.globl	_ctime
 _ctime:
+	.+2
 	mov	r5, -(sp)
 	mov	sp, r5
 	sub	$18., sp
@@ -989,6 +1076,9 @@ B70:
 	clr	r0
 B71:
 	mov	r0, -(sp)
+	mov	$___ctge, r0
+	mov	(r0), r0
+	mov	r0, -(sp)
 	mov	r5, r0
 	sub	$4., r0
 	mov	(r0), r0
@@ -999,8 +1089,9 @@ B71:
 	mov	2.(sp), r1
 	mov	r0, 2.(sp)
 	mov	r1, 0.(sp)
-	jsr	pc, ___ctge
-	add	$4., sp
+	mov	4.(sp), r0
+	jsr	pc, (r0)
+	add	$6., sp
 	mov	(sp)+, r1
 	com	r0
 	bic	r0, r1
@@ -1011,6 +1102,9 @@ B71:
 	bne	1f
 	jmp	B65
 1:
+	mov	$___ctge, r0
+	mov	(r0), r0
+	mov	r0, -(sp)
 	mov	r5, r0
 	sub	$4., r0
 	mov	(r0), r0
@@ -1021,8 +1115,9 @@ B71:
 	mov	2.(sp), r1
 	mov	r0, 2.(sp)
 	mov	r1, 0.(sp)
-	jsr	pc, ___ctge
-	add	$4., sp
+	mov	4.(sp), r0
+	jsr	pc, (r0)
+	add	$6., sp
 	tst	r0
 	bne	B72
 	mov	$1, r0
@@ -1108,6 +1203,9 @@ B77:
 	clr	r0
 B78:
 	mov	r0, -(sp)
+	mov	$___ctge, r0
+	mov	(r0), r0
+	mov	r0, -(sp)
 	mov	r5, r0
 	sub	$4., r0
 	mov	(r0), r0
@@ -1118,14 +1216,18 @@ B78:
 	mov	2.(sp), r1
 	mov	r0, 2.(sp)
 	mov	r1, 0.(sp)
-	jsr	pc, ___ctge
-	add	$4., sp
+	mov	4.(sp), r0
+	jsr	pc, (r0)
+	add	$6., sp
 	mov	(sp)+, r1
 	bis	r1, r0
 	tst	r0
 	bne	1f
 	jmp	B76
 1:
+	mov	$___ctge, r0
+	mov	(r0), r0
+	mov	r0, -(sp)
 	mov	r5, r0
 	sub	$4., r0
 	mov	(r0), r0
@@ -1136,8 +1238,9 @@ B78:
 	mov	2.(sp), r1
 	mov	r0, 2.(sp)
 	mov	r1, 0.(sp)
-	jsr	pc, ___ctge
-	add	$4., sp
+	mov	4.(sp), r0
+	jsr	pc, (r0)
+	add	$6., sp
 	tst	r0
 	bne	B79
 	mov	$1, r0
@@ -1453,12 +1556,18 @@ B101:
 	bne	1f
 	jmp	B99
 1:
+	mov	$_lchar, r0
+	mov	(r0), r0
+	mov	r0, -(sp)
 	mov	r5, r0
 	add	$6., r0
 	mov	(r0), r0
 	mov	r0, -(sp)
 	mov	r5, r0
 	sub	$18., r0
+	mov	(r0), r0
+	mov	r0, -(sp)
+	mov	$_char, r0
 	mov	(r0), r0
 	mov	r0, -(sp)
 	mov	r5, r0
@@ -1483,15 +1592,17 @@ B101:
 	mov	2.(sp), r1
 	mov	r0, 2.(sp)
 	mov	r1, 0.(sp)
-	jsr	pc, _char
-	add	$4., sp
+	mov	4.(sp), r0
+	jsr	pc, (r0)
+	add	$6., sp
 	mov	r0, -(sp)
 	mov	0.(sp), r0
 	mov	4.(sp), r1
 	mov	r0, 4.(sp)
 	mov	r1, 0.(sp)
-	jsr	pc, _lchar
-	add	$6., sp
+	mov	6.(sp), r0
+	jsr	pc, (r0)
+	add	$8., sp
 	mov	r5, r0
 	sub	$18., r0
 	mov	r0, -(sp)
@@ -1506,6 +1617,9 @@ B101:
 	mov	r0, (r1)
 	jmp	B98
 B99:
+	mov	$_lchar, r0
+	mov	(r0), r0
+	mov	r0, -(sp)
 	mov	r5, r0
 	add	$6., r0
 	mov	(r0), r0
@@ -1518,8 +1632,12 @@ B99:
 	mov	4.(sp), r1
 	mov	r0, 4.(sp)
 	mov	r1, 0.(sp)
-	jsr	pc, _lchar
-	add	$6., sp
+	mov	6.(sp), r0
+	jsr	pc, (r0)
+	add	$8., sp
+	mov	$J0, r0
+	mov	(r0), r0
+	mov	r0, -(sp)
 	mov	r5, r0
 	add	$6., r0
 	mov	(r0), r0
@@ -1538,8 +1656,9 @@ B99:
 	mov	4.(sp), r1
 	mov	r0, 4.(sp)
 	mov	r1, 0.(sp)
-	jsr	pc, J0
-	add	$6., sp
+	mov	6.(sp), r0
+	jsr	pc, (r0)
+	add	$8., sp
 	mov	r5, r0
 	sub	$6., r0
 	mov	(r0), r0
@@ -1556,6 +1675,9 @@ B103:
 	bne	1f
 	jmp	B104
 1:
+	mov	$_lchar, r0
+	mov	(r0), r0
+	mov	r0, -(sp)
 	mov	r5, r0
 	add	$6., r0
 	mov	(r0), r0
@@ -1568,9 +1690,13 @@ B103:
 	mov	4.(sp), r1
 	mov	r0, 4.(sp)
 	mov	r1, 0.(sp)
-	jsr	pc, _lchar
-	add	$6., sp
+	mov	6.(sp), r0
+	jsr	pc, (r0)
+	add	$8., sp
 B104:
+	mov	$_lchar, r0
+	mov	(r0), r0
+	mov	r0, -(sp)
 	mov	r5, r0
 	add	$6., r0
 	mov	(r0), r0
@@ -1583,8 +1709,12 @@ B104:
 	mov	4.(sp), r1
 	mov	r0, 4.(sp)
 	mov	r1, 0.(sp)
-	jsr	pc, _lchar
-	add	$6., sp
+	mov	6.(sp), r0
+	jsr	pc, (r0)
+	add	$8., sp
+	mov	$J0, r0
+	mov	(r0), r0
+	mov	r0, -(sp)
 	mov	r5, r0
 	add	$6., r0
 	mov	(r0), r0
@@ -1603,8 +1733,12 @@ B104:
 	mov	4.(sp), r1
 	mov	r0, 4.(sp)
 	mov	r1, 0.(sp)
-	jsr	pc, J0
-	add	$6., sp
+	mov	6.(sp), r0
+	jsr	pc, (r0)
+	add	$8., sp
+	mov	$_lchar, r0
+	mov	(r0), r0
+	mov	r0, -(sp)
 	mov	r5, r0
 	add	$6., r0
 	mov	(r0), r0
@@ -1617,8 +1751,12 @@ B104:
 	mov	4.(sp), r1
 	mov	r0, 4.(sp)
 	mov	r1, 0.(sp)
-	jsr	pc, _lchar
-	add	$6., sp
+	mov	6.(sp), r0
+	jsr	pc, (r0)
+	add	$8., sp
+	mov	$J0, r0
+	mov	(r0), r0
+	mov	r0, -(sp)
 	mov	r5, r0
 	add	$6., r0
 	mov	(r0), r0
@@ -1637,8 +1775,12 @@ B104:
 	mov	4.(sp), r1
 	mov	r0, 4.(sp)
 	mov	r1, 0.(sp)
-	jsr	pc, J0
-	add	$6., sp
+	mov	6.(sp), r0
+	jsr	pc, (r0)
+	add	$8., sp
+	mov	$_lchar, r0
+	mov	(r0), r0
+	mov	r0, -(sp)
 	mov	r5, r0
 	add	$6., r0
 	mov	(r0), r0
@@ -1651,8 +1793,12 @@ B104:
 	mov	4.(sp), r1
 	mov	r0, 4.(sp)
 	mov	r1, 0.(sp)
-	jsr	pc, _lchar
-	add	$6., sp
+	mov	6.(sp), r0
+	jsr	pc, (r0)
+	add	$8., sp
+	mov	$J0, r0
+	mov	(r0), r0
+	mov	r0, -(sp)
 	mov	r5, r0
 	add	$6., r0
 	mov	(r0), r0
@@ -1671,8 +1817,12 @@ B104:
 	mov	4.(sp), r1
 	mov	r0, 4.(sp)
 	mov	r1, 0.(sp)
-	jsr	pc, J0
-	add	$6., sp
+	mov	6.(sp), r0
+	jsr	pc, (r0)
+	add	$8., sp
+	mov	$_lchar, r0
+	mov	(r0), r0
+	mov	r0, -(sp)
 	mov	r5, r0
 	add	$6., r0
 	mov	(r0), r0
@@ -1685,8 +1835,9 @@ B104:
 	mov	4.(sp), r1
 	mov	r0, 4.(sp)
 	mov	r1, 0.(sp)
-	jsr	pc, _lchar
-	add	$6., sp
+	mov	6.(sp), r0
+	jsr	pc, (r0)
+	add	$8., sp
 	mov	$0., r0
 	jmp	B30006
 B30006:

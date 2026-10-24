@@ -128,14 +128,22 @@ formatter. Signed division truncates toward zero; remainders follow the
 dividend. Negative printing and bases above 10 are extensions to the manual's
 non-negative `printn` example.
 
+Rebuild native B programs and runtime assembly together after the function-cell
+ABI change. Handwritten code calls a public function through its cell, as in
+`jsr pc, *_putchar`, rather than jumping to the cell itself. Bare named calls
+still allow an implicit external declaration for compatibility; an undeclared
+name used as an ordinary value remains a function-local label reference.
+
 ## Limits and differences
 
 - Pointers are byte-addressed, not the manual's word addresses. Vector
   names have mutable pointer cells, and indexing loads a pointer value
   before selecting an element.
-- Function-name storage and indirect calls still need further native
-  conformance work. Forward label values work within their function; missing
-  and duplicate labels are rejected by the resolver.
+- Function names, including library functions, are writable cells containing
+  code addresses. Calls accept values stored in variables or vectors, passed
+  as parameters, selected by expressions, or returned by another call.
+  Forward label values work within their function; missing and duplicate
+  labels are rejected by the resolver.
 - The startup argument vector keeps at most 31 entries, including the
   program name at `argv[1]`. Its count reports only stored entries. The
   optional `main(count, values)` extension still receives user arguments

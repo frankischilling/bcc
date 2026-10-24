@@ -1,7 +1,7 @@
 /* bcg.c -- codegen primitives.  Emits V1 as syntax.
  *
- * Naming: V1 as truncates linker symbols to 7 chars after _ prefix, so
- * every function name here is <=5 chars with unique 5-char prefix.
+ * V1 as keeps seven characters including the prefix and folds case.
+ * cgsym maps B names that cannot use the short lowercase ABI.
  *
  * Stack-machine convention: lvalue = address in R0; rvalue = value in R0.
  * TOS holds an address or saved operand; binops pop TOS and produce R0.
@@ -122,8 +122,9 @@ iscmp(op) {
 	return (0);
 }
 
-cgcll(name, nargs) char name[]; {
+cgcll(nargs) {
 	int i;
+	if (nargs < 0 | nargs > 8190) fatal("bad argument count");
 	/* Caller pushed args left-to-right (so rightmost arg is TOS).
 	 * Reverse the top N stack words so leftmost arg ends up at TOS.
 	 * After this, callee sees arg i at 2*(i+2)(r5) regardless of
@@ -145,18 +146,14 @@ cgcll(name, nargs) char name[]; {
 		outs(".(sp)\n");
 		i = i + 1;
 	}
-	outs("\tjsr\tpc, ");
-	cgsym(name);
-	outc('\n');
-	if (nargs == 1) {
-		eop("tst\t(sp)+");
-		return;
-	}
-	if (nargs > 1) {
-		outs("\tadd\t$");
-		outd(2 * nargs);
-		outs("., sp\n");
-	}
+	/* The callee value was saved below the arguments. */
+	outs("\tmov\t");
+	outd(2 * nargs);
+	outs(".(sp), r0\n");
+	eop("jsr\tpc, (r0)");
+	outs("\tadd\t$");
+	outd(2 * (nargs + 1));
+	outs("., sp\n");
 }
 
 cgpro(name, nlocals, retlbl) char name[]; {
@@ -168,7 +165,7 @@ cgpro(name, nlocals, retlbl) char name[]; {
 	cgsym(name);
 	outc('\n');
 	cgsym(name);
-	outs(":\n");
+	outs(":\n\t.+2\n");
 	eop("mov\tr5, -(sp)");
 	eop("mov\tsp, r5");
 	if (nlocals > 0) {

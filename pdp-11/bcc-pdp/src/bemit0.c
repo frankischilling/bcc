@@ -32,9 +32,8 @@ iscmp(op) {
 	return (0);
 }
 
-cgcll(name, nargs) char name[]; {
+cgcll(nargs) {
 	outs("cl ");
-	outs(name); outc(' ');
 	outd(nargs); outc('\n');
 }
 
@@ -54,7 +53,10 @@ cgjmp(l) { outs("jm "); outd(l); outc('\n'); }
 cglab(l) { outs("lb "); outd(l); outc('\n'); }
 
 cgext(name) char name[]; { outs("ex "); outs(name); outc('\n'); }
-cgrname(name) char name[]; { outs("Rname "); outs(name); outc('\n'); }
+cgrname(name, call) char name[]; {
+	if (call) outs("Rcall "); else outs("Rname ");
+	outs(name); outc('\n');
+}
 cgrlbl(name) char name[]; { outs("Rlbl "); outs(name); outc('\n'); }
 cgrdef(name) char name[]; { outs("Rdef "); outs(name); outc('\n'); }
 

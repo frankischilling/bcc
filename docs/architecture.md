@@ -77,5 +77,10 @@ programs also need space for their runtime stack.
 
 Native `runtime/brt.s` supplies startup-adjacent helpers and syscall wrappers;
 `runtime/libb.b` supplies library routines written in B. The native compiler
-still uses byte-addressed B pointers. The test guide distinguishes fast
+still uses byte-addressed B pointers. Public B function symbols address mutable
+cells initialized to the function body. Every call saves the callee value on
+the stack, evaluates and reverses the arguments into the existing ABI order,
+then calls that saved address. Cleanup removes the arguments and the saved
+callee. Arithmetic helpers with private dot-prefixed names remain direct
+assembly calls. The test guide distinguishes fast
 emulation from full-system Unix V1 behavior and documents the image safeguards.

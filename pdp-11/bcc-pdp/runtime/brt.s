@@ -1,7 +1,7 @@
 / brt.s — runtime helpers for bcc-pdp.
 /
 / Calls place the leftmost argument nearest the return address.
-/ Helper called via `jsr pc, _name`; args at 2(sp), 4(sp), ...
+/ Function cells are called via `jsr pc, *_name`; args at 2(sp), 4(sp), ...
 / Result returned in r0. Helpers preserve no callee-save regs.
 
 / Syscall numbers (V1 manual section II)
@@ -68,11 +68,13 @@ EOT = 4
 
 / ---- _exit(code) ----
 _exit:
+	.+2
 	mov	2(sp), r0
 	sys	sexit
 
 / ---- _putchar(c) ----
 _putchar:
+	.+2
 	mov	2(sp), pcbuf
 	mov	$1, r0			/ fd = stdout
 	tstb	pcbuf+1
@@ -87,6 +89,7 @@ pcbuf:	0
 
 / ---- _getchar() -> int (char, or *e on EOF) ----
 _getchar:
+	.+2
 	clr	r0			/ fd = stdin
 	sys	read; gcbuf; 1.
 	bes	1f
@@ -103,6 +106,7 @@ gcbuf:	0
 
 / ---- _write(fd, buf, n) ----
 _write:
+	.+2
 	mov	2(sp), r0
 	mov	4(sp), 0f
 	mov	6(sp), 0f+2
@@ -115,6 +119,7 @@ _write:
 
 / ---- _read(fd, buf, n) ----
 _read:
+	.+2
 	mov	2(sp), r0
 	mov	4(sp), 0f
 	mov	6(sp), 0f+2
@@ -127,6 +132,7 @@ _read:
 
 / ---- _open(path, mode): convert the B terminator before the syscall. ----
 _open:
+	.+2
 	mov	2(sp), r0
 	jsr	pc, .path1
 	bes	9f
@@ -140,6 +146,7 @@ _open:
 
 / ---- _close(fd) ----
 _close:
+	.+2
 	mov	2(sp), r0
 	sys	sclose
 	bes	1f
@@ -150,6 +157,7 @@ _close:
 
 / ---- _creat(path, mode): convert the B terminator before the syscall. ----
 _creat:
+	.+2
 	mov	2(sp), r0
 	jsr	pc, .path1
 	bes	9f
@@ -163,6 +171,7 @@ _creat:
 
 / ---- _seek(fd, offset, origin) ----
 _seek:
+	.+2
 	mov	2(sp), r0
 	mov	4(sp), 0f
 	mov	6(sp), 0f+2
@@ -176,15 +185,18 @@ _seek:
 
 / ---- _putstr(s) — print chars until EOT (04) ----
 _putstr:
+	.+2
 	mov	2(sp), r1
 1:
 	movb	(r1)+, r0
 	cmpb	r0, $EOT
 	beq	2f
 	bic	$177400, r0
+	mov	r1, -(sp)		/ replacement functions may clobber r1
 	mov	r0, -(sp)
-	jsr	pc, _putchar
+	jsr	pc, *_putchar
 	tst	(sp)+
+	mov	(sp)+, r1
 	br	1b
 2:
 	rts	pc
@@ -341,6 +353,7 @@ _putstr:
 
 / ---- _char(s, i) -> int (byte zero-extended) ----
 _char:
+	.+2
 	mov	2(sp), r0		/ r0 = s (byte addr of string base)
 	add	4(sp), r0		/ r0 = &s[i]
 	clr	r1
@@ -350,6 +363,7 @@ _char:
 
 / ---- _lchar(s, i, c) ----
 _lchar:
+	.+2
 	mov	2(sp), r0
 	add	4(sp), r0		/ r0 = &s[i]
 	mov	6(sp), r1		/ r1 = c
@@ -361,6 +375,7 @@ _lchar:
 
 / ---- _fork(): the parent skips the instruction after sys fork. ----
 _fork:
+	.+2
 	sys	sfork
 	br	1f
 	bcc	2f
@@ -372,6 +387,7 @@ _fork:
 	rts	pc
 
 _wait:
+	.+2
 	sys	swait
 	bes	9f
 	rts	pc
@@ -380,6 +396,7 @@ _wait:
 	rts	pc
 
 _unlink:
+	.+2
 	mov	2(sp), r0
 	jsr	pc, .path1
 	bes	9f
@@ -392,6 +409,7 @@ _unlink:
 	rts	pc
 
 _chdir:
+	.+2
 	mov	2(sp), r0
 	jsr	pc, .path1
 	bes	9f
@@ -404,6 +422,7 @@ _chdir:
 	rts	pc
 
 _link:
+	.+2
 	mov	2(sp), r0
 	jsr	pc, .path1
 	bes	9f
@@ -419,6 +438,7 @@ _link:
 	rts	pc
 
 _chmod:
+	.+2
 	mov	2(sp), r0
 	jsr	pc, .path1
 	bes	9f
@@ -432,6 +452,7 @@ _chmod:
 	rts	pc
 
 _chown:
+	.+2
 	mov	2(sp), r0
 	jsr	pc, .path1
 	bes	9f
@@ -445,6 +466,7 @@ _chown:
 	rts	pc
 
 _stat:
+	.+2
 	mov	2(sp), r0
 	jsr	pc, .path1
 	bes	9f
@@ -458,7 +480,9 @@ _stat:
 	rts	pc
 
 _makdir:
+	.+4
 _mkdir:
+	.+2
 	mov	2(sp), r0
 	jsr	pc, .path1
 	bes	9f
@@ -472,6 +496,7 @@ _mkdir:
 	rts	pc
 
 _fstat:
+	.+2
 	mov	2(sp), r0
 	mov	4(sp), 0f
 	sys	sfstat; 0:..
@@ -483,6 +508,7 @@ _fstat:
 	rts	pc
 
 _stty:
+	.+2
 	mov	2(sp), r0
 	mov	4(sp), 0f
 	sys	stty; 0:..
@@ -494,6 +520,7 @@ _stty:
 	rts	pc
 
 _gtty:
+	.+2
 	mov	2(sp), r0
 	mov	4(sp), 0f
 	sys	sgtty; 0:..
@@ -505,6 +532,7 @@ _gtty:
 	rts	pc
 
 _setuid:
+	.+2
 	mov	2(sp), r0
 	sys	ssetuid
 	bes	9f
@@ -515,11 +543,13 @@ _setuid:
 	rts	pc
 
 _getuid:
+	.+2
 	sys	sgetuid
 	rts	pc
 
 / V1 time returns the high and low words in the KE11 AC and MQ registers.
 _time:
+	.+2
 	sys	stime
 	mov	2(sp), r2
 	mov	ac, (r2)+
@@ -529,6 +559,7 @@ _time:
 
 / B72 execv takes a counted vector, not a zero-terminated B vector.
 _execv:
+	.+2
 	mov	2(sp), r0
 	jsr	pc, .path1
 	bes	9f
@@ -564,6 +595,7 @@ _execv:
 
 / The variadic arguments already form a contiguous vector on the stack.
 _execl:
+	.+2
 	mov	sp, r1
 	add	$4, r1
 	clr	r2
@@ -581,7 +613,7 @@ _execl:
 	mov	r2, -(sp)
 	mov	r0, -(sp)
 	mov	r3, -(sp)
-	jsr	pc, _execv
+	jsr	pc, *_execv
 	add	$6, sp
 	rts	pc
 9:

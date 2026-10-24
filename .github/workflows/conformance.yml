@@ -76,6 +76,10 @@ jobs:
           make -C pdp-11/bcc-pdp v1-run B=tests/run/t56_statement_functions.b
           make -C pdp-11/bcc-pdp v1-run B=tests/run/t57_character_vectors.b
           make -C pdp-11/bcc-pdp v1-run B=tests/run/t61_keyword_names.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t62_function_values.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t63_function_cells.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t64_library_cells.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t65_call_stack.b
           bash pdp-11/bcc-pdp/tools/v1-run.sh pdp-11/bcc-pdp/tests/run/t19a_tilde.b --expect-compile-error
           bash pdp-11/bcc-pdp/tools/v1-run.sh pdp-11/bcc-pdp/tests/run/t44_missing_label.b --expect-compile-error
           bash pdp-11/bcc-pdp/tools/v1-run.sh pdp-11/bcc-pdp/tests/run/t49_empty_char.b --expect-compile-error

@@ -289,8 +289,10 @@ rewrt() {
 
 		if (infun) emitpr();
 
-		if (tageq(dtag, "Rname")) {
+		if (tageq(dtag, "Rname") | tageq(dtag, "Rcall")) {
 			nxtnam(dbuf, dnm);
+			/* Preserve implicit external declarations for bare calls. */
+			if (tageq(dtag, "Rcall")) if (symfnd(dnm) < 0) regext(dnm);
 			rrname(dnm);
 			continue;
 		}

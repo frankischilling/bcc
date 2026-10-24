@@ -18,9 +18,8 @@
  *   keywords break, continue
  *   operators ~ ^ && || =^
  *
- * Identifier limit NAMELEN = 8.  V1 as truncates linker symbols to 7
- * chars after the _ prefix, so all globals here use unique 6-char-stable
- * prefixes.
+ * Identifier limit NAMELEN = 8. V1 as keeps seven characters including
+ * the prefix and folds case. cgsym handles B names that need a mapping.
  *
  * Builtin globals visible to other passes:
  *   tok      -- current token id

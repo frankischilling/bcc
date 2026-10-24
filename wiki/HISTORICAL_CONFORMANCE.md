@@ -104,7 +104,10 @@ including computed label values. It still lacks 16-bit storage.
 The native compiler now loads pointer values before indexing scalar and
 parameter expressions, and gives external vectors mutable pointer cells.
 It resolves forward label values within their function and diagnoses missing
-or duplicate labels before assembly. It still uses byte addresses.
+or duplicate labels before assembly. Native function names and runtime
+functions now have mutable cells, and calls accept general function-valued
+expressions. Tests cover saved values, address-based replacement, nested calls,
+and library interposition. Native data pointers still use byte addresses.
 
 The manual's example 9.2 ends with a packed pair of newlines passed to
 `putchar`. Character constants use high-byte-first numeric packing, and

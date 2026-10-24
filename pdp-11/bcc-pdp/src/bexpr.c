@@ -87,7 +87,7 @@ atomlv() {
 	extern tok, tval, tstr, tnam, tstrbuf, tstrlen;
 	int  tok, tval, tstr, tstrlen;
 	char tnam[], tstrbuf[];
-	int nargs, i;
+	int i;
 	char name[10];
 
 	if (tok == 2) {                          /* T_NUM */
@@ -129,37 +129,38 @@ atomlv() {
 			i = i + 1;
 		}
 		gettok();
-		if (tok == '(') {
-			nargs = 0;
-			gettok();
-			if (tok != ')') {
-				while (1) {
-					exprv();
-					cgpsh();
-					nargs = nargs + 1;
-					if (tok == ')') break;
-					if (tok != ',') fatal("expected , in args");
-					gettok();
-				}
-			}
-			gettok();
-			cgcll(name, nargs);
-			return (0);
-		}
-		cgrname(name);
+		cgrname(name, tok == '(');
 		return (1);
 	}
 	fatal("expected expression");
 	return (0);
 }
 
-/* Postfix indexing applies to any primary expression, not just a name. */
+/* Calls and indexing apply to any primary expression, not just a name. */
 primlv() {
     extern tok;
-    int tok, lv;
+    int tok, lv, nargs;
     lv = atomlv();
     while (1) {
-        if (tok == '[') {
+        if (tok == '(') {
+            if (lv) cgdrfr();
+            cgpsh();
+            nargs = 0;
+            gettok();
+            if (tok != ')') {
+                while (1) {
+                    exprv();
+                    cgpsh();
+                    nargs = nargs + 1;
+                    if (tok == ')') break;
+                    if (tok != ',') fatal("expected , in args");
+                    gettok();
+                }
+            }
+            gettok();
+            cgcll(nargs);
+            lv = 0;
+        } else if (tok == '[') {
             if (lv) cgdrfr();
             gettok();
             cgpsh();

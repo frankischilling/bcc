@@ -31,7 +31,7 @@ word-addressed; this compiler is byte-addressed. See
 
 | § | Topic | Status |
 |---|---|---|
-| 4.1 | Primary | ✚ names, numeric/character/string constants, parentheses, and indexing; direct calls work, but general function-valued calls remain incomplete |
+| 4.1 | Primary | ✔ names, numeric/character/string constants, parentheses, indexing, and general function-valued calls |
 | 4.2 | Unary `-` `!` `*` `&` `++` `--` | ✔ - `~` removed (not in kbman) |
 | 4.3 | Multiplicative `*` `/` `%` | ✔ via runtime `.mul .div .mod` |
 | 4.4 | Additive `+` `-` | ✔ |
@@ -69,9 +69,9 @@ Measured `text + data + bss` for the current sources:
 
 | Binary | Role | Current total |
 |---|---|---:|
-| `b00` | lex + parse + raw IC | 15722 bytes |
-| `b01` | symbols + IC resolution | 9550 bytes |
-| `b1` | assembly emitter | 15700 bytes |
+| `b00` | lex + parse + raw IC | 15758 bytes |
+| `b01` | symbols + IC resolution | 9626 bytes |
+| `b1` | assembly emitter | 15726 bytes |
 | `b` | driver | 4082 bytes |
 
 These totals exclude the argument frame and runtime stack. Passing the binary
@@ -102,6 +102,11 @@ to their function; unresolved and duplicate definitions are rejected.
 A name initializer emits the mapped assembler symbol (the byte address of
 the named external) at the data slot. Unlike the manual, the native parser
 currently rejects string initializers such as `message "hello";`.
+
+Function names are mutable cells initialized to code addresses. Taking `&f`
+addresses the cell; reading `f` obtains its current function value. This also
+applies to native runtime functions. Tests replace `putchar`, call `printn`,
+and verify that its calls use the replacement, then restore the saved value.
 
 ## §8  Library Functions
 
@@ -189,7 +194,6 @@ The fast runner uses an unchanged-text compatibility container to observe
 results that the pinned apout 0405 mode discards. Full-system tests remain
 separate and cover real V1 files, processes, tty state, and time registers.
 See [the test guide](../../docs/testing.md). The native compiler still needs
-work on indirect function calls, mutable function-name storage,
-word-addressed pointers, declaration-statement grammar, string-valued
+work on word-addressed pointers, declaration-statement grammar, string-valued
 external initializers, and cross-file linkage for mapped external names. Table
 entries above describe implemented paths, not a claim of complete conformance.
