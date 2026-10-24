@@ -12,10 +12,13 @@ typedef struct {
 } b_target_region;
 
 #ifdef B_TARGET_DEFINE
-b_target_region __b_regions[65536];
-unsigned char *__b_addresses[65536];
-size_t __b_region_count;
-size_t __b_frame_serial, __b_current_frame;
+#ifndef B_TARGET_STORAGE
+#define B_TARGET_STORAGE
+#endif
+B_TARGET_STORAGE b_target_region __b_regions[65536];
+B_TARGET_STORAGE unsigned char *__b_addresses[65536];
+B_TARGET_STORAGE size_t __b_region_count;
+B_TARGET_STORAGE size_t __b_frame_serial, __b_current_frame;
 #else
 extern b_target_region __b_regions[65536];
 extern unsigned char *__b_addresses[65536];

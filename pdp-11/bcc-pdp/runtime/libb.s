@@ -824,8 +824,8 @@ B30004:
 	rts	pc
 
 .text
-	.globl	___ctdig
-___ctdig:
+	.globl	J0
+J0:
 	mov	r5, -(sp)
 	mov	sp, r5
 	mov	r5, r0
@@ -890,8 +890,8 @@ B30005:
 	rts	pc
 
 .text
-	.globl	___ctmon
-___ctmon:
+	.globl	J1
+J1:
 	.+2
 	31.
 	28.
@@ -1292,7 +1292,7 @@ B83:
 	mov	r5, r0
 	sub	$14., r0
 	mov	r0, -(sp)
-	mov	$___ctmon, r0
+	mov	$J1, r0
 	mov	(r0), r0
 	mov	r0, -(sp)
 	mov	r5, r0
@@ -1353,7 +1353,7 @@ B92:
 	mov	r5, r0
 	sub	$14., r0
 	mov	r0, -(sp)
-	mov	$___ctmon, r0
+	mov	$J1, r0
 	mov	(r0), r0
 	mov	r0, -(sp)
 	mov	r5, r0
@@ -1538,7 +1538,7 @@ B99:
 	mov	4.(sp), r1
 	mov	r0, 4.(sp)
 	mov	r1, 0.(sp)
-	jsr	pc, ___ctdig
+	jsr	pc, J0
 	add	$6., sp
 	mov	r5, r0
 	sub	$6., r0
@@ -1603,7 +1603,7 @@ B104:
 	mov	4.(sp), r1
 	mov	r0, 4.(sp)
 	mov	r1, 0.(sp)
-	jsr	pc, ___ctdig
+	jsr	pc, J0
 	add	$6., sp
 	mov	r5, r0
 	add	$6., r0
@@ -1637,7 +1637,7 @@ B104:
 	mov	4.(sp), r1
 	mov	r0, 4.(sp)
 	mov	r1, 0.(sp)
-	jsr	pc, ___ctdig
+	jsr	pc, J0
 	add	$6., sp
 	mov	r5, r0
 	add	$6., r0
@@ -1671,7 +1671,7 @@ B104:
 	mov	4.(sp), r1
 	mov	r0, 4.(sp)
 	mov	r1, 0.(sp)
-	jsr	pc, ___ctdig
+	jsr	pc, J0
 	add	$6., sp
 	mov	r5, r0
 	add	$6., r0

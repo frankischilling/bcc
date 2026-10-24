@@ -51,9 +51,6 @@ static SemState *sem_state_new(const char *filename) {
     st->implicit_statics.len = 0;
     st->implicit_statics.cap = 0;
 
-    // Add builtin functions
-    sem_add_builtin_functions(st);
-
     return st;
 }
 
@@ -108,6 +105,7 @@ static void sem_add_builtin_functions(SemState *st) {
     };
 
     for (int i = 0; builtins[i]; i++) {
+        if (scope_has_in_current(st->current, builtins[i])) continue;
         vec_push(&st->function_names, sdup(builtins[i]));
         Symbol *sym = symbol_new(SYM_FUNC, builtins[i], 0, 0);
         scope_add(st->current, sym);
@@ -624,6 +622,9 @@ void sem_check_program(Program *prog, const char *filename) {
             }
         }
     }
+
+    // Library names are defaults, not reserved B identifiers.
+    sem_add_builtin_functions(st);
 
     // Now check function bodies, collecting implicit static variables
     for (size_t i = 0; i < prog->tops.len; i++) {

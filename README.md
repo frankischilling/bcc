@@ -49,7 +49,8 @@ installed compiler can find both runtime layouts.
 ## Choose a build
 
 - **`bcc`** is the maintained C-source host compiler. It supports shared or
-  inline runtimes, multiple input files, and host/16/32-bit word modes.
+  inline runtimes, multiple input files, and host/16/32-bit word modes. B
+  definitions can replace default library names in source-level calls.
 - **[`bccasm`](asm/README.md)** builds the same compiler from checked-in
   x86-64 GNU assembler snapshots. Source and output hashes catch stale
   snapshots. Generated B programs use the same runtime as `bcc`.

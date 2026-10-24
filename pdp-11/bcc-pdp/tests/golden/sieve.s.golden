@@ -1,7 +1,7 @@
 
 .text
-	.globl	_LIM
-_LIM:
+	.globl	K0
+K0:
 	100.
 	.even
 
@@ -128,7 +128,7 @@ L0:
 	sub	$2., r0
 	mov	(r0), r0
 	mov	r0, -(sp)
-	mov	$_LIM, r0
+	mov	$K0, r0
 	mov	(r0), r0
 	cmp	(sp)+, r0
 	bge	L2
@@ -201,7 +201,7 @@ L4:
 	sub	$2., r0
 	mov	(r0), r0
 	mov	r0, -(sp)
-	mov	$_LIM, r0
+	mov	$K0, r0
 	mov	(r0), r0
 	cmp	(sp)+, r0
 	bge	L6
@@ -247,7 +247,7 @@ L9:
 	sub	$4., r0
 	mov	(r0), r0
 	mov	r0, -(sp)
-	mov	$_LIM, r0
+	mov	$K0, r0
 	mov	(r0), r0
 	cmp	(sp)+, r0
 	bge	L11
@@ -321,7 +321,7 @@ L13:
 	sub	$2., r0
 	mov	(r0), r0
 	mov	r0, -(sp)
-	mov	$_LIM, r0
+	mov	$K0, r0
 	mov	(r0), r0
 	cmp	(sp)+, r0
 	bge	L15

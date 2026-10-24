@@ -81,8 +81,8 @@ The added cases exercise operator adjacency, brace and quote escapes, embedded z
 precedence, ordered bitwise evaluation, label values and function scope,
 strict extension handling, 16-bit address arithmetic, two-byte character
 packing, packed file I/O, recursion, heap reuse, and cross-file pointers.
-Both the shared and inline runtimes are exercised; cross-file pointer tests
-use the shared runtime.
+Both the shared and inline runtimes are exercised, including cross-file
+pointer arguments.
 
 The C99 compiler translates 16-bit B addresses through registered host
 storage. It keeps host-sized storage cells and relies on GNU-compatible C
@@ -93,6 +93,12 @@ stat and terminal interfaces still need separate ABI conformance work. The 32-bi
 is arithmetic emulation with native pointers; arithmetic on those pointers
 can still truncate them. Function values can be called through variables and expressions; mutable
 function-name cells are not yet a complete implementation of section 7.3.
+B source can define library names such as `printn` and `printf`, as the
+manual's examples do. The host and assembly-source compilers use those
+source definitions for direct calls and function values, including calls
+between input files compiled together. Internal calls made by a bundled
+runtime routine still use that runtime's own helpers; this is not full
+library interposition or support for the manual's stack-walking `printf`.
 The B-written bootstrap now shares the tested expression and lexical rules,
 including computed label values. It still lacks 16-bit storage.
 The native compiler now loads pointer values before indexing scalar and

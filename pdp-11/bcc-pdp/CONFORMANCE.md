@@ -92,7 +92,7 @@ in expression context creates an implicit C_EXTRN.
 | 7.2 | `name [size] {ival, ival, ...} ;` | ✔ - ivals can be constants OR names (address-of) |
 | 7.3 | `name(args) stmt` | ✔ |
 
-`ival` accepts a constant or a name; a name initializer emits `.word _name`
+`ival` accepts a constant or a name; a name initializer emits the mapped assembler symbol
 (byte address of the named external) at the data slot.
 
 ## §8  Library Functions
@@ -154,15 +154,16 @@ limit, not full reproduction of the historical argument vector.
 ## §13  Nasties
 
 The kbman "nasties" list documents bugs in the original implementation.
-This compiler avoids all of them:
+The implementation addresses several of them:
 
 1. ✔ All operator combinations parse correctly.
 2. ✔ Single-pass IC dispatch handles every record type.
 3. ✔ All 16 compound assigns (`=&`, `===`, `=!=`, `=<=`, `=<`, `=>=`, `=>`,
    `=/`) implemented - kbman noted these as `bilib` gaps.
-4. ✔ External vector init by name works (`emitg → cggvn → .word _name`).
-5. ✔ Names like `byte`, `endif`, `even`, `globl` are still avoidable;
-   we recommend not using them as B identifiers.
+4. ✔ External vector init by name works (`emitg → cggvn`).
+5. External symbols are prefixed or mapped to private names, rather than
+   passed directly to the assembler as directive names. Eight-character
+   names and case distinctions are preserved within a source file.
 
 ## Reference
 
@@ -178,5 +179,6 @@ results that the pinned apout 0405 mode discards. Full-system tests remain
 separate and cover real V1 files, processes, tty state, and time registers.
 See [the test guide](../../docs/testing.md). The native compiler still needs
 work on indirect function calls, mutable function-name storage, forward
-label values, word-addressed pointers, and external-name collisions. Table
+label values, word-addressed pointers, and cross-file linkage for mapped
+external names. Table
 entries above describe implemented paths, not a claim of complete conformance.

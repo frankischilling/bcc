@@ -154,6 +154,22 @@ static int mangled_exists(const char *mangled) {
     return 0;
 }
 
+static int runtime_function(const char *name);
+static Program *current_program;
+
+static int source_function(const char *name) {
+    if (current_program) {
+        for (size_t i = 0; i < current_program->tops.len; i++) {
+            Top *t = current_program->tops.data[i];
+            if (t->kind == TOP_FUNC && strcmp(t->as.fn->name, name) == 0)
+                return 1;
+        }
+    }
+    for (size_t i = 0; i < g_known_functions.len; i++)
+        if (strcmp(g_known_functions.data[i], name) == 0) return 1;
+    return 0;
+}
+
 // Get or create mangled name for an identifier
 static const char *get_mangled_name(const char *original) {
     if (!original) return NULL;
@@ -166,6 +182,15 @@ static const char *get_mangled_name(const char *original) {
 
     // Create new mangled name
     char *mangled = mangle_name_raw(original);
+    // Keep B library-name definitions clear of both libc and runtime symbols.
+    // Escape source names in this namespace too, independent of encounter order.
+    if (runtime_function(original) || strncmp(original, "__bcc_user_", 11) == 0) {
+        char *private_name = xmalloc(strlen(mangled) + 14);
+        sprintf(private_name, "__bcc_user_%c_%s",
+                runtime_function(original) ? 'r' : 'x', mangled);
+        if (!g_compilation_arena) free(mangled);
+        mangled = private_name;
+    }
 
     // Check if it's a C keyword
     if (is_c_keyword(mangled)) {
@@ -218,7 +243,7 @@ static int runtime_function(const char *name) {
 
 static void emit_function_name(FILE *out, const char *name) {
     if (strcmp(name, "main") == 0) fputs("__b_user_main", out);
-    else if (runtime_function(name)) fprintf(out, "b_%s", name);
+    else if (runtime_function(name) && !source_function(name)) fprintf(out, "b_%s", name);
     else emit_name(out, name);
 }
 
@@ -721,7 +746,7 @@ void emit_expr(FILE *out, Expr *e, const char *filename) {
             // Check if callee is a builtin function that needs b_ prefix
             if (e->as.call.callee->kind == EX_VAR) {
                 const char *name = e->as.call.callee->as.var;
-                if (strcmp(name, "callf") == 0) {
+                if (strcmp(name, "callf") == 0 && !source_function(name)) {
                     size_t nargs = e->as.call.args.len;
                     size_t extra = (nargs > 0) ? (nargs - 1) : 0; /* args after name */
                     fprintf(out, "b_callf_dispatch(%zu", extra);
@@ -732,7 +757,7 @@ void emit_expr(FILE *out, Expr *e, const char *filename) {
                     fputc(')', out);
                     return;
                 }
-                used_builtin_prefix = runtime_function(name);
+                used_builtin_prefix = runtime_function(name) && !source_function(name);
             }
             const char *cname = NULL;
             int wrap_ret_ptr = 0;
@@ -741,7 +766,7 @@ void emit_expr(FILE *out, Expr *e, const char *filename) {
                 if (strcmp(cname, "malloc") == 0 || strcmp(cname, "calloc") == 0 || strcmp(cname, "realloc") == 0) {
                     wrap_ret_ptr = 1; // return a C pointer: convert to B pointer
                 }
-                if (strcmp(cname, "printf") == 0 && !used_builtin_prefix) { printf_like = 1; fmt_index = 0; }
+                if (strcmp(cname, "printf") == 0 && !used_builtin_prefix && !source_function(cname)) { printf_like = 1; fmt_index = 0; }
                 else if (strcmp(cname, "fprintf") == 0 || strcmp(cname, "dprintf") == 0) { printf_like = 1; fmt_index = 1; }
                 else if (strcmp(cname, "sprintf") == 0) { printf_like = 1; fmt_index = 1; }
                 else if (strcmp(cname, "snprintf") == 0) { printf_like = 1; fmt_index = 2; }
@@ -1388,6 +1413,7 @@ static void emit_global_regions(FILE *out, Program *prog) {
 // Forward declaration for assembly emitter
 
 void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr, int no_line, int word_bits) {
+    current_program = prog;
     current_byteptr = byteptr;
     current_word_bits = word_bits;
     string_pool.data = NULL;
@@ -1507,7 +1533,8 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
         char *path = fmt("%s/btarget.h", g_libb_path);
         size_t length;
         char *header = read_file_all(path, &length);
-        fputs("#define B_TARGET_DEFINE\n", out);
+        /* Inline runtimes in different translation units share one address map. */
+        fputs("#define B_TARGET_DEFINE\n#define B_TARGET_STORAGE __attribute__((common))\n", out);
         fwrite(header, 1, length, out);
         fputs("\n", out);
         free(header);
@@ -2633,6 +2660,7 @@ void emit_program_c_ext(FILE *out, Program *prog, const char *filename, int byte
         return;
     }
 
+    current_program = prog;
     current_byteptr = byteptr;
     current_word_bits = word_bits;
     string_pool.data = NULL;

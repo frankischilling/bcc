@@ -18,7 +18,7 @@ make -C bootstrap test
 The host runner checks suite exit status and reported failures, and rejects
 missing summaries or zero executed tests. It covers both runtime layouts,
 16-bit translated addresses, function values, emitted assembly, process
-arguments, and clock/date conversion. Tests of the runner guard against
+arguments, clock/date conversion, and source-defined library names. Tests of the runner guard against
 false-green reports.
 
 `bccasm` runs the same host suite. The B-written compiler runs lexical and
@@ -69,6 +69,7 @@ make -C pdp-11/bcc-pdp v1-run B=tests/run/t32_time_registers.b
 make -C pdp-11/bcc-pdp v1-run B=tests/run/t33_files.b
 make -C pdp-11/bcc-pdp v1-run B=tests/run/t34_fork.b
 make -C pdp-11/bcc-pdp v1-run B=tests/run/t35_execv.b
+make -C pdp-11/bcc-pdp v1-run B=tests/run/t41_eight_names.b
 make -C pdp-11/bcc-pdp v1-run B=tests/v1/tty.b
 bash pdp-11/bcc-pdp/tools/v1-run.sh pdp-11/bcc-pdp/tests/run/t19a_tilde.b --expect-compile-error
 ```
@@ -77,7 +78,7 @@ The first command rebuilds and compares all four compiler binaries inside
 the booted system, then recompiles and compares the B-written library before
 using the rebuilt compiler to run a B fixture. Other
 cases cover date bytes and guards, hardware time registers, files, processes,
-and the actual tty interface.
+the actual tty interface, and eight-character/case-sensitive B names.
 
 The console is not a binary-output channel: it can discard NULs. The full
 system date fixture checks those bytes in memory and prints an ASCII verdict.

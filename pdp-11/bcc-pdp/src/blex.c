@@ -198,10 +198,9 @@ lexnam(c) {
 	int i;
 	i = 0;
 	while (isaln(c)) {
-		if (i < 8) {
-			tnam[i] = c;
-			i = i + 1;
-		}
+        if (i >= 8) fatal("identifier too long");
+        tnam[i] = c;
+        i = i + 1;
 		c = gtch();
 	}
 	tnam[i] = 0;

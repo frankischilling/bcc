@@ -45,7 +45,7 @@ $(LIBRAW): $(B00) $(B01) $(B1) runtime/libb.b
 	@test -f $(AROOT)/libb.ic || { echo "b00 failed (no libb.ic)"; exit 1; }
 	cd $(AROOT) && APOUT_ROOT=. $(abspath $(APOUT)) $(abspath $(B01)) -i libb.ic -o libb.r2
 	@test -f $(AROOT)/libb.r2 || { echo "b01 failed (no libb.r2)"; exit 1; }
-	cd $(AROOT) && APOUT_ROOT=. $(abspath $(APOUT)) $(abspath $(B1)) -i libb.r2 -o libb.s
+	cd $(AROOT) && APOUT_ROOT=. $(abspath $(APOUT)) $(abspath $(B1)) -l -i libb.r2 -o libb.s
 	@test -f $(AROOT)/libb.s || { echo "b1 failed (no libb.s)"; exit 1; }
 	mv $(AROOT)/libb.s $@
 	@rm -f $(AROOT)/libb.b $(AROOT)/libb.ic $(AROOT)/libb.r2

@@ -210,7 +210,7 @@ def main() -> int:
             command("rm /usr/tmp/l.s")
             command("/usr/lib/bcc/b00 -o /usr/tmp/l.r1 /usr/lib/libb.b")
             command("/usr/lib/bcc/b01 -i /usr/tmp/l.r1 -o /usr/tmp/l.r2")
-            command("/usr/lib/bcc/b1 -i /usr/tmp/l.r2 -o /usr/tmp/l.s")
+            command("/usr/lib/bcc/b1 -l -i /usr/tmp/l.r2 -o /usr/tmp/l.s")
             comparison = command("cmp /usr/tmp/l.s /usr/lib/bcc/libb.ref")
             if comparison.strip():
                 raise RuntimeError(f"in-system B library differs from the apout build: {comparison!r}")

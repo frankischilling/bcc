@@ -145,8 +145,8 @@ cgcll(name, nargs) char name[]; {
 		outs(".(sp)\n");
 		i = i + 1;
 	}
-	outs("\tjsr\tpc, _");
-	outs(name);
+	outs("\tjsr\tpc, ");
+	cgsym(name);
 	outc('\n');
 	if (nargs == 1) {
 		eop("tst\t(sp)+");
@@ -164,11 +164,10 @@ cgpro(name, nlocals, retlbl) char name[]; {
 	int retl;
 	retl = retlbl;
 	outs("\n.text\n");
-	outs("\t.globl\t_");
-	outs(name);
+	outs("\t.globl\t");
+	cgsym(name);
 	outc('\n');
-	outc('_');
-	outs(name);
+	cgsym(name);
 	outs(":\n");
 	eop("mov\tr5, -(sp)");
 	eop("mov\tsp, r5");
@@ -196,11 +195,10 @@ cgvini(slot, dataoff) {
 }
 
 cggwd(name, val) char name[]; {
-	outs("\n.text\n\t.globl\t_");
-	outs(name);
+	outs("\n.text\n\t.globl\t");
+	cgsym(name);
 	outc('\n');
-	outc('_');
-	outs(name);
+	cgsym(name);
 	outs(":\n\t");
 	asnum(val);
 	outc('\n');
@@ -209,11 +207,10 @@ cggwd(name, val) char name[]; {
 
 cggar(name, n, ninit, vals) char name[]; int vals[]; {
 	int i;
-	outs("\n.text\n\t.globl\t_");
-	outs(name);
+	outs("\n.text\n\t.globl\t");
+	cgsym(name);
 	outc('\n');
-	outc('_');
-	outs(name);
+	cgsym(name);
 	outs(":\n");
 	i = 0;
 	while (i < n) {
@@ -228,11 +225,10 @@ cggar(name, n, ninit, vals) char name[]; int vals[]; {
 
 cggab(name, n, ninit, buf) char name[]; char buf[]; {
 	int i;
-	outs("\n.text\n\t.globl\t_");
-	outs(name);
+	outs("\n.text\n\t.globl\t");
+	cgsym(name);
 	outc('\n');
-	outc('_');
-	outs(name);
+	cgsym(name);
 	outs(":\n");
 	i = 0;
 	while (i < n) {
@@ -312,8 +308,8 @@ cglab(l) {
 }
 
 cgext(name) char name[]; {
-	outs("\tmov\t$_");
-	outs(name);
+	outs("\tmov\t$");
+	cgsym(name);
 	outs(", r0\n");
 }
 

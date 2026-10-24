@@ -1,7 +1,8 @@
 /* b1drv.c -- b1 driver: reads IC records, dispatches to cg primitives.
  *
- *   b1 [-i IC] [-o OUT.s]
+ *   b1 [-l] [-i IC] [-o OUT.s]
  *
+ * -l selects the runtime library's private symbol namespace.
  * Default IC = stdin, OUT = stdout.  Reads records line by line via
  * blex1; each line begins with a tag (n, ps, bin, binc, cl, pr, ...)
  * followed by space-separated decimal args (or a name for cl/pr/ex).
@@ -16,11 +17,13 @@ dsk[64];
 
 usage() {
 	errinit();
-	outs("usage: b1 [-i IC] [-o OUT.s]\n");
+	outs("usage: b1 [-l] [-i IC] [-o OUT.s]\n");
 	exit(1);
 }
 
 main(argc, argv) int argv[]; {
+    extern libmod;
+    int libmod;
 	int i, ifd, ofd, in, out, done;
 	char p[];
 
@@ -30,6 +33,7 @@ main(argc, argv) int argv[]; {
 	done = 0;
 	while (i < argc) {
 		p = argv[i];
+        if (p[0] == '-') if (p[1] == 'l') if (p[2] == 0) goto islib;
 		if (p[0] == '-') if (p[1] == 's') if (p[2] == 0) goto isdone;
 		if (p[0] == '-') if (p[1] == 'i') if (p[2] == 0) goto isi;
 		if (p[0] == '-') if (p[1] == 'o') if (p[2] == 0) goto iso;
@@ -45,6 +49,9 @@ main(argc, argv) int argv[]; {
 		out = argv[i];
 		goto nxt;
 		goto nxt;
+    islib:
+        libmod = 1;
+        goto nxt;
 	isdone:
 		i = i + 1;
 		if (i >= argc) usage();

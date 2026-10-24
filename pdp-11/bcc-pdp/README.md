@@ -143,9 +143,12 @@ non-negative `printn` example.
   arguments with 512 bytes of converted argument strings.
 - The compiler has fixed symbol, vector, case, and literal tables. The
   binary-size check covers code/data/BSS; programs also need stack space.
-- The lexer retains eight identifier characters, but assembler symbol
-  truncation can still cause collisions. Do not treat that as full support
-  for every eight-character external name.
+- Identifiers may contain up to eight characters; longer names are rejected.
+  The V1 assembler folds case and keeps seven characters, so the compiler
+  assigns private symbols to long or uppercase external names. These names
+  remain distinct within one B source file, but their generated symbols are
+  not a stable interface for separately compiled files. Up to 200 names can
+  use this mapping. Short lowercase names keep the runtime calling interface.
 - Out-of-range shifts, division by zero, and some negative arithmetic cases
   are not specified by the B manual. Implementation choices are not
   conformance requirements.

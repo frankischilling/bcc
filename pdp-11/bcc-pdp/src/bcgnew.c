@@ -73,11 +73,10 @@ cggvb(name, n) char name[]; {
 	int gvnstor, gvinit;
 	gvnstor = n;
 	gvinit  = 0;
-	outs("\n.text\n\t.globl\t_");
-	outs(name);
+	outs("\n.text\n\t.globl\t");
+	cgsym(name);
 	outc('\n');
-	outc('_');
-	outs(name);
+	cgsym(name);
 	outs(":\n");
 }
 
@@ -93,8 +92,8 @@ cggvc(v) {
 cggvn(name) char name[]; {
 	extern gvinit;
 	int gvinit;
-	outs("\t_");
-	outs(name);
+	outc('\t');
+	cgsym(name);
 	outc('\n');
 	gvinit = gvinit + 1;
 }
@@ -112,4 +111,53 @@ cggve() {
 cggvp(name, n) char name[]; {
     cggvb(name, n);
     outs("\t.+2\n");
+}
+
+/* V1 as folds case and keeps seven characters. Keep the short lowercase
+ * ABI, and give other names collision-free IDs within this compilation.
+ * Runtime-private IDs use J; program-private IDs use K. */
+snames[900]; /* 200 names of nine bytes, accessed as char[]. */
+nsname 0;
+libmod 0;
+
+cgsym(name) char name[]; {
+    extern snames, nsname, libmod;
+    char snames[];
+    int nsname, libmod;
+    int n, i, idx, base, safe;
+    n = 0;
+    safe = 1;
+    while (name[n]) {
+        if (name[n] >= 'A') if (name[n] <= 'Z') safe = 0;
+        n = n + 1;
+    }
+    if (n == 0) fatal("empty external name");
+    if (n > 8) fatal("external name too long");
+    if (n > 6) safe = 0;
+    if (tageq(name, "putchar")) safe = 1;
+    if (tageq(name, "getchar")) safe = 1;
+    if (tageq(name, "putcha")) safe = 0;
+    if (tageq(name, "getcha")) safe = 0;
+    if (safe) {
+        outc('_'); outs(name); return;
+    }
+    idx = 0;
+    while (idx < nsname) {
+        base = idx * 9;
+        if (tageq(&snames[base], name)) goto emit;
+        idx = idx + 1;
+    }
+    if (nsname >= 200) fatal("external name table full");
+    base = idx * 9;
+    i = 0;
+    while (i < n) {
+        snames[base + i] = name[i];
+        i = i + 1;
+    }
+    snames[base + n] = 0;
+    nsname = nsname + 1;
+emit:
+    if (libmod) outc('J');
+    else outc('K');
+    outd(idx);
 }

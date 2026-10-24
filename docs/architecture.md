@@ -26,7 +26,9 @@ The shared runtime keeps one address registry across compilation units.
 Function-local registrations are released on return, and heap registrations
 are removed when freed. Function values use their own address conversion.
 The inline emitter carries equivalent runtime code, so changes to either
-layout need tests against both.
+layout need tests against both. Inline 16-bit translation units share their
+address-map storage through common symbols rather than creating a separate
+map for each source file.
 
 ## Other compiler builds
 
