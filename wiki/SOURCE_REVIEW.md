@@ -766,6 +766,16 @@ protocol tests and kernel fixtures check prompt-like text, empty output, and
 output without a final newline. These remain text-console checks, not a
 replacement for byte-exact file verification.
 
+The B-written bootstrap also treated a negative source-read result as end of
+file. On the host, opening a directory as source could therefore succeed and
+emit an empty C translation unit. Read errors now fail before parsing. All
+three bootstrap stages test the error separately from missing files, valid
+source, and genuinely empty source in both syntax modes. The native source
+and intermediate-record scanners had the same error: a failed read could
+accept a truncated unit or record. Fault-injection tests compile the actual
+scanners with a controlled read routine and distinguish initial and mid-input
+errors from ordinary EOF.
+
 ## Reference inventory
 
 "Read" below describes the review scope, not a promise that every feature in

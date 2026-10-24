@@ -32,6 +32,7 @@ test: stage3
 	bash tests/run.sh
 	python3 tests/conformance.py
 	python3 tests/limits.py
+	python3 tests/input_errors.py
 	@set -e; for stage in 1 2 3; do python3 ../tests/test_putchar_runtime.py --bootstrap --compiler build/stage$$stage/bbc; done
 	@set -e; for stage in 1 2 3; do python3 ../tests/test_vector_extent.py --bootstrap --compiler build/stage$$stage/bbc; done
 	@set -e; for stage in 1 2 3; do python3 ../tests/test_argv_runtime.py --bootstrap --compiler build/stage$$stage/bbc; done

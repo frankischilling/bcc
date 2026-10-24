@@ -211,6 +211,7 @@ read_file(path) {
         n = read(10, data + total, cap - total);
     }
     close(10);
+    if (n < 0) fatal("cannot read input");
     lchar(data, total, 0);
     SRC = data;
     SRCLEN = total;

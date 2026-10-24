@@ -44,6 +44,7 @@ bash pdp-11/bcc-pdp/tests/run/run.sh
 bash pdp-11/bcc-pdp/tests/ext/run.sh
 python3 pdp-11/bcc-pdp/tests/driver_cases.py
 python3 pdp-11/bcc-pdp/tests/ic_cases.py
+python3 pdp-11/bcc-pdp/tests/read_errors.py
 python3 pdp-11/bcc-pdp/tests/image_tools.py
 python3 pdp-11/bcc-pdp/tests/file_verification.py
 python3 pdp-11/bcc-pdp/tests/console_protocol.py

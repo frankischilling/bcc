@@ -18,7 +18,8 @@ getln(buf, max) char buf[]; {
 	i = 0;
 	while (1) {
 		n = read(icfd, b, 1);
-		if (n <= 0) {
+		if (n < 0) fatal("cannot read IC");
+		if (n == 0) {
 			buf[i] = 0;
 			if (i == 0) return (0);
 			return (1);

@@ -95,7 +95,9 @@ gtch() {
 		peekc = -1;
 		return (c);
 	}
-	if (read(inpfd, b, 1) <= 0) return (-1);
+	c = read(inpfd, b, 1);
+	if (c < 0) fatal("cannot read source");
+	if (c == 0) return (-1);
 	c = b[0] & 0377;
 	if (c == '\n') lineno = lineno + 1;
 	return (c);

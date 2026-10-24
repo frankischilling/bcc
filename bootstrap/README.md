@@ -40,7 +40,9 @@ block declarations.
 
 Character constants must contain at least one character. Strict mode allows
 one or two; compatibility mode allows up to four. Unfinished constants fail
-compilation rather than producing a partial value.
+compilation rather than producing a partial value. Failed source reads are
+reported separately from end of file; an unreadable input must not become an
+empty or truncated translation unit.
 
 External vectors allocate the larger of the declared size and initializer
 count. The tests compile size assertions as well as running programs, so

@@ -61,6 +61,7 @@ jobs:
           bash pdp-11/bcc-pdp/tests/check_v1_binaries.sh
           python3 pdp-11/bcc-pdp/tests/driver_cases.py
           python3 pdp-11/bcc-pdp/tests/ic_cases.py
+          python3 pdp-11/bcc-pdp/tests/read_errors.py
           python3 pdp-11/bcc-pdp/tests/argv_storage.py
           python3 pdp-11/bcc-pdp/tests/image_tools.py
           python3 pdp-11/bcc-pdp/tests/file_verification.py
