@@ -6,6 +6,7 @@ import subprocess
 import tempfile
 
 CASES = {
+    'compat-long-name': ['long_name 37; main(){extrn long_name;return(long_name!=37);}'],
     'keyword-data': ['int 11;', 'b_int 22;', 'main(){extrn int,b_int;return(int!=11 | b_int!=22);}'],
     'keyword-functions': ['int(n){return(n+1);}', 'b_int(n){return(n+2);}', 'main(){extrn int,b_int;return(int(1)!=2 | b_int(1)!=3);}'],
     'contiguous': ['data 11,22,33; main(){auto p; extrn data; p= &data; return(data!=11 | p[1]!=22 | p[2]!=33);}'],
@@ -56,7 +57,8 @@ def main():
                 paths = []
                 for index, text in enumerate(sources):
                     path = root/f'part{index}.b'; path.write_text(text+'\n'); paths.append(str(path))
-                command = [str(args.compiler.resolve()), '--strict', '--pedantic']
+                command = [str(args.compiler.resolve())]
+                if name != 'compat-long-name': command += ['--strict', '--pedantic']
                 if not args.bootstrap: command += [f'--word={mode}']
                 if inline: command += ['--inline-runtime']
                 build = subprocess.run([*command, *paths, '-o', str(root/'case')], capture_output=True, timeout=30)

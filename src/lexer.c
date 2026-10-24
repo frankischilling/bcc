@@ -155,6 +155,12 @@ Token lx_next(Lexer *L) {
     if (isalpha(c) || c == '_') {
         size_t start = L->i;
         while (isalnum(lx_peek(L)) || lx_peek(L) == '_' || lx_peek(L) == '.') lx_get(L);
+        if (g_strict && L->i - start > 8)
+            error_at_location(L->filename, line, col, ERR_EXPR_SYNTAX,
+                "B72 names cannot exceed 8 characters");
+        if (g_strict && memchr(L->src + start, '.', L->i - start))
+            error_at_location(L->filename, line, col, ERR_EXPR_SYNTAX,
+                "dots are not allowed in B72 names");
         char *s;
         int owns_lexeme;
         if (g_compilation_arena) {

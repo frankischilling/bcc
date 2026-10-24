@@ -8,6 +8,10 @@ import tempfile
 
 
 CASES = {
+    "eight_character_name": ("abcdefgh 37; main(){extrn abcdefgh;return(abcdefgh!=37);}", 0),
+    "long_external_name": ("abcdefghi 37; main(){return(0);}", None),
+    "long_local_name": ("main(){auto abcdefghi;return(0);}", None),
+    "dotted_name": ("some.id 37; main(){return(0);}", None),
     "global_address_initializer": ("value 37; ref value; main(){extrn ref; return(*ref!=37);}", 0),
     "vector_address_initializer": ("value 37; refs[1] value; main(){extrn refs; return(*refs[0]!=37);}", 0),
     "empty_character": ("main(){return('');}", None),

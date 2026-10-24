@@ -28,8 +28,9 @@ runtime's shell-free command parser. Spaces and apostrophes in paths are
 supported; shell expansion and redirection are not performed.
 
 `-S` prints generated C. `--emit-c` writes it beside each input without
-compiling. `--strict --pedantic` selects the bootstrap compiler's stricter
-syntax checks. Token and AST dumps are not implemented here.
+compiling. Strict mode rejects names longer than eight characters; ordinary
+compatibility mode keeps long names. `--strict --pedantic` selects the
+bootstrap compiler's stricter syntax checks. Token and AST dumps are not implemented here.
 
 Character constants must contain at least one character. Strict mode allows
 one or two; compatibility mode allows up to four. Unfinished constants fail

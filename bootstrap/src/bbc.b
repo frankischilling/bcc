@@ -426,6 +426,7 @@ next() {
     if (is_alpha(c)) {
         start = POS - 1;
         while (is_alnum(peekc())) getc1();
+        if (STRICT & (POS - start > 8)) fatal("B72 names cannot exceed 8 characters");
         s = new_text(start, POS - start);
         TTEXT = s;
         TOK = keyword(s);

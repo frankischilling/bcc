@@ -25,7 +25,9 @@ and linked with GCC and `-ldl -lm`. It is not PDP-11 assembly.
 
 ## Language and storage
 
-- `--strict` selects the January 1972 PDP-11 syntax checks.
+- `--strict` selects the January 1972 PDP-11 syntax checks, including the
+  eight-character name limit. Dots in names remain a host compatibility
+  extension, not strict B syntax.
 - `--pedantic`, used with `--strict`, diagnoses disabled extension syntax.
 - `--word=host`, `--word=16`, or `--word=32` selects arithmetic/storage mode.
 - `--byteptr` and `--wordptr` explicitly select pointer units.
