@@ -32,6 +32,10 @@ def main():
              ('b1', 'swe 1 2 3 -1\n', b'negative case count'),
              ('b1', 'x'*1040+'\n', b'IC line too long'),
              ('b01', 'x'*1040+'\n', b'IC line too long')]
+    for integer in ('32768', '-32769', '65536', '-65536', '99999999999999999999'):
+        cases.append(('b1', 'n ' + integer + '\n', b'IC integer out of range'))
+    for integer in ('', '-', 'x', '1x', '--1'):
+        cases.append(('b1', 'n ' + integer + '\n', b'bad IC integer'))
     passed = failed = 0
     with tempfile.TemporaryDirectory(prefix='bcc-v1-ic-') as directory:
         for index, (binary, content, diagnostic) in enumerate(cases):
@@ -40,6 +44,16 @@ def main():
             result = subprocess.run([str(apout), str(root/'build'/binary), '-i', source.name], cwd=directory, env=env, capture_output=True, timeout=5)
             ok = result.returncode != 0 and diagnostic in result.stdout + result.stderr
             print(f'{"PASS" if ok else "FAIL"}: {binary}/record-{index}')
+            if not ok: print(result.returncode, repr(result.stdout), repr(result.stderr))
+            passed += ok
+            failed += not ok
+        for integer in ('0', '-0', '32767', '-32768', '00032767', '-00032768'):
+            source.write_text('n ' + integer + '\n')
+            result = subprocess.run([str(apout), str(root/'build/b1'), '-i', source.name],
+                                    cwd=directory, env=env, capture_output=True, timeout=5)
+            expected = f'\tmov\t${int(integer)}., r0\n'.encode()
+            ok = result.returncode == 0 and expected in result.stdout and not result.stderr
+            print(f'{"PASS" if ok else "FAIL"}: b1/integer-{integer}')
             if not ok: print(result.returncode, repr(result.stdout), repr(result.stderr))
             passed += ok
             failed += not ok

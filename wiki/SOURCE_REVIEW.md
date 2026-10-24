@@ -776,6 +776,13 @@ accept a truncated unit or record. Fault-injection tests compile the actual
 scanners with a controlled read routine and distinguish initial and mid-input
 errors from ordinary EOF.
 
+The native intermediate-code reader now checks signed decimal fields before
+arithmetic can wrap. Previously, malformed records such as `n 65536`, `n -`,
+and `n 1x` silently became constants. Boundary tests retain both -32768 and
+32767, including leading zeros, while rejecting missing digits, junk, and
+out-of-range values. This validates the compiler's internal format; it does
+not change B's separately documented wrapping literal scanner.
+
 ## Reference inventory
 
 "Read" below describes the review scope, not a promise that every feature in
