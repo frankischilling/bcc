@@ -148,15 +148,20 @@ a local wiki checkout with:
 
 ```sh
 git clone https://github.com/frankischilling/bcc.wiki.git ../bcc.wiki
-python3 scripts/sync_wiki.py ../bcc.wiki --revision HEAD --pull-request 1
+python3 scripts/sync_wiki.py ../bcc.wiki --revision HEAD
 git -C ../bcc.wiki diff
-python3 scripts/sync_wiki.py ../bcc.wiki --revision HEAD --pull-request 1 --check
+python3 scripts/sync_wiki.py ../bcc.wiki --revision HEAD --check
 ```
 
-Use the relevant PR number only for an unmerged revision; omit that option
-for merged documentation. The script does not commit or push. Review the
-prepared diff, then publish it with the wiki repository's normal Git workflow.
+The script does not commit or push. Review the prepared diff, then publish
+it with the wiki repository's normal Git workflow.
 It preserves existing page URLs and converts repository-relative links to
 pinned source links. It refuses to copy source pages that differ from the
 requested commit, so a published page cannot quietly describe uncommitted
 changes. Unknown wiki pages are left alone.
+
+Object-output tests compile separate strict B units and link them back
+together, check default and explicit object names, reject ambiguous output
+paths, and verify that hard links, symlinks, and retained-C paths cannot
+overwrite an input. Identifier tests cover host-header names and distinguish
+source-defined B functions from similarly named C interoperability helpers.

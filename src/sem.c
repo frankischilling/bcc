@@ -95,7 +95,7 @@ static void scope_add(Scope *scope, Symbol *sym) {
 static void sem_add_builtin_functions(SemState *st) {
     // Add runtime library functions to global scope
     const char *builtins[] = {
-        "putchar", "getchar", "exit", "alloc",
+        "putchar", "getchar", "exit", "alloc", "free", "abort", "print", "usleep",
         /* B library functions */
         "char", "lchar", "getchr", "putchr", "getstr", "putstr", "flush", "reread", "printf", "printn", "putnum",
         "open", "close", "read", "write", "creat", "seek", "openr", "openw",

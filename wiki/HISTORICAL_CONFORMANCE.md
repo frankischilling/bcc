@@ -216,3 +216,11 @@ exercise their addresses and both bare and computed branches after mutation.
 The host library also exposes the section 8 spelling `mkdir`; `makdir` remains
 an alias. The bootstrap accepts the historical zero-argument `exit()` call
 and separates source-defined function and data symbols from host C declarations.
+
+Strict host identifiers are isolated from C headers: B functions and data
+can use names such as `select` and `FILE`, and locals can use `errno` or
+`word`. Tests cover same-file and cross-file definitions, saved function
+values, and source-defined functions named `malloc` or `strlen`. The bootstrap
+uses private names for locals and parameters as well as external bindings.
+Host compatibility mode retains its older naming/interop rules and does not
+have the same complete identifier isolation.

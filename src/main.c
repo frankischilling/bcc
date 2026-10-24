@@ -4,6 +4,28 @@
 #include <libgen.h>  /* For dirname() */
 #include <sys/stat.h>  /* For stat() */
 
+/* Object names come from source names, not temporary C filenames. */
+static char *object_name(const char *source) {
+    const char *base = strrchr(source, '/');
+    base = base ? base + 1 : source;
+    const char *dot = strrchr(base, '.');
+    size_t length = dot && dot != base ? (size_t)(dot - base) : strlen(base);
+    char *result = xmalloc(length + 3);
+    memcpy(result, base, length);
+    memcpy(result + length, ".o", 3);
+    return result;
+}
+
+static void protect_input(const char *output, Vec *inputs) {
+    struct stat destination, source;
+    if (stat(output, &destination) != 0) return;
+    for (size_t i = 0; i < inputs->len; ++i) {
+        if (stat(inputs->data[i], &source) == 0 &&
+            source.st_dev == destination.st_dev && source.st_ino == destination.st_ino)
+            dief("output '%s' would overwrite input '%s'", output, (char*)inputs->data[i]);
+    }
+}
+
 /* Path to libb installation - derived from executable location */
 static char g_libb_dir[4096] = {0};
 
@@ -203,12 +225,9 @@ int run_gcc_multi(Vec *cfiles, const char *out_exe, int compile_only, int debug,
         argv[n++] = include_flag;
     }
 
-    if (compile_only) {
-        argv[n++] = "-c";
-    } else {
-        argv[n++] = "-o";
-        argv[n++] = out_exe;
-    }
+    if (compile_only) argv[n++] = "-c";
+    argv[n++] = "-o";
+    argv[n++] = out_exe;
 
     /* Add all C files */
     for (size_t i = 0; i < cfiles->len; i++) {
@@ -523,10 +542,25 @@ int main(int argc, char **argv) {
         return 2;
     }
 
+    int named_output = out_path != NULL;
+    Vec object_paths = {0};
+    if (compile_only) {
+        if (named_output && in_paths.len != 1)
+            dief("-c with -o requires exactly one input");
+        for (size_t i = 0; i < in_paths.len; ++i) {
+            char *path = named_output ? sdup(out_path) : object_name(in_paths.data[i]);
+            for (size_t j = 0; j < object_paths.len; ++j)
+                if (!strcmp(path, object_paths.data[j]))
+                    dief("inputs produce the same object path '%s'; compile them separately with -o", path);
+            protect_input(path, &in_paths);
+            vec_push(&object_paths, path);
+        }
+    }
     /* Default output path */
     if (!out_path) {
         out_path = "a.out";
     }
+    if (!compile_only) protect_input(out_path, &in_paths);
 
     if (in_paths.len > 1 && !dump_tokens && !(dump_ast && !dump_c)) {
         for (size_t i = 0; i < in_paths.len; i++) {
@@ -639,6 +673,7 @@ int main(int argc, char **argv) {
             emit_c_path = (char*)malloc(plen + 3);
             if (!emit_c_path) dief("out of memory");
             sprintf(emit_c_path, "%s.c", in_path);
+            protect_input(emit_c_path, &in_paths);
         }
 
         char *cfile = compile_b_to_c(in_path, byteptr, no_line, verbose,
@@ -661,7 +696,17 @@ int main(int argc, char **argv) {
     /* Link all C files with gcc */
     if (verbose) fprintf(stderr, "Linking %zu file(s)...\n", cfiles.len);
 
-    int rc = run_gcc_multi(&cfiles, out_path, compile_only, debug, wall, wextra, werror, &extra_gcc_args, use_libb, byteptr, word_bits, verbose);
+    int rc = 0;
+    if (compile_only) {
+        for (size_t i = 0; i < cfiles.len; ++i) {
+            Vec unit = {0};
+            unit.data = &cfiles.data[i]; unit.len = unit.cap = 1;
+            rc = run_gcc_multi(&unit, object_paths.data[i], 1, debug, wall, wextra,
+                               werror, &extra_gcc_args, use_libb, byteptr, word_bits, verbose);
+            if (rc) break;
+        }
+    } else rc = run_gcc_multi(&cfiles, out_path, 0, debug, wall, wextra, werror,
+                              &extra_gcc_args, use_libb, byteptr, word_bits, verbose);
 
     if (rc != 0) {
         fprintf(stderr, "gcc failed (exit %d)\n", rc);

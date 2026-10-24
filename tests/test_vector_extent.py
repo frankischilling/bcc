@@ -34,13 +34,13 @@ def main():
                 if not args.bootstrap: command += [f'--word={mode}']
                 if inline: command += ['--inline-runtime']
                 result = subprocess.run([*command, '-S', str(source)], capture_output=True, timeout=30)
-                match = re.search(rb'(?:static\s+)?word\s+__data_store\b[^;]*;', result.stdout)
+                match = re.search(rb'(?:static\s+)?word\s+(__[A-Za-z0-9_]*data_store)\b[^;]*;', result.stdout)
                 ok = result.returncode == 0 and match is not None
                 if ok:
                     # Compile a size assertion, rather than assuming a spelling
                     # for the constant expression emitted by either compiler.
                     check = root/'extent.c'
-                    check.write_bytes(b'#include <stdint.h>\ntypedef intptr_t word;\n#define WVAL(x) (x)\n' + match[0] + f'\ntypedef char extent_check[(sizeof(__data_store)/sizeof(word)=={extent})?1:-1];\n'.encode())
+                    check.write_bytes(b'#include <stdint.h>\ntypedef intptr_t word;\n#define WVAL(x) (x)\n' + match[0] + f'\ntypedef char extent_check[(sizeof({match[1].decode()})/sizeof(word)=={extent})?1:-1];\n'.encode())
                     result = subprocess.run(['gcc', '-std=c99', '-c', str(check), '-o', str(root/'extent.o')], capture_output=True, timeout=30)
                     ok = result.returncode == 0
                 if ok:

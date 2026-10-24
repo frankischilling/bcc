@@ -13,6 +13,7 @@ typedef struct {
 
 static int current_word_bits;
 static Vec string_pool;  // Vec<StringEntry>
+static Vec external_calls; /* Strict calls whose definitions are in another object. */
 
 static int get_string_id(const char *s, size_t length) {
     for (size_t i = 0; i < string_pool.len; i++) {
@@ -220,12 +221,12 @@ static const char *get_mangled_name(const char *original) {
 
     // Create new mangled name
     char *mangled = mangle_name_raw(original);
-    // Keep B library-name definitions clear of both libc and runtime symbols.
-    // Escape source names in this namespace too, independent of encounter order.
-    if (runtime_function(original) || strncmp(original, "__bcc_", 6) == 0) {
+    /* Strict B names do not share the host headers' namespace. Compatibility
+       mode still isolates library replacements and escapes private prefixes. */
+    if (g_strict || runtime_function(original) || strncmp(original, "__bcc_", 6) == 0) {
         char *private_name = xmalloc(strlen(mangled) + 14);
         sprintf(private_name, "__bcc_user_%c_%s",
-                runtime_function(original) ? 'r' : 'x', mangled);
+                g_strict ? 'b' : runtime_function(original) ? 'r' : 'x', mangled);
         if (!g_compilation_arena) free(mangled);
         mangled = private_name;
     }
@@ -328,6 +329,15 @@ static void collect_strings_expr(Expr *e) {
             (void)get_string_id(e->as.str, e->string_len);
             return;
         case EX_CALL:
+            if (g_strict && !e->indirect_call && e->as.call.callee->kind == EX_VAR) {
+                const char *name = e->as.call.callee->as.var;
+                if (!runtime_function(name) && !source_function(name)) {
+                    int found = 0;
+                    for (size_t i = 0; i < external_calls.len; ++i)
+                        if (!strcmp(external_calls.data[i], name)) found = 1;
+                    if (!found) vec_push(&external_calls, sdup(name));
+                }
+            }
             collect_strings_expr(e->as.call.callee);
             for (size_t i = 0; i < e->as.call.args.len; i++)
                 collect_strings_expr((Expr*)e->as.call.args.data[i]);
@@ -807,13 +817,13 @@ void emit_expr(FILE *out, Expr *e, const char *filename) {
             int wrap_ret_ptr = 0;
             if (e->as.call.callee->kind == EX_VAR) {
                 cname = e->as.call.callee->as.var;
-                if (strcmp(cname, "malloc") == 0 || strcmp(cname, "calloc") == 0 || strcmp(cname, "realloc") == 0) {
+                if (!g_strict && !source_function(cname) && (strcmp(cname, "malloc") == 0 || strcmp(cname, "calloc") == 0 || strcmp(cname, "realloc") == 0)) {
                     wrap_ret_ptr = 1; // return a C pointer: convert to B pointer
                 }
                 if (strcmp(cname, "printf") == 0 && !used_builtin_prefix && !source_function(cname)) { printf_like = 1; fmt_index = 0; }
-                else if (strcmp(cname, "fprintf") == 0 || strcmp(cname, "dprintf") == 0) { printf_like = 1; fmt_index = 1; }
-                else if (strcmp(cname, "sprintf") == 0) { printf_like = 1; fmt_index = 1; }
-                else if (strcmp(cname, "snprintf") == 0) { printf_like = 1; fmt_index = 2; }
+                else if (!g_strict && !source_function(cname) && (strcmp(cname, "fprintf") == 0 || strcmp(cname, "dprintf") == 0)) { printf_like = 1; fmt_index = 1; }
+                else if (!g_strict && !source_function(cname) && strcmp(cname, "sprintf") == 0) { printf_like = 1; fmt_index = 1; }
+                else if (!g_strict && !source_function(cname) && strcmp(cname, "snprintf") == 0) { printf_like = 1; fmt_index = 2; }
             }
 
             if (wrap_ret_ptr) fputs("B_PTR(", out);
@@ -869,7 +879,7 @@ void emit_expr(FILE *out, Expr *e, const char *filename) {
                 int wrap_arg_ptr = 0;
                 int wrap_arg_cstr = 0;
                 int scale_word_size = 0;
-                if (cname) {
+                if (cname && !g_strict && !source_function(cname)) {
                     if (printf_like && i == fmt_index) wrap_arg_cstr = 1; /* format string */
                     else if (printf_wrap_s && printf_wrap_s[i]) wrap_arg_cstr = 1;
                     else if (strcmp(cname, "strlen") == 0 && i == 0) wrap_arg_cstr = 1;
@@ -1485,6 +1495,11 @@ static size_t global_words(ExternItem *item) {
 }
 
 static void emit_function_prototypes(FILE *out, Program *prog) {
+    for (size_t i = 0; i < external_calls.len; ++i) {
+        fputs("extern word ", out);
+        emit_name(out, external_calls.data[i]);
+        fputs("();\n", out);
+    }
     emit_known_external_function_prototypes(out, prog);
     for (size_t i = 0; i < prog->tops.len; i++) {
         Top *t = prog->tops.data[i];
@@ -1516,7 +1531,7 @@ static void emit_global_declarations(FILE *out, Program *prog, const char *filen
             if (!kind) continue;
             if (item->is_macro_external) {
                 fprintf(out, "#ifndef %s\nextern word %s[];\n#define __b_external_%s (%s[0])\n#else\n#define __b_external_%s (%s)\n#endif\n",
-                        name, name, name, name, name, name);
+                        item->name, name, name, name, name, item->name);
             } else fprintf(out, "extern word %s[];\n", name);
             continue;
         }
@@ -1578,6 +1593,7 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
     current_program = prog;
     current_byteptr = byteptr;
     current_word_bits = word_bits;
+    external_calls = (Vec){0};
     string_pool.data = NULL;
     string_pool.len = 0;
     string_pool.cap = 0;
@@ -2570,6 +2586,7 @@ void emit_program_c_ext(FILE *out, Program *prog, const char *filename, int byte
     current_program = prog;
     current_byteptr = byteptr;
     current_word_bits = word_bits;
+    external_calls = (Vec){0};
     string_pool.data = NULL;
     string_pool.len = 0;
     string_pool.cap = 0;

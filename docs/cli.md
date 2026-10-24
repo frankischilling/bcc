@@ -12,13 +12,19 @@ smaller interfaces documented in their own directories.
 
 - With no output-mode flag, compile and link an executable.
 - `-o PATH` selects the output path.
-- `-c` compiles object files without linking.
+- `-c` compiles object files without linking. Without `-o`, each object is
+  named after its source basename in the working directory, such as `file.o`.
+  With `-o`, exactly one input is required. Duplicate default object names
+  are rejected.
 - `-S` prints generated C for one input.
 - `-E` writes generated C for one input.
 - `--asm` prints host assembly for one input, using the C backend.
 - `--emit-c` names generated C files `input.b.c` and keeps them; normal
   compilation still continues.
 - `--keep-c` retains generated C, including temporary-name output.
+
+Output paths that refer to an input file, including hard links and symlinks,
+are rejected before writing.
 
 Choose one output mode at a time. Generated host assembly can be assembled
 and linked with GCC and `-ldl -lm`. It is not PDP-11 assembly.
@@ -37,6 +43,13 @@ and linked with GCC and `-ldl -lm`. It is not PDP-11 assembly.
 Strict mode also selects B72 formatting and 004-only string termination in
 the host runtime. Default mode retains the documented compatibility formats
 and NUL termination. See [formatted I/O](../wiki/WIKI_IO_FUNCTIONS.md).
+
+Strict mode places B identifiers in a private C namespace, so names such as
+`select`, `FILE`, and `errno` do not collide with host declarations. Compile
+all separately linked B units with matching dialect, word, and pointer modes;
+rebuild older objects after a generated-symbol change. Unknown direct calls
+in strict mode refer to B symbols, not arbitrary host C functions. Use the
+host compatibility interfaces for C interoperability.
 
 Strict syntax and word size are independent choices. Strict or 16-bit mode
 selects word addressing unless a pointer mode was explicitly requested.

@@ -66,7 +66,7 @@ diagnostic before a table write. The tests exercise each limit's rejection.
 ## Remaining differences
 
 Computed branches use writable function-local label cells, including forward
-references. Their contents persist across invocations. Source-defined functions and external data
+references. Their contents persist across invocations. Source-defined functions, external data, parameters, and automatic names
 use private C names to avoid collisions with host library declarations. Strict mode uses word-addressed pointers; compatibility mode keeps
 byte-addressed pointers. Storage is still host-sized rather than the host
 compiler's translated 16-bit model. Function-valued calls are covered, but

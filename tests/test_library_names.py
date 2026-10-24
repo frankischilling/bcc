@@ -6,6 +6,15 @@ import subprocess
 import tempfile
 
 CASES = {
+    'helper-values': ['main(){extrn alloc,free,abort,print,usleep;auto p,f;p=alloc(1);f=free;if(f(p)!=0)return(1);f=abort;if(!f)return(2);f=print;if(!f)return(3);f=usleep;return(f(0));}'],
+    'host-local-name': ['main(){auto FILE,errno,word;FILE=10;errno=20;word=12;return(FILE+errno+word!=42);}'],
+    'host-parameter-name': ['f(FILE,errno,word){return(FILE+errno+word);} main(){extrn f;return(f(10,20,12)!=42);}'],
+    'foreign-name-returns': ['malloc(n){return(n+1);} main(){extrn malloc;auto f;f=malloc;return(malloc(41)!=42 | f(41)!=42);}'],
+    'foreign-name-arguments': ['strlen(n){return(n+1);} main(){extrn strlen;return(strlen(41)!=42);}'],
+    'host-function-name': ['select(n){return(n+1);} main(){extrn select;auto f;f=select;return(select(41)!=42 | f(7)!=8);}'],
+    'host-data-name': ['select 42; main(){extrn select;return(select!=42);}'],
+    'host-cross-file-name': ['select(n){return(n+1);}', 'main(){extrn select;return(select(41)!=42);}'],
+    'host-typedef-name': ['FILE 42; main(){extrn FILE;return(FILE!=42);}'],
     'mkdir-replacement': ['mkdir(n){return(n+1);} main(){auto f; extrn mkdir; f=mkdir; return(mkdir(41)!=42 | f(42)!=43);}'],
     'cross-file-function': ['main(){auto f; extrn other; f=other; return(f(7)!=10);}', 'other(n){return(n+3);}'],
     'functions': ['''

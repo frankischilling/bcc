@@ -742,6 +742,10 @@ c_name(name) {
     return(1);
 }
 
+local_name(name) {
+    return(scat("__bbc_local_",name));
+}
+
 global_name(name) {
     return(scat("__bbc_global_",name));
 }
@@ -809,6 +813,7 @@ call_name(name) {
 }
 
 wrap_malloc(name) {
+    if (has_function(name) | has_global(name) | has_local(name)) return(0);
     if (streq(name, "malloc")) return(1);
     if (streq(name, "calloc")) return(1);
     if (streq(name, "realloc")) return(1);
@@ -818,6 +823,7 @@ wrap_malloc(name) {
 }
 
 wrap_arg_cptr(name, idx) {
+    if (has_function(name) | has_global(name) | has_local(name)) return(0);
     if (streq(name, "memset") & (idx == 0)) return(1);
     if (streq(name, "memcpy") & ((idx == 0) | (idx == 1))) return(1);
     if (streq(name, "memmove") & ((idx == 0) | (idx == 1))) return(1);
@@ -840,6 +846,7 @@ wrap_arg_cptr(name, idx) {
 }
 
 wrap_arg_cstr(name, idx) {
+    if (has_function(name) | has_global(name) | has_local(name)) return(0);
     if (streq(name, "strlen") & (idx == 0)) return(1);
     if (streq(name, "atoi") & (idx == 0)) return(1);
     if (streq(name, "mvwaddstr") & (idx == 3)) return(1);
@@ -928,6 +935,8 @@ primary() {
             buf_str(b, "B_FUNCTION(");
             buf_str(b, call_name(name));
             buf_ch(b, ')');
+        } else if (has_local(name)) {
+            buf_ch(b, '('); buf_str(b, local_name(name)); buf_ch(b, ')');
         } else buf_str(b, name);
         return(buf_take(b));
     }
@@ -964,11 +973,11 @@ postfix() {
             fmt = 0;
             while (TOK != 31) {
                 if (!first) buf_str(b, ", ");
-                if (streq(name, "fprintf") & (narg == 1) & (TOK == 3)) fmt = TTEXT;
+                if (!has_function(name) & streq(name, "fprintf") & (narg == 1) & (TOK == 3)) fmt = TTEXT;
                 arg = expr(2);
                 wcstr = wrap_arg_cstr(name, narg);
-                if (streq(name, "fprintf") & (narg == 1)) wcstr = 1;
-                if (streq(name, "fprintf") & (narg >= 2) & fmt_arg_is_s(fmt, narg - 2)) wcstr = 1;
+                if (!has_function(name) & streq(name, "fprintf") & (narg == 1)) wcstr = 1;
+                if (!has_function(name) & streq(name, "fprintf") & (narg >= 2) & fmt_arg_is_s(fmt, narg - 2)) wcstr = 1;
                 if (wrap_arg_cptr(name, narg)) buf_str(b, "B_CPTR(");
                 if (wcstr) buf_str(b, "__b_cstr(");
                 buf_str(b, arg);
@@ -1120,6 +1129,7 @@ auto_decl() {
         if (TOK != 1) fatal("expected auto name");
         name = TTEXT;
         add_local(name);
+        name = local_name(name);
         next(); size = 0;
         if (TOK == 34) {
             if (STRICT) fatal("bracketed auto vector is not strict B");
@@ -1551,7 +1561,7 @@ global_or_func() {
             add_local(p);
             if (!first) emit(", ");
             emit("word ");
-            emit(p);
+            emit(local_name(p));
             first = 0;
             n = n + 1;
             next();

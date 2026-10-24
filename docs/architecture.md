@@ -135,3 +135,10 @@ uses the same data-pointer units as other cells.
 `lib/bformat.h` is shared by the linked and inline host runtimes. It keeps
 strict formatting separate from compatibility formatting; the runtime cache
 key includes that selection and the header contents.
+
+Strict host emission uses private C names for B identifiers, including
+external calls compiled separately. C macros exposed through the host
+compatibility external mechanism are checked by their original spelling.
+The bootstrap also namespaces its local and parameter bindings. Source-
+defined functions named after C APIs do not receive C pointer or string
+conversions just because their names match.

@@ -94,94 +94,102 @@ has_data_declaration.isra.0:
 .LC3:
 	.string	"alloc"
 .LC4:
-	.string	"char"
+	.string	"free"
 .LC5:
-	.string	"lchar"
+	.string	"abort"
 .LC6:
-	.string	"getchr"
+	.string	"print"
 .LC7:
-	.string	"putchr"
+	.string	"usleep"
 .LC8:
-	.string	"getstr"
+	.string	"char"
 .LC9:
-	.string	"putstr"
+	.string	"lchar"
 .LC10:
-	.string	"flush"
+	.string	"getchr"
 .LC11:
-	.string	"reread"
+	.string	"putchr"
 .LC12:
-	.string	"printf"
+	.string	"getstr"
 .LC13:
-	.string	"printn"
+	.string	"putstr"
 .LC14:
-	.string	"putnum"
+	.string	"flush"
 .LC15:
-	.string	"open"
+	.string	"reread"
 .LC16:
-	.string	"close"
+	.string	"printf"
 .LC17:
-	.string	"read"
+	.string	"printn"
 .LC18:
-	.string	"write"
+	.string	"putnum"
 .LC19:
-	.string	"creat"
+	.string	"open"
 .LC20:
-	.string	"seek"
+	.string	"close"
 .LC21:
-	.string	"openr"
+	.string	"read"
 .LC22:
-	.string	"openw"
+	.string	"write"
 .LC23:
-	.string	"fork"
+	.string	"creat"
 .LC24:
-	.string	"wait"
+	.string	"seek"
 .LC25:
-	.string	"execl"
+	.string	"openr"
 .LC26:
-	.string	"execv"
+	.string	"openw"
 .LC27:
-	.string	"chdir"
+	.string	"fork"
 .LC28:
-	.string	"chmod"
+	.string	"wait"
 .LC29:
-	.string	"chown"
+	.string	"execl"
 .LC30:
-	.string	"link"
+	.string	"execv"
 .LC31:
-	.string	"unlink"
+	.string	"chdir"
 .LC32:
-	.string	"stat"
+	.string	"chmod"
 .LC33:
-	.string	"fstat"
+	.string	"chown"
 .LC34:
-	.string	"time"
+	.string	"link"
 .LC35:
-	.string	"ctime"
+	.string	"unlink"
 .LC36:
-	.string	"getuid"
+	.string	"stat"
 .LC37:
-	.string	"setuid"
+	.string	"fstat"
 .LC38:
-	.string	"makdir"
+	.string	"time"
 .LC39:
-	.string	"mkdir"
+	.string	"ctime"
 .LC40:
-	.string	"intr"
+	.string	"getuid"
 .LC41:
-	.string	"system"
+	.string	"setuid"
 .LC42:
-	.string	"callf"
+	.string	"makdir"
 .LC43:
-	.string	"gtty"
+	.string	"mkdir"
 .LC44:
-	.string	"stty"
+	.string	"intr"
 .LC45:
-	.string	"argc"
+	.string	"system"
 .LC46:
+	.string	"callf"
+.LC47:
+	.string	"gtty"
+.LC48:
+	.string	"stty"
+.LC49:
+	.string	"argc"
+.LC50:
 	.string	"argv"
 	.data
 	.align 32
-.LC48:
+.LC52:
 	.quad	.LC0
 	.quad	.LC1
 	.quad	.LC2
@@ -229,6 +237,10 @@ has_data_declaration.isra.0:
 	.quad	.LC44
 	.quad	.LC45
 	.quad	.LC46
+	.quad	.LC47
+	.quad	.LC48
+	.quad	.LC49
+	.quad	.LC50
 	.quad	0
 	.text
 	.p2align 4
@@ -239,8 +251,8 @@ sem_add_builtin_functions:
 	pushq	%r15
 	.cfi_def_cfa_offset 16
 	.cfi_offset 15, -16
-	leaq	.LC48(%rip), %rsi
-	movl	$48, %ecx
+	leaq	.LC52(%rip), %rsi
+	movl	$52, %ecx
 	pushq	%r14
 	.cfi_def_cfa_offset 24
 	.cfi_offset 14, -24
@@ -258,8 +270,8 @@ sem_add_builtin_functions:
 	pushq	%rbx
 	.cfi_def_cfa_offset 56
 	.cfi_offset 3, -56
-	subq	$392, %rsp
-	.cfi_def_cfa_offset 448
+	subq	$424, %rsp
+	.cfi_def_cfa_offset 480
 	movq	%rsp, %rdi
 	leaq	8(%rsp), %r13
 	rep movsq
@@ -291,7 +303,7 @@ sem_add_builtin_functions:
 	testq	%rbp, %rbp
 	jne	.L18
 .L29:
-	addq	$392, %rsp
+	addq	$424, %rsp
 	.cfi_remember_state
 	.cfi_def_cfa_offset 56
 	popq	%rbx
@@ -328,7 +340,7 @@ sem_add_builtin_functions:
 	movups	%xmm0, 20(%rax)
 	movups	%xmm0, 36(%rax)
 	call	sdup@PLT
-	movdqa	.LC49(%rip), %xmm1
+	movdqa	.LC53(%rip), %xmm1
 	movq	%rbx, %rsi
 	movq	%rax, 8(%rbx)
 	movq	(%r14), %rax
@@ -572,7 +584,7 @@ mark_global_reference:
 .LFE31:
 	.size	mark_global_reference, .-mark_global_reference
 	.section	.rodata.str1.1
-.LC52:
+.LC56:
 	.string	"duplicate label '%s' at %d:%d"
 	.text
 	.p2align 4
@@ -714,7 +726,7 @@ sem_collect_labels:
 	movl	8(%rbx), %ecx
 	movl	4(%rbx), %edx
 	movq	%r13, %rsi
-	leaq	.LC52(%rip), %rdi
+	leaq	.LC56(%rip), %rdi
 	xorl	%eax, %eax
 	call	dief@PLT
 	movq	16(%rbx), %r13
@@ -764,13 +776,13 @@ sem_collect_labels:
 	.size	sem_collect_labels, .-sem_collect_labels
 	.section	.rodata.str1.8,"aMS",@progbits,1
 	.align 8
-.LC53:
+.LC57:
 	.string	"undefined internal name '%s' at %d:%d"
 	.align 8
-.LC54:
+.LC58:
 	.string	"'%s' is not a variable at %d:%d"
 	.section	.rodata.str1.1
-.LC55:
+.LC59:
 	.string	"invalid lvalue at %d:%d"
 	.text
 	.p2align 4
@@ -844,7 +856,7 @@ sem_check_lvalue:
 	testl	%eax, %eax
 	je	.L133
 	movq	8(%r15), %rdi
-	leaq	.LC46(%rip), %rsi
+	leaq	.LC50(%rip), %rsi
 	call	strcmp@PLT
 	testl	%eax, %eax
 	jne	.L133
@@ -881,7 +893,7 @@ sem_check_lvalue:
 	xorl	%eax, %eax
 	popq	%rbx
 	.cfi_def_cfa_offset 48
-	leaq	.LC55(%rip), %rdi
+	leaq	.LC59(%rip), %rdi
 	popq	%rbp
 	.cfi_def_cfa_offset 40
 	popq	%r12
@@ -934,7 +946,7 @@ sem_check_lvalue:
 	je	.L111
 	movl	8(%rbx), %ecx
 	movl	4(%rbx), %edx
-	leaq	.LC54(%rip), %rdi
+	leaq	.LC58(%rip), %rdi
 	xorl	%eax, %eax
 	movq	40(%rbx), %rsi
 	addq	$24, %rsp
@@ -1060,7 +1072,7 @@ sem_check_lvalue:
 	movl	4(%rbx), %edx
 	movq	%r12, %rsi
 	xorl	%eax, %eax
-	leaq	.LC53(%rip), %rdi
+	leaq	.LC57(%rip), %rdi
 	call	dief@PLT
 	movq	(%rsp), %rax
 	movq	40(%rbx), %r12
@@ -1071,7 +1083,7 @@ sem_check_lvalue:
 .LFE32:
 	.size	sem_check_lvalue, .-sem_check_lvalue
 	.section	.rodata.str1.1
-.LC56:
+.LC60:
 	.string	"'%s' is not callable at %d:%d"
 	.text
 	.p2align 4
@@ -1275,7 +1287,7 @@ sem_check_expr:
 	testl	%eax, %eax
 	je	.L194
 	movq	8(%r15), %rdi
-	leaq	.LC46(%rip), %rsi
+	leaq	.LC50(%rip), %rsi
 	call	strcmp@PLT
 	testl	%eax, %eax
 	sete	%al
@@ -1422,7 +1434,7 @@ sem_check_expr:
 	movl	4(%rbx), %edx
 	xorl	%eax, %eax
 	movq	%r12, %rsi
-	leaq	.LC56(%rip), %rdi
+	leaq	.LC60(%rip), %rdi
 	call	dief@PLT
 	movl	(%r15), %eax
 	jmp	.L217
@@ -1506,7 +1518,7 @@ sem_check_expr:
 	movl	8(%rbx), %ecx
 	movl	4(%rbx), %edx
 	movq	%r13, %rsi
-	leaq	.LC53(%rip), %rdi
+	leaq	.LC57(%rip), %rdi
 	xorl	%eax, %eax
 	call	dief@PLT
 	movq	40(%rbx), %r13
@@ -1687,10 +1699,10 @@ sem_check_initializer:
 	.size	sem_check_initializer, .-sem_check_initializer
 	.section	.rodata.str1.8
 	.align 8
-.LC57:
+.LC61:
 	.string	"internal: cannot pop global scope"
 	.align 8
-.LC58:
+.LC62:
 	.string	"bcc: warning: case label falls through to another case label at %d:%d\n"
 	.text
 	.p2align 4
@@ -1979,7 +1991,7 @@ sem_check_stmt:
 	je	.L341
 	xorl	%ecx, %ecx
 	xorl	%r12d, %r12d
-	leaq	.LC58(%rip), %r15
+	leaq	.LC62(%rip), %r15
 	jmp	.L337
 	.p2align 6
 	.p2align 4,,10
@@ -2082,7 +2094,7 @@ sem_check_stmt:
 	.cfi_offset 13, -32
 	.cfi_offset 14, -24
 	.cfi_offset 15, -16
-	leaq	.LC57(%rip), %rdi
+	leaq	.LC61(%rip), %rdi
 	call	dief@PLT
 	movq	0(%r13), %rax
 	movq	(%rax), %rax
@@ -2092,17 +2104,17 @@ sem_check_stmt:
 	.size	sem_check_stmt, .-sem_check_stmt
 	.section	.rodata.str1.8
 	.align 8
-.LC59:
+.LC63:
 	.string	"internal: TOP_GAUTO should be ST_AUTO"
 	.align 8
-.LC60:
+.LC64:
 	.string	"vector bound must be a constant expression in '%s'"
 	.section	.rodata.str1.1
-.LC61:
+.LC65:
 	.string	"negative vector bound in '%s'"
 	.section	.rodata.str1.8
 	.align 8
-.LC63:
+.LC67:
 	.string	"duplicate extern definition '%s'"
 	.text
 	.p2align 4
@@ -2440,7 +2452,7 @@ sem_check_program:
 	movups	%xmm0, 20(%rax)
 	movups	%xmm0, 36(%rax)
 	call	sdup@PLT
-	movdqa	.LC62(%rip), %xmm6
+	movdqa	.LC66(%rip), %xmm6
 	movq	%rbp, %rsi
 	movq	%rax, 8(%rbp)
 	movq	(%rbx), %rax
@@ -2509,7 +2521,7 @@ sem_check_program:
 	jne	.L524
 	movq	%rbp, %rsi
 	xorl	%eax, %eax
-	leaq	.LC63(%rip), %rdi
+	leaq	.LC67(%rip), %rdi
 	call	dief@PLT
 	movq	8(%rsp), %rax
 	movq	16(%rax), %rbp
@@ -2525,7 +2537,7 @@ sem_check_program:
 	movups	%xmm0, 20(%rax)
 	movups	%xmm0, 36(%rax)
 	call	sdup@PLT
-	movdqa	.LC62(%rip), %xmm7
+	movdqa	.LC66(%rip), %xmm7
 	movq	%r12, %rsi
 	movq	%rax, 8(%r12)
 	movq	(%rbx), %rax
@@ -2540,7 +2552,7 @@ sem_check_program:
 	cmpl	$2, (%rax)
 	movq	%rax, 16(%rsp)
 	je	.L398
-	leaq	.LC59(%rip), %rdi
+	leaq	.LC63(%rip), %rdi
 	xorl	%eax, %eax
 	call	dief@PLT
 .L398:
@@ -2812,21 +2824,21 @@ sem_check_program:
 	movq	%rax, 48(%rcx)
 	jmp	.L407
 .L522:
-	leaq	.LC57(%rip), %rdi
+	leaq	.LC61(%rip), %rdi
 	call	dief@PLT
 	movq	(%rbx), %rax
 	movq	(%rax), %rax
 	jmp	.L432
 .L527:
 	movq	8(%rsp), %rax
-	leaq	.LC60(%rip), %rdi
+	leaq	.LC64(%rip), %rdi
 	movq	16(%rax), %rsi
 	xorl	%eax, %eax
 	call	dief@PLT
 	jmp	.L408
 .L528:
 	movq	8(%rsp), %rax
-	leaq	.LC61(%rip), %rdi
+	leaq	.LC65(%rip), %rdi
 	movq	16(%rax), %rsi
 	xorl	%eax, %eax
 	call	dief@PLT
@@ -2837,13 +2849,13 @@ sem_check_program:
 	.size	sem_check_program, .-sem_check_program
 	.section	.rodata.cst16,"aM",@progbits,16
 	.align 16
-.LC49:
+.LC53:
 	.long	0
 	.long	0
 	.long	0
 	.long	1
 	.align 16
-.LC62:
+.LC66:
 	.long	0
 	.long	0
 	.long	1

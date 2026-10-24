@@ -302,7 +302,7 @@ ExternItem *parse_extern_var_def(Parser *P){
         return it;
     }
 
-    // Optional: keep your extension "name = expr;"
+    /* Compatibility mode also accepts name = expr;. */
     if (accept(P, TK_ASSIGN)) {
         if (g_strict) error_at(&P->cur, P->source, "external '=' initializer is outside Thompson B72");
         it->as.var.vkind = EXTVAR_SCALAR;
