@@ -65,6 +65,7 @@ test: stage3
 	@set -e; for stage in 1 2 3; do python3 ../tests/test_call_frames.py --bootstrap --compiler build/stage$$stage/bbc; done
 
 	@set -e; for stage in 1 2 3; do python3 ../tests/test_library_bindings.py --bootstrap --compiler build/stage$$stage/bbc; done
+	@set -e; for stage in 1 2 3; do python3 ../tests/test_identifier_bytes.py --bootstrap --compiler build/stage$$stage/bbc; done
 
 clean:
 	rm -rf $(BUILD)

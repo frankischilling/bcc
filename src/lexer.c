@@ -152,9 +152,9 @@ Token lx_next(Lexer *L) {
     if (!c) return mk_tok(TK_EOF, line, col, L->filename);
 
     /* identifiers / keywords */
-    if (isalpha(c) || c == '_') {
+    if (isalpha(c) || c == '_' || c == 8) {
         size_t start = L->i;
-        while (isalnum(lx_peek(L)) || lx_peek(L) == '_' || lx_peek(L) == '.') lx_get(L);
+        while (isalnum(lx_peek(L)) || lx_peek(L) == '_' || lx_peek(L) == '.' || lx_peek(L) == 8) lx_get(L);
         if (g_strict && L->i - start > 8)
             error_at_location(L->filename, line, col, ERR_EXPR_SYNTAX,
                 "B72 names cannot exceed 8 characters");

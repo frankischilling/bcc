@@ -250,7 +250,7 @@ getc1() {
 is_alpha(c) {
     if ((c >= 'a') & (c <= 'z')) return(1);
     if ((c >= 'A') & (c <= 'Z')) return(1);
-    if (c == '_') return(1);
+    if ((c == '_') | (c == 8)) return(1);
     return(0);
 }
 
@@ -413,8 +413,23 @@ keyword(s) {
     return(1);
 }
 
+encoded_name(s) {
+    auto i,c,found,b,n;
+    n=slen(s);found=0;i=0;
+    while(i<n){if(char(s,i)==8)found=1;i++;}
+    if(!found)return(0);
+    b=buf_new(64);buf_str(b,"__bbc_bs_");i=0;
+    while(i<n){
+        c=char(s,i);
+        buf_ch(b,char("0123456789abcdef",(c>>4)&15));
+        buf_ch(b,char("0123456789abcdef",c&15));
+        i++;
+    }
+    return(buf_take(b));
+}
+
 next() {
-    auto c, start, base, v, s, d;
+    auto c, start, base, v, s, d, encoded;
     skip_ws();
     c = getc1();
     TTEXT = 0;
@@ -431,7 +446,9 @@ next() {
         TTEXT = s;
         TOK = keyword(s);
         if (TOK == 1) {
-            if (private_name(s)) TTEXT = scat("__bbc_user_",s);
+            encoded=encoded_name(s);
+            if(encoded)TTEXT=encoded;
+            else if (private_name(s)) TTEXT = scat("__bbc_user_",s);
             else if (c_reserved(s)) TTEXT = scat("__bbc_id_",s);
         }
         return(0);
@@ -452,7 +469,6 @@ next() {
         while (((base == 16) & is_xdigit(peekc())) | ((base != 16) & is_digit(peekc()))) {
             if (base == 16) d = xval(getc1());
             else d = getc1() - '0';
-            if ((base == 8) & (d >= 8)) fatal("bad octal digit");
             v = v * base + d;
         }
         TNUM = v;

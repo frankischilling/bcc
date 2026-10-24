@@ -93,6 +93,8 @@ def main():
                           '--compiler', str(compiler)], 'declaration statements') and ok
         ok = checked_run([sys.executable, str(root / 'tests/test_docs_examples.py'),
                           '--compiler', str(compiler)], 'documentation examples') and ok
+        ok = checked_run([sys.executable, str(root / 'tests/test_identifier_bytes.py'),
+                          '--compiler', str(compiler)], 'B identifier bytes') and ok
         ok = checked_run([sys.executable, str(root / 'tests/test_word_arithmetic.py'),
                           '--compiler', str(compiler)], 'word arithmetic') and ok
         ok = checked_run([sys.executable, str(root / 'tests/test_call_frames.py'),

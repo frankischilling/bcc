@@ -111,7 +111,7 @@ unch(c) {
 isltr(c) {
 	if (c >= 'a') if (c <= 'z') return (1);
 	if (c >= 'A') if (c <= 'Z') return (1);
-	if (c == '_') return (1);
+	if (c == '_' | c == 8) return (1);
 	return (0);
 }
 

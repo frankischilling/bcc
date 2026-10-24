@@ -230,3 +230,9 @@ layout expansion. Its adjacent data must not be interpreted as a named binding.
 Both linked and inline runtime tests exercise that object. This is a regression
 check for the previous call-frame layout, not a promise of general object-ABI
 compatibility across compiler versions.
+
+Identifier-byte tests generate source containing ASCII backspace explicitly.
+They cover each name position, parameters and labels, the eight-character bound,
+encoding collisions, and separate host objects. The native fast checks and a
+full-system fixture exercise the same byte alphabet without relying on terminal
+editing. Octal checks include the documented 09 and 018 forms.

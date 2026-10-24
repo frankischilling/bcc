@@ -17,6 +17,7 @@ def cases(bits):
         'update->=': 'x=0; v[0]=7; v[1]=9; v[x++]=>=8; return(x!=1 | v[0]!=0 | v[1]!=9);',
         'update-==': 'x=0; v[0]=7; v[1]=9; v[x++]===8; return(x!=1 | v[0]!=0 | v[1]!=9);',
         'update-!=': 'x=0; v[0]=7; v[1]=9; v[x++]=!=8; return(x!=1 | v[0]!=1 | v[1]!=9);',
+        'octal-digits-eight-nine': 'return(09!=9 | 018!=16 | 099!=81);',
         'octal-word': f'x=0{(1 << bits) - 1:o}; return(x!= -1);',
         'full-left-shift': f'x=1; return((x<<{bits})!=0);',
         'full-right-shift': f'x= -1; return((x>>{bits})!=0);',

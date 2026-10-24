@@ -142,6 +142,7 @@ cgsym(name) char name[]; {
     safe = 1;
     while (name[n]) {
         if (name[n] >= 'A') if (name[n] <= 'Z') safe = 0;
+        if (name[n] == 8) safe = 0;
         n = n + 1;
     }
     if (n == 0) fatal("empty external name");

@@ -115,8 +115,19 @@ static int is_c_ident_first(char c) {
 static char *mangle_name_raw(const char *original) {
     if (!original || !original[0]) return sdup("__empty");
 
-    // Calculate needed size (worst case: each char becomes _XX + prefix + suffix)
     size_t len = strlen(original);
+    /* B72 admits backspace in names. Encode the complete byte sequence, and
+       escape this private prefix too, so separate files cannot pick aliases. */
+    if (strchr(original, 8) || !strncmp(original, "__bcc_bs_", 9)) {
+        if (len > (SIZE_MAX - 10) / 2) dief("identifier is too long");
+        char *encoded = xmalloc(2 * len + 10);
+        memcpy(encoded, "__bcc_bs_", 9);
+        for (size_t i = 0; i < len; ++i)
+            sprintf(encoded + 9 + 2 * i, "%02x", (unsigned char)original[i]);
+        return encoded;
+    }
+
+    // Calculate needed size (worst case: each char becomes _XX + prefix + suffix)
     size_t max_len = len * 4 + 16;
     char *result = xmalloc(max_len);
     char *p = result;

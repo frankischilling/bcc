@@ -10,10 +10,22 @@ host-sized storage only. Choosing strict syntax does not by itself select
 16-bit arithmetic. See [CLI options](../docs/cli.md) and
 [addressing limits](WIKI_ARRAYS_POINTERS.md).
 
+## Names
+
+A B72 name has at most eight characters. Its first character is a letter,
+underscore, or ASCII backspace (byte 8); later characters can also be digits.
+Backspace is part of the name, not an instruction to erase the preceding byte.
+Different byte sequences remain different names. The compiler encodes these
+names for the host toolchain without exposing control bytes as C identifiers.
+
+The original scan states this alphabet in
+[section 2.2](https://www.nokia.com/bell-labs/about/dennis-m-ritchie/kbman.pdf#page=7).
+
 ## Numbers
 
 Decimal constants have no prefix. A leading zero selects octal: `010` is
-eight. A negative value uses unary minus, as in `-17`. Hexadecimal `0x`
+eight. The historical scanner also accepts digits 8 and 9 while accumulating
+in base eight: `09` is 9, and `018` is 16. A negative value uses unary minus, as in `-17`. Hexadecimal `0x`
 constants are a host compatibility extension, not B72 syntax.
 
 BCC wraps arithmetic at the selected width, including host-sized words and

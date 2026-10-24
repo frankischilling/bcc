@@ -44,6 +44,7 @@ jobs:
           python3 tests/test_word_arithmetic.py --compiler "$RUNNER_TEMP/bcc-instrumented"
           python3 tests/test_call_frames.py --compiler "$RUNNER_TEMP/bcc-instrumented"
           python3 tests/test_library_bindings.py --compiler "$RUNNER_TEMP/bcc-instrumented"
+          python3 tests/test_identifier_bytes.py --compiler "$RUNNER_TEMP/bcc-instrumented"
   pdp11:
     runs-on: ubuntu-24.04
     steps:
@@ -65,6 +66,7 @@ jobs:
           python3 pdp-11/bcc-pdp/tests/runtime_selection.py
           python3 pdp-11/bcc-pdp/tests/build_lock.py
           python3 tests/test_docs_examples.py --native
+          python3 tests/test_identifier_bytes.py --native
 
   unix-v1:
     runs-on: ubuntu-24.04
@@ -123,6 +125,8 @@ jobs:
           make -C pdp-11/bcc-pdp v1-run B=tests/run/t96_word_arithmetic.b
           make -C pdp-11/bcc-pdp v1-run B=tests/run/t97_call_arguments.b
           make -C pdp-11/bcc-pdp v1-run B=tests/run/t98_library_callbacks.b
+          python3 tests/test_identifier_bytes.py --write-fixture "$RUNNER_TEMP/bcc-identifiers.b"
+          bash pdp-11/bcc-pdp/tools/v1-run.sh "$RUNNER_TEMP/bcc-identifiers.b"
           bash pdp-11/bcc-pdp/tools/v1-run.sh pdp-11/bcc-pdp/tests/run/t86_word_argv_alignment.b --argument a --argument bb --argument ccc --argument dddd
           bash pdp-11/bcc-pdp/tools/v1-run.sh pdp-11/bcc-pdp/tests/run/t19a_tilde.b --expect-compile-error
           bash pdp-11/bcc-pdp/tools/v1-run.sh pdp-11/bcc-pdp/tests/run/t44_missing_label.b --expect-compile-error
