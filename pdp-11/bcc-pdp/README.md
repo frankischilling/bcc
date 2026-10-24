@@ -27,6 +27,7 @@ bash pdp-11/bcc-pdp/tests/ext/run.sh
 python3 pdp-11/bcc-pdp/tests/driver_cases.py
 python3 pdp-11/bcc-pdp/tests/ic_cases.py
 python3 pdp-11/bcc-pdp/tests/image_tools.py
+python3 pdp-11/bcc-pdp/tests/file_verification.py
 bash pdp-11/bcc-pdp/tests/check_v1_binaries.sh
 ```
 
@@ -65,7 +66,10 @@ make -C pdp-11/bcc-pdp v1-run B=tests/v1/tty.b
 The self-host check rebuilds all three passes and the C-written driver inside
 Unix V1, compares each binary with the apout-built version, installs the
 rebuilt binaries, recompiles the B-written runtime and compares its assembly,
-and compiles/runs the selected B program. This is an
+and compiles/runs the selected B program. After the simulator closes its disks,
+a host-side filesystem reader compares exact lengths and bytes against
+references saved before boot. This also checks odd-sized assembly output,
+without relying on the historical `cmp` command. This is an
 in-system C rebuild, not the separate B-written bootstrap compiler.
 
 The console runner checks ASCII output and treats a CPU halt or kernel panic

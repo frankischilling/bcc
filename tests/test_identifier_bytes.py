@@ -8,6 +8,9 @@ import tempfile
 
 BS = '\x08'
 CASES = {
+    'source-nul-leading': ['\x00main(){return(0);}'],
+    'source-nul-middle': ['main(){return(0);}\x00invalid source'],
+    'source-nul-trailing': ['main(){return(0);}\x00'],
     'leading-function': [f'{BS}fn(x){{return(x+1);}}main(){{extrn {BS}fn;return({BS}fn(41)!=42);}}'],
     'global': [f'a{BS}A 42;main(){{extrn a{BS}A;return(a{BS}A!=42);}}'],
     'local': [f'main(){{auto a{BS};a{BS}=42;return(a{BS}!=42);}}'],
@@ -58,7 +61,7 @@ def main():
                         path = work / f'part{index}.b'
                         path.write_bytes(source.encode('ascii') + b'\n')
                         paths.append(str(path))
-                    reject = strict and name == 'too-long'
+                    reject = name.startswith('source-nul-') or (strict and name == 'too-long')
                     try:
                         if args.native:
                             result = subprocess.run([sys.executable, str(root / 'pdp-11/bcc-pdp/tools/run_apout.py'), paths[0]],
@@ -76,7 +79,10 @@ def main():
                             if result.returncode == 0 and not reject:
                                 result = subprocess.run([str(work / 'case')], capture_output=True, timeout=10)
                         output = result.stdout + result.stderr
-                        if reject:
+                        if name.startswith('source-nul-'):
+                            diagnostic = b'unexpected character' if args.native else b'NUL byte outside a literal'
+                            ok = result.returncode > 0 and diagnostic in output
+                        elif reject:
                             ok = result.returncode > 0 and (b'names cannot exceed 8' in output or b'identifier too long' in output)
                         else:
                             ok = result.returncode == 0

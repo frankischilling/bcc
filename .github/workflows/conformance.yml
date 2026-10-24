@@ -45,6 +45,7 @@ jobs:
           python3 tests/test_call_frames.py --compiler "$RUNNER_TEMP/bcc-instrumented"
           python3 tests/test_library_bindings.py --compiler "$RUNNER_TEMP/bcc-instrumented"
           python3 tests/test_identifier_bytes.py --compiler "$RUNNER_TEMP/bcc-instrumented"
+          python3 tests/test_open_runtime.py --compiler "$RUNNER_TEMP/bcc-instrumented"
   pdp11:
     runs-on: ubuntu-24.04
     steps:
@@ -62,6 +63,7 @@ jobs:
           python3 pdp-11/bcc-pdp/tests/ic_cases.py
           python3 pdp-11/bcc-pdp/tests/argv_storage.py
           python3 pdp-11/bcc-pdp/tests/image_tools.py
+          python3 pdp-11/bcc-pdp/tests/file_verification.py
           python3 pdp-11/bcc-pdp/tests/golden.py
           python3 pdp-11/bcc-pdp/tests/runtime_selection.py
           python3 pdp-11/bcc-pdp/tests/build_lock.py
@@ -87,6 +89,7 @@ jobs:
           make -C pdp-11/bcc-pdp v1-run B=tests/run/t27_ctime_check.b
           make -C pdp-11/bcc-pdp v1-run B=tests/run/t32_time_registers.b
           make -C pdp-11/bcc-pdp v1-run B=tests/run/t33_files.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t99_open_modes.b
           make -C pdp-11/bcc-pdp v1-run B=tests/run/t34_fork.b
           make -C pdp-11/bcc-pdp v1-run B=tests/run/t35_execv.b
           make -C pdp-11/bcc-pdp v1-run B=tests/v1/tty.b

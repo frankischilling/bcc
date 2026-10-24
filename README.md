@@ -185,7 +185,7 @@ The host compiler is in `src/`, with its runtime in `lib/`. Regression tests
 are in `tests/`; example programs are in `examples/`. Variant-specific build
 and test code stays under `asm/`, `bootstrap/`, and `pdp-11/bcc-pdp/`.
 
-Known gaps include mutable function-name storage in the C backends, host filesystem/terminal emulation
+Known gaps include host filesystem/terminal emulation
 limits, native cross-file symbol linkage, and 16-bit bootstrap storage.
 Passing tests establish the cases they check, not a claim that the compiler
 is bug-free or fully equivalent to the original implementation.

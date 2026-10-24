@@ -745,70 +745,73 @@ mk_tok:
 	.cfi_endproc
 .LFE20:
 	.size	mk_tok, .-mk_tok
+	.section	.rodata.str1.1
+.LC6:
+	.string	"NUL byte outside a literal"
 	.section	.rodata.str1.8
 	.align 8
-.LC6:
+.LC7:
 	.string	"B72 names cannot exceed 8 characters"
 	.align 8
-.LC7:
+.LC8:
 	.string	"dots are not allowed in B72 names"
 	.section	.rodata.str1.1
-.LC8:
-	.string	"out of memory"
 .LC9:
-	.string	"auto"
+	.string	"out of memory"
 .LC10:
-	.string	"else"
+	.string	"auto"
 .LC11:
-	.string	"while"
+	.string	"else"
 .LC12:
-	.string	"return"
+	.string	"while"
 .LC13:
-	.string	"extrn"
+	.string	"return"
 .LC14:
-	.string	"break"
+	.string	"extrn"
 .LC15:
-	.string	"continue"
+	.string	"break"
 .LC16:
-	.string	"goto"
+	.string	"continue"
 .LC17:
-	.string	"switch"
+	.string	"goto"
 .LC18:
-	.string	"case"
+	.string	"switch"
 .LC19:
+	.string	"case"
+.LC20:
 	.string	"default"
 	.section	.rodata.str1.8
 	.align 8
-.LC20:
+.LC21:
 	.string	"hexadecimal literals are not allowed in strict B mode (use octal or omit --strict)"
 	.section	.rodata.str1.1
-.LC21:
-	.string	"bad octal digit '%c'"
 .LC22:
-	.string	"bad number"
+	.string	"bad octal digit '%c'"
 .LC23:
-	.string	"unterminated string"
+	.string	"bad number"
 .LC24:
+	.string	"unterminated string"
+.LC25:
 	.string	"character constant too long"
 	.section	.rodata.str1.8
 	.align 8
-.LC25:
+.LC26:
 	.string	"unterminated character constant"
 	.align 8
-.LC26:
+.LC27:
 	.string	"character constants longer than 2 bytes are not allowed in strict B72 mode"
 	.section	.rodata.str1.1
-.LC27:
+.LC28:
 	.string	"empty character constant"
 	.section	.rodata.str1.8
 	.align 8
-.LC28:
+.LC29:
 	.string	"C-style compound assignments (op=) are not allowed in strict B mode (use =op)"
 	.align 8
-.LC29:
+.LC30:
 	.string	"|| is not part of Thompson B72 (use | or a conditional expression)"
 	.section	.rodata.str1.1
-.LC30:
+.LC31:
 	.string	"unexpected character '%c'"
 	.text
 	.p2align 4
@@ -838,40 +841,41 @@ lx_next:
 	.cfi_def_cfa_offset 56
 	.cfi_offset 3, -56
 	movq	%rsi, %rbx
-	subq	$120, %rsp
-	.cfi_def_cfa_offset 176
+	subq	$136, %rsp
+	.cfi_def_cfa_offset 192
 	call	lx_skip_ws_and_comments
 	movq	24(%rbx), %rax
 	movq	16(%rbx), %r13
 	movq	8(%rbx), %r12
-	movq	%rax, (%rsp)
+	movq	%rax, 8(%rsp)
 	cmpq	%r12, %r13
 	jnb	.L602
 	movq	(%rbx), %rdx
+	movq	%rax, %xmm0
+	movl	%eax, 20(%rsp)
+	pshufd	$0xe5, %xmm0, %xmm1
+	movd	%xmm1, %r14d
 	leaq	(%rdx,%r13), %rcx
 	movzbl	(%rcx), %r15d
-	movl	%r15d, %r14d
 	testl	%r15d, %r15d
-	je	.L602
-	movq	(%rsp), %xmm0
-	movq	%rdx, 16(%rsp)
-	movq	%rcx, 8(%rsp)
-	pshufd	$0xe5, %xmm0, %xmm1
-	movq	%r13, 40(%rsp)
-	movq	%r12, 32(%rsp)
-	movd	%xmm1, 24(%rsp)
-	movd	%xmm0, 28(%rsp)
+	je	.L608
+	movq	%rdx, 40(%rsp)
+	movq	%rcx, 24(%rsp)
+	movb	%r15b, 32(%rsp)
+	movq	%r13, 56(%rsp)
+	movq	%r12, 48(%rsp)
 	call	__ctype_b_loc@PLT
-	movzbl	%r15b, %edi
-	movq	8(%rsp), %rcx
-	movq	16(%rsp), %rdx
+	movzbl	32(%rsp), %edi
+	movq	24(%rsp), %rcx
 	movq	(%rax), %rax
+	movq	40(%rsp), %rdx
+	movq	%rdi, %r9
 	movzwl	(%rax,%rdi,2), %edi
 	testw	$1024, %di
 	jne	.L412
 	cmpl	$95, %r15d
-	movq	32(%rsp), %r10
-	movq	40(%rsp), %rsi
+	movq	48(%rsp), %r10
+	movq	56(%rsp), %rsi
 	sete	%r8b
 	cmpl	$8, %r15d
 	sete	%r11b
@@ -889,11 +893,10 @@ lx_next:
 	movzbl	(%r10), %r9d
 	andl	$-33, %r9d
 	cmpb	$88, %r9b
-	je	.L608
+	je	.L609
 .L164:
 	movq	%rdi, 16(%rbx)
-	movl	24(%rsp), %edi
-	leal	1(%rdi), %r8d
+	leal	1(%r14), %r8d
 	.p2align 4
 	.p2align 3
 .L180:
@@ -915,27 +918,20 @@ lx_next:
 	addl	$1, 24(%rbx)
 	movl	$1, %r8d
 	jmp	.L180
-.L377:
-	leaq	48(%rsp), %r12
-	movl	%r15d, %ecx
-	movl	$64, %esi
-	xorl	%eax, %eax
-	leaq	.LC30(%rip), %rdx
-	movq	%r12, %rdi
-	call	snprintf@PLT
-	movq	32(%rbx), %rdi
-	movl	24(%rsp), %edx
-	movq	%r12, %r8
-	movl	28(%rsp), %esi
-	movl	$8, %ecx
-	call	error_at_location@PLT
-	.p2align 4
+	.p2align 4,,10
 	.p2align 3
+.L608:
+	movq	32(%rbx), %rdi
+	movl	20(%rsp), %esi
+	movl	$8, %ecx
+	movl	%r14d, %edx
+	leaq	.LC6(%rip), %r8
+	call	error_at_location@PLT
 .L602:
 	movl	$0, 0(%rbp)
 	movq	32(%rbx), %rax
 .L601:
-	movq	(%rsp), %rcx
+	movq	8(%rsp), %rcx
 	movq	$0, 8(%rbp)
 	movq	$0, 16(%rbp)
 	movl	$0, 24(%rbp)
@@ -943,7 +939,7 @@ lx_next:
 	movq	%rcx, 40(%rbp)
 	movq	%rax, 48(%rbp)
 .L137:
-	addq	$120, %rsp
+	addq	$136, %rsp
 	.cfi_remember_state
 	.cfi_def_cfa_offset 56
 	movq	%rbp, %rax
@@ -967,7 +963,7 @@ lx_next:
 	movq	%r13, %r15
 .L148:
 	cmpq	%r12, %r15
-	jnb	.L609
+	jnb	.L610
 .L147:
 	movzbl	(%rdx,%r15), %esi
 	movzbl	%sil, %edi
@@ -989,7 +985,7 @@ lx_next:
 	movl	%esi, 28(%rbx)
 	cmpq	%r12, %r15
 	jb	.L147
-.L609:
+.L610:
 	testb	$8, (%rax)
 	jne	.L148
 .L149:
@@ -999,7 +995,7 @@ lx_next:
 	movq	%r15, %rdx
 	subq	%r13, %rdx
 	cmpq	$8, %rdx
-	ja	.L610
+	ja	.L611
 .L154:
 	movl	$46, %esi
 	movq	%rcx, %rdi
@@ -1007,10 +1003,10 @@ lx_next:
 	testq	%rax, %rax
 	je	.L153
 	movq	32(%rbx), %rdi
-	movl	24(%rsp), %edx
-	leaq	.LC7(%rip), %r8
+	movl	20(%rsp), %esi
 	movl	$8, %ecx
-	movl	28(%rsp), %esi
+	movl	%r14d, %edx
+	leaq	.LC8(%rip), %r8
 	call	error_at_location@PLT
 	movq	16(%rbx), %r15
 .L153:
@@ -1024,7 +1020,7 @@ lx_next:
 	call	arena_xstrdup_range@PLT
 	movq	%rax, %r12
 .L156:
-	leaq	.LC9(%rip), %rsi
+	leaq	.LC10(%rip), %rsi
 	movq	%r12, %rdi
 	call	strcmp@PLT
 	movl	%eax, %edx
@@ -1034,30 +1030,30 @@ lx_next:
 	cmpb	$105, (%r12)
 	jne	.L438
 	cmpb	$102, 1(%r12)
-	je	.L611
+	je	.L612
 .L438:
-	leaq	.LC10(%rip), %rsi
+	leaq	.LC11(%rip), %rsi
 	movq	%r12, %rdi
 	call	strcmp@PLT
 	movl	%eax, %edx
 	movl	$7, %eax
 	testl	%edx, %edx
 	je	.L159
-	leaq	.LC11(%rip), %rsi
+	leaq	.LC12(%rip), %rsi
 	movq	%r12, %rdi
 	call	strcmp@PLT
 	movl	%eax, %edx
 	movl	$8, %eax
 	testl	%edx, %edx
 	je	.L159
-	leaq	.LC12(%rip), %rsi
+	leaq	.LC13(%rip), %rsi
 	movq	%r12, %rdi
 	call	strcmp@PLT
 	movl	%eax, %edx
 	movl	$9, %eax
 	testl	%edx, %edx
 	je	.L159
-	leaq	.LC13(%rip), %rsi
+	leaq	.LC14(%rip), %rsi
 	movq	%r12, %rdi
 	call	strcmp@PLT
 	movl	%eax, %edx
@@ -1066,23 +1062,23 @@ lx_next:
 	je	.L159
 	movl	g_extensions(%rip), %r14d
 	andl	$64, %r14d
-	jne	.L612
+	jne	.L613
 .L161:
-	leaq	.LC16(%rip), %rsi
+	leaq	.LC17(%rip), %rsi
 	movq	%r12, %rdi
 	call	strcmp@PLT
 	movl	%eax, %edx
 	movl	$58, %eax
 	testl	%edx, %edx
 	je	.L159
-	leaq	.LC17(%rip), %rsi
+	leaq	.LC18(%rip), %rsi
 	movq	%r12, %rdi
 	call	strcmp@PLT
 	movl	%eax, %edx
 	movl	$59, %eax
 	testl	%edx, %edx
 	je	.L159
-	leaq	.LC18(%rip), %rsi
+	leaq	.LC19(%rip), %rsi
 	movq	%r12, %rdi
 	call	strcmp@PLT
 	movl	%eax, %edx
@@ -1092,7 +1088,7 @@ lx_next:
 	movl	$1, %eax
 	testl	%r14d, %r14d
 	je	.L159
-	leaq	.LC19(%rip), %rsi
+	leaq	.LC20(%rip), %rsi
 	movq	%r12, %rdi
 	call	strcmp@PLT
 	cmpl	$1, %eax
@@ -1104,7 +1100,7 @@ lx_next:
 .L159:
 	movl	%eax, 0(%rbp)
 	movq	32(%rbx), %rdx
-	movq	(%rsp), %rax
+	movq	8(%rsp), %rax
 	movq	%r12, 8(%rbp)
 	movq	$0, 16(%rbp)
 	movl	%r13d, 24(%rbp)
@@ -1135,7 +1131,7 @@ lx_next:
 	call	malloc@PLT
 	movq	%rax, %r12
 	testq	%rax, %rax
-	je	.L613
+	je	.L614
 .L158:
 	movq	(%rbx), %rsi
 	movq	%r15, %rdx
@@ -1149,11 +1145,11 @@ lx_next:
 	.p2align 3
 .L162:
 	cmpl	$34, %r15d
-	je	.L614
-	cmpl	$39, %r15d
 	je	.L615
-	cmpl	$43, %r15d
+	cmpl	$39, %r15d
 	je	.L616
+	cmpl	$43, %r15d
+	je	.L617
 	cmpl	$45, %r15d
 	je	.L252
 	movl	24(%rbx), %r8d
@@ -1162,10 +1158,10 @@ lx_next:
 	movl	g_pedantic(%rip), %ecx
 	testl	%ecx, %ecx
 	je	.L283
-	cmpb	$47, %r15b
+	cmpb	$47, %r9b
 	jg	.L284
-	cmpb	$36, %r15b
-	jg	.L617
+	cmpb	$36, %r9b
+	jg	.L618
 .L285:
 	cmpl	$33, %r15d
 	jne	.L338
@@ -1175,7 +1171,7 @@ lx_next:
 .L352:
 	leaq	(%rdx,%rdi), %rax
 	cmpb	$61, (%rax)
-	je	.L618
+	je	.L619
 .L354:
 	cmpq	%r12, %r13
 	jb	.L338
@@ -1191,7 +1187,7 @@ lx_next:
 	jmp	.L157
 	.p2align 4,,10
 	.p2align 3
-.L611:
+.L612:
 	cmpb	$0, 2(%r12)
 	movl	$6, %eax
 	je	.L159
@@ -1205,7 +1201,7 @@ lx_next:
 .L192:
 	cmpq	%r12, %rsi
 	jnb	.L190
-.L620:
+.L621:
 	movzbl	(%rdx,%rsi), %edi
 	movzbl	%dil, %r9d
 	testb	$8, 1(%rax,%r9,2)
@@ -1215,54 +1211,52 @@ lx_next:
 	addq	$1, %rsi
 	movq	%rsi, 16(%rbx)
 	cmpl	$10, %edi
-	je	.L619
+	je	.L620
 	movl	28(%rbx), %edi
 	addl	$1, %edi
 .L189:
 	movl	%edi, 28(%rbx)
 	cmpq	%r12, %rsi
-	jb	.L620
+	jb	.L621
 .L190:
 	testb	$8, 1(%rax)
 	jne	.L192
 .L594:
-	movl	$10, %r15d
+	movl	$10, %r12d
 .L178:
 	cmpq	%rsi, %r13
 	jnb	.L428
 	subq	%r13, %rsi
-	movq	%rsi, %r12
+	movq	%rsi, %r15
 	leaq	1(%rsi), %rdi
 .L193:
-	movq	%rcx, 16(%rsp)
-	movb	%r8b, 8(%rsp)
+	movq	%rcx, 40(%rsp)
+	movb	%r8b, 24(%rsp)
 	call	malloc@PLT
-	movzbl	8(%rsp), %r8d
-	movq	16(%rsp), %rcx
+	movzbl	24(%rsp), %r8d
+	movq	40(%rsp), %rcx
 	testq	%rax, %rax
-	movq	%rax, %r14
-	je	.L621
+	movq	%rax, 32(%rsp)
+	je	.L622
 .L194:
-	movq	%r12, %rdx
+	movq	32(%rsp), %r13
+	movq	%r15, %rdx
 	movq	%rcx, %rsi
-	movq	%r14, %rdi
-	movb	%r8b, 16(%rsp)
+	movb	%r8b, 24(%rsp)
+	movq	%r13, %rdi
 	call	memcpy@PLT
-	movb	$0, (%r14,%r12)
+	movb	$0, 0(%r13,%r15)
 	call	__errno_location@PLT
-	movzbl	16(%rsp), %r8d
-	movq	%rax, 8(%rsp)
+	movzbl	24(%rsp), %r8d
+	movq	%rax, 40(%rsp)
 	movl	$0, (%rax)
 	testb	%r8b, %r8b
 	je	.L195
-	testq	%r12, %r12
+	testq	%r15, %r15
 	je	.L429
-	leaq	(%r12,%r14), %r9
-	xorl	%r15d, %r15d
-	movq	%rbp, 32(%rsp)
-	movq	%r14, %r13
-	movq	%r14, 16(%rsp)
-	movq	%r15, %r12
+	leaq	(%r15,%r13), %r9
+	movq	%rbp, 48(%rsp)
+	xorl	%r12d, %r12d
 	movq	%r9, %rbp
 	jmp	.L198
 	.p2align 5
@@ -1273,38 +1267,39 @@ lx_next:
 	addq	$1, %r13
 	leaq	(%rax,%r12,8), %r12
 	cmpq	%rbp, %r13
-	je	.L622
+	je	.L623
 .L198:
 	movsbl	0(%r13), %r15d
 	movl	%r15d, %eax
 	subl	$48, %eax
 	cmpb	$9, %al
 	jbe	.L197
-	leaq	48(%rsp), %r14
+	leaq	64(%rsp), %r8
 	movl	%r15d, %ecx
 	movl	$64, %esi
 	xorl	%eax, %eax
-	movq	%r14, %rdi
-	leaq	.LC21(%rip), %rdx
+	movq	%r8, %rdi
+	leaq	.LC22(%rip), %rdx
+	movq	%r8, 24(%rsp)
 	call	snprintf@PLT
 	movq	32(%rbx), %rdi
-	movl	24(%rsp), %edx
-	movq	%r14, %r8
-	movl	28(%rsp), %esi
+	movl	20(%rsp), %esi
+	movl	%r14d, %edx
+	movq	24(%rsp), %r8
 	movl	$8, %ecx
 	call	error_at_location@PLT
 	jmp	.L197
 	.p2align 4,,10
 	.p2align 3
-.L612:
-	leaq	.LC14(%rip), %rsi
+.L613:
+	leaq	.LC15(%rip), %rsi
 	movq	%r12, %rdi
 	call	strcmp@PLT
 	movl	%eax, %edx
 	movl	$10, %eax
 	testl	%edx, %edx
 	je	.L159
-	leaq	.LC15(%rip), %rsi
+	leaq	.LC16(%rip), %rsi
 	movq	%r12, %rdi
 	call	strcmp@PLT
 	movl	%eax, %edx
@@ -1314,24 +1309,24 @@ lx_next:
 	jmp	.L159
 	.p2align 4,,10
 	.p2align 3
-.L616:
+.L617:
 	leaq	1(%rsi), %rdi
 	cmpq	%r10, %rdi
-	jnb	.L623
+	jnb	.L624
 	leaq	(%rdx,%rdi), %rax
 	cmpb	$43, (%rax)
-	je	.L624
+	je	.L625
 	testb	$8, g_extensions(%rip)
-	jne	.L625
+	jne	.L626
 	movl	g_pedantic(%rip), %eax
 	testl	%eax, %eax
 	jne	.L403
 .L338:
 	movzbl	(%rdx,%rsi), %eax
 	testl	%eax, %eax
-	jne	.L626
+	jne	.L627
 .L375:
-	leal	-33(%r14), %r9d
+	subl	$33, %r9d
 	cmpb	$92, %r9b
 	ja	.L377
 	leaq	.L379(%rip), %rdx
@@ -1437,6 +1432,21 @@ lx_next:
 	.long	.L340-.L379
 	.long	.L378-.L379
 	.text
+.L377:
+	leaq	64(%rsp), %r12
+	movl	%r15d, %ecx
+	movl	$64, %esi
+	xorl	%eax, %eax
+	movq	%r12, %rdi
+	leaq	.LC31(%rip), %rdx
+	call	snprintf@PLT
+	movq	32(%rbx), %rdi
+	movl	20(%rsp), %esi
+	movq	%r12, %r8
+	movl	$8, %ecx
+	movl	%r14d, %edx
+	call	error_at_location@PLT
+	jmp	.L602
 .L378:
 	movl	$16, 0(%rbp)
 	movq	32(%rbx), %rax
@@ -1457,10 +1467,10 @@ lx_next:
 	movl	$56, 0(%rbp)
 	movq	32(%rbx), %rax
 	jmp	.L601
-.L662:
+.L663:
 	movq	(%rbx), %rdx
 	cmpb	$61, 1(%rdx,%r13)
-	je	.L627
+	je	.L628
 	cmpq	%r12, %r13
 	jb	.L374
 .L384:
@@ -1518,30 +1528,29 @@ lx_next:
 	jne	.L186
 .L595:
 	movl	$1, %r8d
-	movl	$8, %r15d
+	movl	$8, %r12d
 	jmp	.L178
 	.p2align 4,,10
 	.p2align 3
-.L619:
+.L620:
 	addl	$1, 24(%rbx)
 	movl	$1, %edi
 	jmp	.L189
 	.p2align 4,,10
 	.p2align 3
-.L622:
-	movq	16(%rsp), %r14
-	movq	32(%rsp), %rbp
+.L623:
+	movq	48(%rsp), %rbp
 	movq	%r12, %r15
 .L199:
-	movq	%r14, %rdi
+	movq	32(%rsp), %rdi
 	call	free@PLT
-	movq	8(%rsp), %rax
+	movq	40(%rsp), %rax
 	movl	(%rax), %r9d
 	testl	%r9d, %r9d
-	jne	.L628
+	jne	.L629
 .L201:
 	movq	32(%rbx), %rax
-	movq	(%rsp), %rcx
+	movq	8(%rsp), %rcx
 	movl	$2, 0(%rbp)
 	movq	$0, 8(%rbp)
 	movq	$0, 16(%rbp)
@@ -1552,12 +1561,12 @@ lx_next:
 	jmp	.L137
 	.p2align 4,,10
 	.p2align 3
-.L610:
+.L611:
 	movq	32(%rbx), %rdi
-	movl	24(%rsp), %edx
-	leaq	.LC6(%rip), %r8
+	movl	20(%rsp), %esi
 	movl	$8, %ecx
-	movl	28(%rsp), %esi
+	movl	%r14d, %edx
+	leaq	.LC7(%rip), %r8
 	call	error_at_location@PLT
 	movl	g_strict(%rip), %r11d
 	movq	16(%rbx), %r15
@@ -1572,34 +1581,34 @@ lx_next:
 	.p2align 3
 .L428:
 	movl	$1, %edi
-	xorl	%r12d, %r12d
+	xorl	%r15d, %r15d
 	jmp	.L193
 	.p2align 4,,10
 	.p2align 3
 .L195:
-	movl	%r15d, %edx
+	movq	32(%rsp), %rdi
 	xorl	%esi, %esi
-	movq	%r14, %rdi
+	movl	%r12d, %edx
 	call	strtoull@PLT
 	movq	%rax, %r15
-	movq	8(%rsp), %rax
+	movq	40(%rsp), %rax
 	cmpl	$34, (%rax)
 	jne	.L199
 	movq	32(%rbx), %rdi
-	movl	24(%rsp), %edx
-	leaq	.LC22(%rip), %r8
+	movl	20(%rsp), %esi
 	movl	$8, %ecx
-	movl	28(%rsp), %esi
+	movl	%r14d, %edx
+	leaq	.LC23(%rip), %r8
 	call	error_at_location@PLT
 	jmp	.L199
 	.p2align 4,,10
 	.p2align 3
-.L628:
+.L629:
 	movq	32(%rbx), %rdi
-	movl	24(%rsp), %edx
-	leaq	.LC22(%rip), %r8
+	movl	20(%rsp), %esi
 	movl	$8, %ecx
-	movl	28(%rsp), %esi
+	movl	%r14d, %edx
+	leaq	.LC23(%rip), %r8
 	call	error_at_location@PLT
 	jmp	.L201
 	.p2align 4,,10
@@ -1611,11 +1620,11 @@ lx_next:
 	leaq	(%rdx,%rdi), %rcx
 	movzbl	(%rcx), %eax
 	cmpb	$45, %al
-	je	.L629
-	testb	$8, g_extensions(%rip)
 	je	.L630
-	cmpb	$61, %al
+	testb	$8, g_extensions(%rip)
 	je	.L631
+	cmpb	$61, %al
+	je	.L632
 .L255:
 	cmpq	%r10, %rsi
 	jnb	.L375
@@ -1623,12 +1632,12 @@ lx_next:
 	jmp	.L338
 	.p2align 4,,10
 	.p2align 3
-.L608:
+.L609:
 	testb	$1, g_extensions(%rip)
 	jne	.L165
 	movl	g_pedantic(%rip), %r10d
 	testl	%r10d, %r10d
-	jne	.L632
+	jne	.L633
 	movq	%rdi, 16(%rbx)
 .L168:
 	addl	$1, 28(%rbx)
@@ -1647,7 +1656,7 @@ lx_next:
 .L607:
 	addq	%rdi, %rdx
 	cmpb	$60, (%rdx)
-	je	.L633
+	je	.L634
 	cmpb	$61, (%rdx)
 	je	.L276
 	movl	$60, %eax
@@ -1660,7 +1669,7 @@ lx_next:
 	jmp	.L375
 .L253:
 	cmpl	$42, %r15d
-	je	.L634
+	je	.L635
 	cmpl	$47, %r15d
 	jne	.L262
 	leaq	1(%r13), %rdi
@@ -1676,31 +1685,31 @@ lx_next:
 	jmp	.L601
 	.p2align 4,,10
 	.p2align 3
-.L614:
-	movl	24(%rsp), %eax
+.L615:
 	leaq	1(%rsi), %r12
+	leal	1(%r14), %eax
 	movl	$1, %edi
-	movq	%r10, 8(%rsp)
+	movq	%r10, 24(%rsp)
 	movq	%r12, 16(%rbx)
-	addl	$1, %eax
 	movl	%eax, 28(%rbx)
 	call	malloc@PLT
-	movq	8(%rsp), %r10
+	movq	24(%rsp), %r10
 	testq	%rax, %rax
 	movq	%rax, %r15
-	je	.L635
+	je	.L636
 .L203:
 	xorl	%r13d, %r13d
-	movl	$1, %r14d
-	movq	%rbp, 8(%rsp)
+	movl	$1, %r9d
+	movq	%rbp, 32(%rsp)
 	movq	%r13, %rax
-	movq	%r14, %rbp
+	movl	%r14d, 24(%rsp)
 	movq	%r15, %r13
+	movq	%r9, %rbp
 	movq	%rax, %r15
 	jmp	.L217
 	.p2align 4,,10
 	.p2align 3
-.L640:
+.L641:
 	movq	(%rbx), %rcx
 	movzbl	(%rcx,%r12), %eax
 	movl	%eax, %r14d
@@ -1709,16 +1718,16 @@ lx_next:
 	addq	$1, %r12
 	movq	%r12, 16(%rbx)
 	cmpl	$10, %eax
-	je	.L636
+	je	.L637
 	addl	$1, 28(%rbx)
 	cmpl	$34, %eax
-	je	.L637
-	cmpl	$42, %eax
 	je	.L638
+	cmpl	$42, %eax
+	je	.L639
 	cmpl	$92, %eax
 	jne	.L206
 	movl	24(%rsp), %edx
-	movl	28(%rsp), %esi
+	movl	20(%rsp), %esi
 	movq	%rbx, %rdi
 	call	parse_backslash_escape
 	movl	%eax, %r14d
@@ -1727,7 +1736,7 @@ lx_next:
 .L206:
 	leaq	2(%r15), %rax
 	cmpq	%rax, %rbp
-	jb	.L639
+	jb	.L640
 .L214:
 	movq	16(%rbx), %r12
 	movq	8(%rbx), %r10
@@ -1735,19 +1744,19 @@ lx_next:
 	addq	$1, %r15
 .L217:
 	cmpq	%r10, %r12
-	jb	.L640
+	jb	.L641
 .L204:
 	movq	32(%rbx), %rdi
 	movl	24(%rsp), %edx
 	movl	$8, %ecx
 	xorl	%r14d, %r14d
-	movl	28(%rsp), %esi
-	leaq	.LC23(%rip), %r8
+	movl	20(%rsp), %esi
+	leaq	.LC24(%rip), %r8
 	call	error_at_location@PLT
 	jmp	.L206
 	.p2align 4,,10
 	.p2align 3
-.L638:
+.L639:
 	movl	$42, %r14d
 	cmpq	%r10, %r12
 	jnb	.L206
@@ -1761,14 +1770,14 @@ lx_next:
 	jnc	.L206
 .L212:
 	movl	24(%rsp), %edx
-	movl	28(%rsp), %esi
+	movl	20(%rsp), %esi
 	movq	%rbx, %rdi
 	call	parse_escape
 	movl	%eax, %r14d
 	jmp	.L206
 	.p2align 4,,10
 	.p2align 3
-.L639:
+.L640:
 	leaq	8(%rbp,%rbp), %rbp
 	movq	%r13, %rdi
 	movq	%rbp, %rsi
@@ -1776,32 +1785,31 @@ lx_next:
 	movq	%rax, %r13
 	testq	%rax, %rax
 	jne	.L214
-	leaq	.LC8(%rip), %rdi
+	leaq	.LC9(%rip), %rdi
 	xorl	%eax, %eax
 	call	dief@PLT
 	jmp	.L214
 	.p2align 4,,10
 	.p2align 3
-.L636:
+.L637:
 	addl	$1, 24(%rbx)
 	movl	$10, %r14d
 	movl	$1, 28(%rbx)
 	jmp	.L206
-.L615:
-	movl	24(%rsp), %r14d
+.L616:
 	addq	$1, %rsi
-	xorl	%r13d, %r13d
-	movq	$0, 48(%rsp)
-	movq	%rsi, 16(%rbx)
-	movl	28(%rsp), %r15d
-	movq	$0, 56(%rsp)
 	leal	1(%r14), %eax
+	movl	20(%rsp), %r15d
+	xorl	%r13d, %r13d
+	movq	%rsi, 16(%rbx)
 	movl	%eax, 28(%rbx)
+	movq	$0, 64(%rsp)
+	movq	$0, 72(%rsp)
 	cmpq	%r10, %rsi
 	jnb	.L220
 	.p2align 4
 	.p2align 3
-.L645:
+.L646:
 	movq	(%rbx), %rax
 	movzbl	(%rax,%rsi), %r12d
 	testl	%r12d, %r12d
@@ -1809,20 +1817,20 @@ lx_next:
 	addq	$1, %rsi
 	movq	%rsi, 16(%rbx)
 	cmpl	$10, %r12d
-	je	.L641
+	je	.L642
 	addl	$1, 28(%rbx)
 	cmpl	$39, %r12d
-	je	.L642
+	je	.L643
 	cmpq	$1, %r13
 	jbe	.L230
 	testb	$32, g_extensions(%rip)
 	je	.L223
 .L231:
 	cmpq	$4, %r13
-	je	.L643
+	je	.L644
 .L230:
 	cmpl	$42, %r12d
-	je	.L644
+	je	.L645
 	cmpl	$92, %r12d
 	jne	.L596
 	movl	%r14d, %edx
@@ -1834,29 +1842,29 @@ lx_next:
 	movq	16(%rbx), %rsi
 	movq	8(%rbx), %r10
 .L222:
-	movl	%r12d, 48(%rsp,%r13,4)
+	movl	%r12d, 64(%rsp,%r13,4)
 	addq	$1, %r13
 	cmpq	%r10, %rsi
-	jb	.L645
+	jb	.L646
 .L220:
 	movq	32(%rbx), %rdi
 	movl	$8, %ecx
 	movl	%r14d, %edx
 	movl	%r15d, %esi
-	leaq	.LC25(%rip), %r8
+	leaq	.LC26(%rip), %r8
 	call	error_at_location@PLT
 	cmpq	$1, %r13
 	jbe	.L229
 	testb	$32, g_extensions(%rip)
 	je	.L433
 	cmpq	$4, %r13
-	je	.L646
+	je	.L647
 .L229:
 	movq	16(%rbx), %rsi
 	movq	8(%rbx), %r10
 	xorl	%r12d, %r12d
 	jmp	.L222
-.L644:
+.L645:
 	movq	16(%rbx), %rsi
 	movq	8(%rbx), %r10
 	cmpq	%r10, %rsi
@@ -1865,7 +1873,7 @@ lx_next:
 	movzbl	(%rdx,%rsi), %eax
 	cmpb	$39, %al
 	je	.L235
-	jle	.L647
+	jle	.L648
 	cmpb	$116, %al
 	jg	.L222
 	cmpb	$100, %al
@@ -1883,11 +1891,11 @@ lx_next:
 	movq	8(%rbx), %r10
 	movl	%eax, %r12d
 	jmp	.L222
-.L642:
+.L643:
 	testl	%r13d, %r13d
-	je	.L648
+	je	.L649
 	movslq	%r13d, %rax
-	leaq	48(%rsp), %rdx
+	leaq	64(%rsp), %rdx
 	leaq	(%rdx,%rax,4), %rsi
 	xorl	%eax, %eax
 	.p2align 5
@@ -1903,7 +1911,7 @@ lx_next:
 .L242:
 	movq	%rax, 32(%rbp)
 	movq	32(%rbx), %rdx
-	movq	(%rsp), %rax
+	movq	8(%rsp), %rax
 	movl	$4, 0(%rbp)
 	movq	$0, 8(%rbp)
 	movq	$0, 16(%rbp)
@@ -1925,9 +1933,9 @@ lx_next:
 	movl	$42, 0(%rbp)
 	movq	32(%rbx), %rax
 	jmp	.L601
-.L678:
+.L679:
 	cmpl	$61, %r15d
-	jne	.L649
+	jne	.L650
 .L270:
 	leaq	1(%r13), %rdi
 	cmpq	%r12, %rdi
@@ -1936,7 +1944,7 @@ lx_next:
 	movzbl	(%rcx), %r11d
 	movl	%r11d, %eax
 	cmpb	$43, %r11b
-	je	.L650
+	je	.L651
 	cmpb	$60, %r11b
 	jg	.L297
 	cmpb	$36, %r11b
@@ -1980,15 +1988,14 @@ lx_next:
 	.text
 .L299:
 	cmpl	$61, %r11d
-	je	.L651
+	je	.L652
 .L324:
 	cmpq	%r12, %rdi
 	jnb	.L293
 	cmpb	$61, (%rcx)
 	jne	.L338
-	movl	24(%rsp), %eax
+	leal	1(%r14), %eax
 	movq	%rdi, 16(%rbx)
-	addl	$1, %eax
 	movl	%eax, 28(%rbx)
 	movzbl	(%rcx), %eax
 	testl	%eax, %eax
@@ -1996,8 +2003,7 @@ lx_next:
 	addq	$1, %rdi
 	movq	%rdi, 16(%rbx)
 	cmpl	$10, %eax
-	je	.L652
-	movl	24(%rsp), %r14d
+	je	.L653
 	addl	$2, %r14d
 	movl	%r14d, 28(%rbx)
 .L348:
@@ -2010,16 +2016,15 @@ lx_next:
 	cmpb	$60, %al
 	je	.L605
 	cmpb	$61, %al
-	je	.L653
+	je	.L654
 	call	lx_get
 	call	lx_get
 	movl	$47, 0(%rbp)
 	movq	32(%rbx), %rax
 	jmp	.L601
 .L302:
-	movl	24(%rsp), %eax
+	leal	1(%r14), %eax
 	movq	%rdi, 16(%rbx)
-	addl	$1, %eax
 	movl	%eax, 28(%rbx)
 	movzbl	(%rcx), %eax
 	testl	%eax, %eax
@@ -2027,8 +2032,7 @@ lx_next:
 	addq	$2, %r13
 	movq	%r13, 16(%rbx)
 	cmpl	$10, %eax
-	je	.L654
-	movl	24(%rsp), %r14d
+	je	.L655
 	addl	$2, %r14d
 	movl	%r14d, 28(%rbx)
 .L313:
@@ -2036,9 +2040,8 @@ lx_next:
 	movq	32(%rbx), %rax
 	jmp	.L601
 .L303:
-	movl	24(%rsp), %eax
+	leal	1(%r14), %eax
 	movq	%rdi, 16(%rbx)
-	addl	$1, %eax
 	movl	%eax, 28(%rbx)
 	movzbl	(%rcx), %eax
 	testl	%eax, %eax
@@ -2046,8 +2049,7 @@ lx_next:
 	addq	$2, %r13
 	movq	%r13, 16(%rbx)
 	cmpl	$10, %eax
-	je	.L655
-	movl	24(%rsp), %r14d
+	je	.L656
 	addl	$2, %r14d
 	movl	%r14d, 28(%rbx)
 .L309:
@@ -2055,9 +2057,8 @@ lx_next:
 	movq	32(%rbx), %rax
 	jmp	.L601
 .L304:
-	movl	24(%rsp), %eax
+	leal	1(%r14), %eax
 	movq	%rdi, 16(%rbx)
-	addl	$1, %eax
 	movl	%eax, 28(%rbx)
 	movzbl	(%rcx), %eax
 	testl	%eax, %eax
@@ -2065,8 +2066,7 @@ lx_next:
 	addq	$2, %r13
 	movq	%r13, 16(%rbx)
 	cmpl	$10, %eax
-	je	.L656
-	movl	24(%rsp), %r14d
+	je	.L657
 	addl	$2, %r14d
 	movl	%r14d, 28(%rbx)
 .L311:
@@ -2074,9 +2074,8 @@ lx_next:
 	movq	32(%rbx), %rax
 	jmp	.L601
 .L305:
-	movl	24(%rsp), %eax
+	leal	1(%r14), %eax
 	movq	%rdi, 16(%rbx)
-	addl	$1, %eax
 	movl	%eax, 28(%rbx)
 	movzbl	(%rcx), %eax
 	testl	%eax, %eax
@@ -2084,8 +2083,7 @@ lx_next:
 	addq	$2, %r13
 	movq	%r13, 16(%rbx)
 	cmpl	$10, %eax
-	je	.L657
-	movl	24(%rsp), %r14d
+	je	.L658
 	addl	$2, %r14d
 	movl	%r14d, 28(%rbx)
 .L317:
@@ -2093,9 +2091,8 @@ lx_next:
 	movq	32(%rbx), %rax
 	jmp	.L601
 .L306:
-	movl	24(%rsp), %eax
+	leal	1(%r14), %eax
 	movq	%rdi, 16(%rbx)
-	addl	$1, %eax
 	movl	%eax, 28(%rbx)
 	movzbl	(%rcx), %eax
 	testl	%eax, %eax
@@ -2103,15 +2100,14 @@ lx_next:
 	addq	$2, %r13
 	movq	%r13, 16(%rbx)
 	cmpl	$10, %eax
-	je	.L658
-	movl	24(%rsp), %r14d
+	je	.L659
 	addl	$2, %r14d
 	movl	%r14d, 28(%rbx)
 .L315:
 	movl	$42, 0(%rbp)
 	movq	32(%rbx), %rax
 	jmp	.L601
-.L623:
+.L624:
 	testb	$8, g_extensions(%rip)
 	jne	.L255
 	movl	g_pedantic(%rip), %r8d
@@ -2135,23 +2131,22 @@ lx_next:
 	movl	$8, %ecx
 	movl	%r14d, %edx
 	movl	%r15d, %esi
-	leaq	.LC26(%rip), %r8
+	leaq	.LC27(%rip), %r8
 	call	error_at_location@PLT
 	jmp	.L231
 .L165:
-	movl	24(%rsp), %r11d
 	movq	%rdi, 16(%rbx)
-	leal	1(%r11), %edi
+	leal	1(%r14), %edi
 	movl	%edi, 28(%rbx)
 	movzbl	(%r10), %edi
 	testl	%edi, %edi
 	je	.L179
 	leaq	2(%r13), %rsi
-	leal	2(%r11), %r9d
+	leal	2(%r14), %r9d
 	movq	%rsi, 16(%rbx)
 	cmpl	$10, %edi
 	jne	.L171
-	movl	28(%rsp), %edi
+	movl	20(%rsp), %edi
 	movl	$1, %r9d
 	addl	$1, %edi
 	movl	%edi, 24(%rbx)
@@ -2162,7 +2157,7 @@ lx_next:
 .L179:
 	cmpq	%r12, %rsi
 	jnb	.L176
-.L660:
+.L661:
 	movzbl	(%rdx,%rsi), %edi
 	movzbl	%dil, %r9d
 	testb	$16, 1(%rax,%r9,2)
@@ -2172,24 +2167,24 @@ lx_next:
 	addq	$1, %rsi
 	movq	%rsi, 16(%rbx)
 	cmpl	$10, %edi
-	je	.L659
+	je	.L660
 	movl	28(%rbx), %edi
 	addl	$1, %edi
 .L175:
 	movl	%edi, 28(%rbx)
 	cmpq	%r12, %rsi
-	jb	.L660
+	jb	.L661
 .L176:
 	testb	$16, 1(%rax)
 	jne	.L179
 .L593:
-	movl	$16, %r15d
+	movl	$16, %r12d
 	jmp	.L178
-.L659:
+.L660:
 	addl	$1, 24(%rbx)
 	movl	$1, %edi
 	jmp	.L175
-.L641:
+.L642:
 	addl	$1, 24(%rbx)
 	movl	$1, 28(%rbx)
 	cmpq	$1, %r13
@@ -2202,12 +2197,12 @@ lx_next:
 	movl	$8, %ecx
 	movl	%r14d, %edx
 	movl	%r15d, %esi
-	leaq	.LC24(%rip), %r8
+	leaq	.LC25(%rip), %r8
 	call	error_at_location@PLT
 	jmp	.L596
 	.p2align 4,,10
 	.p2align 3
-.L630:
+.L631:
 	movl	g_pedantic(%rip), %edi
 	testl	%edi, %edi
 	je	.L255
@@ -2215,17 +2210,19 @@ lx_next:
 	cmpb	$61, 1(%rdx,%r13)
 	jne	.L255
 .L286:
-	movl	28(%rsp), %esi
+	movl	20(%rsp), %esi
 	movq	32(%rbx), %rdi
-	leaq	.LC28(%rip), %r8
 	movl	$8, %ecx
-	movl	24(%rsp), %edx
+	movl	%r14d, %edx
+	leaq	.LC29(%rip), %r8
+	movb	%r9b, 24(%rsp)
 	call	error_at_location@PLT
 	movq	16(%rbx), %r13
 	movq	8(%rbx), %r12
+	cmpl	$124, %r15d
+	movzbl	24(%rsp), %r9d
 	movq	%r13, %rsi
 	movq	%r12, %r10
-	cmpl	$124, %r15d
 	jne	.L246
 	leaq	1(%r13), %rdi
 	cmpq	%r12, %rdi
@@ -2235,7 +2232,7 @@ lx_next:
 	movzbl	(%rdx,%rdi), %eax
 .L288:
 	cmpb	$124, %al
-	je	.L661
+	je	.L662
 .L342:
 	movq	%r13, %rsi
 	movq	%r12, %r10
@@ -2261,11 +2258,11 @@ lx_next:
 	movl	$45, 0(%rbp)
 	movq	32(%rbx), %rax
 	jmp	.L601
-.L637:
+.L638:
 	movq	g_compilation_arena(%rip), %rdi
 	movq	%r15, %rax
 	movq	%r13, %r15
-	movq	8(%rsp), %rbp
+	movq	32(%rsp), %rbp
 	movb	$0, (%r15,%rax)
 	movq	%rax, %r13
 	movl	$1, %eax
@@ -2286,7 +2283,7 @@ lx_next:
 .L218:
 	movl	%eax, 24(%rbp)
 	movq	32(%rbx), %rdx
-	movq	(%rsp), %rax
+	movq	8(%rsp), %rax
 	movl	$3, 0(%rbp)
 	movq	%r15, 8(%rbp)
 	movq	%r13, 16(%rbp)
@@ -2294,7 +2291,7 @@ lx_next:
 	movq	%rax, 40(%rbp)
 	movq	%rdx, 48(%rbp)
 	jmp	.L137
-.L634:
+.L635:
 	leaq	1(%r13), %rdi
 	cmpq	%r12, %rdi
 	jnb	.L255
@@ -2309,7 +2306,7 @@ lx_next:
 .L429:
 	xorl	%r15d, %r15d
 	jmp	.L199
-.L625:
+.L626:
 	cmpb	$61, (%rdx,%rdi)
 	jne	.L255
 	movq	%rbx, %rdi
@@ -2318,12 +2315,12 @@ lx_next:
 	movl	$38, 0(%rbp)
 	movq	32(%rbx), %rax
 	jmp	.L601
-.L632:
+.L633:
 	movq	32(%rbx), %rdi
-	movl	24(%rsp), %edx
-	leaq	.LC20(%rip), %r8
+	movl	20(%rsp), %esi
 	movl	$8, %ecx
-	movl	28(%rsp), %esi
+	movl	%r14d, %edx
+	leaq	.LC21(%rip), %r8
 	call	error_at_location@PLT
 	movq	16(%rbx), %rax
 	cmpq	8(%rbx), %rax
@@ -2353,10 +2350,10 @@ lx_next:
 	movl	$46, 0(%rbp)
 	movq	32(%rbx), %rax
 	jmp	.L601
-.L617:
+.L618:
 	movl	$1379, %eax
 	salq	$37, %rax
-	btq	%r15, %rax
+	btq	%r9, %rax
 	jnc	.L285
 	leaq	1(%r13), %rdi
 	cmpq	%r12, %rdi
@@ -2369,7 +2366,7 @@ lx_next:
 	leaq	1(%r13), %rdi
 .L281:
 	cmpq	%r12, %rdi
-	jb	.L662
+	jb	.L663
 	cmpq	%r12, %r13
 	jnb	.L384
 	movq	(%rbx), %rdx
@@ -2380,7 +2377,7 @@ lx_next:
 	jmp	.L384
 .L265:
 	cmpl	$60, %r15d
-	jne	.L663
+	jne	.L664
 	leaq	1(%r13), %rdi
 	cmpq	%r12, %rdi
 	jnb	.L329
@@ -2393,36 +2390,38 @@ lx_next:
 .L363:
 	addl	$1, 28(%rbx)
 	jmp	.L375
-.L661:
+.L662:
 	testb	$16, g_extensions(%rip)
-	jne	.L664
+	jne	.L665
 	movl	g_pedantic(%rip), %edx
 	testl	%edx, %edx
 	je	.L342
-	movl	28(%rsp), %esi
+	movl	20(%rsp), %esi
 	movq	32(%rbx), %rdi
-	leaq	.LC29(%rip), %r8
 	movl	$8, %ecx
-	movl	24(%rsp), %edx
+	movl	%r14d, %edx
+	leaq	.LC30(%rip), %r8
+	movb	%r9b, 24(%rsp)
 	call	error_at_location@PLT
 	movq	16(%rbx), %rsi
 	movq	8(%rbx), %r10
+	movzbl	24(%rsp), %r9d
 	jmp	.L255
-.L648:
+.L649:
 	movq	32(%rbx), %rdi
-	movl	24(%rsp), %edx
-	leaq	.LC27(%rip), %r8
+	movl	20(%rsp), %esi
 	movl	$8, %ecx
-	movl	28(%rsp), %esi
+	movl	%r14d, %edx
+	leaq	.LC28(%rip), %r8
 	call	error_at_location@PLT
 	xorl	%eax, %eax
 	jmp	.L242
 .L284:
-	cmpb	$124, %r15b
+	cmpb	$124, %r9b
 	jne	.L283
 	leaq	1(%r13), %rax
 	cmpq	%r12, %rax
-	jb	.L665
+	jb	.L666
 	addl	$1, 28(%rbx)
 	movq	%rax, 16(%rbx)
 .L340:
@@ -2436,12 +2435,12 @@ lx_next:
 	cmpb	$39, 1(%rdx,%rsi)
 	jne	.L222
 	jmp	.L237
-.L643:
+.L644:
 	movq	32(%rbx), %rdi
 	movl	$8, %ecx
 	movl	%r14d, %edx
 	movl	%r15d, %esi
-	leaq	.LC24(%rip), %r8
+	leaq	.LC25(%rip), %r8
 	call	error_at_location@PLT
 	jmp	.L230
 .L293:
@@ -2461,9 +2460,8 @@ lx_next:
 	addq	%rdi, %rdx
 	cmpb	$62, (%rdx)
 	jne	.L281
-	movl	24(%rsp), %eax
+	leal	1(%r14), %eax
 	movq	%rdi, 16(%rbx)
-	addl	$1, %eax
 	movl	%eax, 28(%rbx)
 	movzbl	(%rdx), %eax
 	testl	%eax, %eax
@@ -2471,8 +2469,7 @@ lx_next:
 	addq	$1, %rdi
 	movq	%rdi, 16(%rbx)
 	cmpl	$10, %eax
-	je	.L666
-	movl	24(%rsp), %r14d
+	je	.L667
 	addl	$2, %r14d
 	movl	%r14d, 28(%rbx)
 .L334:
@@ -2481,10 +2478,9 @@ lx_next:
 	jmp	.L601
 .L297:
 	cmpb	$124, %r11b
-	jne	.L667
-	movl	24(%rsp), %eax
+	jne	.L668
+	leal	1(%r14), %eax
 	movq	%rdi, 16(%rbx)
-	addl	$1, %eax
 	movl	%eax, 28(%rbx)
 	movzbl	(%rcx), %eax
 	testl	%eax, %eax
@@ -2492,18 +2488,16 @@ lx_next:
 	addq	$2, %r13
 	movq	%r13, 16(%rbx)
 	cmpl	$10, %eax
-	je	.L668
-	movl	24(%rsp), %r14d
+	je	.L669
 	addl	$2, %r14d
 	movl	%r14d, 28(%rbx)
 .L319:
 	movl	$46, 0(%rbp)
 	movq	32(%rbx), %rax
 	jmp	.L601
-.L624:
-	movl	24(%rsp), %ecx
+.L625:
+	leal	1(%r14), %edx
 	movq	%rdi, 16(%rbx)
-	leal	1(%rcx), %edx
 	movl	%edx, 28(%rbx)
 	movzbl	(%rax), %eax
 	testl	%eax, %eax
@@ -2511,22 +2505,20 @@ lx_next:
 	addq	$2, %r13
 	movq	%r13, 16(%rbx)
 	cmpl	$10, %eax
-	je	.L669
-	movl	24(%rsp), %r14d
+	je	.L670
 	addl	$2, %r14d
 	movl	%r14d, 28(%rbx)
 .L250:
 	movl	$36, 0(%rbp)
 	movq	32(%rbx), %rax
 	jmp	.L601
-.L647:
+.L648:
 	cmpb	$34, %al
 	jne	.L222
 	jmp	.L237
-.L629:
-	movl	24(%rsp), %eax
+.L630:
+	leal	1(%r14), %eax
 	movq	%rdi, 16(%rbx)
-	addl	$1, %eax
 	movl	%eax, 28(%rbx)
 	movzbl	(%rcx), %eax
 	testl	%eax, %eax
@@ -2534,8 +2526,7 @@ lx_next:
 	addq	$2, %r13
 	movq	%r13, 16(%rbx)
 	cmpl	$10, %eax
-	je	.L670
-	movl	24(%rsp), %r14d
+	je	.L671
 	addl	$2, %r14d
 	movl	%r14d, 28(%rbx)
 .L257:
@@ -2548,7 +2539,7 @@ lx_next:
 	btq	%rax, %rdx
 	jc	.L237
 	jmp	.L222
-.L627:
+.L628:
 	cmpq	%r12, %r13
 	jnb	.L369
 	movzbl	(%rdx,%r13), %eax
@@ -2556,7 +2547,7 @@ lx_next:
 	je	.L370
 	movq	%rdi, 16(%rbx)
 	cmpl	$10, %eax
-	je	.L671
+	je	.L672
 	addl	$1, 28(%rbx)
 	movq	%rdi, %r13
 .L370:
@@ -2566,7 +2557,7 @@ lx_next:
 	addq	$1, %r13
 	movq	%r13, 16(%rbx)
 	cmpl	$10, %eax
-	je	.L672
+	je	.L673
 	addl	$1, 28(%rbx)
 .L369:
 	movl	$27, 0(%rbp)
@@ -2582,19 +2573,18 @@ lx_next:
 	jmp	.L341
 	.p2align 4,,10
 	.p2align 3
-.L646:
+.L647:
 	movq	32(%rbx), %rdi
 	movl	$8, %ecx
 	movl	%r14d, %edx
 	movl	%r15d, %esi
-	leaq	.LC24(%rip), %r8
+	leaq	.LC25(%rip), %r8
 	xorl	%r12d, %r12d
 	call	error_at_location@PLT
 	jmp	.L596
-.L633:
-	movl	24(%rsp), %eax
+.L634:
+	leal	1(%r14), %eax
 	movq	%rdi, 16(%rbx)
-	addl	$1, %eax
 	movl	%eax, 28(%rbx)
 	movzbl	(%rdx), %eax
 	testl	%eax, %eax
@@ -2602,18 +2592,16 @@ lx_next:
 	addq	$1, %rdi
 	movq	%rdi, 16(%rbx)
 	cmpl	$10, %eax
-	je	.L673
-	movl	24(%rsp), %r14d
+	je	.L674
 	addl	$2, %r14d
 	movl	%r14d, 28(%rbx)
 .L332:
 	movl	$28, 0(%rbp)
 	movq	32(%rbx), %rax
 	jmp	.L601
-.L650:
-	movl	24(%rsp), %eax
+.L651:
+	leal	1(%r14), %eax
 	movq	%rdi, 16(%rbx)
-	addl	$1, %eax
 	movl	%eax, 28(%rbx)
 	movzbl	(%rcx), %eax
 	testl	%eax, %eax
@@ -2621,15 +2609,14 @@ lx_next:
 	addq	$2, %r13
 	movq	%r13, 16(%rbx)
 	cmpl	$10, %eax
-	je	.L674
-	movl	24(%rsp), %r14d
+	je	.L675
 	addl	$2, %r14d
 	movl	%r14d, 28(%rbx)
 .L295:
 	movl	$38, 0(%rbp)
 	movq	32(%rbx), %rax
 	jmp	.L601
-.L651:
+.L652:
 	cmpb	$61, 2(%rdx,%r13)
 	jne	.L324
 	movq	%rbx, %rdi
@@ -2641,7 +2628,7 @@ lx_next:
 	jmp	.L601
 	.p2align 4,,10
 	.p2align 3
-.L618:
+.L619:
 	cmpq	%r12, %r13
 	jnb	.L356
 	movzbl	(%rdx,%r13), %edx
@@ -2649,7 +2636,7 @@ lx_next:
 	je	.L356
 	movq	%rdi, 16(%rbx)
 	cmpl	$10, %edx
-	je	.L675
+	je	.L676
 	movl	28(%rbx), %ecx
 	leal	1(%rcx), %edx
 .L359:
@@ -2660,13 +2647,13 @@ lx_next:
 	addq	$1, %rdi
 	movq	%rdi, 16(%rbx)
 	cmpl	$10, %eax
-	je	.L676
+	je	.L677
 	addl	$1, 28(%rbx)
 .L356:
 	movl	$23, 0(%rbp)
 	movq	32(%rbx), %rax
 	jmp	.L601
-.L631:
+.L632:
 	movq	%rbx, %rdi
 	call	lx_get
 	call	lx_get
@@ -2687,7 +2674,7 @@ lx_next:
 	movl	$43, 0(%rbp)
 	movq	32(%rbx), %rax
 	jmp	.L601
-.L664:
+.L665:
 	movq	%rbx, %rdi
 	call	lx_get
 	call	lx_get
@@ -2695,9 +2682,8 @@ lx_next:
 	movq	32(%rbx), %rax
 	jmp	.L601
 .L276:
-	movl	24(%rsp), %eax
+	leal	1(%r14), %eax
 	movq	%rdi, 16(%rbx)
-	addl	$1, %eax
 	movl	%eax, 28(%rbx)
 	movzbl	(%rdx), %eax
 	testl	%eax, %eax
@@ -2705,108 +2691,107 @@ lx_next:
 	addq	$1, %rdi
 	movq	%rdi, 16(%rbx)
 	cmpl	$10, %eax
-	je	.L677
-	movl	24(%rsp), %r14d
+	je	.L678
 	addl	$2, %r14d
 	movl	%r14d, 28(%rbx)
 .L364:
 	movl	$25, 0(%rbp)
 	movq	32(%rbx), %rax
 	jmp	.L601
-.L668:
-	movl	28(%rsp), %eax
+.L669:
+	movl	20(%rsp), %eax
 	movl	$1, 28(%rbx)
 	addl	$1, %eax
 	movl	%eax, 24(%rbx)
 	jmp	.L319
-.L658:
-	movl	28(%rsp), %eax
+.L659:
+	movl	20(%rsp), %eax
 	movl	$1, 28(%rbx)
 	addl	$1, %eax
 	movl	%eax, 24(%rbx)
 	jmp	.L315
-.L670:
-	movl	28(%rsp), %eax
+.L671:
+	movl	20(%rsp), %eax
 	movl	$1, 28(%rbx)
 	addl	$1, %eax
 	movl	%eax, 24(%rbx)
 	jmp	.L257
-.L669:
-	movl	28(%rsp), %eax
+.L670:
+	movl	20(%rsp), %eax
 	movl	$1, 28(%rbx)
 	addl	$1, %eax
 	movl	%eax, 24(%rbx)
 	jmp	.L250
-.L674:
-	movl	28(%rsp), %eax
+.L675:
+	movl	20(%rsp), %eax
 	movl	$1, 28(%rbx)
 	addl	$1, %eax
 	movl	%eax, 24(%rbx)
 	jmp	.L295
-.L657:
-	movl	28(%rsp), %eax
+.L658:
+	movl	20(%rsp), %eax
 	movl	$1, 28(%rbx)
 	addl	$1, %eax
 	movl	%eax, 24(%rbx)
 	jmp	.L317
-.L656:
-	movl	28(%rsp), %eax
+.L657:
+	movl	20(%rsp), %eax
 	movl	$1, 28(%rbx)
 	addl	$1, %eax
 	movl	%eax, 24(%rbx)
 	jmp	.L311
-.L655:
-	movl	28(%rsp), %eax
+.L656:
+	movl	20(%rsp), %eax
 	movl	$1, 28(%rbx)
 	addl	$1, %eax
 	movl	%eax, 24(%rbx)
 	jmp	.L309
-.L654:
-	movl	28(%rsp), %eax
+.L655:
+	movl	20(%rsp), %eax
 	movl	$1, 28(%rbx)
 	addl	$1, %eax
 	movl	%eax, 24(%rbx)
 	jmp	.L313
-.L652:
+.L653:
 	addl	$1, %r8d
 	movl	$1, 28(%rbx)
 	movl	%r8d, 24(%rbx)
 	jmp	.L348
-.L673:
-	movl	28(%rsp), %eax
+.L674:
+	movl	20(%rsp), %eax
 	movl	$1, 28(%rbx)
 	addl	$1, %eax
 	movl	%eax, 24(%rbx)
 	jmp	.L332
-.L676:
+.L677:
 	addl	$1, 24(%rbx)
 	movl	$1, 28(%rbx)
 	jmp	.L356
-.L675:
+.L676:
 	addl	$1, 24(%rbx)
 	movl	$1, %edx
 	jmp	.L359
-.L666:
+.L667:
 	addl	$1, %r8d
 	movl	$1, 28(%rbx)
 	movl	%r8d, 24(%rbx)
 	jmp	.L334
-.L671:
+.L672:
 	addl	$1, 24(%rbx)
 	movq	%rdi, %r13
 	movl	$1, 28(%rbx)
 	jmp	.L370
-.L677:
+.L678:
 	addl	$1, 24(%rbx)
 	movl	$1, 28(%rbx)
 	jmp	.L364
-.L672:
+.L673:
 	addl	$1, 24(%rbx)
 	movl	$1, 28(%rbx)
 	jmp	.L369
-.L663:
+.L664:
 	cmpl	$62, %r15d
-	jne	.L678
+	jne	.L679
 	leaq	1(%r13), %rdi
 	cmpq	%r12, %rdi
 	jnb	.L374
@@ -2825,22 +2810,22 @@ lx_next:
 	movl	$44, 0(%rbp)
 	movq	32(%rbx), %rax
 	jmp	.L601
-.L635:
-	leaq	.LC8(%rip), %rdi
+.L636:
+	leaq	.LC9(%rip), %rdi
 	xorl	%eax, %eax
 	call	dief@PLT
 	movq	16(%rbx), %r12
 	movq	8(%rbx), %r10
 	jmp	.L203
-.L626:
+.L627:
 	leaq	1(%rsi), %rdi
 	jmp	.L341
-.L665:
+.L666:
 	movzbl	1(%rdx,%r13), %eax
 	cmpb	$61, %al
 	jne	.L288
 	jmp	.L286
-.L667:
+.L668:
 	cmpl	$62, %r11d
 	jne	.L299
 	movzbl	2(%rdx,%r13), %eax
@@ -2848,13 +2833,13 @@ lx_next:
 	cmpb	$62, %al
 	je	.L604
 	cmpb	$61, %al
-	je	.L679
+	je	.L680
 	call	lx_get
 	call	lx_get
 	movl	$49, 0(%rbp)
 	movq	32(%rbx), %rax
 	jmp	.L601
-.L679:
+.L680:
 	call	lx_get
 	call	lx_get
 	call	lx_get
@@ -2883,27 +2868,26 @@ lx_next:
 	movl	$52, 0(%rbp)
 	movq	32(%rbx), %rax
 	jmp	.L601
-.L653:
+.L654:
 	call	lx_get
 	call	lx_get
 	call	lx_get
 	movl	$48, 0(%rbp)
 	movq	32(%rbx), %rax
 	jmp	.L601
-.L613:
-	leaq	.LC8(%rip), %rdi
+.L614:
+	leaq	.LC9(%rip), %rdi
 	xorl	%eax, %eax
 	call	dief@PLT
 	jmp	.L158
-.L621:
-	leaq	.LC8(%rip), %rdi
-	xorl	%eax, %eax
+.L622:
+	leaq	.LC9(%rip), %rdi
 	call	dief@PLT
 	movq	(%rbx), %rcx
-	movzbl	8(%rsp), %r8d
+	movzbl	24(%rsp), %r8d
 	addq	%r13, %rcx
 	jmp	.L194
-.L649:
+.L650:
 	cmpl	$33, %r15d
 	jne	.L255
 	leaq	1(%r13), %rdi
@@ -2925,11 +2909,11 @@ tok_free:
 	movq	%rdi, %rbx
 	movq	8(%rdi), %rdi
 	testq	%rdi, %rdi
-	je	.L681
+	je	.L682
 	movl	24(%rbx), %eax
 	testl	%eax, %eax
-	jne	.L686
-.L681:
+	jne	.L687
+.L682:
 	movq	$0, 8(%rbx)
 	popq	%rbx
 	.cfi_remember_state
@@ -2937,7 +2921,7 @@ tok_free:
 	ret
 	.p2align 4,,10
 	.p2align 3
-.L686:
+.L687:
 	.cfi_restore_state
 	call	free@PLT
 	movq	$0, 8(%rbx)
@@ -2948,109 +2932,109 @@ tok_free:
 .LFE23:
 	.size	tok_free, .-tok_free
 	.section	.rodata.str1.1
-.LC31:
-	.string	"EOF"
 .LC32:
-	.string	"identifier"
+	.string	"EOF"
 .LC33:
-	.string	"number"
+	.string	"identifier"
 .LC34:
-	.string	"string"
+	.string	"number"
 .LC35:
-	.string	"character"
+	.string	"string"
 .LC36:
-	.string	"if"
+	.string	"character"
 .LC37:
-	.string	"("
+	.string	"if"
 .LC38:
-	.string	")"
+	.string	"("
 .LC39:
-	.string	"{"
+	.string	")"
 .LC40:
-	.string	"}"
+	.string	"{"
 .LC41:
-	.string	","
+	.string	"}"
 .LC42:
-	.string	";"
+	.string	","
 .LC43:
-	.string	"="
+	.string	";"
 .LC44:
-	.string	"=="
+	.string	"="
 .LC45:
-	.string	"!="
+	.string	"=="
 .LC46:
-	.string	"<"
+	.string	"!="
 .LC47:
-	.string	"<="
+	.string	"<"
 .LC48:
-	.string	">"
+	.string	"<="
 .LC49:
-	.string	">="
+	.string	">"
 .LC50:
-	.string	"<<"
+	.string	">="
 .LC51:
-	.string	">>"
+	.string	"<<"
 .LC52:
-	.string	"+"
+	.string	">>"
 .LC53:
-	.string	"-"
+	.string	"+"
 .LC54:
-	.string	"*"
+	.string	"-"
 .LC55:
-	.string	"/"
+	.string	"*"
 .LC56:
-	.string	"%"
+	.string	"/"
 .LC57:
-	.string	"!"
+	.string	"%"
 .LC58:
-	.string	"?"
+	.string	"!"
 .LC59:
-	.string	"["
+	.string	"?"
 .LC60:
-	.string	"]"
+	.string	"["
 .LC61:
-	.string	"++"
+	.string	"]"
 .LC62:
-	.string	"--"
+	.string	"++"
 .LC63:
-	.string	"=+"
+	.string	"--"
 .LC64:
-	.string	"=-"
+	.string	"=+"
 .LC65:
-	.string	"=*"
+	.string	"=-"
 .LC66:
-	.string	"=/"
+	.string	"=*"
 .LC67:
-	.string	"=%"
+	.string	"=/"
 .LC68:
-	.string	"=<<"
+	.string	"=%"
 .LC69:
-	.string	"=>>"
+	.string	"=<<"
 .LC70:
-	.string	"=&"
+	.string	"=>>"
 .LC71:
-	.string	"=|"
+	.string	"=&"
 .LC72:
-	.string	"=<"
+	.string	"=|"
 .LC73:
-	.string	"=<="
+	.string	"=<"
 .LC74:
-	.string	"=>"
+	.string	"=<="
 .LC75:
-	.string	"=>="
+	.string	"=>"
 .LC76:
-	.string	"==="
+	.string	"=>="
 .LC77:
-	.string	"=!="
+	.string	"==="
 .LC78:
-	.string	"&"
+	.string	"=!="
 .LC79:
-	.string	"|"
+	.string	"&"
 .LC80:
-	.string	"||"
+	.string	"|"
 .LC81:
-	.string	":"
+	.string	"||"
 .LC82:
+	.string	":"
+.LC83:
 	.string	"<unknown token>"
 	.text
 	.p2align 4
@@ -3060,8 +3044,8 @@ tk_name:
 .LFB24:
 	.cfi_startproc
 	cmpl	$61, %edi
-	ja	.L688
-	leaq	.L690(%rip), %rdx
+	ja	.L689
+	leaq	.L691(%rip), %rdx
 	movl	%edi, %edi
 	movslq	(%rdx,%rdi,4), %rax
 	addq	%rdx, %rax
@@ -3069,70 +3053,75 @@ tk_name:
 	.section	.rodata
 	.align 4
 	.align 4
-.L690:
-	.long	.L751-.L690
-	.long	.L752-.L690
-	.long	.L749-.L690
-	.long	.L748-.L690
-	.long	.L747-.L690
-	.long	.L746-.L690
-	.long	.L745-.L690
-	.long	.L744-.L690
-	.long	.L743-.L690
-	.long	.L742-.L690
-	.long	.L741-.L690
-	.long	.L740-.L690
-	.long	.L739-.L690
-	.long	.L738-.L690
-	.long	.L737-.L690
-	.long	.L736-.L690
-	.long	.L735-.L690
-	.long	.L734-.L690
-	.long	.L733-.L690
-	.long	.L732-.L690
-	.long	.L731-.L690
-	.long	.L730-.L690
-	.long	.L729-.L690
-	.long	.L728-.L690
-	.long	.L727-.L690
-	.long	.L726-.L690
-	.long	.L725-.L690
-	.long	.L724-.L690
-	.long	.L723-.L690
-	.long	.L722-.L690
-	.long	.L721-.L690
-	.long	.L720-.L690
-	.long	.L719-.L690
-	.long	.L718-.L690
-	.long	.L717-.L690
-	.long	.L716-.L690
-	.long	.L715-.L690
-	.long	.L714-.L690
-	.long	.L713-.L690
-	.long	.L712-.L690
-	.long	.L711-.L690
-	.long	.L710-.L690
-	.long	.L709-.L690
-	.long	.L708-.L690
-	.long	.L707-.L690
-	.long	.L706-.L690
-	.long	.L705-.L690
-	.long	.L704-.L690
-	.long	.L703-.L690
-	.long	.L702-.L690
-	.long	.L701-.L690
-	.long	.L700-.L690
-	.long	.L699-.L690
-	.long	.L698-.L690
-	.long	.L697-.L690
-	.long	.L696-.L690
-	.long	.L695-.L690
-	.long	.L694-.L690
-	.long	.L693-.L690
-	.long	.L692-.L690
-	.long	.L691-.L690
-	.long	.L689-.L690
+.L691:
+	.long	.L752-.L691
+	.long	.L753-.L691
+	.long	.L750-.L691
+	.long	.L749-.L691
+	.long	.L748-.L691
+	.long	.L747-.L691
+	.long	.L746-.L691
+	.long	.L745-.L691
+	.long	.L744-.L691
+	.long	.L743-.L691
+	.long	.L742-.L691
+	.long	.L741-.L691
+	.long	.L740-.L691
+	.long	.L739-.L691
+	.long	.L738-.L691
+	.long	.L737-.L691
+	.long	.L736-.L691
+	.long	.L735-.L691
+	.long	.L734-.L691
+	.long	.L733-.L691
+	.long	.L732-.L691
+	.long	.L731-.L691
+	.long	.L730-.L691
+	.long	.L729-.L691
+	.long	.L728-.L691
+	.long	.L727-.L691
+	.long	.L726-.L691
+	.long	.L725-.L691
+	.long	.L724-.L691
+	.long	.L723-.L691
+	.long	.L722-.L691
+	.long	.L721-.L691
+	.long	.L720-.L691
+	.long	.L719-.L691
+	.long	.L718-.L691
+	.long	.L717-.L691
+	.long	.L716-.L691
+	.long	.L715-.L691
+	.long	.L714-.L691
+	.long	.L713-.L691
+	.long	.L712-.L691
+	.long	.L711-.L691
+	.long	.L710-.L691
+	.long	.L709-.L691
+	.long	.L708-.L691
+	.long	.L707-.L691
+	.long	.L706-.L691
+	.long	.L705-.L691
+	.long	.L704-.L691
+	.long	.L703-.L691
+	.long	.L702-.L691
+	.long	.L701-.L691
+	.long	.L700-.L691
+	.long	.L699-.L691
+	.long	.L698-.L691
+	.long	.L697-.L691
+	.long	.L696-.L691
+	.long	.L695-.L691
+	.long	.L694-.L691
+	.long	.L693-.L691
+	.long	.L692-.L691
+	.long	.L690-.L691
 	.text
+	.p2align 4,,10
+	.p2align 3
+.L753:
+	leaq	.LC33(%rip), %rax
+	ret
 	.p2align 4,,10
 	.p2align 3
 .L752:
@@ -3140,311 +3129,306 @@ tk_name:
 	ret
 	.p2align 4,,10
 	.p2align 3
-.L751:
-	leaq	.LC31(%rip), %rax
+.L690:
+	leaq	.LC20(%rip), %rax
 	ret
 	.p2align 4,,10
 	.p2align 3
-.L689:
+.L707:
+	leaq	.LC71(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L708:
+	leaq	.LC70(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L709:
+	leaq	.LC69(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L710:
+	leaq	.LC68(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L711:
+	leaq	.LC67(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L712:
+	leaq	.LC66(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L713:
+	leaq	.LC65(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L714:
+	leaq	.LC64(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L715:
+	leaq	.LC63(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L716:
+	leaq	.LC62(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L717:
+	leaq	.LC58(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L718:
+	leaq	.LC57(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L719:
+	leaq	.LC56(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L720:
+	leaq	.LC55(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L721:
+	leaq	.LC54(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L698:
+	leaq	.LC80(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L699:
+	leaq	.LC79(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L700:
+	leaq	.LC78(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L701:
+	leaq	.LC77(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L702:
+	leaq	.LC76(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L703:
+	leaq	.LC75(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L704:
+	leaq	.LC74(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L705:
+	leaq	.LC73(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L694:
+	leaq	.LC17(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L695:
+	leaq	.LC82(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L696:
+	leaq	.LC59(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L697:
+	leaq	.LC81(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L692:
 	leaq	.LC19(%rip), %rax
 	ret
 	.p2align 4,,10
 	.p2align 3
 .L706:
-	leaq	.LC70(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L707:
-	leaq	.LC69(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L708:
-	leaq	.LC68(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L709:
-	leaq	.LC67(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L710:
-	leaq	.LC66(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L711:
-	leaq	.LC65(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L712:
-	leaq	.LC64(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L713:
-	leaq	.LC63(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L714:
-	leaq	.LC62(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L715:
-	leaq	.LC61(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L716:
-	leaq	.LC57(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L717:
-	leaq	.LC56(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L718:
-	leaq	.LC55(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L719:
-	leaq	.LC54(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L720:
-	leaq	.LC53(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L697:
-	leaq	.LC79(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L698:
-	leaq	.LC78(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L699:
-	leaq	.LC77(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L700:
-	leaq	.LC76(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L701:
-	leaq	.LC75(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L702:
-	leaq	.LC74(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L703:
-	leaq	.LC73(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L704:
 	leaq	.LC72(%rip), %rax
 	ret
 	.p2align 4,,10
 	.p2align 3
-.L693:
-	leaq	.LC16(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L694:
-	leaq	.LC81(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L695:
-	leaq	.LC58(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L696:
-	leaq	.LC80(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L691:
-	leaq	.LC18(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L705:
-	leaq	.LC71(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L747:
-	leaq	.LC35(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
 .L748:
-	leaq	.LC34(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L743:
-	leaq	.LC11(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L744:
-	leaq	.LC10(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L745:
 	leaq	.LC36(%rip), %rax
 	ret
 	.p2align 4,,10
 	.p2align 3
-.L746:
-	leaq	.LC9(%rip), %rax
+.L749:
+	leaq	.LC35(%rip), %rax
 	ret
 	.p2align 4,,10
 	.p2align 3
-.L735:
-	leaq	.LC40(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L736:
-	leaq	.LC39(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L737:
-	leaq	.LC38(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L738:
-	leaq	.LC37(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L739:
-	leaq	.LC13(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L740:
-	leaq	.LC15(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L741:
-	leaq	.LC14(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L742:
+.L744:
 	leaq	.LC12(%rip), %rax
 	ret
 	.p2align 4,,10
 	.p2align 3
-.L692:
-	leaq	.LC17(%rip), %rax
+.L745:
+	leaq	.LC11(%rip), %rax
 	ret
 	.p2align 4,,10
 	.p2align 3
-.L749:
-	leaq	.LC33(%rip), %rax
+.L746:
+	leaq	.LC37(%rip), %rax
 	ret
 	.p2align 4,,10
 	.p2align 3
-.L721:
-	leaq	.LC52(%rip), %rax
+.L747:
+	leaq	.LC10(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L736:
+	leaq	.LC41(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L737:
+	leaq	.LC40(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L738:
+	leaq	.LC39(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L739:
+	leaq	.LC38(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L740:
+	leaq	.LC14(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L741:
+	leaq	.LC16(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L742:
+	leaq	.LC15(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L743:
+	leaq	.LC13(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L693:
+	leaq	.LC18(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L750:
+	leaq	.LC34(%rip), %rax
 	ret
 	.p2align 4,,10
 	.p2align 3
 .L722:
-	leaq	.LC51(%rip), %rax
+	leaq	.LC53(%rip), %rax
 	ret
 	.p2align 4,,10
 	.p2align 3
 .L723:
-	leaq	.LC50(%rip), %rax
+	leaq	.LC52(%rip), %rax
 	ret
 	.p2align 4,,10
 	.p2align 3
 .L724:
-	leaq	.LC49(%rip), %rax
+	leaq	.LC51(%rip), %rax
 	ret
 	.p2align 4,,10
 	.p2align 3
 .L725:
-	leaq	.LC48(%rip), %rax
+	leaq	.LC50(%rip), %rax
 	ret
 	.p2align 4,,10
 	.p2align 3
 .L726:
-	leaq	.LC47(%rip), %rax
+	leaq	.LC49(%rip), %rax
 	ret
 	.p2align 4,,10
 	.p2align 3
 .L727:
-	leaq	.LC46(%rip), %rax
+	leaq	.LC48(%rip), %rax
 	ret
 	.p2align 4,,10
 	.p2align 3
 .L728:
-	leaq	.LC45(%rip), %rax
+	leaq	.LC47(%rip), %rax
 	ret
 	.p2align 4,,10
 	.p2align 3
 .L729:
-	leaq	.LC44(%rip), %rax
+	leaq	.LC46(%rip), %rax
 	ret
 	.p2align 4,,10
 	.p2align 3
 .L730:
-	leaq	.LC43(%rip), %rax
+	leaq	.LC45(%rip), %rax
 	ret
 	.p2align 4,,10
 	.p2align 3
 .L731:
-	leaq	.LC60(%rip), %rax
+	leaq	.LC44(%rip), %rax
 	ret
 	.p2align 4,,10
 	.p2align 3
 .L732:
-	leaq	.LC59(%rip), %rax
+	leaq	.LC61(%rip), %rax
 	ret
 	.p2align 4,,10
 	.p2align 3
 .L733:
-	leaq	.LC42(%rip), %rax
+	leaq	.LC60(%rip), %rax
 	ret
 	.p2align 4,,10
 	.p2align 3
 .L734:
-	leaq	.LC41(%rip), %rax
+	leaq	.LC43(%rip), %rax
 	ret
-.L688:
-	leaq	.LC82(%rip), %rax
+	.p2align 4,,10
+	.p2align 3
+.L735:
+	leaq	.LC42(%rip), %rax
+	ret
+.L689:
+	leaq	.LC83(%rip), %rax
 	ret
 	.cfi_endproc
 .LFE24:

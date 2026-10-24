@@ -138,7 +138,12 @@ _open:
 	mov	2(sp), r0
 	jsr	pc, .path1
 	bes	9f
-	mov	4(sp), 0f+2
+	/ Canonicalize every nonzero B mode to write-only, not host open flags.
+	clr	0f+2
+	tst	4(sp)
+	beq	1f
+	inc	0f+2
+1:
 	sys	sopen; 0:.bp1; ..
 	bes	9f
 	rts	pc

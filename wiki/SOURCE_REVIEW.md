@@ -508,6 +508,16 @@ uses LLVM and documents unsupported cases. Neither is a substitute for the
 contemporary B manual, and neither README review establishes whole-tree
 correctness.
 
+The declaration and expression paths in
+[`unix1_bdir/bc.B` at revision 8779d9e](https://github.com/aap/b/blob/8779d9e8684d1daaa47c6fab1705194d732863bb/unix1_bdir/bc.B)
+were inspected separately. They mark a definition's own name external and
+infer an external when an otherwise undeclared name is followed by `(`.
+The reconstruction calls that inference a best-effort way to recognize calls.
+It does not settle every scope question in the original manual, or justify
+making every external data definition implicitly visible in every function.
+Those distinctions need explicit tests rather than a blanket change to all
+undeclared names.
+
 ## Compiler structure and bootstrap evidence
 
 ### BCPL's intermediate-code bootstrap
@@ -690,6 +700,33 @@ These are audit questions, not claims that the corresponding fixes are done:
 
 See [historical conformance](HISTORICAL_CONFORMANCE.md) for implemented
 behavior and current limits, and [testing](WIKI_TESTS.md) for the checks.
+
+## Checks following the review
+
+The host and B-written bootstrap already sequence bitwise `&` and `|`
+operands left to right. Existing executable tests cover the side effects;
+this review did not establish a new defect in those paths.
+
+The `open` review did find a full-word conversion bug. A nonzero host B word
+whose low C `int` bits were zero selected read-only access. Both shared and
+inline runtimes now compare the B word itself. The native wrapper normalizes
+nonzero modes to one: that preserves the old kernel contract and avoids the
+application emulator's later read/write interpretation of other mode values.
+Tests check access direction, initial offset, preservation of existing file
+contents, and failure to open a missing file.
+
+The native self-rebuild now has an independent host-side disk check. It saves
+references before boot, then reads installed binaries and generated library
+assembly after the simulator closes its disk images. Comparisons include
+exact lengths and every byte, including an odd trailing byte or NUL. This
+strengthens the existing rebuild test; it does not turn the C-written native
+compiler into a B-written one.
+
+A separate lexical check found that a physical NUL outside a literal could
+make the host and bootstrap silently stop reading source. They now diagnose
+that byte rather than treating it as end-of-file. `*0` remains the supported
+escape for a NUL in literal data. Native parsing already rejects the
+outside-literal case.
 
 ## Reference inventory
 

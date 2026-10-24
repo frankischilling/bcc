@@ -5,9 +5,9 @@ in strict mode. A successful short read or write is possible; callers that
 need an entire block must loop until the requested bytes are transferred or
 an error/end-of-file occurs.
 
-- `open(name,mode)` opens an existing file. Use 0 for reading and 1 for
-  writing. The host implementation does not provide a read/write mode 2;
-  it currently treats nonzero modes as write-only.
+- `open(name,mode)` opens an existing file. Use 0 for reading; every nonzero
+  B word requests write-only access. Mode 2 is not a read/write extension.
+  Opening does not create or truncate the file, and starts at offset zero.
 - `creat(name,mode)` creates or truncates a file and returns its descriptor.
 - `close(fd)` closes a descriptor.
 - `read(fd,buf,count)` returns the bytes read, zero at EOF, or -1 on error.

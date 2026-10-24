@@ -21,6 +21,7 @@ import time
 
 import pexpect
 from v1_image import inspect
+from v1_files import verify_files
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 V1 = os.path.normpath(os.path.join(HERE, "..", "..", "unix-v1"))
@@ -128,12 +129,22 @@ def main() -> int:
     parser.add_argument("program", nargs="?", default="hi.b")
     parser.add_argument("--expected", type=Path)
     parser.add_argument("--argument", action="append", default=[], help="simple argument passed to the guest program")
-    parser.add_argument("--expect-compile-error", action="store_true")
+    outcome = parser.add_mutually_exclusive_group()
+    outcome.add_argument("--expect-compile-error", action="store_true")
     parser.add_argument("--trace-stages", action="store_true", help="run each compiler pass directly before checking the driver")
-    parser.add_argument("--selfhost", action="store_true", help="rebuild and compare the four compiler binaries inside V1")
+    outcome.add_argument("--selfhost", action="store_true", help="rebuild and compare the four compiler binaries inside V1")
     args = parser.parse_args()
     if any(not re.fullmatch(r"[A-Za-z0-9_.-]+", value) for value in args.argument):
         parser.error("guest arguments must be simple shell words")
+    expected_rebuilds = {}
+    if args.selfhost:
+        # Snapshot independent host references before the guest can overwrite files.
+        expected_rebuilds = {
+            'rf0.dsk': {'bin/b': Path(V1, 'fs/root/bin/b').read_bytes()},
+            'rk0.dsk': {f'lib/bcc/{name}': Path(V1, f'fs/usr/lib/bcc/{name}').read_bytes()
+                        for name in ('b00', 'b01', 'b1')},
+        }
+        expected_rebuilds['rk0.dsk']['tmp/l.s'] = Path(V1, 'fs/usr/lib/bcc/libb.ref').read_bytes()
     run_command = "./a.out" + "".join(" " + value for value in args.argument)
     PROG = args.program
     TRACE = args.trace_stages
@@ -210,7 +221,7 @@ def main() -> int:
                 mode = command(f"chmod 36 {destination}")
                 if copied.strip() or mode.strip():
                     raise RuntimeError(f"could not install rebuilt {name}: {copied!r} {mode!r}")
-                sys.stderr.write(f"PASS: in-system {name} rebuild matches apout binary\n")
+                sys.stderr.write(f"Guest comparator accepted in-system {name} rebuild\n")
             command("rm /usr/tmp/l.s")
             command("/usr/lib/bcc/b00 -o /usr/tmp/l.r1 /usr/lib/libb.b")
             command("/usr/lib/bcc/b01 -i /usr/tmp/l.r1 -o /usr/tmp/l.r2")
@@ -218,7 +229,7 @@ def main() -> int:
             comparison = command("cmp /usr/tmp/l.s /usr/lib/bcc/libb.ref")
             if comparison.strip():
                 raise RuntimeError(f"in-system B library differs from the apout build: {comparison!r}")
-            sys.stderr.write("PASS: in-system B library matches generated assembly\n")
+            sys.stderr.write("Guest comparator accepted in-system B library assembly\n")
             command("chdir /")
 
         sock.sendall(b"rm a.out\n")
@@ -290,6 +301,13 @@ def main() -> int:
             simh.expect(pexpect.EOF, timeout=10)
         except pexpect.ExceptionPexpect:
             simh.terminate(force=True)
+
+    # SIMH has closed the disks, so verify exact file lengths and bytes on the host.
+    # The historical cmp and console output are not sufficient for odd-sized files.
+    for disk, expected in expected_rebuilds.items():
+        verify_files(Path(V1, 'images', disk).read_bytes(), expected)
+    if expected_rebuilds:
+        sys.stderr.write("PASS: exact disk bytes match all four compiler binaries and B library assembly\n")
 
     text = out.decode("latin-1", errors="replace")
     # Strip the echoed "./a.out" and a returned shell prompt if present.

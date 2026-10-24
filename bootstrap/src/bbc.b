@@ -431,6 +431,7 @@ encoded_name(s) {
 next() {
     auto c, start, base, v, s, d, encoded;
     skip_ws();
+    if ((POS < SRCLEN) & (peekc() == 0)) fatal("NUL byte outside a literal");
     c = getc1();
     TTEXT = 0;
     TNUM = 0;

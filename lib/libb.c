@@ -384,7 +384,7 @@ failed:
 
 word b_open(word name, word mode) {
     const char *p = __b_cstr(name);
-    int flags = ((int)mode == 0) ? O_RDONLY : O_WRONLY;
+    int flags = (mode == 0) ? O_RDONLY : O_WRONLY;
     return (word)open(p, flags);
 }
 

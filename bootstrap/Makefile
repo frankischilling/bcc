@@ -42,6 +42,8 @@ test: stage3
 
 	@set -e; for stage in 1 2 3; do python3 ../tests/test_number_formatting.py --bootstrap --compiler build/stage$$stage/bbc; done
 
+	@set -e; for stage in 1 2 3; do python3 ../tests/test_open_runtime.py --bootstrap --compiler build/stage$$stage/bbc; done
+
 	@set -e; for stage in 1 2 3; do python3 ../tests/test_read_runtime.py --bootstrap --compiler build/stage$$stage/bbc; done
 
 	@set -e; for stage in 1 2 3; do python3 ../tests/test_docs_examples.py --bootstrap --compiler build/stage$$stage/bbc; done

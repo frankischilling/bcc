@@ -149,7 +149,12 @@ Token lx_next(Lexer *L) {
     lx_skip_ws_and_comments(L);
     int line = L->line, col = L->col;
     int c = lx_peek(L);
-    if (!c) return mk_tok(TK_EOF, line, col, L->filename);
+    if (!c) {
+        if (L->i < L->len)
+            error_at_location(L->filename, line, col, ERR_EXPR_SYNTAX,
+                              "NUL byte outside a literal");
+        return mk_tok(TK_EOF, line, col, L->filename);
+    }
 
     /* identifiers / keywords */
     if (isalpha(c) || c == '_' || c == 8) {

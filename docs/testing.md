@@ -45,6 +45,7 @@ bash pdp-11/bcc-pdp/tests/ext/run.sh
 python3 pdp-11/bcc-pdp/tests/driver_cases.py
 python3 pdp-11/bcc-pdp/tests/ic_cases.py
 python3 pdp-11/bcc-pdp/tests/image_tools.py
+python3 pdp-11/bcc-pdp/tests/file_verification.py
 python3 pdp-11/bcc-pdp/tests/runtime_selection.py
 python3 pdp-11/bcc-pdp/tests/build_lock.py
 bash pdp-11/bcc-pdp/tests/check_v1_binaries.sh
@@ -78,6 +79,7 @@ make -C pdp-11/bcc-pdp v1-selfhost B=tests/run/t26_postfix_index.b
 make -C pdp-11/bcc-pdp v1-run B=tests/run/t27_ctime_check.b
 make -C pdp-11/bcc-pdp v1-run B=tests/run/t32_time_registers.b
 make -C pdp-11/bcc-pdp v1-run B=tests/run/t33_files.b
+make -C pdp-11/bcc-pdp v1-run B=tests/run/t99_open_modes.b
 make -C pdp-11/bcc-pdp v1-run B=tests/run/t34_fork.b
 make -C pdp-11/bcc-pdp v1-run B=tests/run/t35_execv.b
 make -C pdp-11/bcc-pdp v1-run B=tests/run/t41_eight_names.b
@@ -88,7 +90,12 @@ bash pdp-11/bcc-pdp/tools/v1-run.sh pdp-11/bcc-pdp/tests/run/t19a_tilde.b --expe
 
 The first command rebuilds and compares all four compiler binaries inside
 the booted system, then recompiles and compares the B-written library before
-using the rebuilt compiler to run a B fixture. Other
+using the rebuilt compiler to run a B fixture. After the simulator closes its
+disks, a separate host filesystem reader checks all four installed binaries
+and the generated library assembly against pre-boot references. It compares
+lengths and every byte, rather than relying only on the guest's `cmp` or
+console output. The reader's unit tests include odd lengths, trailing NULs,
+sparse blocks, indirect blocks, and malformed images. Other
 cases cover date bytes and guards, hardware time registers, files, processes,
 the actual tty interface, and eight-character/case-sensitive B names.
 
@@ -107,7 +114,7 @@ explains these safeguards and the offset-preserving historical-tool overlay.
 Tests establish specific cases, not complete historical equivalence. See
 [the conformance notes](../wiki/HISTORICAL_CONFORMANCE.md) for primary sources
 and remaining gaps, including host terminal mapping, native cross-file
-linkage, and full function-name storage in the C backends. A bootstrap fixed point
+linkage, and host-sized storage in the B-written bootstrap. A bootstrap fixed point
 can preserve the same bug across stages. Sanitizer results should state both
 which code was instrumented and whether leak checking was available.
 
@@ -115,6 +122,15 @@ which code was instrumented and whether leak checking was available.
 word/runtime layouts and each bootstrap stage. Native tests use the same
 positive source files. The suite also rejects malformed name lists, missing
 bodies, duplicate locals, and malformed parameter lists.
+
+`tests/test_open_runtime.py` checks zero/read and nonzero/write modes across
+host word sizes, both runtime layouts, and all bootstrap stages. It includes
+values that would become zero if narrowed to a C `int`. Native open-mode tests
+run under both the application emulator and the restored kernel.
+
+`tests/test_identifier_bytes.py` also rejects physical NULs before, between,
+or after source definitions. Rejection tests require a compiler diagnostic;
+a signal or sanitizer failure is not an acceptable rejection.
 
 `tests/test_unix_metadata.py` checks status fields against controlled host
 files, including size/time wraparound, guard cells, failed calls, directory

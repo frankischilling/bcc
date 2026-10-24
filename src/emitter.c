@@ -2144,7 +2144,7 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
         "#include <fcntl.h>\n"
 "static word b_open(word name, word mode){\n"
 "    const char *p = __b_cstr(name);\n"
-"    int flags = ((int)mode == 0) ? O_RDONLY : O_WRONLY;\n"
+"    int flags = (mode == 0) ? O_RDONLY : O_WRONLY;\n"
 "    return (word)open(p, flags);\n"
 "}\n"
 "static word b_openr(word fd, word name){\n"
