@@ -10,11 +10,13 @@ static void sem_check_switch_fallthrough(SemState *st, Stmt *switch_stmt);
 
 static Symbol *symbol_new(SymbolKind kind, const char *name, int line, int col) {
     Symbol *sym = xmalloc(sizeof(*sym));
+    memset(sym, 0, sizeof(*sym));
     sym->kind = kind;
     sym->name = sdup(name);
     sym->line = line;
     sym->col = col;
     sym->is_extern = 0;
+    sym->is_builtin = 0;
     return sym;
 }
 
@@ -108,6 +110,7 @@ static void sem_add_builtin_functions(SemState *st) {
         if (scope_has_in_current(st->current, builtins[i])) continue;
         vec_push(&st->function_names, sdup(builtins[i]));
         Symbol *sym = symbol_new(SYM_FUNC, builtins[i], 0, 0);
+        sym->is_builtin = 1;
         scope_add(st->current, sym);
     }
 }
@@ -177,6 +180,8 @@ static void sem_check_lvalue(SemState *st, Expr *e) {
                     // Undeclared variable used as lvalue - add to implicit statics
                     vec_push(&st->implicit_statics, sdup(e->as.var));
                 }
+            } else if (sym->is_builtin && strcmp(sym->name, "argv") == 0) {
+                e->builtin_argv = 1;
             } else if (sym->kind != SYM_VAR) {
                 dief("'%s' is not a variable at %d:%d", e->as.var, e->line, e->col);
             }
@@ -209,7 +214,8 @@ static void sem_check_expr(SemState *st, Expr *e) {
         case EX_VAR: {
             // Check if variable is declared or extern
             Symbol *sym = scope_find(st->current, e->as.var);
-            e->function_value = sym && sym->kind == SYM_FUNC;
+            e->builtin_argv = sym && sym->is_builtin && strcmp(sym->name, "argv") == 0;
+            e->function_value = sym && sym->kind == SYM_FUNC && !e->builtin_argv;
             if (!sym && !is_extern_name(st, e->as.var) && !is_implicit_static(st, e->as.var)) {
                 if (g_strict)
                     dief("undefined internal name '%s' at %d:%d", e->as.var, e->line, e->col);
@@ -621,6 +627,14 @@ void sem_check_program(Program *prog, const char *filename) {
                 break;
             }
         }
+    }
+
+    // Function values need the same cross-file binding information as calls.
+    for (size_t i = 0; i < g_known_functions.len; i++) {
+        const char *name = g_known_functions.data[i];
+        if (scope_has_in_current(st->current, name)) continue;
+        scope_add(st->current, symbol_new(SYM_FUNC, name, 0, 0));
+        vec_push(&st->function_names, sdup(name));
     }
 
     // Library names are defaults, not reserved B identifiers.

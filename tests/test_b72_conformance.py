@@ -8,6 +8,8 @@ import tempfile
 
 
 CASES = {
+    "global_address_initializer": ("value 37; ref value; main(){extrn ref; return(*ref!=37);}", 0),
+    "vector_address_initializer": ("value 37; refs[1] value; main(){extrn refs; return(*refs[0]!=37);}", 0),
     "empty_character": ("main(){return('');}", None),
     "overlong_character": ("main(){return('abc');}", None),
     "unclosed_character": ("main(){return('x", None),

@@ -144,6 +144,8 @@ word b_putnum(word n);
 void __b_setargs(int argc, char **argv);
 word b_argc(void);
 word b_argv(word i);
+extern word b_argv_vector;
+word __b_argvalues(void); /* Internal bridge for generated main wrappers. */
 word b_reread(void);
 
 /* File I/O */

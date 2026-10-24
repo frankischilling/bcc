@@ -161,6 +161,7 @@ struct Expr {
     ExprKind kind;
     int line, col;
     int function_value; /* This name denotes a function rvalue. */
+    int builtin_argv;   /* The predefined argv vector, not argv(i). */
     int indirect_call;  /* The callee is an evaluated B word. */
     size_t string_len; // EX_STR byte length, excluding the implicit *e
     union {
@@ -292,6 +293,7 @@ typedef struct Symbol {
     char *name;
     int line, col;        // declaration location
     int is_extern;        // for variables: declared with extrn
+    int is_builtin;       // default library binding, not a source definition
     union {
         struct {
             int has_size;     // 0 for scalars, 1 for vectors

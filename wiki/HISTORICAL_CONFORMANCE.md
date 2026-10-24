@@ -112,6 +112,13 @@ The manual's example 9.2 ends with a packed pair of newlines passed to
 little-endian string storage. Tests compare exact bytes, including NULs,
 across host, inline, bootstrap, and native runtimes.
 
+The predefined `argv` vector keeps its count in element zero and the program
+name in element one. Its strings retain native NUL termination. Host
+`argv(i)` and optional main parameters are compatibility interfaces with a
+separate zero-based array; native main parameters retain their documented
+user-argument-only layout. Tests cover empty strings, cross-file access,
+shadowing, mutation, and the address of the predefined vector cell.
+
 The host clock and both date formatters use the [V1 time representation][v1time]:
 32 bits of 60 Hz ticks since January 1, 1971, high word first. `ctime(time,date)`
 writes 15 characters and a NUL into the caller's 16-byte buffer, without a

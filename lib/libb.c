@@ -433,20 +433,32 @@ word b_putnum(word n) {
 static int __b_argc;
 static char **__b_argv;
 static word *__b_argvb;
+word b_argv_vector;
 
 void __b_setargs(int argc, char **argv) {
     __b_argc = argc;
     __b_argv = argv;
 
-    __b_argvb = (word*)malloc(sizeof(word) * (size_t)argc);
+    __b_argvb = (word*)malloc(sizeof(word) * ((size_t)argc + 1));
     if (!__b_argvb) {
         fprintf(stderr, "argv: out of memory\n");
         exit(1);
     }
 
+    /* Keep argv(i) EOT strings separate from the native NUL-string vector. */
+    word *vector = (word*)malloc(sizeof(word) * ((size_t)argc + 1));
+    if (!vector) { fprintf(stderr, "argv: out of memory\n"); exit(1); }
+    vector[0] = WVAL(argc);
     for (int i = 0; i < argc; i++) {
         __b_argvb[i] = __b_pack_cstr(argv[i]);
+        vector[i + 1] = __b_pack_cstr(argv[i]);
+        b_lchar(vector[i + 1], (word)strlen(argv[i]), 0);
     }
+    b_argv_vector = B_PTR_N(vector, sizeof(word) * ((size_t)argc + 1));
+}
+
+word __b_argvalues(void) {
+    return __b_argc ? B_PTR_N(__b_argvb, sizeof(word) * (size_t)__b_argc) : 0;
 }
 
 word b_argc(void) {

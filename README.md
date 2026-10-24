@@ -94,7 +94,7 @@ x =- 1;     /* subtract and assign */
 x = -1;     /* assign negative one */
 ```
 
-Strings end with octal `004`. B escapes include `*n`, `*t`, `*e`, `*0`,
+String literals end with octal `004`. B escapes include `*n`, `*t`, `*e`, `*0`,
 `**`, `*(`, and `*)`; the last two represent braces. Addition binds more
 tightly than shifting, so `1 << 2 + 1` means `1 << (2 + 1)`.
 
@@ -152,6 +152,11 @@ The full-system tests reserve swap space in the generated disk image and
 keep compiler scratch files on the larger `/usr` disk. They do not alter the
 pinned historical source files.
 
+The predefined `argv` vector includes the argument count at index zero and
+the program name at index one. It is distinct from the host `argv(i)`
+compatibility function. The [runtime guide](wiki/WIKI_RUNTIME_LIBRARY.md#command-line-arguments)
+explains the layouts and string terminators.
+
 ## Documentation and source layout
 
 - [Testing and validation](docs/testing.md)
@@ -166,8 +171,8 @@ The host compiler is in `src/`, with its runtime in `lib/`. Regression tests
 are in `tests/`; example programs are in `examples/`. Variant-specific build
 and test code stays under `asm/`, `bootstrap/`, and `pdp-11/bcc-pdp/`.
 
-Known gaps include mutable function-name storage, host stat/terminal ABI
-mapping, native word-addressed pointers, and 16-bit bootstrap storage.
+Known gaps include mutable function-name storage, multiword simple globals
+in the C backends, host stat/terminal ABI mapping, native word-addressed pointers, and 16-bit bootstrap storage.
 Passing tests establish the cases they check, not a claim that the compiler
 is bug-free or fully equivalent to the original implementation.
 

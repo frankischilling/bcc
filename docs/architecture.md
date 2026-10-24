@@ -28,7 +28,13 @@ are removed when freed. Function values use their own address conversion.
 The inline emitter carries equivalent runtime code, so changes to either
 layout need tests against both. Inline 16-bit translation units share their
 address-map storage through common symbols rather than creating a separate
-map for each source file.
+map for each source file. Inline argument metadata is shared too, so a
+function in another input file sees the same process arguments.
+
+The predefined `argv` cell points to a count-prefixed vector with native
+NUL-terminated strings. Compatibility calls retain a separate zero-based
+array of EOT-terminated strings. Generated main wrappers obtain that array
+directly; they must not reconstruct it from a pointer to the first string.
 
 ## Other compiler builds
 

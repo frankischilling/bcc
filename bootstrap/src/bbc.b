@@ -877,7 +877,9 @@ primary() {
             buf_str(b, "((word)");
             buf_num(b, label_id(name));
             buf_ch(b, ')');
-        } else if ((TOK != 30) & !has_local(name) & (has_function(name) | !streq(call_name(name), name))) {
+        } else if ((TOK != 30) & streq(name, "argv") & !has_local(name) & !has_global(name) & !has_function(name)) {
+            buf_str(b, "b_argv_vector");
+        } else if ((TOK != 30) & !has_local(name) & !has_global(name) & (has_function(name) | !streq(call_name(name), name))) {
             buf_str(b, "B_FUNCTION(");
             buf_str(b, call_name(name));
             buf_ch(b, ')');
@@ -1352,6 +1354,8 @@ scan_functions() {
                 }
             } else {
                 add_global(name);
+                while ((TOK != 37) & (TOK != 0)) next();
+                if (TOK == 37) next();
             }
         } else {
             next();
@@ -1387,8 +1391,22 @@ emit_prototypes() {
     emitln("");
 }
 
+/* A bare external initializer names a cell's address, not its value. */
+global_ival() {
+    auto name;
+    if (TOK != 1) return(expr(2));
+    name = TTEXT;
+    next();
+    if (streq(name, "argv") & !has_global(name) & !has_function(name))
+        name = "b_argv_vector";
+    else if (!has_global(name)) name = call_name(name);
+    return(scat(scat("B_ADDR(", name), ")"));
+}
+
 global_or_func() {
     auto name, n, first, p, size, init, braced;
+    NLOCALS = 0;
+    NLABELS = 0;
     if (TOK != 1) fatal("expected top-level name");
     name = TTEXT;
     next();
@@ -1436,7 +1454,7 @@ global_or_func() {
         if (braced) next();
         while (TOK != 37) {
             if (braced & (TOK == 33)) break;
-            p = expr(2);
+            p = global_ival();
             if (n) buf_str(init, ", ");
             buf_str(init, p);
             n = n + 1;
@@ -1480,7 +1498,7 @@ global_or_func() {
     emit("word ");
     emit(name);
     if (TOK != 37) {
-        init = expr(1);
+        init = global_ival();
         emit(" = ");
         emit(init);
     }
@@ -1562,9 +1580,7 @@ emit_main_wrapper() {
     } else if (MAIN_NARGS == 1) {
         emitln("    return (int)__b_user_main((word)argc);");
     } else {
-        emitln("    word **__bbc_argvv = (word**)malloc(sizeof(word) ** (size_t)argc);");
-        emitln("    for (int __i = 0; __i < argc; __i++) __bbc_argvv[__i] = b_argv((word)__i);");
-        emitln("    return (int)__b_user_main((word)argc, B_PTR(__bbc_argvv));");
+        emitln("    return (int)__b_user_main((word)argc, __b_argvalues());");
     }
     emitln("}");
 }

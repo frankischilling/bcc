@@ -170,6 +170,22 @@ static int source_function(const char *name) {
     return 0;
 }
 
+static int predefined_argv(const char *name) {
+    if (strcmp(name, "argv") != 0 || source_function(name)) return 0;
+    for (size_t i = 0; current_program && i < current_program->tops.len; i++) {
+        Top *t = current_program->tops.data[i];
+        if (t->kind == TOP_EXTERN_DEF && strcmp(t->as.ext_def->name, name) == 0)
+            return 0;
+        if (t->kind == TOP_GAUTO) {
+            for (size_t j = 0; j < t->as.gauto->as.autodecl.decls.len; j++) {
+                DeclItem *item = t->as.gauto->as.autodecl.decls.data[j];
+                if (strcmp(item->name, name) == 0) return 0;
+            }
+        }
+    }
+    return 1;
+}
+
 // Get or create mangled name for an identifier
 static const char *get_mangled_name(const char *original) {
     if (!original) return NULL;
@@ -718,6 +734,7 @@ void emit_expr(FILE *out, Expr *e, const char *filename) {
         case EX_VAR: {
             int id = label_id(e->as.var);
             if (id) fprintf(out, "__b_label_value_%d", id);
+            else if (e->builtin_argv) fputs("b_argv_vector", out);
             else if (e->function_value) {
                 fputs("B_FUNCTION(", out);
                 emit_function_name(out, e->as.var);
@@ -1089,7 +1106,8 @@ void emit_expr(FILE *out, Expr *e, const char *filename) {
 void emit_ival_expr(FILE *out, Expr *e, const char *filename){
     if (e->kind == EX_VAR) {
         fputs("B_ADDR(", out);
-        emit_name(out, e->as.var);
+        if (predefined_argv(e->as.var)) fputs("b_argv_vector", out);
+        else emit_name(out, e->as.var);
         fputc(')', out);
         return;
     }
@@ -1586,11 +1604,12 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
         "}\n"
         "\n"
         "/* Command line argument support */\n"
-        "static int __b_argc;\n"
-        "static char **__b_argv;\n"
+        "int __b_argc __attribute__((common));\n"
+        "char **__b_argv __attribute__((common));\n"
         "\n"
         "/* argv strings converted to B strings (packed words, 004 terminator) */\n"
-        "static word *__b_argvb;\n"
+        "word *__b_argvb __attribute__((common));\n"
+        "word b_argv_vector __attribute__((common));\n"
         "\n"
         "static void __b_setargs(int argc, char **argv);\n"
         "static word b_argc(void);\n"
@@ -1760,12 +1779,21 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
         "    __b_argc = argc;\n"
         "    __b_argv = argv;\n"
         "\n"
-        "    __b_argvb = (word*)malloc(sizeof(word) * (size_t)argc);\n"
+        "    __b_argvb = (word*)malloc(sizeof(word) * ((size_t)argc + 1));\n"
         "    if (!__b_argvb) { fprintf(stderr, \"argv: out of memory\\n\"); exit(1); }\n"
         "\n"
+        "    word *vector = (word*)malloc(sizeof(word) * ((size_t)argc + 1));\n"
+        "    if (!vector) { fprintf(stderr, \"argv: out of memory\\n\"); exit(1); }\n"
+        "    vector[0] = WVAL(argc);\n"
         "    for (int i = 0; i < argc; i++){\n"
         "        __b_argvb[i] = __b_pack_cstr(argv[i]);\n"
+        "        vector[i+1] = __b_pack_cstr(argv[i]);\n"
+        "        b_lchar(vector[i+1], (word)strlen(argv[i]), 0);\n"
         "    }\n"
+        "    b_argv_vector = B_PTR_N(vector, sizeof(word) * ((size_t)argc + 1));\n"
+        "}\n"
+        "static word __b_argvalues(void) {\n"
+        "    return __b_argc ? B_PTR_N(__b_argvb, sizeof(word) * (size_t)__b_argc) : 0;\n"
         "}\n"
         "\n"
         "static word b_argc(void) { return (word)__b_argc; }\n"
@@ -2640,7 +2668,7 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
         } else if (main_param_count == 1) {
             fputs("    return (int)__b_user_main((word)argc);\n", out);
         } else if (main_param_count == 2) {
-            fputs("    return (int)__b_user_main((word)argc, B_PTR_N(__b_argvb, sizeof(word) * (size_t)argc));\n", out);
+            fputs("    return (int)__b_user_main((word)argc, __b_argvalues());\n", out);
         } else {
             // For more parameters, we don't support yet
             fputs("    return (int)__b_user_main();\n", out);
@@ -2894,8 +2922,7 @@ void emit_program_c_ext(FILE *out, Program *prog, const char *filename, int byte
         } else if (main_param_count == 1) {
             fputs("    return (int)__b_user_main((word)argc);\n", out);
         } else if (main_param_count == 2) {
-            fputs("    word *__b_argvb_ptr = (word*)B_CPTR(b_argv(0));\n", out);
-            fputs("    return (int)__b_user_main((word)argc, B_PTR(__b_argvb_ptr - 1));\n", out);
+            fputs("    return (int)__b_user_main((word)argc, __b_argvalues());\n", out);
         } else {
             fputs("    return (int)__b_user_main();\n", out);
         }

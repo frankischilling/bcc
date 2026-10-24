@@ -41,10 +41,16 @@ extra allocation and truncated initializer lists cannot pass unnoticed.
 The C backends reserve a backing word for an empty vector, but it has no
 usable elements.
 
+The predefined `argv` vector and the `argv(i)` compatibility call use their
+respective count-prefixed and zero-based layouts. External name initializers
+refer to addresses, not the current contents of those variables. Tests cover
+both scalar and vector initializers, including the predefined argument cell.
+
 ## Remaining differences
 
 Computed branches use function-local label values, including forward
 references. The bootstrap compiler still uses host-sized, byte-addressed
 storage rather than the host compiler's 16-bit address translation. Function-valued calls are covered, but mutable
 function-name storage and complete block-scope resolution still need work.
-Those are separate from the generated-C fixed-point check.
+Simple globals with several initializers also need further work. These
+limits are separate from the generated-C fixed-point check.

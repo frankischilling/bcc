@@ -223,6 +223,30 @@ flush();                           // Flush current output unit
 
 ---
 
+## Command-Line Arguments
+
+`argv` is the predefined B vector described in section 8 of the PDP-11
+reference. Declare it with `extrn argv;` before use:
+
+- `argv[0]` is the stored argument count, including the program name.
+- `argv[1]` points to the program name.
+- `argv[2]` points to the first user argument, when present.
+- These strings end in NUL, matching the native argument frame. Empty
+  arguments remain entries in the vector.
+
+The vector pointer is an assignable B cell. Local variables and same-file
+source definitions named `argv` can hide the predefined name.
+
+The host compatibility calls are separate: `argc()` returns the process
+argument count, and `argv(i)` uses zero-based indexing with the program name
+at index zero. The latter keeps EOT-terminated B strings for compatibility.
+It is a direct-call extension, not the meaning of `argv` used as a value.
+
+Host and bootstrap `main(count, values)` parameters receive the count and a
+zero-based vector of those compatibility strings. Native optional main
+parameters retain their older user-arguments-only layout; see the native
+guide for that distinction and its 31-entry predefined-vector limit.
+
 ## Process Control
 
 ### Process Creation
@@ -751,7 +775,8 @@ main() {
 
 ### Function Binding
 
-In the BCC compiler, B function calls are translated to C function calls with the `b_` prefix:
+Default runtime calls use C functions with a `b_` prefix. Source-defined
+functions take precedence; not every B call goes to the runtime:
 
 ```b
 putchar('A');

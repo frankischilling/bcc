@@ -81,6 +81,8 @@ def main():
                           '--compiler', str(compiler)], 'packed character output') and ok
         ok = checked_run([sys.executable, str(root / 'tests/test_vector_extent.py'),
                           '--compiler', str(compiler)], 'vector extents') and ok
+        ok = checked_run([sys.executable, str(root / 'tests/test_argv_runtime.py'),
+                          '--compiler', str(compiler)], 'argument vector') and ok
     print('All host suites passed.' if ok else 'Host suite failed.')
     return 0 if ok else 1
 

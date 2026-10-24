@@ -21,7 +21,9 @@ missing summaries or zero executed tests. It covers both runtime layouts,
 arguments, clock/date conversion, source-defined library names, and packed
 character output. Character tests check exact bytes rather than terminal text. Vector tests
 compile size assertions against emitted storage and then execute the B
-programs; checking values alone would miss an extra allocated element. Tests of the runner guard against
+programs; checking values alone would miss an extra allocated element. Argument tests distinguish the predefined vector
+from compatibility calls and check multi-file access, mutable pointer cells,
+empty arguments, and main parameters. Tests of the runner guard against
 false-green reports.
 
 `bccasm` runs the same host suite. The B-written compiler runs lexical and

@@ -6,6 +6,7 @@ import subprocess
 import tempfile
 
 CASES = {
+    'cross-file-function': ['main(){auto f; extrn other; f=other; return(f(7)!=10);}', 'other(n){return(n+3);}'],
     'functions': ['''
 printn(n,b) { if(n) return(printn(n-1,b)+1); return(b); }
 printf(n) { return(n+1); }
