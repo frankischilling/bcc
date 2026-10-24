@@ -10,7 +10,9 @@ def main():
     root = Path(__file__).resolve().parents[1]
     apout = root.parent / 'unix-v1/tools/apout/apout'
     env = dict(os.environ, APOUT_ROOT=str(root/'build/aroot'))
-    cases = [('b1', 'Glit 257\n', b'literal length too large'),
+    cases = [('b1', 'ep -1\n', b'bad frame size'),
+             ('b1', 'ep 8192\n', b'bad frame size'),
+             ('b1', 'Glit 257\n', b'literal length too large'),
              ('b1', 'Glit -1\n', b'negative literal length'),
              ('b1', 'gvl -1\n', b'bad literal reference'),
              ('b1', 'gvl 0\n', b'bad literal reference'),

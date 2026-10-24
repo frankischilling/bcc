@@ -1263,6 +1263,45 @@ size_t emit_edge_list_init(FILE *out, const char *arr,
     return cursor;
 }
 
+/* B72 automatic storage belongs to the invocation, not a C block. */
+static void collect_function_autos(Stmt *s, Vec *items) {
+    if (!s) return;
+    switch (s->kind) {
+    case ST_AUTO:
+        for (size_t i = 0; i < s->as.autodecl.decls.len; ++i)
+            vec_push(items, s->as.autodecl.decls.data[i]);
+        break;
+    case ST_BLOCK:
+        for (size_t i = 0; i < s->as.block.items.len; ++i)
+            collect_function_autos(s->as.block.items.data[i], items);
+        break;
+    case ST_IF:
+        collect_function_autos(s->as.ifs.then_s, items);
+        collect_function_autos(s->as.ifs.else_s, items);
+        break;
+    case ST_WHILE: collect_function_autos(s->as.whiles.body, items); break;
+    case ST_SWITCH: collect_function_autos(s->as.switch_.body, items); break;
+    case ST_LABEL: collect_function_autos(s->as.label_.stmt, items); break;
+    default: break;
+    }
+}
+
+static void emit_auto_storage(FILE *out, DeclItem *item, int indent, const char *filename) {
+    const char *name = get_mangled_name(item->name);
+    if (item->size) {
+        emit_indent(out, indent);
+        fprintf(out, "word __%s_store[(", name);
+        emit_expr(out, item->size, filename);
+        fputs(")];\n", out);
+    }
+    emit_indent(out, indent);
+    fprintf(out, "word %s = 0;\n", name);
+    if (current_word_bits == 16) {
+        emit_indent(out, indent);
+        fprintf(out, "(void)B_LOCAL_PTR_N(&%s, sizeof(%s));\n", name, name);
+    }
+}
+
 void emit_stmt(FILE *out, Stmt *s, int indent, int is_function_body, const char *filename);
 
 void emit_stmt(FILE *out, Stmt *s, int indent, int is_function_body, const char *filename) {
@@ -1295,35 +1334,14 @@ void emit_stmt(FILE *out, Stmt *s, int indent, int is_function_body, const char 
 
         case ST_AUTO: {
             for (size_t i = 0; i < s->as.autodecl.decls.len; i++) {
-                DeclItem *item = (DeclItem*)s->as.autodecl.decls.data[i];
-                const char *mname = get_mangled_name(item->name);
-
+                DeclItem *item = s->as.autodecl.decls.data[i];
+                const char *name = get_mangled_name(item->name);
+                if (!g_strict) emit_auto_storage(out, item, indent, filename);
                 if (item->size) {
-                    // Vector: emit backing storage
                     emit_indent(out, indent);
-                    fprintf(out, "word __%s_store[(", mname);
-                    emit_expr(out, item->size, filename);
-                    fprintf(out, ")];\n"); // Automatic vector constants are element counts.
-
-                    // Emit pointer variable
-                    emit_indent(out, indent);
-                    fprintf(out, "word %s;\n", mname);
-                    if (current_word_bits == 16) {
-                        emit_indent(out, indent);
-                        fprintf(out, "(void)B_LOCAL_PTR_N(&%s, sizeof(%s));\n", mname, mname);
-                    }
-
-                    // Emit initialization (will be moved to init function later)
-                    emit_indent(out, indent);
-                    fprintf(out, "%s = B_LOCAL_PTR_N(__%s_store, sizeof(__%s_store));\n", mname, mname, mname);
-                } else {
-                    // Simple variable
-                    emit_indent(out, indent);
-                    fprintf(out, "word %s = 0;\n", mname);
-                    if (current_word_bits == 16) {
-                        emit_indent(out, indent);
-                        fprintf(out, "(void)B_LOCAL_PTR_N(&%s, sizeof(%s));\n", mname, mname);
-                    }
+                    fprintf(out, "%s = B_LOCAL_PTR_N(__%s_store, sizeof(__%s_store));\n", name, name, name);
+                } else if (g_strict) {
+                    emit_indent(out, indent); fputs(";\n", out);
                 }
             }
             return;
@@ -1425,6 +1443,13 @@ static void emit_function_body(FILE *out, Func *f, const char *filename) {
     function_labels.len = 0;
     collect_function_labels(f->body);
     fputs("{\n    B_FRAME;\n", out);
+    if (g_strict) {
+        Vec locals = {0};
+        collect_function_autos(f->body, &locals);
+        for (size_t i = 0; i < locals.len; ++i)
+            emit_auto_storage(out, locals.data[i], 1, filename);
+        if (!g_compilation_arena) free(locals.data);
+    }
     if (current_word_bits == 16) {
         for (size_t p = 0; p < f->params.len; p++) {
             const char *name = get_mangled_name(f->params.data[p]);

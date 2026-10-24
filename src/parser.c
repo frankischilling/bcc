@@ -379,7 +379,9 @@ Stmt *parse_block(Parser *P) {
     Vec *items = vec_new();
     while (P->cur.kind != TK_RBRACE) {
         if (P->cur.kind == TK_EOF) dief("unexpected EOF in block");
-        vec_push(items, parse_stmt(P));
+        if (!g_strict && P->cur.kind == TK_AUTO) vec_push(items, parse_auto_decl(P));
+        else if (!g_strict && P->cur.kind == TK_EXTRN) vec_push(items, parse_extrn_stmt(P));
+        else vec_push(items, parse_stmt(P));
     }
     expect(P, TK_RBRACE);
 
@@ -626,8 +628,17 @@ Stmt *parse_stmt(Parser *P) {
 
     switch (P->cur.kind) {
         case TK_LBRACE:  return parse_block(P);
-        case TK_AUTO:    return parse_auto_decl(P);
-        case TK_EXTRN:   return parse_extrn_stmt(P);
+        case TK_AUTO:
+        case TK_EXTRN: {
+            Stmt *sequence = new_stmt(ST_BLOCK, P->cur.line, P->cur.col);
+            memset(&sequence->as.block.items, 0, sizeof(sequence->as.block.items));
+            do {
+                Stmt *declaration = P->cur.kind == TK_AUTO ? parse_auto_decl(P) : parse_extrn_stmt(P);
+                vec_push(&sequence->as.block.items, declaration);
+            } while (P->cur.kind == TK_AUTO || P->cur.kind == TK_EXTRN);
+            vec_push(&sequence->as.block.items, parse_stmt(P));
+            return sequence;
+        }
         case TK_IF:      return parse_if(P);
         case TK_WHILE:   return parse_while(P);
         case TK_RETURN:  return parse_return(P);

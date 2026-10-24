@@ -5,7 +5,7 @@ _printn:
 	.+2
 	mov	r5, -(sp)
 	mov	sp, r5
-	sub	$2., sp
+	sub	$B30000f, sp
 	mov	r5, r0
 	add	$6., r0
 	mov	(r0), r0
@@ -236,6 +236,7 @@ B30000:
 	mov	r5, sp
 	mov	(sp)+, r5
 	rts	pc
+B30000f = 2.
 
 .text
 	.globl	_getstr
@@ -243,7 +244,7 @@ _getstr:
 	.+2
 	mov	r5, -(sp)
 	mov	sp, r5
-	sub	$4., sp
+	sub	$B30001f, sp
 	mov	r5, r0
 	sub	$2., r0
 	mov	r0, -(sp)
@@ -389,6 +390,7 @@ B30001:
 	mov	r5, sp
 	mov	(sp)+, r5
 	rts	pc
+B30001f = 4.
 
 .text
 	.globl	_printf
@@ -396,7 +398,7 @@ _printf:
 	.+2
 	mov	r5, -(sp)
 	mov	sp, r5
-	sub	$10., sp
+	sub	$B30002f, sp
 	mov	r5, r0
 	sub	$8., r0
 	mov	r0, -(sp)
@@ -816,6 +818,7 @@ B30002:
 	mov	r5, sp
 	mov	(sp)+, r5
 	rts	pc
+B30002f = 10.
 
 .text
 	.globl	___ctge
@@ -823,6 +826,7 @@ ___ctge:
 	.+2
 	mov	r5, -(sp)
 	mov	sp, r5
+	sub	$B30004f, sp
 	mov	r5, r0
 	add	$4., r0
 	mov	(r0), r0
@@ -899,6 +903,7 @@ B30004:
 	mov	r5, sp
 	mov	(sp)+, r5
 	rts	pc
+B30004f = 0.
 
 .text
 	.globl	J0
@@ -906,6 +911,7 @@ J0:
 	.+2
 	mov	r5, -(sp)
 	mov	sp, r5
+	sub	$B30005f, sp
 	mov	$_lchar, r0
 	mov	(r0), r0
 	mov	r0, -(sp)
@@ -974,6 +980,7 @@ B30005:
 	mov	r5, sp
 	mov	(sp)+, r5
 	rts	pc
+B30005f = 0.
 
 .text
 	.globl	J1
@@ -999,7 +1006,7 @@ _ctime:
 	.+2
 	mov	r5, -(sp)
 	mov	sp, r5
-	sub	$18., sp
+	sub	$B30006f, sp
 	mov	r5, r0
 	sub	$2., r0
 	mov	r0, -(sp)
@@ -1844,3 +1851,4 @@ B30006:
 	mov	r5, sp
 	mov	(sp)+, r5
 	rts	pc
+B30006f = 18.

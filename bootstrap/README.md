@@ -32,6 +32,12 @@ compiling. Strict mode rejects names longer than eight characters; ordinary
 compatibility mode keeps long names. `--strict --pedantic` selects the
 bootstrap compiler's stricter syntax checks. Token and AST dumps are not implemented here.
 
+Strict declaration prefixes bind to the following statement. Automatic cells
+are emitted at function entry, with vector pointer initialization left at each
+declaration. This preserves function-wide storage through nested blocks and
+allows declarations in unbraced bodies. Compatibility mode retains C-style
+block declarations.
+
 Character constants must contain at least one character. Strict mode allows
 one or two; compatibility mode allows up to four. Unfinished constants fail
 compilation rather than producing a partial value.

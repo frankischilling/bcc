@@ -169,3 +169,9 @@ and tty calls are stubs. The test runner's compatibility container exposes
 results without changing B instruction/data bytes; real-kernel tests check
 the corresponding behavior in a booted system. The image workflow also
 reserves the kernel's swap blocks before allocating compiler scratch files.
+
+Declaration statements are checked against the canonical grammar and section 6.
+Strict host/bootstrap mode and the native compiler bind each declaration
+prefix to its following statement and reserve automatic storage for the
+function invocation. Tests cover late vectors, loop and conditional bodies,
+nested-block visibility, dangling `else`, and malformed declaration lists.

@@ -5,6 +5,7 @@ _fact:
 	.+2
 	mov	r5, -(sp)
 	mov	sp, r5
+	sub	$L30000f, sp
 	mov	r5, r0
 	add	$4., r0
 	mov	(r0), r0
@@ -50,6 +51,7 @@ L30000:
 	mov	r5, sp
 	mov	(sp)+, r5
 	rts	pc
+L30000f = 0.
 
 .text
 	.globl	_atoi
@@ -57,7 +59,7 @@ _atoi:
 	.+2
 	mov	r5, -(sp)
 	mov	sp, r5
-	sub	$6., sp
+	sub	$L30001f, sp
 	mov	r5, r0
 	sub	$2., r0
 	mov	r0, -(sp)
@@ -182,6 +184,7 @@ L30001:
 	mov	r5, sp
 	mov	(sp)+, r5
 	rts	pc
+L30001f = 6.
 
 .text
 	.globl	_main
@@ -189,7 +192,7 @@ _main:
 	.+2
 	mov	r5, -(sp)
 	mov	sp, r5
-	sub	$2., sp
+	sub	$L30002f, sp
 	mov	$_argv, r0
 	mov	(r0), r0
 	mov	r0, -(sp)
@@ -275,3 +278,4 @@ L30002:
 	mov	r5, sp
 	mov	(sp)+, r5
 	rts	pc
+L30002f = 2.

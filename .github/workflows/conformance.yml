@@ -83,8 +83,13 @@ jobs:
           make -C pdp-11/bcc-pdp v1-run B=tests/run/t66_global_strings.b
           make -C pdp-11/bcc-pdp v1-run B=tests/run/t67_global_string_limits.b
           make -C pdp-11/bcc-pdp v1-run B=tests/run/t69_literal_storage.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t70_declaration_bodies.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t71_late_auto_vectors.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t72_auto_function_scope.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t82_many_vectors.b
           bash pdp-11/bcc-pdp/tools/v1-run.sh pdp-11/bcc-pdp/tests/run/t19a_tilde.b --expect-compile-error
           bash pdp-11/bcc-pdp/tools/v1-run.sh pdp-11/bcc-pdp/tests/run/t44_missing_label.b --expect-compile-error
           bash pdp-11/bcc-pdp/tools/v1-run.sh pdp-11/bcc-pdp/tests/run/t49_empty_char.b --expect-compile-error
           bash pdp-11/bcc-pdp/tools/v1-run.sh pdp-11/bcc-pdp/tests/run/t60_large_frame.b --expect-compile-error
           bash pdp-11/bcc-pdp/tools/v1-run.sh pdp-11/bcc-pdp/tests/run/t68_global_literal_pool.b --expect-compile-error
+          bash pdp-11/bcc-pdp/tools/v1-run.sh pdp-11/bcc-pdp/tests/run/t78_duplicate_local.b --expect-compile-error

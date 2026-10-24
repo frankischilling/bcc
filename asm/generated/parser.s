@@ -1389,27 +1389,30 @@ parse_while:
 parse_stmt:
 .LFB42:
 	.cfi_startproc
-	pushq	%r13
+	pushq	%r14
 	.cfi_def_cfa_offset 16
-	.cfi_offset 13, -16
-	pushq	%r12
+	.cfi_offset 14, -16
+	pushq	%r13
 	.cfi_def_cfa_offset 24
-	.cfi_offset 12, -24
-	pushq	%rbp
+	.cfi_offset 13, -24
+	pushq	%r12
 	.cfi_def_cfa_offset 32
-	.cfi_offset 6, -32
-	pushq	%rbx
+	.cfi_offset 12, -32
+	pushq	%rbp
 	.cfi_def_cfa_offset 40
-	.cfi_offset 3, -40
+	.cfi_offset 6, -40
+	pushq	%rbx
+	.cfi_def_cfa_offset 48
+	.cfi_offset 3, -48
 	movq	%rdi, %rbx
-	subq	$88, %rsp
+	subq	$80, %rsp
 	.cfi_def_cfa_offset 128
 	movl	40(%rdi), %eax
 	cmpl	$1, %eax
-	je	.L156
+	je	.L160
 	cmpl	$18, %eax
 	je	.L135
-.L157:
+.L161:
 	subl	$5, %eax
 	cmpl	$56, %eax
 	ja	.L136
@@ -1421,7 +1424,7 @@ parse_stmt:
 	.align 4
 	.align 4
 .L138:
-	.long	.L149-.L138
+	.long	.L143-.L138
 	.long	.L148-.L138
 	.long	.L136-.L138
 	.long	.L147-.L138
@@ -1481,13 +1484,13 @@ parse_stmt:
 	.text
 	.p2align 4,,10
 	.p2align 3
-.L156:
+.L160:
 	call	peek_next_kind
 	cmpl	$57, %eax
 	je	.L127
 	movl	40(%rbx), %eax
 	cmpl	$18, %eax
-	jne	.L157
+	jne	.L161
 .L135:
 	leaq	40(%rbx), %rdi
 	call	tok_free@PLT
@@ -1502,23 +1505,25 @@ parse_stmt:
 	movdqu	48(%rsp), %xmm0
 	movups	%xmm0, 72(%rbx)
 	movq	64(%rsp), %rax
-	movq	80(%rbx), %rbp
 	movq	%rax, 88(%rbx)
+	movq	80(%rbx), %rbx
 	call	xmalloc@PLT
 	movl	$0, (%rax)
-	movq	%rax, %rbx
-	movq	%rbp, 4(%rax)
-	addq	$88, %rsp
+	movq	%rax, %rbp
+	movq	%rbx, 4(%rax)
+	addq	$80, %rsp
 	.cfi_remember_state
-	.cfi_def_cfa_offset 40
-	movq	%rbx, %rax
+	.cfi_def_cfa_offset 48
+	movq	%rbp, %rax
 	popq	%rbx
-	.cfi_def_cfa_offset 32
+	.cfi_def_cfa_offset 40
 	popq	%rbp
-	.cfi_def_cfa_offset 24
+	.cfi_def_cfa_offset 32
 	popq	%r12
-	.cfi_def_cfa_offset 16
+	.cfi_def_cfa_offset 24
 	popq	%r13
+	.cfi_def_cfa_offset 16
+	popq	%r14
 	.cfi_def_cfa_offset 8
 	ret
 	.p2align 4,,10
@@ -1526,113 +1531,84 @@ parse_stmt:
 .L136:
 	.cfi_restore_state
 	movq	%rbx, %rdi
-	movq	80(%rbx), %r12
+	movq	80(%rbx), %r13
 	call	parse_expr
-	movq	%rbx, %rdi
 	movl	$18, %esi
-	movq	%rax, %rbp
+	movq	%rbx, %rdi
+	movq	%rax, %r12
 	call	expect
 	movl	$40, %edi
 	call	xmalloc@PLT
 	movl	$6, (%rax)
-	movq	%rax, %rbx
-	movq	%r12, 4(%rax)
-	movq	%rbp, 16(%rax)
+	movq	%rax, %rbp
+	movq	%r13, 4(%rax)
+	movq	%r12, 16(%rax)
 .L125:
-	addq	$88, %rsp
+	addq	$80, %rsp
 	.cfi_remember_state
-	.cfi_def_cfa_offset 40
-	movq	%rbx, %rax
+	.cfi_def_cfa_offset 48
+	movq	%rbp, %rax
 	popq	%rbx
-	.cfi_def_cfa_offset 32
+	.cfi_def_cfa_offset 40
 	popq	%rbp
-	.cfi_def_cfa_offset 24
+	.cfi_def_cfa_offset 32
 	popq	%r12
-	.cfi_def_cfa_offset 16
+	.cfi_def_cfa_offset 24
 	popq	%r13
+	.cfi_def_cfa_offset 16
+	popq	%r14
 	.cfi_def_cfa_offset 8
 	ret
 	.p2align 4,,10
 	.p2align 3
-.L149:
+.L143:
 	.cfi_restore_state
-	addq	$88, %rsp
-	.cfi_remember_state
-	.cfi_def_cfa_offset 40
-	movq	%rbx, %rdi
-	popq	%rbx
-	.cfi_def_cfa_offset 32
-	popq	%rbp
-	.cfi_def_cfa_offset 24
-	popq	%r12
-	.cfi_def_cfa_offset 16
-	popq	%r13
-	.cfi_def_cfa_offset 8
-	jmp	parse_auto_decl
+	movq	80(%rbx), %r12
+	movl	$40, %edi
+	call	xmalloc@PLT
+	pxor	%xmm0, %xmm0
+	movq	%r12, 4(%rax)
+	leaq	16(%rax), %r12
+	movq	%rax, %rbp
+	movl	$1, (%rax)
+	movups	%xmm0, 16(%rax)
+	movq	$0, 16(%r12)
+	movl	40(%rbx), %eax
+	jmp	.L156
 	.p2align 4,,10
 	.p2align 3
-.L148:
-	.cfi_restore_state
-	addq	$88, %rsp
-	.cfi_remember_state
-	.cfi_def_cfa_offset 40
+.L163:
+	cmpl	$12, %eax
+	jne	.L162
+.L156:
+	cmpl	$5, %eax
+	je	.L158
 	movq	%rbx, %rdi
-	popq	%rbx
-	.cfi_def_cfa_offset 32
-	popq	%rbp
-	.cfi_def_cfa_offset 24
-	popq	%r12
-	.cfi_def_cfa_offset 16
-	popq	%r13
-	.cfi_def_cfa_offset 8
-	jmp	parse_if
-	.p2align 4,,10
-	.p2align 3
-.L147:
-	.cfi_restore_state
-	addq	$88, %rsp
-	.cfi_remember_state
-	.cfi_def_cfa_offset 40
+	call	parse_extrn_stmt
+	movq	%rax, %rsi
+.L150:
+	movq	%r12, %rdi
+	call	vec_push@PLT
+	movl	40(%rbx), %eax
+	cmpl	$5, %eax
+	jne	.L163
+.L158:
 	movq	%rbx, %rdi
-	popq	%rbx
-	.cfi_def_cfa_offset 32
-	popq	%rbp
-	.cfi_def_cfa_offset 24
-	popq	%r12
-	.cfi_def_cfa_offset 16
-	popq	%r13
-	.cfi_def_cfa_offset 8
-	jmp	parse_while
-	.p2align 4,,10
-	.p2align 3
-.L146:
-	.cfi_restore_state
-	addq	$88, %rsp
-	.cfi_remember_state
-	.cfi_def_cfa_offset 40
-	movq	%rbx, %rdi
-	popq	%rbx
-	.cfi_def_cfa_offset 32
-	popq	%rbp
-	.cfi_def_cfa_offset 24
-	popq	%r12
-	.cfi_def_cfa_offset 16
-	popq	%r13
-	.cfi_def_cfa_offset 8
-	jmp	parse_return
+	call	parse_auto_decl
+	movq	%rax, %rsi
+	jmp	.L150
 	.p2align 4,,10
 	.p2align 3
 .L145:
-	.cfi_restore_state
 	leaq	40(%rbx), %rdi
-	movq	80(%rbx), %rbp
+	movq	80(%rbx), %r12
 	call	tok_free@PLT
-	movq	%rbx, %rsi
 	leaq	16(%rsp), %rdi
+	movq	%rbx, %rsi
 	call	lx_next@PLT
 	movdqu	16(%rsp), %xmm0
-	movq	%rbx, %rdi
 	movl	$18, %esi
+	movq	%rbx, %rdi
 	movups	%xmm0, 40(%rbx)
 	movdqu	32(%rsp), %xmm0
 	movups	%xmm0, 56(%rbx)
@@ -1644,21 +1620,21 @@ parse_stmt:
 	movl	$40, %edi
 	call	xmalloc@PLT
 	movl	$8, (%rax)
-	movq	%rax, %rbx
-	movq	%rbp, 4(%rax)
+	movq	%rax, %rbp
+	movq	%r12, 4(%rax)
 	jmp	.L125
 	.p2align 4,,10
 	.p2align 3
 .L144:
 	leaq	40(%rbx), %rdi
-	movq	80(%rbx), %rbp
+	movq	80(%rbx), %r12
 	call	tok_free@PLT
-	movq	%rbx, %rsi
 	leaq	16(%rsp), %rdi
+	movq	%rbx, %rsi
 	call	lx_next@PLT
 	movdqu	16(%rsp), %xmm0
-	movq	%rbx, %rdi
 	movl	$18, %esi
+	movq	%rbx, %rdi
 	movups	%xmm0, 40(%rbx)
 	movdqu	32(%rsp), %xmm0
 	movups	%xmm0, 56(%rbx)
@@ -1670,126 +1646,181 @@ parse_stmt:
 	movl	$40, %edi
 	call	xmalloc@PLT
 	movl	$9, (%rax)
-	movq	%rax, %rbx
-	movq	%rbp, 4(%rax)
+	movq	%rax, %rbp
+	movq	%r12, 4(%rax)
 	jmp	.L125
 	.p2align 4,,10
 	.p2align 3
-.L143:
-	addq	$88, %rsp
-	.cfi_remember_state
-	.cfi_def_cfa_offset 40
-	movq	%rbx, %rdi
-	popq	%rbx
-	.cfi_def_cfa_offset 32
-	popq	%rbp
-	.cfi_def_cfa_offset 24
-	popq	%r12
-	.cfi_def_cfa_offset 16
-	popq	%r13
-	.cfi_def_cfa_offset 8
-	jmp	parse_extrn_stmt
-	.p2align 4,,10
-	.p2align 3
 .L142:
-	.cfi_restore_state
-	addq	$88, %rsp
+	addq	$80, %rsp
 	.cfi_remember_state
-	.cfi_def_cfa_offset 40
+	.cfi_def_cfa_offset 48
 	movq	%rbx, %rdi
 	popq	%rbx
-	.cfi_def_cfa_offset 32
+	.cfi_def_cfa_offset 40
 	popq	%rbp
-	.cfi_def_cfa_offset 24
+	.cfi_def_cfa_offset 32
 	popq	%r12
-	.cfi_def_cfa_offset 16
+	.cfi_def_cfa_offset 24
 	popq	%r13
+	.cfi_def_cfa_offset 16
+	popq	%r14
 	.cfi_def_cfa_offset 8
 	jmp	parse_block
+	.p2align 4,,10
+	.p2align 3
+.L137:
+	.cfi_restore_state
+	addq	$80, %rsp
+	.cfi_remember_state
+	.cfi_def_cfa_offset 48
+	movq	%rbx, %rdi
+	popq	%rbx
+	.cfi_def_cfa_offset 40
+	popq	%rbp
+	.cfi_def_cfa_offset 32
+	popq	%r12
+	.cfi_def_cfa_offset 24
+	popq	%r13
+	.cfi_def_cfa_offset 16
+	popq	%r14
+	.cfi_def_cfa_offset 8
+	jmp	parse_default
+	.p2align 4,,10
+	.p2align 3
+.L140:
+	.cfi_restore_state
+	movl	$59, %esi
+	movq	%rbx, %rdi
+	movq	80(%rbx), %r14
+	call	expect
+	cmpl	$13, 40(%rbx)
+	je	.L152
+	movq	%rbx, %rdi
+	call	parse_expr
+	movq	%rax, %r13
+.L153:
+	addl	$1, 108(%rbx)
+	movq	%rbx, %rdi
+	call	parse_stmt
+	subl	$1, 108(%rbx)
+	movl	$40, %edi
+	movq	%rax, %r12
+	call	xmalloc@PLT
+	movl	$12, (%rax)
+	movq	%rax, %rbp
+	movq	%r14, 4(%rax)
+	movq	%r13, 16(%rax)
+	movq	%r12, 24(%rax)
+	jmp	.L125
+	.p2align 4,,10
+	.p2align 3
+.L139:
+	addq	$80, %rsp
+	.cfi_remember_state
+	.cfi_def_cfa_offset 48
+	movq	%rbx, %rdi
+	popq	%rbx
+	.cfi_def_cfa_offset 40
+	popq	%rbp
+	.cfi_def_cfa_offset 32
+	popq	%r12
+	.cfi_def_cfa_offset 24
+	popq	%r13
+	.cfi_def_cfa_offset 16
+	popq	%r14
+	.cfi_def_cfa_offset 8
+	jmp	parse_case
 	.p2align 4,,10
 	.p2align 3
 .L141:
 	.cfi_restore_state
 	movl	$58, %esi
 	movq	%rbx, %rdi
-	movq	80(%rbx), %r12
+	movq	80(%rbx), %r13
 	call	expect
 	movq	%rbx, %rdi
 	call	parse_expr
-	movq	%rbx, %rdi
 	movl	$18, %esi
-	movq	%rax, %rbp
+	movq	%rbx, %rdi
+	movq	%rax, %r12
 	call	expect
 	movl	$40, %edi
 	call	xmalloc@PLT
 	movl	$10, (%rax)
-	movq	%rax, %rbx
-	movq	%r12, 4(%rax)
-	movq	%rbp, 16(%rax)
-	jmp	.L125
-	.p2align 4,,10
-	.p2align 3
-.L140:
-	movl	$59, %esi
-	movq	%rbx, %rdi
-	movq	80(%rbx), %r13
-	call	expect
-	cmpl	$13, 40(%rbx)
-	je	.L150
-	movq	%rbx, %rdi
-	call	parse_expr
-	movq	%rax, %r12
-.L151:
-	addl	$1, 108(%rbx)
-	movq	%rbx, %rdi
-	call	parse_stmt
-	subl	$1, 108(%rbx)
-	movl	$40, %edi
 	movq	%rax, %rbp
-	call	xmalloc@PLT
-	movl	$12, (%rax)
-	movq	%rax, %rbx
 	movq	%r13, 4(%rax)
 	movq	%r12, 16(%rax)
-	movq	%rbp, 24(%rax)
 	jmp	.L125
 	.p2align 4,,10
 	.p2align 3
-.L139:
-	addq	$88, %rsp
+.L147:
+	addq	$80, %rsp
 	.cfi_remember_state
-	.cfi_def_cfa_offset 40
+	.cfi_def_cfa_offset 48
 	movq	%rbx, %rdi
 	popq	%rbx
-	.cfi_def_cfa_offset 32
+	.cfi_def_cfa_offset 40
 	popq	%rbp
-	.cfi_def_cfa_offset 24
+	.cfi_def_cfa_offset 32
 	popq	%r12
-	.cfi_def_cfa_offset 16
+	.cfi_def_cfa_offset 24
 	popq	%r13
+	.cfi_def_cfa_offset 16
+	popq	%r14
 	.cfi_def_cfa_offset 8
-	jmp	parse_case
+	jmp	parse_while
 	.p2align 4,,10
 	.p2align 3
-.L137:
+.L146:
 	.cfi_restore_state
-	addq	$88, %rsp
+	addq	$80, %rsp
 	.cfi_remember_state
-	.cfi_def_cfa_offset 40
+	.cfi_def_cfa_offset 48
 	movq	%rbx, %rdi
 	popq	%rbx
-	.cfi_def_cfa_offset 32
+	.cfi_def_cfa_offset 40
 	popq	%rbp
-	.cfi_def_cfa_offset 24
+	.cfi_def_cfa_offset 32
 	popq	%r12
-	.cfi_def_cfa_offset 16
+	.cfi_def_cfa_offset 24
 	popq	%r13
+	.cfi_def_cfa_offset 16
+	popq	%r14
 	.cfi_def_cfa_offset 8
-	jmp	parse_default
+	jmp	parse_return
+	.p2align 4,,10
+	.p2align 3
+.L148:
+	.cfi_restore_state
+	addq	$80, %rsp
+	.cfi_remember_state
+	.cfi_def_cfa_offset 48
+	movq	%rbx, %rdi
+	popq	%rbx
+	.cfi_def_cfa_offset 40
+	popq	%rbp
+	.cfi_def_cfa_offset 32
+	popq	%r12
+	.cfi_def_cfa_offset 24
+	popq	%r13
+	.cfi_def_cfa_offset 16
+	popq	%r14
+	.cfi_def_cfa_offset 8
+	jmp	parse_if
+	.p2align 4,,10
+	.p2align 3
+.L162:
+	.cfi_restore_state
+	movq	%rbx, %rdi
+	call	parse_stmt
+	movq	%r12, %rdi
+	movq	%rax, %rsi
+	call	vec_push@PLT
+	jmp	.L125
 	.p2align 4,,10
 	.p2align 3
 .L127:
-	.cfi_restore_state
 	movq	80(%rbx), %rax
 	movq	%rbx, %rdi
 	movq	%rax, 8(%rsp)
@@ -1815,24 +1846,24 @@ parse_stmt:
 	cmpl	$16, %eax
 	je	.L133
 	cmpl	$1, %eax
-	je	.L158
+	je	.L164
 .L132:
 	movq	%rbx, %rdi
 	call	parse_stmt
-	movq	%rax, %rbp
+	movq	%rax, %rbx
 .L131:
 	movl	$40, %edi
 	call	xmalloc@PLT
-	movq	%rax, %rbx
+	movq	%rax, %rbp
 	movl	$11, (%rax)
 	movq	8(%rsp), %rax
-	movq	%rax, 4(%rbx)
+	movq	%rax, 4(%rbp)
 	movq	40(%r12), %rdi
 	call	sdup@PLT
-	movq	%rbp, 24(%rbx)
-	movq	%rax, 16(%rbx)
+	movq	%rbx, 24(%rbp)
+	movq	%rax, 16(%rbp)
 	jmp	.L125
-.L158:
+.L164:
 	movq	%rbx, %rdi
 	call	peek_next_kind
 	cmpl	$57, %eax
@@ -1840,14 +1871,14 @@ parse_stmt:
 	.p2align 4
 	.p2align 3
 .L133:
-	movq	80(%rbx), %rbx
+	movq	80(%rbx), %rbp
 	movl	$40, %edi
 	call	xmalloc@PLT
 	movl	$0, (%rax)
-	movq	%rax, %rbp
-	movq	%rbx, 4(%rax)
+	movq	%rax, %rbx
+	movq	%rbp, 4(%rax)
 	jmp	.L131
-.L150:
+.L152:
 	leaq	40(%rbx), %rdi
 	call	tok_free@PLT
 	movq	%rbx, %rsi
@@ -1865,9 +1896,9 @@ parse_stmt:
 	call	parse_expr
 	movl	$14, %esi
 	movq	%rbx, %rdi
-	movq	%rax, %r12
+	movq	%rax, %r13
 	call	expect
-	jmp	.L151
+	jmp	.L153
 	.cfi_endproc
 .LFE42:
 	.size	parse_stmt, .-parse_stmt
@@ -1904,29 +1935,39 @@ parse_block:
 	movq	%rax, %rbp
 	movl	40(%rbx), %eax
 	cmpl	$16, %eax
-	je	.L160
+	je	.L166
 	leaq	.LC17(%rip), %r12
-	jmp	.L162
+	jmp	.L171
 	.p2align 4,,10
 	.p2align 3
-.L161:
+.L167:
+	movl	g_strict(%rip), %eax
+	testl	%eax, %eax
+	jne	.L168
+	movl	40(%rbx), %eax
+	cmpl	$5, %eax
+	je	.L177
+	cmpl	$12, %eax
+	je	.L178
+.L168:
 	movq	%rbx, %rdi
 	call	parse_stmt
 	movq	%rbp, %rdi
 	movq	%rax, %rsi
 	call	vec_push@PLT
+.L170:
 	movl	40(%rbx), %eax
 	cmpl	$16, %eax
-	je	.L160
-.L162:
+	je	.L166
+.L171:
 	testl	%eax, %eax
-	jne	.L161
+	jne	.L167
 	movq	%r12, %rdi
 	call	dief@PLT
-	jmp	.L161
+	jmp	.L167
 	.p2align 4,,10
 	.p2align 3
-.L160:
+.L166:
 	movq	%rbx, %rdi
 	movl	$16, %esi
 	call	expect
@@ -1939,6 +1980,7 @@ parse_block:
 	movq	%r13, 4(%rax)
 	movq	%rdx, 32(%rax)
 	addq	$8, %rsp
+	.cfi_remember_state
 	.cfi_def_cfa_offset 40
 	popq	%rbx
 	.cfi_def_cfa_offset 32
@@ -1949,6 +1991,25 @@ parse_block:
 	popq	%r13
 	.cfi_def_cfa_offset 8
 	ret
+	.p2align 4,,10
+	.p2align 3
+.L178:
+	.cfi_restore_state
+	movq	%rbx, %rdi
+	call	parse_extrn_stmt
+	movq	%rbp, %rdi
+	movq	%rax, %rsi
+	call	vec_push@PLT
+	jmp	.L170
+	.p2align 4,,10
+	.p2align 3
+.L177:
+	movq	%rbx, %rdi
+	call	parse_auto_decl
+	movq	%rbp, %rdi
+	movq	%rax, %rsi
+	call	vec_push@PLT
+	jmp	.L170
 	.cfi_endproc
 .LFE30:
 	.size	parse_block, .-parse_block
@@ -1985,13 +2046,13 @@ parse_function:
 	subq	$64, %rsp
 	.cfi_def_cfa_offset 112
 	cmpl	$1, 40(%rdi)
-	je	.L169
+	je	.L180
 	movl	84(%rdi), %edx
 	movl	80(%rdi), %esi
 	xorl	%eax, %eax
 	leaq	.LC18(%rip), %rdi
 	call	dief@PLT
-.L169:
+.L180:
 	movl	$40, %edi
 	leaq	40(%rbx), %r12
 	movq	%rsp, %r13
@@ -2021,12 +2082,12 @@ parse_function:
 	call	expect
 	movl	40(%rbx), %eax
 	cmpl	$14, %eax
-	je	.L170
+	je	.L181
 	leaq	8(%rbp), %r14
-.L172:
+.L183:
 	cmpl	$1, %eax
-	jne	.L182
-.L171:
+	jne	.L193
+.L182:
 	movq	48(%rbx), %rdi
 	call	sdup@PLT
 	movq	%r14, %rdi
@@ -2047,13 +2108,13 @@ parse_function:
 	movq	48(%rsp), %rdx
 	movq	%rdx, 88(%rbx)
 	cmpl	$17, %eax
-	je	.L183
-.L170:
+	je	.L194
+.L181:
 	movl	$14, %esi
 	movq	%rbx, %rdi
 	call	expect
 	cmpl	$15, 40(%rbx)
-	je	.L184
+	je	.L195
 	movq	%rbx, %rdi
 	movq	80(%rbx), %r13
 	call	parse_stmt
@@ -2069,7 +2130,7 @@ parse_function:
 	movq	$0, 16(%rax)
 	movups	%xmm0, 24(%rax)
 	call	vec_push@PLT
-.L174:
+.L185:
 	movq	%rbx, 32(%rbp)
 	addq	$64, %rsp
 	.cfi_remember_state
@@ -2088,24 +2149,24 @@ parse_function:
 	ret
 	.p2align 4,,10
 	.p2align 3
-.L182:
+.L193:
 	.cfi_restore_state
 	movl	84(%rbx), %edx
 	movl	80(%rbx), %esi
 	leaq	.LC19(%rip), %rdi
 	xorl	%eax, %eax
 	call	dief@PLT
-	jmp	.L171
+	jmp	.L182
 	.p2align 4,,10
 	.p2align 3
-.L184:
+.L195:
 	movq	%rbx, %rdi
 	call	parse_block
 	movq	%rax, %rbx
-	jmp	.L174
+	jmp	.L185
 	.p2align 4,,10
 	.p2align 3
-.L183:
+.L194:
 	movq	%r12, %rdi
 	call	tok_free@PLT
 	movq	%rbx, %rsi
@@ -2120,7 +2181,7 @@ parse_function:
 	movups	%xmm0, 72(%rbx)
 	movq	48(%rsp), %rdx
 	movq	%rdx, 88(%rbx)
-	jmp	.L172
+	jmp	.L183
 	.cfi_endproc
 .LFE27:
 	.size	parse_function, .-parse_function
@@ -2165,8 +2226,8 @@ parse_if:
 	call	parse_stmt
 	cmpl	$7, 40(%rbx)
 	movq	%rax, %rbp
-	je	.L190
-.L186:
+	je	.L201
+.L197:
 	movl	$40, %edi
 	call	xmalloc@PLT
 	movl	$3, (%rax)
@@ -2190,7 +2251,7 @@ parse_if:
 	ret
 	.p2align 4,,10
 	.p2align 3
-.L190:
+.L201:
 	.cfi_restore_state
 	leaq	40(%rbx), %rdi
 	call	tok_free@PLT
@@ -2208,7 +2269,7 @@ parse_if:
 	movq	%rax, 88(%rbx)
 	call	parse_stmt
 	movq	%rax, %r14
-	jmp	.L186
+	jmp	.L197
 	.cfi_endproc
 .LFE31:
 	.size	parse_if, .-parse_if
@@ -2232,34 +2293,34 @@ parse_primary:
 	.cfi_def_cfa_offset 96
 	cmpl	$13, 40(%rdi)
 	movq	80(%rdi), %r12
-	ja	.L192
+	ja	.L203
 	movl	40(%rdi), %eax
-	leaq	.L194(%rip), %rdx
+	leaq	.L205(%rip), %rdx
 	movslq	(%rdx,%rax,4), %rax
 	addq	%rdx, %rax
 	jmp	*%rax
 	.section	.rodata
 	.align 4
 	.align 4
-.L194:
-	.long	.L192-.L194
-	.long	.L197-.L194
-	.long	.L195-.L194
-	.long	.L196-.L194
-	.long	.L195-.L194
-	.long	.L192-.L194
-	.long	.L192-.L194
-	.long	.L192-.L194
-	.long	.L192-.L194
-	.long	.L192-.L194
-	.long	.L192-.L194
-	.long	.L192-.L194
-	.long	.L192-.L194
-	.long	.L193-.L194
+.L205:
+	.long	.L203-.L205
+	.long	.L208-.L205
+	.long	.L206-.L205
+	.long	.L207-.L205
+	.long	.L206-.L205
+	.long	.L203-.L205
+	.long	.L203-.L205
+	.long	.L203-.L205
+	.long	.L203-.L205
+	.long	.L203-.L205
+	.long	.L203-.L205
+	.long	.L203-.L205
+	.long	.L203-.L205
+	.long	.L204-.L205
 	.text
 	.p2align 4,,10
 	.p2align 3
-.L192:
+.L203:
 	movq	96(%rbx), %rsi
 	leaq	40(%rbx), %rdi
 	xorl	%ecx, %ecx
@@ -2279,7 +2340,7 @@ parse_primary:
 	ret
 	.p2align 4,,10
 	.p2align 3
-.L195:
+.L206:
 	.cfi_restore_state
 	movl	$72, %edi
 	call	xmalloc@PLT
@@ -2292,9 +2353,9 @@ parse_primary:
 	movups	%xmm0, 28(%rax)
 	movups	%xmm0, 56(%rax)
 	movq	72(%rbx), %rax
-.L200:
+.L211:
 	movq	%rax, 40(%rbp)
-.L201:
+.L212:
 	leaq	40(%rbx), %rdi
 	call	tok_free@PLT
 	movq	%rsp, %rdi
@@ -2321,7 +2382,7 @@ parse_primary:
 	ret
 	.p2align 4,,10
 	.p2align 3
-.L197:
+.L208:
 	.cfi_restore_state
 	movl	$72, %edi
 	call	xmalloc@PLT
@@ -2335,10 +2396,10 @@ parse_primary:
 	movups	%xmm0, 56(%rax)
 	movq	48(%rbx), %rdi
 	call	sdup@PLT
-	jmp	.L200
+	jmp	.L211
 	.p2align 4,,10
 	.p2align 3
-.L193:
+.L204:
 	leaq	40(%rdi), %rdi
 	call	tok_free@PLT
 	movq	%rbx, %rsi
@@ -2371,7 +2432,7 @@ parse_primary:
 	ret
 	.p2align 4,,10
 	.p2align 3
-.L196:
+.L207:
 	.cfi_restore_state
 	movl	$72, %edi
 	call	xmalloc@PLT
@@ -2393,7 +2454,7 @@ parse_primary:
 	movq	32(%rbp), %rax
 	leaq	1(%rax), %rdx
 	call	memcpy@PLT
-	jmp	.L201
+	jmp	.L212
 	.cfi_endproc
 .LFE46:
 	.size	parse_primary, .-parse_primary
@@ -2431,15 +2492,15 @@ parse_postfix:
 	.cfi_def_cfa_offset 128
 	call	parse_primary
 	movq	%rax, %rbp
-.L203:
+.L214:
 	movl	40(%rbx), %r12d
 	cmpl	$13, %r12d
-	je	.L204
+	je	.L215
 	cmpl	$19, %r12d
-	je	.L224
+	je	.L235
 	leal	-36(%r12), %eax
 	cmpl	$1, %eax
-	jbe	.L225
+	jbe	.L236
 	addq	$72, %rsp
 	.cfi_remember_state
 	.cfi_def_cfa_offset 56
@@ -2459,7 +2520,7 @@ parse_postfix:
 	ret
 	.p2align 4,,10
 	.p2align 3
-.L204:
+.L215:
 	.cfi_restore_state
 	leaq	40(%rbx), %r14
 	movq	%rsp, %r13
@@ -2490,24 +2551,24 @@ parse_postfix:
 	movq	%rbp, 40(%rax)
 	leaq	48(%rax), %rbp
 	movl	$3, (%rax)
-	je	.L226
-.L207:
+	je	.L237
+.L218:
 	movq	%rbx, %rdi
 	call	parse_assignment
 	movq	%rbp, %rdi
 	movq	%rax, %rsi
 	call	vec_push@PLT
 	cmpl	$17, 40(%rbx)
-	je	.L209
+	je	.L220
 	movl	$14, %esi
 	movq	%rbx, %rdi
 	call	expect
-.L208:
+.L219:
 	movq	%r12, %rbp
-	jmp	.L203
+	jmp	.L214
 	.p2align 4,,10
 	.p2align 3
-.L225:
+.L236:
 	leaq	40(%rbx), %rdi
 	call	tok_free@PLT
 	movq	%rsp, %rdi
@@ -2522,14 +2583,14 @@ parse_postfix:
 	movq	48(%rsp), %rax
 	movq	%rax, 88(%rbx)
 	testq	%rbp, %rbp
-	je	.L212
+	je	.L223
 	movl	0(%rbp), %eax
 	leal	-2(%rax), %edx
 	andl	$-3, %edx
-	je	.L213
+	je	.L224
 	cmpl	$5, %eax
-	je	.L227
-.L212:
+	je	.L238
+.L223:
 	movl	8(%rbp), %r14d
 	movl	4(%rbp), %r13d
 	movl	%r12d, %edi
@@ -2540,7 +2601,7 @@ parse_postfix:
 	movl	%r13d, %edx
 	xorl	%eax, %eax
 	call	dief@PLT
-.L213:
+.L224:
 	movq	4(%rbp), %r13
 	movl	$72, %edi
 	call	xmalloc@PLT
@@ -2554,10 +2615,10 @@ parse_postfix:
 	movl	%r12d, 40(%rax)
 	movups	%xmm0, 12(%rax)
 	movups	%xmm0, 56(%rax)
-	jmp	.L203
+	jmp	.L214
 	.p2align 4,,10
 	.p2align 3
-.L224:
+.L235:
 	leaq	40(%rbx), %rdi
 	call	tok_free@PLT
 	movq	%rbx, %rsi
@@ -2589,16 +2650,16 @@ parse_postfix:
 	movq	%r12, 48(%rax)
 	movups	%xmm0, 12(%rax)
 	movups	%xmm0, 56(%rax)
-	jmp	.L203
+	jmp	.L214
 	.p2align 4,,10
 	.p2align 3
-.L227:
+.L238:
 	cmpl	$32, 40(%rbp)
-	jne	.L212
-	jmp	.L213
+	jne	.L223
+	jmp	.L224
 	.p2align 4,,10
 	.p2align 3
-.L209:
+.L220:
 	movq	%r14, %rdi
 	call	tok_free@PLT
 	movq	%rbx, %rsi
@@ -2612,10 +2673,10 @@ parse_postfix:
 	movups	%xmm0, 72(%rbx)
 	movq	48(%rsp), %rax
 	movq	%rax, 88(%rbx)
-	jmp	.L207
+	jmp	.L218
 	.p2align 4,,10
 	.p2align 3
-.L226:
+.L237:
 	movq	%r14, %rdi
 	call	tok_free@PLT
 	movq	%rbx, %rsi
@@ -2629,7 +2690,7 @@ parse_postfix:
 	movups	%xmm0, 72(%rbx)
 	movq	48(%rsp), %rax
 	movq	%rax, 88(%rbx)
-	jmp	.L208
+	jmp	.L219
 	.cfi_endproc
 .LFE47:
 	.size	parse_postfix, .-parse_postfix
@@ -2664,10 +2725,10 @@ parse_unary:
 	.cfi_def_cfa_offset 128
 	movl	40(%rdi), %ebp
 	cmpl	$53, %ebp
-	ja	.L229
+	ja	.L240
 	movabsq	$9007446215360512, %rax
 	btq	%rbp, %rax
-	jnc	.L229
+	jnc	.L240
 	movq	80(%rdi), %rax
 	leaq	40(%rdi), %rdi
 	movq	%rax, %xmm1
@@ -2692,10 +2753,10 @@ parse_unary:
 	movq	%rax, %rbx
 	leal	-36(%rbp), %eax
 	cmpl	$1, %eax
-	jbe	.L248
+	jbe	.L259
 	cmpl	$53, %ebp
-	je	.L249
-.L233:
+	je	.L260
+.L244:
 	movl	$72, %edi
 	call	xmalloc@PLT
 	movq	8(%rsp), %rcx
@@ -2722,7 +2783,7 @@ parse_unary:
 	ret
 	.p2align 4,,10
 	.p2align 3
-.L229:
+.L240:
 	.cfi_restore_state
 	addq	$88, %rsp
 	.cfi_remember_state
@@ -2739,17 +2800,17 @@ parse_unary:
 	jmp	parse_postfix
 	.p2align 4,,10
 	.p2align 3
-.L248:
+.L259:
 	.cfi_restore_state
 	testq	%rbx, %rbx
-	je	.L232
+	je	.L243
 	movl	(%rbx), %eax
 	leal	-2(%rax), %edx
 	andl	$-3, %edx
-	je	.L233
+	je	.L244
 	cmpl	$5, %eax
-	je	.L250
-.L232:
+	je	.L261
+.L243:
 	movl	%ebp, %edi
 	call	tk_name@PLT
 	movl	%r13d, %ecx
@@ -2758,37 +2819,37 @@ parse_unary:
 	movq	%rax, %rsi
 	xorl	%eax, %eax
 	call	dief@PLT
-	jmp	.L233
+	jmp	.L244
 	.p2align 4,,10
 	.p2align 3
-.L249:
+.L260:
 	testq	%rbx, %rbx
-	je	.L234
+	je	.L245
 	movl	(%rbx), %eax
 	leal	-2(%rax), %edx
 	andl	$-3, %edx
-	je	.L233
+	je	.L244
 	cmpl	$5, %eax
-	je	.L251
-.L234:
+	je	.L262
+.L245:
 	movl	%r13d, %edx
 	movl	%r12d, %esi
 	leaq	.LC22(%rip), %rdi
 	xorl	%eax, %eax
 	call	dief@PLT
-	jmp	.L233
+	jmp	.L244
 	.p2align 4,,10
 	.p2align 3
-.L250:
+.L261:
 	cmpl	$32, 40(%rbx)
-	jne	.L232
-	jmp	.L233
+	jne	.L243
+	jmp	.L244
 	.p2align 4,,10
 	.p2align 3
-.L251:
+.L262:
 	cmpl	$32, 40(%rbx)
-	jne	.L234
-	jmp	.L233
+	jne	.L245
+	jmp	.L244
 	.cfi_endproc
 .LFE48:
 	.size	parse_unary, .-parse_unary
@@ -2808,7 +2869,7 @@ parse_bin_rhs:
 	pushq	%r13
 	.cfi_def_cfa_offset 32
 	.cfi_offset 13, -32
-	leaq	CSWTCH.6(%rip), %r13
+	leaq	CSWTCH.9(%rip), %r13
 	pushq	%r12
 	.cfi_def_cfa_offset 40
 	.cfi_offset 12, -40
@@ -2826,13 +2887,13 @@ parse_bin_rhs:
 	movl	%esi, 12(%rsp)
 	leal	-22(%rbp), %eax
 	cmpl	$33, %eax
-	ja	.L253
-.L262:
+	ja	.L264
+.L273:
 	movsbl	0(%r13,%rax), %r12d
-.L253:
+.L264:
 	cmpl	%r12d, 12(%rsp)
-	jg	.L258
-.L263:
+	jg	.L269
+.L274:
 	leaq	40(%r14), %rdi
 	call	tok_free@PLT
 	leaq	16(%rsp), %rdi
@@ -2852,11 +2913,11 @@ parse_bin_rhs:
 	movl	40(%r14), %eax
 	subl	$22, %eax
 	cmpl	$33, %eax
-	ja	.L255
+	ja	.L266
 	movsbl	0(%r13,%rax), %eax
 	cmpl	%eax, %r12d
-	jl	.L261
-.L255:
+	jl	.L272
+.L266:
 	movq	4(%rbx), %r12
 	movl	$72, %edi
 	call	xmalloc@PLT
@@ -2875,10 +2936,10 @@ parse_bin_rhs:
 	movq	%r15, 56(%rax)
 	leal	-22(%rbp), %eax
 	cmpl	$33, %eax
-	jbe	.L262
+	jbe	.L273
 	cmpl	%r12d, 12(%rsp)
-	jle	.L263
-.L258:
+	jle	.L274
+.L269:
 	addq	$88, %rsp
 	.cfi_remember_state
 	.cfi_def_cfa_offset 56
@@ -2898,14 +2959,14 @@ parse_bin_rhs:
 	ret
 	.p2align 4,,10
 	.p2align 3
-.L261:
+.L272:
 	.cfi_restore_state
 	movq	%r15, %rdx
 	leal	1(%r12), %esi
 	movq	%r14, %rdi
 	call	parse_bin_rhs
 	movq	%rax, %r15
-	jmp	.L255
+	jmp	.L266
 	.cfi_endproc
 .LFE49:
 	.size	parse_bin_rhs, .-parse_bin_rhs
@@ -2949,13 +3010,13 @@ parse_assignment:
 	movl	40(%r12), %ebp
 	movq	%rax, %rbx
 	cmpl	$56, %ebp
-	je	.L286
+	je	.L297
 	cmpl	$21, %ebp
-	je	.L268
+	je	.L279
 	leal	-38(%rbp), %eax
 	cmpl	$14, %eax
-	ja	.L264
-.L268:
+	ja	.L275
+.L279:
 	leaq	40(%r12), %rdi
 	call	tok_free@PLT
 	leaq	16(%rsp), %rdi
@@ -2970,16 +3031,16 @@ parse_assignment:
 	movq	64(%rsp), %rax
 	movq	%rax, 88(%r12)
 	testq	%rbx, %rbx
-	je	.L269
-.L271:
+	je	.L280
+.L282:
 	movl	(%rbx), %eax
 	movq	%rbx, %r13
 	leal	-2(%rax), %edx
 	andl	$-3, %edx
-	je	.L270
+	je	.L281
 	cmpl	$5, %eax
-	je	.L287
-.L269:
+	je	.L298
+.L280:
 	movl	4(%rbx), %r13d
 	movl	8(%rbx), %r14d
 	movl	%ebp, %edi
@@ -2991,7 +3052,7 @@ parse_assignment:
 	xorl	%eax, %eax
 	call	dief@PLT
 	movq	%rbx, %r13
-.L270:
+.L281:
 	movq	%r12, %rdi
 	call	parse_assignment
 	movq	4(%rbx), %r14
@@ -3009,7 +3070,7 @@ parse_assignment:
 	movq	%r13, 48(%rax)
 	movq	%r12, 56(%rax)
 	movups	%xmm0, 12(%rax)
-.L264:
+.L275:
 	addq	$88, %rsp
 	.cfi_remember_state
 	.cfi_def_cfa_offset 56
@@ -3029,14 +3090,14 @@ parse_assignment:
 	ret
 	.p2align 4,,10
 	.p2align 3
-.L287:
+.L298:
 	.cfi_restore_state
 	cmpl	$32, 40(%rbx)
-	jne	.L269
-	jmp	.L270
+	jne	.L280
+	jmp	.L281
 	.p2align 4,,10
 	.p2align 3
-.L286:
+.L297:
 	leaq	40(%r12), %rax
 	movq	%rax, %rdi
 	movq	%rax, (%rsp)
@@ -3077,12 +3138,12 @@ parse_assignment:
 	movq	%rbx, 40(%rax)
 	movq	%r14, 48(%rax)
 	cmpl	$21, %ebp
-	je	.L266
+	je	.L277
 	leal	-38(%rbp), %eax
 	movq	%r13, %rbx
 	cmpl	$14, %eax
-	ja	.L264
-.L266:
+	ja	.L275
+.L277:
 	movq	(%rsp), %rdi
 	movq	%r13, %rbx
 	call	tok_free@PLT
@@ -3097,7 +3158,7 @@ parse_assignment:
 	movups	%xmm0, 72(%r12)
 	movq	64(%rsp), %rax
 	movq	%rax, 88(%r12)
-	jmp	.L271
+	jmp	.L282
 	.cfi_endproc
 .LFE50:
 	.size	parse_assignment, .-parse_assignment
@@ -3139,10 +3200,10 @@ parse_init_list:
 	movups	%xmm0, 24(%rax)
 	movl	40(%rbx), %eax
 	cmpl	$16, %eax
-	je	.L298
-.L289:
+	je	.L309
+.L300:
 	cmpl	$15, %eax
-	je	.L299
+	je	.L310
 	movq	80(%rbx), %r14
 	movl	$40, %edi
 	call	xmalloc@PLT
@@ -3152,12 +3213,12 @@ parse_init_list:
 	movq	%r14, 4(%rax)
 	call	parse_assignment
 	movq	%rax, 16(%r12)
-.L292:
+.L303:
 	movq	%r12, %rsi
 	movq	%r13, %rdi
 	call	vec_push@PLT
 	cmpl	$17, 40(%rbx)
-	je	.L293
+	je	.L304
 	movq	%rbx, %rdi
 	movl	$16, %esi
 	call	expect
@@ -3178,15 +3239,15 @@ parse_init_list:
 	ret
 	.p2align 4,,10
 	.p2align 3
-.L299:
+.L310:
 	.cfi_restore_state
 	movq	%rbx, %rdi
 	call	parse_init_list
 	movq	%rax, %r12
-	jmp	.L292
+	jmp	.L303
 	.p2align 4,,10
 	.p2align 3
-.L298:
+.L309:
 	leaq	40(%rbx), %rdi
 	call	tok_free@PLT
 	movq	%rsp, %rdi
@@ -3217,7 +3278,7 @@ parse_init_list:
 	ret
 	.p2align 4,,10
 	.p2align 3
-.L293:
+.L304:
 	.cfi_restore_state
 	leaq	40(%rbx), %rdi
 	call	tok_free@PLT
@@ -3233,7 +3294,7 @@ parse_init_list:
 	movups	%xmm0, 72(%rbx)
 	movq	48(%rsp), %rdx
 	movq	%rdx, 88(%rbx)
-	jmp	.L289
+	jmp	.L300
 	.cfi_endproc
 .LFE43:
 	.size	parse_init_list, .-parse_init_list
@@ -3254,7 +3315,7 @@ parse_init_elem:
 	.cfi_offset 3, -32
 	cmpl	$15, 40(%rdi)
 	movq	%rdi, %rbx
-	je	.L303
+	je	.L314
 	movq	80(%rdi), %r12
 	movl	$40, %edi
 	call	xmalloc@PLT
@@ -3275,7 +3336,7 @@ parse_init_elem:
 	ret
 	.p2align 4,,10
 	.p2align 3
-.L303:
+.L314:
 	.cfi_restore_state
 	popq	%rbx
 	.cfi_def_cfa_offset 24
@@ -3316,10 +3377,10 @@ parse_comma_init_list:
 	.cfi_def_cfa_offset 128
 	movl	40(%rdi), %eax
 	cmpl	$53, %eax
-	ja	.L304
+	ja	.L315
 	movabsq	$9007205697200158, %rdx
 	btq	%rax, %rdx
-	jnc	.L304
+	jnc	.L315
 	movq	80(%rdi), %rbx
 	movq	%rdi, %rbp
 	movl	$40, %edi
@@ -3333,8 +3394,8 @@ parse_comma_init_list:
 	movl	$1, (%rax)
 	movq	$0, 16(%rax)
 	movups	%xmm0, 24(%rax)
-	je	.L313
-.L306:
+	je	.L324
+.L317:
 	movq	80(%rbp), %r15
 	movl	$40, %edi
 	call	xmalloc@PLT
@@ -3344,13 +3405,13 @@ parse_comma_init_list:
 	movq	%r15, 4(%rax)
 	call	parse_assignment
 	movq	%rax, 16(%rbx)
-.L307:
+.L318:
 	movq	%rbx, %rsi
 	movq	%r13, %rdi
 	call	vec_push@PLT
 	cmpl	$17, 40(%rbp)
-	je	.L314
-.L304:
+	je	.L325
+.L315:
 	addq	$72, %rsp
 	.cfi_remember_state
 	.cfi_def_cfa_offset 56
@@ -3370,7 +3431,7 @@ parse_comma_init_list:
 	ret
 	.p2align 4,,10
 	.p2align 3
-.L314:
+.L325:
 	.cfi_restore_state
 	movq	%r14, %rdi
 	call	tok_free@PLT
@@ -3386,12 +3447,12 @@ parse_comma_init_list:
 	movups	%xmm0, 72(%rbp)
 	movq	48(%rsp), %rax
 	movq	%rax, 88(%rbp)
-	jne	.L306
-.L313:
+	jne	.L317
+.L324:
 	movq	%rbp, %rdi
 	call	parse_init_list
 	movq	%rax, %rbx
-	jmp	.L307
+	jmp	.L318
 	.cfi_endproc
 .LFE45:
 	.size	parse_comma_init_list, .-parse_comma_init_list
@@ -3425,19 +3486,19 @@ parse_extern_var_def:
 	subq	$72, %rsp
 	.cfi_def_cfa_offset 112
 	cmpl	$1, 40(%rdi)
-	je	.L316
+	je	.L327
 	movl	84(%rdi), %edx
 	movl	80(%rdi), %esi
 	xorl	%eax, %eax
 	leaq	.LC24(%rip), %rdi
 	call	dief@PLT
-.L316:
+.L327:
 	movl	$64, %edi
 	call	xmalloc@PLT
 	movq	%rax, %rbp
 	testq	%rax, %rax
-	je	.L335
-.L317:
+	je	.L346
+.L328:
 	pxor	%xmm0, %xmm0
 	leaq	40(%rbx), %r13
 	movups	%xmm0, 0(%rbp)
@@ -3462,26 +3523,26 @@ parse_extern_var_def:
 	movq	48(%rsp), %rdx
 	movq	%rdx, 88(%rbx)
 	cmpl	$19, %eax
-	je	.L318
+	je	.L329
 	cmpl	$15, %eax
-	je	.L336
+	je	.L347
 	cmpl	$18, %eax
-	je	.L337
+	je	.L348
 	cmpl	$21, %eax
-	je	.L338
+	je	.L349
 	movq	%rbx, %rdi
 	call	parse_comma_init_list
 	testq	%rax, %rax
-	je	.L329
+	je	.L340
 	cmpl	$2, 24(%rbp)
-	je	.L333
+	je	.L344
 	movl	$1, 24(%rbp)
-.L333:
+.L344:
 	movq	%rax, 56(%rbp)
 	movl	$18, %esi
 	movq	%rbx, %rdi
 	call	expect
-.L315:
+.L326:
 	addq	$72, %rsp
 	.cfi_remember_state
 	.cfi_def_cfa_offset 40
@@ -3497,15 +3558,15 @@ parse_extern_var_def:
 	ret
 	.p2align 4,,10
 	.p2align 3
-.L335:
+.L346:
 	.cfi_restore_state
 	leaq	.LC11(%rip), %rdi
 	xorl	%eax, %eax
 	call	dief@PLT
-	jmp	.L317
+	jmp	.L328
 	.p2align 4,,10
 	.p2align 3
-.L318:
+.L329:
 	movq	%r13, %rdi
 	call	tok_free@PLT
 	movq	%rbx, %rsi
@@ -3521,30 +3582,30 @@ parse_extern_var_def:
 	movq	48(%rsp), %rax
 	movq	%rax, 88(%rbx)
 	movl	$2, 24(%rbp)
-	je	.L339
+	je	.L350
 	movq	%rbx, %rdi
 	call	parse_expr
 	movl	$20, %esi
 	movq	%rbx, %rdi
 	movq	%rax, 32(%rbp)
 	call	expect
-.L322:
+.L333:
 	cmpl	$15, 40(%rbx)
 	movq	%rbx, %rdi
-	je	.L334
+	je	.L345
 	call	parse_comma_init_list
-	jmp	.L333
+	jmp	.L344
 	.p2align 4,,10
 	.p2align 3
-.L336:
+.L347:
 	movl	$1, 24(%rbp)
 	movq	%rbx, %rdi
-.L334:
+.L345:
 	call	parse_init_list
-	jmp	.L333
+	jmp	.L344
 	.p2align 4,,10
 	.p2align 3
-.L337:
+.L348:
 	movq	%r13, %rdi
 	call	tok_free@PLT
 	movq	%rbx, %rsi
@@ -3560,10 +3621,10 @@ parse_extern_var_def:
 	movq	%rax, 88(%rbx)
 	movl	$0, 24(%rbp)
 	movq	$0, 56(%rbp)
-	jmp	.L315
+	jmp	.L326
 	.p2align 4,,10
 	.p2align 3
-.L329:
+.L340:
 	movq	16(%rbp), %rsi
 	movl	84(%rbx), %ecx
 	leaq	.LC25(%rip), %rdi
@@ -3571,10 +3632,10 @@ parse_extern_var_def:
 	movl	80(%rbx), %edx
 	xorl	%ebp, %ebp
 	call	dief@PLT
-	jmp	.L315
+	jmp	.L326
 	.p2align 4,,10
 	.p2align 3
-.L338:
+.L349:
 	movq	%r13, %rdi
 	call	tok_free@PLT
 	movq	%rbx, %rsi
@@ -3602,10 +3663,10 @@ parse_extern_var_def:
 	movq	%rax, 16(%r12)
 	movq	%r12, 56(%rbp)
 	call	expect
-	jmp	.L315
+	jmp	.L326
 	.p2align 4,,10
 	.p2align 3
-.L339:
+.L350:
 	movq	%r13, %rdi
 	call	tok_free@PLT
 	movq	%rbx, %rsi
@@ -3620,7 +3681,7 @@ parse_extern_var_def:
 	movq	48(%rsp), %rax
 	movq	%rax, 88(%rbx)
 	movl	$1, 40(%rbp)
-	jmp	.L322
+	jmp	.L333
 	.cfi_endproc
 .LFE28:
 	.size	parse_extern_var_def, .-parse_extern_var_def
@@ -3658,63 +3719,63 @@ parse_program_ast:
 	movq	%rax, %r12
 	movups	%xmm0, 8(%rax)
 	testl	%edx, %edx
-	je	.L340
+	je	.L351
 	leaq	.LC26(%rip), %r13
-	jmp	.L347
+	jmp	.L358
 	.p2align 4,,10
 	.p2align 3
-.L345:
+.L356:
 	call	tk_name@PLT
 	movq	%r13, %rdi
 	movq	%rax, %rsi
 	xorl	%eax, %eax
 	call	dief@PLT
-.L343:
+.L354:
 	movq	%rbx, %rsi
 	movq	%r12, %rdi
 	call	vec_push@PLT
 	movl	40(%rbp), %eax
 	testl	%eax, %eax
-	je	.L340
-.L347:
+	je	.L351
+.L358:
 	movl	$16, %edi
 	call	xmalloc@PLT
 	movl	40(%rbp), %edi
 	movq	%rax, %rbx
 	cmpl	$12, %edi
-	je	.L350
+	je	.L361
 	cmpl	$5, %edi
-	je	.L351
+	je	.L362
 	cmpl	$1, %edi
-	jne	.L345
+	jne	.L356
 	movq	%rbp, %rdi
 	call	peek_next_kind
 	cmpl	$13, %eax
-	je	.L352
+	je	.L363
 	movl	$2, (%rbx)
 	movq	%rbp, %rdi
 	call	parse_extern_var_def
 	movq	%rax, 8(%rbx)
-	jmp	.L343
+	jmp	.L354
 	.p2align 4,,10
 	.p2align 3
-.L350:
+.L361:
 	movl	$3, (%rax)
 	movq	%rbp, %rdi
 	call	parse_extern_decl
 	movq	%rax, 8(%rbx)
-	jmp	.L343
+	jmp	.L354
 	.p2align 4,,10
 	.p2align 3
-.L351:
+.L362:
 	movl	$0, (%rax)
 	movq	%rbp, %rdi
 	call	parse_auto_decl
 	movq	%rax, 8(%rbx)
-	jmp	.L343
+	jmp	.L354
 	.p2align 4,,10
 	.p2align 3
-.L340:
+.L351:
 	addq	$8, %rsp
 	.cfi_remember_state
 	.cfi_def_cfa_offset 40
@@ -3730,21 +3791,21 @@ parse_program_ast:
 	ret
 	.p2align 4,,10
 	.p2align 3
-.L352:
+.L363:
 	.cfi_restore_state
 	movl	$1, (%rbx)
 	movq	%rbp, %rdi
 	call	parse_function
 	movq	%rax, 8(%rbx)
-	jmp	.L343
+	jmp	.L354
 	.cfi_endproc
 .LFE25:
 	.size	parse_program_ast, .-parse_program_ast
 	.section	.rodata
 	.align 32
-	.type	CSWTCH.6, @object
-	.size	CSWTCH.6, 34
-CSWTCH.6:
+	.type	CSWTCH.9, @object
+	.size	CSWTCH.9, 34
+CSWTCH.9:
 	.byte	5
 	.byte	5
 	.byte	6

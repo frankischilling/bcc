@@ -5,6 +5,7 @@ _main:
 	.+2
 	mov	r5, -(sp)
 	mov	sp, r5
+	sub	$L30000f, sp
 	mov	$_putchar, r0
 	mov	(r0), r0
 	mov	r0, -(sp)
@@ -59,3 +60,4 @@ L30000:
 	mov	r5, sp
 	mov	(sp)+, r5
 	rts	pc
+L30000f = 0.

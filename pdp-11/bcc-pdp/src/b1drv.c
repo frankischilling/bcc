@@ -92,7 +92,7 @@ disp1() {
 	if (tageq(dtag, "binc")){ a = nxti(dbuf); b = nxti(dbuf); c = nxti(dbuf); cgbinc(a, b, c); return (1); }
 	if (tageq(dtag, "cl"))  { a = nxti(dbuf); cgcll(a); return (1); }
 	if (tageq(dtag, "pr"))  { nxtnam(dbuf, dnm); a = nxti(dbuf); b = nxti(dbuf); cgpro(dnm, a, b); return (1); }
-	if (tageq(dtag, "ep"))  { cgepi(); return (1); }
+	if (tageq(dtag, "ep"))  { a = nxti(dbuf); cgepi(a); return (1); }
 	if (tageq(dtag, "rt"))  { cgret(); return (1); }
 	if (tageq(dtag, "lc"))  { a = nxti(dbuf); cglca(a); return (1); }
 	if (tageq(dtag, "ar"))  { a = nxti(dbuf); cgara(a); return (1); }

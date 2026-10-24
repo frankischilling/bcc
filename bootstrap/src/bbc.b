@@ -7,7 +7,7 @@
 
 SRC; SRCLEN; POS; LINE; COL; STRICT; WANT_NCURSES;
 TOK; TNUM; TTEXT; TTEXTLEN;
-OUT; FUNS; NFUNS; MAIN_NARGS; HAS_MAIN; GLOBS; NGLOBS;
+HOIST; OUT; FUNS; NFUNS; MAIN_NARGS; HAS_MAIN; GLOBS; NGLOBS;
 ALLFUNS; NALLFUNS; ALLGLOBS; NALLGLOBS;
 VERBOSE; LIBDIR; LOCALS; NLOCALS; LABELS; NLABELS; LABELPASS;
 
@@ -714,6 +714,7 @@ has_local(name) {
 }
 
 add_local(name) {
+    if (STRICT & has_local(name)) fatal("duplicate local name");
     if (label_id(name)) fatal("local variable conflicts with label");
     if (NLOCALS >= 2048) fatal("too many local names");
     LOCALS[NLOCALS] = name;
@@ -1103,69 +1104,61 @@ emitln(s) {
 }
 
 auto_decl() {
-    auto first, name, size;
+    auto name, size, saved;
     expect(10);
-    first = 1;
-    emit("word ");
     while (1) {
         if (TOK != 1) fatal("expected auto name");
         name = TTEXT;
         add_local(name);
-        next();
-        if (!first) emit(", ");
+        next(); size = 0;
         if (TOK == 34) {
             if (STRICT) fatal("bracketed auto vector is not strict B");
-            next();
-            size = expr(1);
-            expect(35);
-            emit("__");
-            emit(name);
-            emit("_store[");
-            emit(size);
-            emit("]; word ");
-            emit(name);
-            emit(" = B_PTR(__");
-            emit(name);
-            emit("_store)");
+            next(); size = expr(1); expect(35);
         } else if ((TOK == 2) | (TOK == 4)) {
-            emit("__");
-            emit(name);
-            emit("_store[");
-            emit(itoa(TNUM));
-            emit("]; word ");
-            emit(name);
-            emit(" = B_PTR(__");
-            emit(name);
-            emit("_store)");
-            next();
-        } else {
-            emit(name);
-            emit(" = 0");
+            size = itoa(TNUM); next();
         }
-        first = 0;
-        if (TOK == 36) {
-            next();
-        } else {
-            break;
+        saved = OUT;
+        if (STRICT & LABELPASS & (HOIST != 0)) OUT = HOIST;
+        if (!STRICT | (LABELPASS & (HOIST != 0))) {
+            if (size) {
+                emit("word __"); emit(name); emit("_store[");
+                emit(size); emitln("];");
+            }
+            emit("word "); emit(name); emitln(" = 0;");
         }
+        OUT = saved;
+        if (!STRICT | !LABELPASS) {
+            if (size) {
+                emit(name); emit(" = B_PTR(__"); emit(name); emitln("_store);");
+            } else emitln(";");
+        }
+        if (TOK != 36) break;
+        next();
     }
     expect(37);
-    emitln(";");
 }
 
 extrn_stmt() {
     expect(11);
-    while (TOK != 37) {
-        if (TOK == 0) fatal("bad extrn");
+    while (1) {
+        if (TOK != 1) fatal("expected extrn name");
+        next();
+        if (TOK != 36) break;
         next();
     }
-    next();
+    expect(37);
+}
+
+block_item() {
+    if (!STRICT & (TOK == 10)) auto_decl();
+    else if (!STRICT & (TOK == 11)) extrn_stmt();
+    else stmt();
 }
 
 block() {
     expect(32);
     emitln("{");
-    while (TOK != 33) stmt();
+    while (TOK != 33) block_item();
     expect(33);
     emitln("}");
 }
@@ -1176,12 +1169,13 @@ stmt() {
         block();
         return(0);
     }
-    if (TOK == 10) {
-        auto_decl();
-        return(0);
-    }
-    if (TOK == 11) {
-        extrn_stmt();
+    if ((TOK == 10) | (TOK == 11)) {
+        emitln("{");
+        while ((TOK == 10) | (TOK == 11)) {
+            if (TOK == 10) auto_decl(); else extrn_stmt();
+        }
+        stmt();
+        emitln("}");
         return(0);
     }
     if (TOK == 12) {
@@ -1370,6 +1364,7 @@ scan_functions() {
                     add_local(TTEXT); n = n + 1; next();
                     if (TOK != 36) break;
                     next();
+                    if (TOK == 31) fatal("expected parameter");
                 }
                 expect(31);
                 add_fun(name, n);
@@ -1551,8 +1546,10 @@ global_or_func() {
             first = 0;
             n = n + 1;
             next();
-            if (TOK == 36) next();
-            else break;
+            if (TOK == 36) {
+                next();
+                if (TOK == 31) fatal("expected parameter");
+            } else break;
         }
         expect(31);
         emit(") ");
@@ -1610,6 +1607,7 @@ func_body() {
     OUT = buf_new(1024);
     NLABELS = 0;
     LABELPASS = 1;
+    HOIST = buf_new(1024);
     emit_body();
     free(OUT[0]); free(OUT);
     OUT = saved;
@@ -1618,22 +1616,21 @@ func_body() {
     NLOCALS = locals;
     LABELPASS = 0;
     emit_body();
+    free(HOIST[0]); free(HOIST); HOIST = 0;
 }
 
 emit_body() {
-    if (TOK == 32) {
-        expect(32);
-        emitln("{");
-        while (TOK != 33) stmt();
-        emitln("return 0;");
+    auto braced;
+    braced = TOK == 32;
+    if (braced) expect(32);
+    emitln("{");
+    if (STRICT & !LABELPASS & (HOIST != 0)) emit(buf_take(HOIST));
+    if (braced) {
+        while (TOK != 33) block_item();
         expect(33);
-        emitln("}");
-    } else {
-        emitln("{");
-        stmt();
-        emitln("return 0;");
-        emitln("}");
-    }
+    } else stmt();
+    emitln("return 0;");
+    emitln("}");
 }
 
 emit_header() {

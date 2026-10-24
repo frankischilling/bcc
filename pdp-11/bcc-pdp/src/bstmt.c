@@ -162,90 +162,68 @@ gdef(name) char name[]; {
 	gettok();
 }
 
+nlocal 0;
+
+/* Declarations are statements, not just a function-body prefix. */
+decl() {
+    extern tok, tval, tnam, extflg, nlocal;
+    int tok, tval, extflg, nlocal;
+    char tnam[];
+    char saved[10];
+    int kind, sz;
+    kind = tok;
+    gettok();
+    while (1) {
+        if (tok != 1) fatal("expected declaration name");
+        cpname(saved, tnam);
+        gettok();
+        if (kind == 11) cgaextrn(saved);
+        else {
+            cgaauto(saved);
+            sz = 1;
+            if (tok == '[') {
+                if (!extflg) fatal("auto [] requires -x");
+                gettok();
+                if (tok != 2) if (tok != 4) fatal("expected vector size");
+                sz = vsize(); gettok();
+                if (tok != ']') fatal("expected ] after vector size");
+                gettok(); cgavecsz(saved, sz);
+            } else if (tok == 2 | tok == 4) {
+                sz = vsize(); gettok(); cgavecsz(saved, sz);
+            }
+            if (nlocal > 8191 - sz) fatal("auto frame too large");
+            nlocal = nlocal + sz;
+        }
+        if (tok != ',') break;
+        gettok();
+    }
+    if (tok != ';') fatal("expected ; after declaration");
+    gettok();
+}
+
 fdef(name) char name[]; {
-	extern tok, tval, tnam, extflg;
-	int  tok, tval, extflg;
-	char tnam[];
-	int nargs, nlocals, sz;
-	char saved[10];
-
-	if (tok != '(') fatal("expected ( after function name");
-	gettok();
-
-	outs("Adef ");
-	outs(name);
-	outc('\n');
-
-	nargs = 0;
-	while (tok == 1) {                       /* T_NAME */
-		cgaarg(tnam, nargs);
-		nargs = nargs + 1;
-		gettok();
-		if (tok == ',') gettok();
-	}
-	if (tok != ')') fatal("expected ) in arg list");
-	gettok();
-
-	if (tok != '{') {
-		stmt();
-		cgepi();
-		return;
-	}
-	gettok();
-
-	nlocals = 0;
-	while (1) {
-		if (tok == 10) {                     /* T_AUTO */
-			gettok();
-			while (tok == 1) {
-				cpname(saved, tnam);
-				sz = 1;
-				cgaauto(saved);
-				gettok();
-				if (tok == '[') {
-					if (!extflg) fatal("auto [] requires -x");
-					gettok();
-					if (tok != 2) if (tok != 4) fatal("expected vector size");
-					sz = vsize();
-					gettok();
-					if (tok != ']') fatal("expected ] after vector size");
-					gettok();
-					cgavecsz(saved, sz);
-				}
-				if (tok == 2 | tok == 4) {    /* numeric or character constant */
-					sz = vsize();
-					gettok();
-					cgavecsz(saved, sz);
-				}
-				if (nlocals > 8191 - sz) fatal("auto frame too large");
-				nlocals = nlocals + sz;
-				if (tok == ',') gettok();
-			}
-			if (tok != ';') fatal("expected ; after auto");
-			gettok();
-			continue;
-		}
-		if (tok == 11) {                     /* T_EXTRN */
-			gettok();
-			while (tok == 1) {
-				cgaextrn(tnam);
-				gettok();
-				if (tok == ',') gettok();
-			}
-			if (tok != ';') fatal("expected ; after extrn");
-			gettok();
-			continue;
-		}
-		break;
-	}
-
-	while (tok != '}') {
-		if (tok == 0) fatal("unexpected EOF in function body");
-		stmt();
-	}
-	gettok();                                /* consume } */
-
-	cgepi();
+    extern tok, tnam, nlocal;
+    int tok, nlocal;
+    char tnam[];
+    int nargs;
+    if (tok != '(') fatal("expected ( after function name");
+    gettok();
+    outs("Adef "); outs(name); outc('\n');
+    nargs = 0;
+    if (tok != ')') {
+        while (1) {
+            if (tok != 1) fatal("expected parameter name");
+            cgaarg(tnam, nargs); nargs = nargs + 1;
+            gettok();
+            if (tok != ',') break;
+            gettok();
+        }
+    }
+    if (tok != ')') fatal("expected ) in arg list");
+    gettok();
+    nlocal = 0;
+    stmt();
+    cgepi();
 }
 
 stmt() {
@@ -259,6 +237,8 @@ stmt() {
 	int ob, oc, ohb, ohc;
 	char saved[10];
 	int svval, svstr;
+
+    while (tok == 10 | tok == 11) decl();
 
 	if (tok == '{') {
 		gettok();

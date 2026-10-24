@@ -13,9 +13,9 @@ Status legend:
 
 ## §1–2  Introduction & Canonical Syntax
 
-The parser lives in `src/bstmt.c` and `src/bexpr.c`. It does not yet cover
-the full grammar: declarations are restricted to the beginning of a braced
-function body.
+The parser lives in `src/bstmt.c` and `src/bexpr.c`. Declaration prefixes
+bind to the following statement, including unbraced function, conditional,
+and loop bodies. Automatic names remain local to their function invocation.
 ✔ Reserved keywords: `auto extrn case if else while switch goto return` (9 only;
 the strict 1972 set).
 ✔ All operators per §2 grammar.
@@ -69,9 +69,9 @@ Measured `text + data + bss` for the current sources:
 
 | Binary | Role | Current total |
 |---|---|---:|
-| `b00` | lex + parse + raw IC | 15604 bytes |
-| `b01` | symbols + IC resolution | 12366 bytes |
-| `b1` | assembly emitter | 15618 bytes |
+| `b00` | lex + parse + raw IC | 15542 bytes |
+| `b01` | symbols + IC resolution | 12404 bytes |
+| `b1` | assembly emitter | 15730 bytes |
 | `b` | driver | 4082 bytes |
 
 These totals exclude the argument frame and runtime stack. Passing the binary
@@ -79,14 +79,15 @@ size check does not establish that every input or recursion depth fits.
 
 ## §6  Declarations
 
-✚ Scalar and historical vector autos (`auto v 3`) work at the start of a
-braced function body. Numeric and character-valued extents are accepted.
+✔ Scalar and historical vector autos (`auto v 3`) work in declaration
+statements. Numeric and character-valued extents are accepted.
 Vector slots hold mutable pointers, for both automatic and external vectors.
 Indexing a scalar or parameter loads its pointer value before selecting an element.
 The pointer still uses byte units, so this does not resolve the §12 deviation.
-Vector slot holds pointer
-to data area, initialized at function entry by the resolved `vi` IC record.
-✚ `extrn NAME, ...` registers an external reference in the same declaration prefix.
+A vector slot holds a pointer to its data area. The resolved `vi` record
+initializes it where the declaration is executed. The stack frame reserves
+space for every automatic before the body runs, including late declarations.
+✔ `extrn NAME, ...` registers external references in declaration statements.
 ✔ Internal labels: `name :` declares; first reference to undeclared name
 in expression context creates a forward label reference. Labels are scoped
 to their function; unresolved and duplicate definitions are rejected.
@@ -97,7 +98,7 @@ to their function; unresolved and duplicate definitions are rejected.
 |---|---|---|
 | 7.1 | `name {ival, ival, ...} ;` | ✔ contiguous cells; numeric, character, and string constants or external addresses |
 | 7.2 | `name [size] {ival, ival, ...} ;` | ✔ numeric, character, and string constants or external addresses |
-| 7.3 | `name(args) stmt` | ✚ ordinary statement bodies work; declaration statements still require the braced prefix |
+| 7.3 | `name(args) stmt` | ✔ includes declaration-prefixed bodies |
 
 A name initializer emits the mapped assembler symbol (the byte address of
 the named external) at the data slot. String initializers hold the address
@@ -196,6 +197,5 @@ The fast runner uses an unchanged-text compatibility container to observe
 results that the pinned apout 0405 mode discards. Full-system tests remain
 separate and cover real V1 files, processes, tty state, and time registers.
 See [the test guide](../../docs/testing.md). The native compiler still needs
-work on word-addressed pointers, declaration-statement grammar,
-and cross-file linkage for mapped external names. Table
+work on word-addressed pointers and cross-file linkage for mapped external names. Table
 entries above describe implemented paths, not a claim of complete conformance.

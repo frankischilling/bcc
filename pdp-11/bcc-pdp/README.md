@@ -134,6 +134,12 @@ ABI change. Handwritten code calls a public function through its cell, as in
 still allow an implicit external declaration for compatibility; an undeclared
 name used as an ordinary value remains a function-local label reference.
 
+Declarations can prefix any statement, including conditional and loop bodies.
+Automatic storage is reserved per function invocation; vector pointer cells
+are initialized when their declarations execute. The assembler resolves a
+forward frame-size constant after all locals are known, so declarations later
+in the body cannot overwrite the caller's frame.
+
 ## Limits and differences
 
 - Pointers are byte-addressed, not the manual's word addresses. Vector

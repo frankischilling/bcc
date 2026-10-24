@@ -12,8 +12,6 @@ pndcls 0;
 fnsy[5];
 nlocs 0;
 hdrdn 1;
-nvini 0;
-vinis[16];
 infun 0;
 
 /* Delay only the short initializer records, not their literal bytes. */
@@ -126,26 +124,16 @@ echoln(buf) char buf[]; {
 }
 
 emitpr() {
-	extern fnsy, nlocs, nvini, vinis, hdrdn, infun;
-	char fnsy[];
-	int nlocs, nvini, hdrdn, infun;
-	int vinis[];
-	int retl, i;
-	if (!infun) return;
-	if (hdrdn) return;
-	retl = newl();
-	outs("pr ");
-	outs(fnsy); outc(' ');
-	outd(nlocs); outc(' ');
-	outd(retl); outc('\n');
-	i = 0;
-	while (i < nvini) {
-		outs("vi ");
-		outd(vinis[2 * i]); outc(' ');
-		outd(vinis[2 * i + 1]); outc('\n');
-		i = i + 1;
-	}
-	hdrdn = 1;
+    extern fnsy, nlocs, hdrdn, infun;
+    char fnsy[];
+    int nlocs, hdrdn, infun;
+    int retl;
+    if (!infun) return;
+    if (hdrdn) return;
+    retl = newl();
+    outs("pr "); outs(fnsy); outc(' ');
+    outd(nlocs); outc(' '); outd(retl); outc('\n');
+    hdrdn = 1;
 }
 
 regsym(name, cls, off) char name[]; {
@@ -238,11 +226,11 @@ rrdef(name) char name[]; {
 }
 
 rewrt() {
-	extern dbuf, dtag, dnm, fnsy, nlocs, nvini, vinis, hdrdn, pndcls;
+	extern dbuf, dtag, dnm, fnsy, nlocs, hdrdn, pndcls;
 	extern infun, fnst, nsy, scls, soff, ghbuf, ghlen, ghon, glits;
 	char dbuf[], dtag[], dnm[], fnsy[], ghbuf[];
-	int nlocs, nvini, hdrdn, pndcls, infun, fnst, nsy, ghlen, ghon, glits;
-	int vinis[], scls[], soff[];
+	int nlocs, hdrdn, pndcls, infun, fnst, nsy, ghlen, ghon, glits;
+	int scls[], soff[];
 	int idx, sz, base, sid;
 
 	while (1) {
@@ -279,14 +267,16 @@ rewrt() {
 			regsym(dnm, 4, 0);
 			fnst = nsy;
 			nlocs = 0;
-			nvini = 0;
 			hdrdn = 0;
 			infun = 1;
 			pndcls = 0;
+			emitpr();
 			continue;
 		}
 		if (tageq(dtag, "Aauto")) {
 			nxtnam(dbuf, dnm);
+            if (symfnd(dnm) >= fnst) fatal("duplicate local name");
+			if (nlocs >= 8191) fatal("auto frame too large");
 			symadd(dnm, 1, nlocs);
 			nlocs = nlocs + 1;
 			continue;
@@ -298,16 +288,17 @@ rewrt() {
 			if (sid < 0) fatal("Avec without Aauto");
 			scls[sid] = 6;
 			base = soff[sid];
-			if (nvini >= 8) fatal("too many vector autos");
-			vinis[2 * nvini] = base;
-			vinis[2 * nvini + 1] = base + sz - 1;
-			nvini = nvini + 1;
-			nlocs = base + sz;
+            if (sz < 1 | sz > 8191) fatal("bad auto size");
+            if (base > 8191 - sz) fatal("auto frame too large");
+            nlocs = base + sz;
+            outs("vi "); outd(base); outc(' ');
+            outd(base + sz - 1); outc('\n');
 			continue;
 		}
 		if (tageq(dtag, "Aarg")) {
 			nxtnam(dbuf, dnm);
 			idx = nxti(dbuf);
+            if (symfnd(dnm) >= fnst) fatal("duplicate parameter");
 			symadd(dnm, 2, idx);
 			continue;
 		}
@@ -328,7 +319,7 @@ rewrt() {
 				sid = sid + 1;
 			}
 			emitpr();
-			outs("ep\n");
+			outs("ep "); outd(nlocs); outc('\n');
 			symtrn();
 			hdrdn = 1;
 			infun = 0;

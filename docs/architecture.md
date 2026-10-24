@@ -42,6 +42,12 @@ occurrence has writable storage that persists across calls. Equal literals
 elsewhere do not share mutations through `lchar`. The collection and emission
 passes reuse the same occurrence rather than allocating storage per evaluation.
 
+In strict mode, automatic names have function-wide storage after declaration.
+The C emitter reserves their cells at function entry and leaves vector pointer
+initialization at the declaration. Declaration prefixes are grouped with their
+following statement, so an `if` or `while` controls both. Compatibility mode
+keeps the existing C-style block scoping.
+
 ## External storage
 
 Every B external data object is a C array of cells. Reading its B name reads
@@ -78,7 +84,10 @@ The native PDP-11 compiler has three processes: `b00` parses to intermediate
 records, `b01` resolves names, and `b1` emits V1 assembler syntax. A small
 native driver runs those passes and the historical assembler. Splitting the
 passes keeps their code/data/BSS within the 16 KB process budget, although
-programs also need space for their runtime stack.
+programs also need space for their runtime stack. Native frame allocation uses
+a forward assembler constant whose value is emitted after the body has been
+parsed. Late automatic declarations therefore contribute to the same frame;
+vector initialization records stay at their source execution points.
 
 Native `runtime/brt.s` supplies startup-adjacent helpers and syscall wrappers;
 `runtime/libb.b` supplies library routines written in B. The native compiler

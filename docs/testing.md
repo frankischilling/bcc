@@ -108,3 +108,8 @@ and remaining gaps, including host stat/terminal layouts, native word-addressed
 pointers, and full function-name storage semantics. A bootstrap fixed point
 can preserve the same bug across stages. Sanitizer results should state both
 which code was instrumented and whether leak checking was available.
+
+`tests/test_declarations.py` runs the declaration fixtures through all host
+word/runtime layouts and each bootstrap stage. Native tests use the same
+positive source files. The suite also rejects malformed name lists, missing
+bodies, duplicate locals, and malformed parameter lists.

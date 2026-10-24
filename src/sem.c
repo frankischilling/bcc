@@ -334,11 +334,11 @@ static void sem_check_stmt(SemState *st, Stmt *s) {
             break;
 
         case ST_BLOCK: {
-            sem_push_scope(st);
+            if (!g_strict) sem_push_scope(st);
             for (size_t i = 0; i < s->as.block.items.len; i++) {
                 sem_check_stmt(st, s->as.block.items.data[i]);
             }
-            sem_pop_scope(st);
+            if (!g_strict) sem_pop_scope(st);
             break;
         }
 

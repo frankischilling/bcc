@@ -10,19 +10,19 @@
     "src/bcc.h": "1c67d2496b82c67a91cfbc8dea4c116dec977b5619f406a52fe8a9a6be5cdc99",
     "src/util.c": "eb7346a6b5de99f7ccd4b575d79e36b1c748d874704ec9aa25829cbc575e48a7",
     "src/lexer.c": "d7fb33383d0de30eb13137f6d436cd648223e5164b44c1b4011c9a068f1dafed",
-    "src/parser.c": "e9099b6c777b6b2f691477a851847ddf3ab932303d1e2382d0444422eec4cbfe",
-    "src/sem.c": "18323c03839dd7ebe61bfc358bcdcc09a390601887d24a6b76c14d4c242d5140",
+    "src/parser.c": "4aa070a8b42fc75b2a395b450b98b63337591a91606ee0caade2ec0a1933e3d5",
+    "src/sem.c": "c37a06abc5b8907989ac5ccae9eb3563c145eef3ed4e5ebe4760c318b9c6e4d8",
     "src/arena.c": "735d6995a469578b6707df4103bb7e837a16bcc7701e3c11dcea90ee1bb1bb52",
-    "src/emitter.c": "365ed22f97bd27abe093d70d66890525673acb8087b26543a6aa2cfc8edb38a0",
+    "src/emitter.c": "1c1cc5fdd9e3072220a7ca9185af59ab3441191c1066d150fb91cbe72ad52bb1",
     "src/main.c": "f9eeba3f80035a09e1e4db0f52fd9c7e38f1748a24f09e0e329dbd6ba4e1964b"
   },
   "assembly": {
     "util.s": "22b32fa9c6eb492d5a8463404981c8aeccb881c8b8613d304b5cb20c61ccd8fd",
     "lexer.s": "2de2b4b22c1f5ee53d1ae52f20aed0f1e699d7e6336d061853e7110dd16f4858",
-    "parser.s": "27e0535fb95cba44bda3b3c59cad888b0cdc15850054dadcc7815200c8df7b8b",
-    "sem.s": "12632137fddec46081bf78e5de46e8478d11568b2e88b06aea4724b1f4311235",
+    "parser.s": "760fe74cf19162c4b255bb510f4cc8c9e5e949f45292b1ab59b366a1dd5d6164",
+    "sem.s": "e5cdc36e03039263f2e7f7f8a227e3bac19d5a25ebb5f97d7257cb2fae168d27",
     "arena.s": "01ec3c3805064581f6daea98a1607b24ae2fc14900d058761f516f272c129665",
-    "emitter.s": "9ff9019afece9790bdbb3aa51b4cb55d718e3dcf8b92a3bf5abf651affcf4daa",
+    "emitter.s": "62cc72815cbe3445d68f4ed9de56bea0278a04662c2f0adac9bd512b57f33de7",
     "main.s": "f3d563820f980ae32bed90fc83a188bb920036f4a12b345bb03d198912cb0c85"
   }
 }

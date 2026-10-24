@@ -157,11 +157,8 @@ cgpro(name, nlocals, retlbl) char name[]; {
 	outs(":\n\t.+2\n");
 	eop("mov\tr5, -(sp)");
 	eop("mov\tsp, r5");
-	if (nlocals > 0) {
-		outs("\tsub\t$");
-		outd(2 * nlocals);
-		outs("., sp\n");
-	}
+    /* The final frame size is defined after the entire body is parsed. */
+    outs("\tsub\t$L"); outd(retlbl); outs("f, sp\n");
 }
 
 /* vector-auto init: write &data[0] into v's slot.
@@ -209,15 +206,18 @@ cggab(name, n, ninit, buf) char name[]; char buf[]; {
 	outs("\t.even\n");
 }
 
-cgepi() {
+cgepi(nlocals) {
 	extern retl;
 	int retl;
+    if (nlocals < 0 | nlocals > 8191) fatal("bad frame size");
 	outs("L");
 	outd(retl);
 	outs(":\n");
 	eop("mov\tr5, sp");
 	eop("mov\t(sp)+, r5");
 	eop("rts\tpc");
+    outs("L"); outd(retl); outs("f = ");
+    outd(2 * nlocals); outs(".\n");
 }
 
 cgret() {
