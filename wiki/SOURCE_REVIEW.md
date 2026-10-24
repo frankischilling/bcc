@@ -929,6 +929,15 @@ in anticipation of the PDP-11/45. That is another reason to attach ABI and
 memory claims to an edition and tested configuration, rather than treating
 one restored image as a universal early-Unix machine.
 
+The host C99 I/O contract also matters before replacing the seed. A buffered
+write may fail during flushing or closing, not just during the original output
+call. Tests using a failing output device exposed successful exit statuses
+from both the host compiler and all three B bootstrap stages. The host now
+checks stream errors, closes, and the final standard-output flush; the B
+compiler checks writes and closes. Bootstrap diagnostics use descriptor 2
+instead of the runtime's selected output file. These are build-reliability
+corrections, not changes to historical B's language rules.
+
 ## Reference inventory
 
 "Read" below describes the review scope, not a promise that every feature in

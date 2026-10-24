@@ -1,7 +1,9 @@
 # Building BCC with B
 
-The goal is a B-written compiler toolchain that can rebuild itself without
-calling GCC or GNU binutils after the seed stage. The native PDP-11 path
+The goal is a compiler toolchain maintained in B that can rebuild itself
+without a C compiler, GNU binutils, or another external compiler or assembler
+after the seed stage. This includes the compiler, bootstrap compiler, runtime,
+and executable-building tools. The native PDP-11 path
 must perform its B-to-B rebuild on the PDP-11, not merely produce a binary
 on a modern host.
 
@@ -49,7 +51,9 @@ A self-contained host path needs:
    C runtime cannot be hidden behind a claim of toolchain independence.
 4. A B-written assembler/linker or image writer. The bccasm path must be
    reproducible from B-maintained sources, rather than continuing to depend
-   on snapshots regenerated from C with GCC.
+   on snapshots regenerated from C with GCC. A candidate design for bccasm
+   is a generated assembly form of the B compiler, assembled by the B-written
+   toolchain. It remains a design to implement and test, not an existing path.
 
 The existing C and assembly-source builds remain useful seeds and comparison
 implementations during this work. A native-output prototype that cannot yet
@@ -79,8 +83,11 @@ The eventual B-written passes and driver must rebuild their own B sources
 inside the restored system. Keeping the historical assembler is a possible
 transition; it is not GNU binutils, but it is still an external tool. It is
 not the final goal. The completed path needs a B-written assembler or a
-direct native executable writer too. Any remaining target-specific glue
-must be stated explicitly.
+direct native executable writer too, together with a B-written runtime.
+Target-specific instruction sequences must be produced by the B toolchain;
+a permanent C or handwritten assembly implementation is not the intended
+endpoint. The seed may contain those languages, but its role and the point
+where it is no longer used must be recorded.
 
 ## Completion checks
 

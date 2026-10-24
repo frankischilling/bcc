@@ -41,8 +41,15 @@ private_name(name) {
 }
 
 fatal(msg) {
-    extrn printf, exit;
-    printf("bbc: %s at line %d*n", msg, LINE);
+    auto number;
+    extrn exit;
+    /* Diagnostics must not follow openw's selected output file. */
+    write_all(2, "bbc: ", 5);
+    write_all(2, msg, slen(msg));
+    write_all(2, " at line ", 9);
+    number = itoa(LINE);
+    write_all(2, number, slen(number));
+    write_all(2, "*n", 1);
     exit(1);
 }
 
@@ -227,7 +234,7 @@ save_file(path, data, n) {
     fd = openw(11, path);
     if (fd < 0) fatal("cannot open output");
     if (write_all(11, data, n) != 0) fatal("write failed");
-    close(11);
+    if (close(11) < 0) fatal("cannot close output");
 }
 
 peekc() {
@@ -2058,7 +2065,8 @@ main() {
     while (i < ninputs) {
         csrc = compile_to_c(inputs[i]);
         if (emit_stdout) {
-            write_all(1, csrc, slen(csrc));
+            if (write_all(1, csrc, slen(csrc)) != 0)
+                fatal("cannot write standard output");
         } else {
             cname = make_c_name(inputs[i], i);
             save_file(cname, csrc, slen(csrc));

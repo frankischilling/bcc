@@ -67,6 +67,8 @@ def main():
             ok = checked_run(command, name) and ok
         ok = checked_run([sys.executable, str(root / 'tests/test_b72_conformance.py'),
                           '--bcc', str(compiler)], 'B72 conformance') and ok
+        ok = checked_run([sys.executable, str(root / 'tests/test_output_errors.py'),
+                          '--compiler', str(compiler)], 'output errors') and ok
         ok = checked_run([sys.executable, str(root / 'tests/test_object_output.py'),
                           '--compiler', str(compiler)], 'object output') and ok
         ok = checked_run([sys.executable, str(root / 'tests/test_assembly_output.py'),

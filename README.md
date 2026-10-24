@@ -76,6 +76,11 @@ These are different checks. Assembling a staged `bccasm` is not B
 self-hosting, and rebuilding the native C-written compiler inside Unix V1
 is not the same as the B-written bootstrap's fixed-point test.
 
+The [long-term bootstrap goal](wiki/BOOTSTRAP.md) is a B-maintained compiler,
+runtime, and executable-building toolchain on both the host and PDP-11,
+without an external C compiler or assembler after the seed stage. The
+current build paths still have those dependencies.
+
 ## Dialect and word modes
 
 For the selected PDP-11 dialect, use:

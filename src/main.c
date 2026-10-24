@@ -4,6 +4,13 @@
 #include <libgen.h>  /* For dirname() */
 #include <sys/stat.h>  /* For stat() */
 
+/* A buffered write failure may surface during close. */
+static void close_output(FILE *stream, const char *path) {
+    int failed = ferror(stream);
+    if (fclose(stream) == EOF) failed = 1;
+    if (failed) dief("cannot write '%s'", path);
+}
+
 /* Object names come from source names, not temporary C filenames. */
 static char *object_name(const char *source) {
     const char *base = strrchr(source, '/');
@@ -333,30 +340,30 @@ char *compile_b_to_c(const char *in_path, int byteptr, int no_line, int verbose,
         cfile = (char*)malloc(strlen(tmpc_tmpl) + 3);
         if (!cfile) dief("out of memory");
         sprintf(cfile, "%s.c", tmpc_tmpl);
-        fclose(out);
+        close_output(out, tmpc_tmpl);
         if (rename(tmpc_tmpl, cfile) != 0) dief("rename temp failed: %s", strerror(errno));
         out = fopen(cfile, "w");
         if (!out) dief("cannot reopen '%s': %s", cfile, strerror(errno));
     }
 
     emit_program_c_ext(out, prog, in_path, byteptr, no_line, word_bits, use_libb);
-    fclose(out);
+    close_output(out, cfile);
 
     if (dump_c) {
         /* Also dump to stdout if requested */
         FILE *f = fopen(cfile, "r");
-        if (f) {
-            int ch;
-            while ((ch = fgetc(f)) != EOF) putchar(ch);
-            fclose(f);
-        }
+        if (!f) dief("cannot open '%s': %s", cfile, strerror(errno));
+        int ch;
+        while ((ch = fgetc(f)) != EOF) putchar(ch);
+        if (ferror(f)) dief("cannot read '%s'", cfile);
+        fclose(f);
     }
 
     free(src);
     return cfile;
 }
 
-int main(int argc, char **argv) {
+static int run_main(int argc, char **argv) {
     int emit_c_only = 0;
     int emit_asm_only = 0; /* assembly output flag */
     int compile_only = 0;  /* -c flag */
@@ -650,7 +657,7 @@ int main(int argc, char **argv) {
         FILE *out = fopen(out_path, "w");
         if (!out) dief("cannot open '%s': %s", out_path, strerror(errno));
         emit_program_c(out, prog, in_path, byteptr, no_line, word_bits);
-        fclose(out);
+        close_output(out, out_path);
 
         free(src);
         arena_free(g_compilation_arena);
@@ -736,4 +743,12 @@ int main(int argc, char **argv) {
     arena_free(g_compilation_arena);
     g_compilation_arena = NULL;
     return 0;
+}
+
+int main(int argc, char **argv) {
+    int status = run_main(argc, argv);
+    int failed = ferror(stdout);
+    if (fflush(stdout) == EOF) failed = 1;
+    if (failed) dief("cannot write standard output");
+    return status;
 }
