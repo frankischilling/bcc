@@ -363,6 +363,7 @@ scan_char() {
         if (STRICT & (n > 2)) fatal("long char constant is not strict B");
         if (n > 4) fatal("character constant too long");
     }
+    if (n == 0) fatal("empty character constant");
     TNUM = v;
     TOK = 4;
 }

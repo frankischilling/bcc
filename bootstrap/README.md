@@ -38,3 +38,7 @@ references. The bootstrap compiler still uses host-sized, byte-addressed
 storage rather than the host compiler's 16-bit address translation. Function-valued calls are covered, but mutable
 function-name storage and complete block-scope resolution still need work.
 Those are separate from the generated-C fixed-point check.
+
+Character constants must contain at least one character. Strict mode allows
+one or two; compatibility mode allows up to four. Unfinished constants fail
+compilation rather than producing a partial value.

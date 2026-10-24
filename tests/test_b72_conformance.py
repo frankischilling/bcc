@@ -8,6 +8,9 @@ import tempfile
 
 
 CASES = {
+    "empty_character": ("main(){return('');}", None),
+    "overlong_character": ("main(){return('abc');}", None),
+    "unclosed_character": ("main(){return('x", None),
     "function_value": ("f(){return(37);} main(){auto p; p=f; return(p()!=37);}", 0),
     "function_conditional": ("f(x){return(x+2);} g(x){return(x+3);} main(){return((1?f:g)(40)!=42);}", 0),
     "function_vector": ("f(x){return(x+2);} main(){auto v 2; v[0]=f; return(v[0](40)!=42);}", 0),

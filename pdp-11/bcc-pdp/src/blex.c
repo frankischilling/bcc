@@ -238,17 +238,22 @@ lexnum(c) {
 lexchr(endc) {
 	extern tval;
 	int tval;
-	int c, endc;
+	int c, endc, n;
 	tval = 0;
+	n = 0;
 	c = gtch();
 	while (1) {
 		if (c == '\'') break;
 		if (c == endc) break;
-		if (c < 0) break;
+		if (c < 0) fatal("unterminated character constant");
 		if (c == '*') c = rdesc();
+		if (c < 0) fatal("unterminated character constant");
+		if (n >= 2) fatal("character constant too long");
 		tval = (tval << 8) | (c & 0377);
+		n = n + 1;
 		c = gtch();
 	}
+	if (n == 0) fatal("empty character constant");
 }
 
 /* Read string literal, leave raw bytes in tstrbuf/tstrlen. */

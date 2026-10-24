@@ -335,6 +335,8 @@ Token lx_next(Lexer *L) {
 
             chars[count++] = ch & 0xFF;
         }
+        if (!count) error_at_location(L->filename, line, col, ERR_EXPR_SYNTAX,
+                                      "empty character constant");
         /* Character constants are right-adjusted, first character high.
            This is not the byte order of a string stored in memory. */
         unsigned long val = 0;

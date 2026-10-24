@@ -138,6 +138,8 @@ non-negative `printn` example.
   and duplicate labels are rejected by the resolver.
 - The startup argument vector keeps at most 31 user arguments and currently
   omits the program name. Its count reports only stored entries.
+- Character constants require one or two characters; empty, oversized,
+  and unfinished constants are rejected.
 - Source strings are limited to 255 bytes plus the B terminator. Oversized
   or unterminated literals and oversized intermediate records are rejected.
 - Syscall path conversion is limited to 255 bytes. Exec accepts up to 64
