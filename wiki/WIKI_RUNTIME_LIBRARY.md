@@ -24,11 +24,22 @@ historical B environment.
 - Terminal and interrupts: `gtty`, `stty`, `intr`, with the limits below.
 
 Host additions include `alloc`, `free`, `abort`, `system`, `usleep`, `argc`,
-function-style `argv(i)`, `getchr`, `putchr`, `print`, `putnum`, `flush`,
+function-style `argv(i)`, `print`, `putnum`, `flush`,
 `openr`, `openw`, `reread`, and `callf`. Do not assume the native compiler
 implements every host helper. The host ABI declarations are in
 [`libb.h`](../lib/libb.h), and source-name binding is in
 [`src/emitter.c`](../src/emitter.c).
+
+## Library names vary by date
+
+The [November 1971 library list](https://www.nokia.com/bell-labs/about/dennis-m-ritchie/man71.pdf#page=15)
+includes `getchr`, `putchr`, `makdir`, and `intr`. The January 1972 B reference
+instead describes `getchar`, `putchar`, and `mkdir` in its library section.
+Those older names are not modern inventions. BCC retains several of them,
+but a shared name does not prove identical semantics: the host `putchr`
+helper writes one low byte, while `putchar` supports packed character pairs.
+The host signal wrapper is also not a reconstruction of the original
+interpreter's interrupt-handler mechanism.
 
 ## Arguments and process replacement
 
@@ -115,9 +126,12 @@ settings must save and restore them, including on error paths.
 ## Allocation and interoperability
 
 `alloc(n)` allocates host storage for `n` B cells; `free(p)` releases it.
-Use positive, bounded sizes and do not use a pointer after freeing it.
-The translated 16-bit address pool is finite. An allocation error is not
-currently a recoverable B exception.
+Negative sizes and sizes whose byte count would overflow are rejected before
+allocation. A zero-size request returns a freeable address backed by one host
+cell; it does not promise any usable elements. Do not use a pointer after
+freeing it. The translated 16-bit address pool is finite. Invalid sizes and
+allocation failures terminate the program with a diagnostic rather than
+raising a recoverable B exception.
 
 `callf` is a host compatibility bridge, not an emulator for a Honeywell
 Fortran or GMAP calling convention. It resolves selected shims and dynamic

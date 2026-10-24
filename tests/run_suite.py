@@ -95,6 +95,8 @@ def main():
                           '--compiler', str(compiler)], 'internal label cells') and ok
         ok = checked_run([sys.executable, str(root / 'tests/test_mkdir_runtime.py'),
                           '--compiler', str(compiler)], 'mkdir runtime') and ok
+        ok = checked_run([sys.executable, str(root / 'tests/test_allocation_sizes.py'),
+                          '--compiler', str(compiler)], 'allocation size checks') and ok
         ok = checked_run([sys.executable, str(root / 'tests/test_read_runtime.py'),
                           '--compiler', str(compiler)], 'read buffer preservation') and ok
         ok = checked_run([sys.executable, str(root / 'tests/test_number_formatting.py'),

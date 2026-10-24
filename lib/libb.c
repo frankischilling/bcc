@@ -156,7 +156,12 @@ word b_free(word p) {
 /* Memory Allocation */
 
 word b_alloc(word nwords) {
-    size_t bytes = (size_t)nwords * sizeof(word);
+    nwords = WVAL(nwords);
+    if (nwords < 0 || (uword)nwords > SIZE_MAX / sizeof(word)) {
+        fprintf(stderr, "alloc: invalid size\n");
+        exit(1);
+    }
+    size_t bytes = nwords ? (size_t)nwords * sizeof(word) : sizeof(word);
     void *p = malloc(bytes);
     if (!p) {
         fprintf(stderr, "alloc: out of memory\n");

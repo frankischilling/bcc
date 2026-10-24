@@ -165,3 +165,8 @@ together, check default and explicit object names, reject ambiguous output
 paths, and verify that hard links, symlinks, and retained-C paths cannot
 overwrite an input. Identifier tests cover host-header names and distinguish
 source-defined B functions from similarly named C interoperability helpers.
+
+Allocation tests cover valid and zero-size requests, negative counts, the
+minimum word, and host byte-count overflow. They run through shared/inline
+runtimes and every bootstrap stage; the large-value fixture is chosen to
+expose multiplication overflow without requiring a large successful allocation.

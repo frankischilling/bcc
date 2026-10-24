@@ -22,8 +22,9 @@ Success replaces the process; returning indicates failure. Host environment
 and descriptor inheritance follow the host operating system, rather than
 reproducing an original PDP-11 process image.
 
-The historical spelling for directory creation is `mkdir(path,mode)`.
-`makdir` remains available as a project alias. Host privilege and filesystem
+The January 1972 reference spells directory creation `mkdir(path,mode)`.
+The November 1971 library list uses `makdir`; BCC supports both spellings as
+aliases. Host privilege and filesystem
 checks still apply. `exit()` is the historical no-argument form; an explicit
 host exit status is an extension.
 

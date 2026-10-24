@@ -224,3 +224,21 @@ values, and source-defined functions named `malloc` or `strlen`. The bootstrap
 uses private names for locals and parameters as well as external bindings.
 Host compatibility mode retains its older naming/interop rules and does not
 have the same complete identifier isolation.
+
+## Date-specific library names
+
+The November 1971 `/etc/libb.a` entry, page 15 of the [section VII excerpt][man71],
+lists `getchr`, `putchr`, `makdir`, and `intr`. January 1972's section 8 uses
+`getchar`, `putchar`, and `mkdir` and does not list `intr`. Preserve these
+version distinctions; calling the earlier names modern additions is wrong.
+A table of names alone does not establish their exact calling or byte-output
+semantics. The reconstruction's source filenames can also differ from the
+symbols they export, so check the actual declarations rather than inferring
+an API from a filename.
+
+Ritchie's [introduction to CSTR 8](https://cm-bell-labs.github.io/who/dmr/bintro.html)
+identifies the January 1973 report as the Honeywell 6070/MH-TSS description.
+Johnson's [reference](https://cm-bell-labs.github.io/who/dmr/bref.html) includes
+features outside the selected PDP-11 grammar, including `~`, `^`, and switch
+`default`. It is comparison evidence for other B dialects, not a reason to
+silently change the January 1972 strict mode.
