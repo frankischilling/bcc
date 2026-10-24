@@ -112,7 +112,7 @@ gdef(name) char name[]; {
 		gettok();
 
 		cgagvec(name);
-		cggvb(name, n);
+		cggvp(name, n);
 		ninit = 0;
 		while (tok != ';') {
 			if (tok == 0) fatal("unexpected EOF in global vector");

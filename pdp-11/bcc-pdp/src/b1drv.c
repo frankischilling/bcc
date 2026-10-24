@@ -140,6 +140,7 @@ disp3() {
 	}
 	if (tageq(dtag, "gor")) { cggor(); return (1); }
 	if (tageq(dtag, "la"))  { a = nxti(dbuf); cgla(a); return (1); }
+	if (tageq(dtag, "gvp")) { nxtnam(dbuf, dnm); a = nxti(dbuf); cggvp(dnm, a); return (1); }
 	if (tageq(dtag, "gvb")) { nxtnam(dbuf, dnm); a = nxti(dbuf); cggvb(dnm, a); return (1); }
 	if (tageq(dtag, "gvc")) { a = nxti(dbuf); cggvc(a); return (1); }
 	if (tageq(dtag, "gvn")) { nxtnam(dbuf, dnm); cggvn(dnm); return (1); }

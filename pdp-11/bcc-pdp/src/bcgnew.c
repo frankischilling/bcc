@@ -108,3 +108,8 @@ cggve() {
 	}
 	outs("\t.even\n");
 }
+
+cggvp(name, n) char name[]; {
+    cggvb(name, n);
+    outs("\t.+2\n");
+}

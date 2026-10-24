@@ -166,7 +166,7 @@ word b_system(word cmd);
 /* Time/delay */
 word b_usleep(word usec);
 word b_time(word tvp);
-word b_ctime(word tvp);
+word b_ctime(word tvp, word date);
 
 /* System functions */
 word b_getuid(void);

@@ -197,3 +197,8 @@ cggar(name, n, ninit, vals) char name[]; int vals[]; {
 	}
 	outc('\n');
 }
+
+/* A vector has a mutable pointer cell before its elements. */
+cggvp(name, n) char name[]; {
+    outs("gvp "); outs(name); outc(' '); outd(n); outc('\n');
+}

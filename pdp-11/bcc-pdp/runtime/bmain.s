@@ -18,19 +18,19 @@ start:
 	/ argv[0] is the program name, argv[1..argc-1] are the user args.
 	mov	sp, r0
 	mov	(r0)+, r1	/ r1 = argc; r0 = &argv[0]
-	tst	(r0)+		/ skip argv[0] (program name) per kbman §8
+	tst	(r0)+		/ skip program name in the current compatibility layout
 
 	/ Populate _argv[] (kbman §8: predefined external).
-	/ kbman convention: _argv[0] = parameter count (NOT including progname);
+	/ Current layout: _argv[0] excludes the program name;
 	/ _argv[1..argv[0]] are the user-supplied parameter strings.
 	dec	r1		/ subtract progname from count
 	mov	r1, r3		/ r3 = remaining count
-	mov	$_argv+2, r2	/ r2 = &_argv[1]
+	mov	$_argv+4, r2	/ r2 = &_argv[1]
 	cmp	r3, $31.
 	blos	1f
 	mov	$31., r3	/ truncate to vector capacity
 1:
-	mov	r3, _argv	/ report only the entries that fit
+	mov	r3, _argv+2	/ report only the entries that fit
 3:
 	tst	r3
 	beq	2f
@@ -40,16 +40,17 @@ start:
 2:
 
 	/ Old-style direct push of argc/argv on stack for backwards compat
-	mov	$_argv+2, -(sp)	/ argv pointer (skip _argv[0])
-	mov	_argv, -(sp)	/ user-arg count
+	mov	$_argv+4, -(sp)	/ argv pointer (skip _argv[0])
+	mov	_argv+2, -(sp)	/ user-arg count
 	jsr	pc, _main
 	add	$4, sp		/ drop pushed args
 	sys	exit		/ kernel reads r0 as exit status
 
-/ Predefined external _argv[].  32 words: [argc, ptr1, ptr2, ..., ptr31].
+/ Predefined _argv pointer cell plus 32 data words: [argc, ptr1, ptr2, ..., ptr31].
 / Storage cells inline (V1 as has no .bss; data after `sys exit` is unreachable).
 .globl	_argv
 _argv:
+	.+2
 	0;0;0;0;0;0;0;0
 	0;0;0;0;0;0;0;0
 	0;0;0;0;0;0;0;0

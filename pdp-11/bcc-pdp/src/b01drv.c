@@ -149,7 +149,6 @@ rrname(name) char name[]; {
 	}
 	if (pndcls == 6) {
 		outs("lc "); outd(soff[sid]); outc('\n');
-		outs("dr\n");
 		return;
 	}
 	if (pndcls == 1) {
@@ -167,8 +166,6 @@ rrderef() {
 	extern pndcls;
 	int pndcls;
 	if (pndcls == 5) return;
-	if (pndcls == 6) return;
-	if (pndcls == 7) return;
 	outs("dr\n");
 }
 
@@ -296,11 +293,11 @@ rewrt() {
 			pndcls = 0;
 			continue;
 		}
-		if (tageq(dtag, "gvb")) {
+		if (tageq(dtag, "gvb") | tageq(dtag, "gvp")) {
 			nxtnam(dbuf, dnm);
 			idx = nxti(dbuf);
 			if (symfnd(dnm) < 0) symadd(dnm, 3, 0);
-			outs("gvb ");
+			outs(dtag); outc(' ');
 			outs(dnm); outc(' ');
 			outd(idx); outc('\n');
 			pndcls = 0;

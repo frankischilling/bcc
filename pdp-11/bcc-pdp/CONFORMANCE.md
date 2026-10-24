@@ -22,7 +22,7 @@ the strict 1972 set).
 
 ✔ rvalues are 16-bit words.
 ✚ Lvalues are **byte addresses**, not word addresses (kbman §12 specifies
-word-addressed; this compiler is byte-addressed.  Faster.  See
+word-addressed; this compiler is byte-addressed. See
 [README.md](README.md) Deviations.).
 
 ## §4  Expression Evaluation
@@ -75,6 +75,9 @@ Current installed budgets:
 ## §6  Declarations
 
 ✔ `auto NAME [const]` - scalar or historical vector autos (`auto v 3`).
+Vector slots hold mutable pointers, for both automatic and external vectors.
+Indexing a scalar or parameter loads its pointer value before selecting an element.
+The pointer still uses byte units, so this does not resolve the §12 deviation.
 Vector slot holds pointer
 to data area, initialized at function entry by the resolved `vi` IC record.
 ✔ `extrn NAME, ...` - register external reference.
@@ -94,8 +97,9 @@ in expression context creates an implicit C_EXTRN.
 
 ## §8  Library Functions
 
-The runtime exposes the documented function names. The `ctime` entry remains
-a placeholder. Two implementation files:
+The runtime exposes the documented function names, but a wrapper name alone
+does not establish ABI compatibility. The implementation is split between
+assembly syscall wrappers and B library functions:
 
 | Function | File | Notes |
 |---|---|---|
@@ -104,7 +108,7 @@ a placeholder. Two implementation files:
 | `chdir`, `chmod`, `chown` | `runtime/brt.s` | V1 syscalls 12, 15, 16 |
 | `close` | `runtime/brt.s` | V1 syscall 6 |
 | `creat` | `runtime/brt.s` | V1 syscall 8 |
-| `ctime` | `runtime/brt.s` | placeholder: writes `Jan  1 00:00:00` regardless of the input |
+| `ctime` | `runtime/libb.b` | Converts high-word-first 60 Hz time since 1971 into 15 date characters plus NUL; tested at word/day/year boundaries and leap day |
 | `execl`, `execv` | `runtime/brt.s` | V1 syscall 11 (exec) |
 | `exit` | `runtime/brt.s` | V1 syscall 1 |
 | `fork` | `runtime/brt.s` | V1 syscall 2 |
@@ -125,7 +129,7 @@ a placeholder. Two implementation files:
 | `time` | `runtime/brt.s` | V1 syscall 13 |
 | `wait` | `runtime/brt.s` | V1 syscall 7 |
 
-Predefined `argv[]` (kbman §8 last paragraph): 32-word vector populated by
+Predefined `argv[]` (kbman §8 last paragraph): a pointer cell and a 32-word vector populated by
 `runtime/bmain.s` from the V1 kernel argument frame.  `argv[0] = argc`,
 `argv[1..argv[0]]` are byte-address pointers to argument strings.
 The current implementation omits the program name and keeps at most 31 user

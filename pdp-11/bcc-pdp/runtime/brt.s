@@ -1,6 +1,6 @@
 / brt.s — runtime helpers for bcc-pdp.
 /
-/ Calling convention (set in Task 5.3): args pushed left-to-right.
+/ Calls place the leftmost argument nearest the return address.
 / Helper called via `jsr pc, _name`; args at 2(sp), 4(sp), ...
 / Result returned in r0. Helpers preserve no callee-save regs.
 
@@ -492,24 +492,4 @@ _makdir:
 	rts	pc
 mknam:	0
 
-/ ---- _ctime(time, dest) — render 2-word time into 16-byte buf at dest. ----
-/ Minimal compatible formatter: fills the documented 16-byte shape.
-_ctime:
-	mov	4(sp), r0		/ dest
-	movb	$'J, (r0)+
-	movb	$'a, (r0)+
-	movb	$'n, (r0)+
-	movb	$' , (r0)+
-	movb	$' , (r0)+
-	movb	$'1, (r0)+
-	movb	$' , (r0)+
-	movb	$'0, (r0)+
-	movb	$'0, (r0)+
-	movb	$':, (r0)+
-	movb	$'0, (r0)+
-	movb	$'0, (r0)+
-	movb	$':, (r0)+
-	movb	$'0, (r0)+
-	movb	$'0, (r0)+
-	clrb	(r0)
-	rts	pc
+/ _ctime is implemented in runtime/libb.b.

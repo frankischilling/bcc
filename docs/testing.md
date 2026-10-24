@@ -47,6 +47,6 @@ A full-system boot and an in-system rebuild remain separate validation tasks.
 
 Tests cover specific cases, not complete historical compatibility. See
 [the conformance notes](../wiki/HISTORICAL_CONFORMANCE.md) for the primary
-sources and known gaps. In particular, runtime time/stat/terminal layouts,
-native byte-addressed pointers, and the native date formatter still need
-work. A bootstrap fixed point can preserve the same bug across stages.
+sources and known gaps. In particular, runtime stat/terminal layouts, native byte-addressed pointers, and
+full function-name storage semantics still need work. The clock/date tests
+cover the V1 60 Hz representation, wraparound, leap day, and buffer bounds. A bootstrap fixed point can preserve the same bug across stages.

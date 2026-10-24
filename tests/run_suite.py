@@ -73,6 +73,8 @@ def main():
                           '--compiler', str(compiler)], 'command arguments') and ok
         ok = checked_run([sys.executable, str(root / 'tests/test_exec_runtime.py'),
                           '--compiler', str(compiler)], 'exec runtime') and ok
+        ok = checked_run([sys.executable, str(root / 'tests/test_time_runtime.py'),
+                          '--compiler', str(compiler)], 'time runtime') and ok
     print('All host suites passed.' if ok else 'Host suite failed.')
     return 0 if ok else 1
 

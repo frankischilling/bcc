@@ -1,4 +1,4 @@
-msg 'O','K','*n';
+msg[3] 'O','K','*n';
 
 main() {
 	auto i;

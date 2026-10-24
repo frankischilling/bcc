@@ -713,34 +713,45 @@ word b_usleep(word usec) {
     return 0;
 }
 
+/* Unix V1 counts 60 Hz ticks since 1971, high word first (time(II)). */
 word b_time(word tvp) {
-    time_t now = time(NULL);
+    struct timespec now;
+    if (clock_gettime(CLOCK_REALTIME, &now) != 0) return -1;
     if (tvp) {
-        uint16_t lo = (uint16_t)(now & 0xFFFF);
-        uint16_t hi = (uint16_t)((now >> 16) & 0xFFFF);
+        uint64_t elapsed = (uint64_t)now.tv_sec - UINT64_C(31536000);
+        uint32_t ticks = (uint32_t)(elapsed * 60 + (uint64_t)now.tv_nsec * 60 / 1000000000);
         word *tv = (word*)B_CPTR(tvp);
-        tv[0] = (word)(uword)lo;
-        tv[1] = (word)(uword)hi;
+        tv[0] = WVAL(ticks >> 16);
+        tv[1] = WVAL(ticks & 65535);
     }
     return 0;
 }
 
-word b_ctime(word tvp) {
-    static word bufw[32];
-    word bp = B_PTR_N(bufw, sizeof(bufw));
+/* B72 section 8 specifies a caller-owned, 16-byte date buffer. */
+word b_ctime(word tvp, word date) {
+    if (!tvp || !date) return -1;
     word *tv = (word*)B_CPTR(tvp);
-    time_t t = (time_t)((uint16_t)tv[0]) | ((time_t)((uint16_t)tv[1]) << 16);
-
-    const char *cs = ctime(&t);
-    if (!cs) return 0;
-
-    size_t i = 0;
-    while (cs[i] && cs[i] != '\n' && i < 63) {
-        b_lchar(bp, (word)i, (word)(unsigned char)cs[i]);
-        i++;
+    uint32_t ticks = ((uint32_t)(uint16_t)tv[0] << 16) | (uint16_t)tv[1];
+    unsigned days = ticks / 5184000U;
+    unsigned seconds = ticks / 60U % 86400U;
+    unsigned year = 1971, month = 0;
+    while (days >= (year % 4 == 0 ? 366U : 365U)) {
+        days -= year % 4 == 0 ? 366U : 365U;
+        year++;
     }
-    b_lchar(bp, (word)i, 004);
-    return bp;
+    static const unsigned lengths[] = {31,28,31,30,31,30,31,31,30,31,30,31};
+    static const char *months[] = {"Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"};
+    for (;;) {
+        unsigned length = lengths[month] + (month == 1 && year % 4 == 0);
+        if (days < length) break;
+        days -= length;
+        month++;
+    }
+    char text[16];
+    snprintf(text, sizeof(text), "%s %2u %02u:%02u:%02u", months[month], days + 1,
+             seconds / 3600, seconds / 60 % 60, seconds % 60);
+    for (size_t i = 0; i < sizeof(text); i++) b_lchar(date, (word)i, (word)(unsigned char)text[i]);
+    return 0;
 }
 
 /* System Functions */

@@ -149,6 +149,7 @@ primlv() {
 		cgrname(name);
 		if (tok == '[') {
 			gettok();
+			cgdrfr();
 			cgpsh();
 			exprv();
 			if (tok != ']') fatal("expected ]");

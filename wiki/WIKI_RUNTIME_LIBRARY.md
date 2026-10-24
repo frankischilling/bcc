@@ -338,37 +338,27 @@ link(old_path, new_path) → 0 or -1
 
 ## Time and Date
 
-### Time Functions
+`time(buffer)` fills two words with the Unix V1 clock: 60 Hz ticks since
+January 1, 1971, with the high 16 bits first. The host implementation returns
+zero on success and -1 if reading the host clock fails.
+
+`ctime(buffer, date)` writes into a caller-owned 16-byte buffer. The first
+15 bytes contain a date such as `Jan  1 00:00:00`; byte 15 is NUL. There is
+no newline. The tick counter wraps at 32 bits, so this historical interface
+is not a way to obtain today's full calendar date.
 
 ```b
-// Get current time
-time(buffer) → 0
-
-// Format time for printing
-ctime(buffer) → formatted_string_pointer
-
-// Delay execution (microseconds)
-usleep(microseconds) → 0
+main() {
+    auto timebuf 2, date 8;
+    extrn time, ctime, printf;
+    time(timebuf);
+    ctime(timebuf, date);
+    printf("represented date: %s*n", date);
+}
 ```
 
-**Time Buffer Format:**
-- `buffer[0]`: Low 16 bits of Unix timestamp
-- `buffer[1]`: High 16 bits of Unix timestamp
-
-**Examples:**
-```b
-auto timebuf 2;
-time(timebuf);                    // Get current time
-auto time_str = ctime(timebuf);   // Format as string
-printf("current time: %s", time_str);
-
-// Animation delay
-usleep(30000);                    // Wait 30ms (30000 microseconds)
-```
-
-### Time Formatting
-
-`ctime()` produces strings in format: `"Oct 9 17:32:24\n"`
+This replaces the previous host-only low-word-first Unix-seconds layout and
+one-argument `ctime` extension. Existing callers must supply the date buffer.
 
 ### Delay Function
 
@@ -595,7 +585,7 @@ if (chdir("/tmp") < 0) {
 | `chown` | `(path, uid) → 0/-1` | Change file ownership |
 | `close` | `(fd) → 0/-1` | Close file descriptor |
 | `creat` | `(name, mode) → fd` | Create file |
-| `ctime` | `(buf) → str` | Format time as string |
+| `ctime` | `(time, date)` | Fill a 16-byte date buffer |
 | `execl` | `(path, ...) → -1` | Execute with arg list |
 | `execv` | `(path, argv, count) → -1` | Execute with exactly count arguments |
 | `exit` | `(status) → noreturn` | Exit program |

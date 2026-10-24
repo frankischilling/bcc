@@ -89,14 +89,23 @@ storage. It keeps host-sized storage cells and relies on GNU-compatible C
 extensions. This does not reproduce an original process image, threaded
 object code, or the Unix V1 syscall ABI. The host exec wrappers now accept the counted vector and explicit arg0
 from section 8, converting packed B strings before calling libc. Runtime
-time, stat, and terminal interfaces still need separate ABI conformance work. The 32-bit mode
+stat and terminal interfaces still need separate ABI conformance work. The 32-bit mode
 is arithmetic emulation with native pointers; arithmetic on those pointers
 can still truncate them. Function values can be called through variables and expressions; mutable
 function-name cells are not yet a complete implementation of section 7.3.
 The B-written bootstrap now shares the tested expression and lexical rules,
 but computed label values and 16-bit storage are still missing there.
-The separate native PDP-11 compiler retains its
-documented byte addresses and placeholder date formatter.
+The native compiler now loads pointer values before indexing scalar and
+parameter expressions, and gives external vectors mutable pointer cells.
+It still uses byte addresses.
+
+The host clock and both date formatters use the [V1 time representation][v1time]:
+32 bits of 60 Hz ticks since January 1, 1971, high word first. `ctime(time,date)`
+writes 15 characters and a NUL into the caller's 16-byte buffer, without a
+newline. The 32-bit clock wraps after roughly 2.27 years, as the original
+manual warns; it cannot represent today's full calendar date. Tests cover
+word/day/year boundaries, the 1972 leap day, the maximum tick value, and
+guard bytes beyond the output buffer.
 
 
 [kbman]: https://www.nokia.com/bell-labs/about/dennis-m-ritchie/kbman.html
@@ -108,3 +117,5 @@ documented byte addresses and placeholder date formatter.
 [aaph]: https://github.com/aap/b/blob/master/b.h
 [aapc]: https://github.com/aap/b/blob/master/b.c
 [aapv1]: https://github.com/aap/b/blob/master/unix1_bdir/README
+
+[v1time]: https://www.tuhs.org/cgi-bin/utree.pl?file=V1/man/man2/time.2

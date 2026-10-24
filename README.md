@@ -185,7 +185,8 @@ that is distinct from booting the system in SIMH and rebuilding inside it.
 
 Its syntax baseline is the 1972 reference, but the implementation is not
 fully conformant. Native pointers are byte-addressed, the argument vector
-has a fixed capacity, and `ctime` is still a placeholder. See the
+has a fixed capacity, and several syscall interfaces still need verification.
+Its date formatter now consumes the historical two-word time value. See the
 [native conformance matrix](pdp-11/bcc-pdp/CONFORMANCE.md).
 
 ## Build variants and verification
