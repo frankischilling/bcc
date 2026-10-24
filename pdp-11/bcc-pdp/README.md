@@ -146,6 +146,10 @@ non-negative `printn` example.
   or unterminated literals and oversized intermediate records are rejected.
 - Syscall path conversion is limited to 255 bytes. Exec accepts up to 64
   arguments with 512 bytes of converted argument strings.
+- Numeric and character constants can specify vector sizes. The front end
+  rejects individual vectors above 8,190 elements and declared automatic
+  frames above 8,191 words, including pointer cells, before counters wrap.
+  These ceilings do not guarantee enough stack remains beside the code.
 - The compiler has fixed symbol, vector, case, and literal tables. The
   binary-size check covers code/data/BSS; programs also need stack space.
 - Identifiers may contain up to eight characters; longer names are rejected.

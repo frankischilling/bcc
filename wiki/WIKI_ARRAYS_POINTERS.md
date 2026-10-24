@@ -49,10 +49,29 @@ Arrays are declared with size specifications:
 // Fixed-size arrays
 auto numbers 100;       // 100 words
 auto buffer 256;        // 256 words
+auto small '*t';        // nine words: a character constant is also a size
 
 // Array with initialization
 auto data 5;
 ```
+
+### Multiword Simple Definitions
+
+A simple definition can initialize several adjacent cells:
+
+```b
+data 11,22,33;
+main() {
+    auto p;
+    extrn data;
+    p = &data;
+    return(data != 11 | p[1] != 22 | p[2] != 33);
+}
+```
+
+Here `data` is the first value, not a pointer to the list. Changing `p[0]`
+changes `data`. This is distinct from a vector, whose name holds the pointer
+to its elements.
 
 ### External Vectors
 

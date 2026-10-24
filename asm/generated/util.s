@@ -230,17 +230,17 @@ dump_expr:
 	.p2align 4,,10
 	.p2align 3
 .L24:
-	movl	32(%r12), %edi
+	movl	40(%r12), %edi
 	call	tk_name@PLT
 	leaq	.LC13(%rip), %rdi
 	movq	%rax, %rsi
 .L36:
 	xorl	%eax, %eax
 	call	printf@PLT
-	movq	40(%r12), %rdi
+	movq	48(%r12), %rdi
 	movl	%r14d, %esi
 	call	dump_expr
-	movq	48(%r12), %r12
+	movq	56(%r12), %r12
 .L33:
 	addl	$2, %ebp
 	addl	$2, %r14d
@@ -248,7 +248,7 @@ dump_expr:
 	.p2align 4,,10
 	.p2align 3
 .L26:
-	movl	32(%r12), %edi
+	movl	40(%r12), %edi
 	call	tk_name@PLT
 	leaq	.LC12(%rip), %rdi
 	movq	%rax, %rsi
@@ -256,39 +256,39 @@ dump_expr:
 	.p2align 4,,10
 	.p2align 3
 .L27:
-	movl	32(%r12), %edi
+	movl	40(%r12), %edi
 	call	tk_name@PLT
 	leaq	.LC15(%rip), %rdi
 	movq	%rax, %rsi
 	xorl	%eax, %eax
 	call	printf@PLT
-	movq	40(%r12), %r12
+	movq	48(%r12), %r12
 	jmp	.L33
 	.p2align 4,,10
 	.p2align 3
 .L28:
-	movl	32(%r12), %edi
+	movl	40(%r12), %edi
 	call	tk_name@PLT
 	leaq	.LC11(%rip), %rdi
 	movq	%rax, %rsi
 	xorl	%eax, %eax
 	call	printf@PLT
-	movq	40(%r12), %r12
+	movq	48(%r12), %r12
 	jmp	.L33
 	.p2align 4,,10
 	.p2align 3
 .L29:
 	leaq	.LC14(%rip), %rdi
 	call	puts@PLT
-	movq	32(%r12), %rdi
+	movq	40(%r12), %rdi
 	movl	%r14d, %esi
 	call	dump_expr
-	movq	40(%r12), %r12
+	movq	48(%r12), %r12
 	jmp	.L33
 	.p2align 4,,10
 	.p2align 3
 .L30:
-	movq	32(%r12), %rsi
+	movq	40(%r12), %rsi
 	popq	%rbx
 	.cfi_remember_state
 	.cfi_def_cfa_offset 40
@@ -307,7 +307,7 @@ dump_expr:
 	.p2align 3
 .L31:
 	.cfi_restore_state
-	movq	32(%r12), %rsi
+	movq	40(%r12), %rsi
 	popq	%rbx
 	.cfi_remember_state
 	.cfi_def_cfa_offset 40
@@ -326,7 +326,7 @@ dump_expr:
 	.p2align 3
 .L32:
 	.cfi_restore_state
-	movq	32(%r12), %rsi
+	movq	40(%r12), %rsi
 	popq	%rbx
 	.cfi_remember_state
 	.cfi_def_cfa_offset 40
@@ -2076,6 +2076,12 @@ g_verbose_errors:
 	.size	g_no_line, 4
 g_no_line:
 	.zero	4
+	.globl	g_known_variables
+	.align 16
+	.type	g_known_variables, @object
+	.size	g_known_variables, 24
+g_known_variables:
+	.zero	24
 	.globl	g_known_functions
 	.align 16
 	.type	g_known_functions, @object

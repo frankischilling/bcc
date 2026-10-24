@@ -6,6 +6,7 @@
  */
 
 #define B_TARGET_DEFINE
+#define B_INIT_DEFINE
 #include "libb.h"
 
 /* Global I/O State */
@@ -970,6 +971,10 @@ word b_xor_assign(word *p, word v) { return (*p = WXOR(*p, v)); }
 /* Initialization */
 
 void __b_init(void) {
-    setvbuf(stdout, NULL, _IONBF, 0);
+    if (!__bcc_runtime_initialized) {
+        setvbuf(stdout, NULL, _IONBF, 0);
+        __bcc_runtime_initialized = 1;
+    }
+    __bcc_run_initializers();
 }
 

@@ -112,6 +112,13 @@ The manual's example 9.2 ends with a packed pair of newlines passed to
 little-endian string storage. Tests compare exact bytes, including NULs,
 across host, inline, bootstrap, and native runtimes.
 
+Section 7.1's multiple initializers form contiguous cells starting at the
+name's address; the name itself reads the first cell. The host and bootstrap
+backends now preserve that distinction from section 7.2's vector pointer.
+Tests cover cross-file and cyclic address initializers, both file orders,
+mutations, and string-valued cells. Automatic vector extents use element
+counts too, not an extra element beyond the stated size.
+
 The predefined `argv` vector keeps its count in element zero and the program
 name in element one. Its strings retain native NUL termination. Host
 `argv(i)` and optional main parameters are compatibility interfaces with a

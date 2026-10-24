@@ -52,6 +52,8 @@ static SemState *sem_state_new(const char *filename) {
     st->implicit_statics.data = NULL;
     st->implicit_statics.len = 0;
     st->implicit_statics.cap = 0;
+    memset(&st->global_refs, 0, sizeof(st->global_refs));
+    st->program = NULL;
 
     return st;
 }
@@ -160,6 +162,33 @@ static int is_implicit_static(SemState *st, const char *name) {
     return 0;
 }
 
+static int has_name(Vec *names, const char *name) {
+    for (size_t i = 0; i < names->len; i++)
+        if (strcmp(names->data[i], name) == 0) return 1;
+    return 0;
+}
+
+static int has_data_declaration(Program *prog, const char *name) {
+    for (size_t i = 0; i < prog->tops.len; i++) {
+        Top *t = prog->tops.data[i];
+        if ((t->kind == TOP_EXTERN_DEF || t->kind == TOP_EXTERN_DECL) &&
+            strcmp(t->as.ext_def->name, name) == 0) return 1;
+    }
+    return 0;
+}
+
+static void mark_global_reference(SemState *st, Expr *e, Symbol *sym) {
+    if (sym && sym->kind == SYM_VAR && sym->is_extern)
+        e->global_value = 1;
+    else if (!sym && is_extern_name(st, e->as.var) && !is_function_name(st, e->as.var))
+        e->global_value = has_data_declaration(st->program, e->as.var) ? 1 : 2;
+    else if (!sym && !g_strict && !is_extern_name(st, e->as.var))
+        e->global_value = 1;
+    if (e->global_value && ((sym && sym->is_extern) || is_extern_name(st, e->as.var)) &&
+        !has_name(&st->global_refs, e->as.var))
+        vec_push(&st->global_refs, sdup(e->as.var));
+}
+
 // Semantic Checking Functions
 
 // Forward declarations
@@ -173,6 +202,7 @@ static void sem_check_lvalue(SemState *st, Expr *e) {
     switch (e->kind) {
         case EX_VAR: {
             Symbol *sym = scope_find(st->current, e->as.var);
+            mark_global_reference(st, e, sym);
             if (!sym) {
                 if (g_strict && !is_extern_name(st, e->as.var))
                     dief("undefined internal name '%s' at %d:%d", e->as.var, e->line, e->col);
@@ -214,6 +244,7 @@ static void sem_check_expr(SemState *st, Expr *e) {
         case EX_VAR: {
             // Check if variable is declared or extern
             Symbol *sym = scope_find(st->current, e->as.var);
+            mark_global_reference(st, e, sym);
             e->builtin_argv = sym && sym->is_builtin && strcmp(sym->name, "argv") == 0;
             e->function_value = sym && sym->kind == SYM_FUNC && !e->builtin_argv;
             if (!sym && !is_extern_name(st, e->as.var) && !is_implicit_static(st, e->as.var)) {
@@ -239,6 +270,7 @@ static void sem_check_expr(SemState *st, Expr *e) {
                     dief("'%s' is not callable at %d:%d", fname, e->line, e->col);
                 }
                 e->indirect_call = sym && sym->kind == SYM_VAR;
+                if (e->indirect_call) sem_check_expr(st, e->as.call.callee);
             } else {
                 e->indirect_call = 1;
                 sem_check_expr(st, e->as.call.callee);
@@ -557,9 +589,24 @@ static void sem_check_top(SemState *st, Top *t) {
     }
 }
 
+static void sem_check_initializer(SemState *st, Init *in) {
+    if (!in) return;
+    if (in->kind == INIT_LIST) {
+        for (size_t i = 0; i < in->as.list.len; i++)
+            sem_check_initializer(st, in->as.list.data[i]);
+    } else if (in->kind == INIT_EXPR) {
+        Expr *e = in->as.expr;
+        if (e->kind == EX_VAR && !scope_find(st->current, e->as.var) &&
+            !is_extern_name(st, e->as.var))
+            vec_push(&st->extern_names, sdup(e->as.var));
+        sem_check_expr(st, e);
+    }
+}
+
 // Main semantic checking function
 void sem_check_program(Program *prog, const char *filename) {
     SemState *st = sem_state_new(filename);
+    st->program = prog;
 
     // Pre-pass: collect all top-level declarations without checking expressions
     for (size_t i = 0; i < prog->tops.len; i++) {
@@ -608,6 +655,13 @@ void sem_check_program(Program *prog, const char *filename) {
             }
             case TOP_EXTERN_DEF: {
                 ExternItem *item = t->as.ext_def;
+                if (item->as.var.vkind == EXTVAR_VECTOR && item->as.var.bound) {
+                    long size;
+                    if (!try_eval_const_expr(item->as.var.bound, &size))
+                        dief("vector bound must be a constant expression in '%s'", item->name);
+                    if (size < 0) dief("negative vector bound in '%s'", item->name);
+                    item->as.var.bound_const = size;
+                }
 
                 if (scope_has_in_current(st->current, item->name)) {
                     dief("duplicate extern definition '%s'", item->name);
@@ -637,6 +691,14 @@ void sem_check_program(Program *prog, const char *filename) {
         vec_push(&st->function_names, sdup(name));
     }
 
+    for (size_t i = 0; i < g_known_variables.len; i++) {
+        const char *name = g_known_variables.data[i];
+        if (scope_has_in_current(st->current, name)) continue;
+        Symbol *sym = symbol_new(SYM_VAR, name, 0, 0);
+        sym->is_extern = 1;
+        scope_add(st->current, sym);
+    }
+
     // Library names are defaults, not reserved B identifiers.
     sem_add_builtin_functions(st);
 
@@ -647,6 +709,11 @@ void sem_check_program(Program *prog, const char *filename) {
             Func *f = t->as.fn;
             sem_check_func(st, f);
         }
+    }
+
+    for (size_t i = 0; i < prog->tops.len; i++) {
+        Top *t = prog->tops.data[i];
+        if (t->kind == TOP_EXTERN_DEF) sem_check_initializer(st, t->as.ext_def->as.var.init);
     }
 
     // Add implicit static variables as extern definitions
@@ -682,5 +749,17 @@ void sem_check_program(Program *prog, const char *filename) {
         }
     }
 
+    for (size_t i = 0; i < st->global_refs.len; i++) {
+        const char *name = st->global_refs.data[i];
+        if (has_data_declaration(prog, name)) continue;
+        Top *t = xmalloc(sizeof(*t));
+        ExternItem *item = xmalloc(sizeof(*item));
+        memset(item, 0, sizeof(*item));
+        item->name = sdup(name);
+        item->is_macro_external = !has_name(&g_known_variables, name);
+        t->kind = TOP_EXTERN_DECL;
+        t->as.ext_decl = item;
+        vec_push(&prog->tops, t);
+    }
     sem_state_free(st);
 }

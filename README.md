@@ -167,12 +167,16 @@ explains the layouts and string terminators.
 - [Runtime guide](wiki/WIKI_RUNTIME_LIBRARY.md)
 - [Native compiler status](pdp-11/bcc-pdp/CONFORMANCE.md)
 
+Rebuild B object files made with earlier versions. External data now uses
+contiguous cell storage rather than the old pointer-based representation
+of multiword simple globals.
+
 The host compiler is in `src/`, with its runtime in `lib/`. Regression tests
 are in `tests/`; example programs are in `examples/`. Variant-specific build
 and test code stays under `asm/`, `bootstrap/`, and `pdp-11/bcc-pdp/`.
 
-Known gaps include mutable function-name storage, multiword simple globals
-in the C backends, host stat/terminal ABI mapping, native word-addressed pointers, and 16-bit bootstrap storage.
+Known gaps include mutable function-name storage, host stat/terminal ABI
+mapping, native word-addressed pointers, and 16-bit bootstrap storage.
 Passing tests establish the cases they check, not a claim that the compiler
 is bug-free or fully equivalent to the original implementation.
 

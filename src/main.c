@@ -58,7 +58,7 @@ static int vec_contains_string(Vec *v, const char *s) {
     return 0;
 }
 
-static void collect_known_functions_from_file(const char *path) {
+static void collect_known_symbols_from_file(const char *path) {
     size_t len = 0;
     char *src = read_file_all(path, &len);
 
@@ -81,9 +81,18 @@ static void collect_known_functions_from_file(const char *path) {
         Top *t = (Top*)prog->tops.data[i];
         if (t->kind == TOP_FUNC) {
             const char *name = t->as.fn->name;
-            if (!vec_contains_string(&g_known_functions, name)) {
-                vec_push(&g_known_functions, sdup(name));
-            }
+            if (vec_contains_string(&g_known_variables, name))
+                dief("conflicting external definition '%s'", name);
+            if (vec_contains_string(&g_known_functions, name))
+                dief("duplicate external function '%s'", name);
+            vec_push(&g_known_functions, sdup(name));
+        } else if (t->kind == TOP_EXTERN_DEF) {
+            const char *name = t->as.ext_def->name;
+            if (vec_contains_string(&g_known_functions, name))
+                dief("conflicting external definition '%s'", name);
+            if (vec_contains_string(&g_known_variables, name))
+                dief("duplicate external variable '%s'", name);
+            vec_push(&g_known_variables, sdup(name));
         }
     }
 
@@ -99,7 +108,7 @@ static char *compile_libb(int verbose, int byteptr, int word_bits) {
     /* Include headers in the cache key so the compiler and runtime use the
      * same address model, including when multiple checkouts share /tmp. */
     uint64_t key = UINT64_C(14695981039346656037);
-    const char *dependencies[] = {"libb.c", "libb.h", "btarget.h"};
+    const char *dependencies[] = {"libb.c", "libb.h", "btarget.h", "binit.h"};
     for (size_t i = 0; i < sizeof(dependencies) / sizeof(dependencies[0]); i++) {
         char path[8192];
         snprintf(path, sizeof(path), "%s/%s", g_libb_dir, dependencies[i]);
@@ -362,6 +371,7 @@ int main(int argc, char **argv) {
     memset(&extra_gcc_args, 0, sizeof(extra_gcc_args));
     memset(&in_paths, 0, sizeof(in_paths));
     memset(&g_known_functions, 0, sizeof(g_known_functions));
+    memset(&g_known_variables, 0, sizeof(g_known_variables));
 
     /* Parse arguments */
     for (int i = 1; i < argc; i++) {
@@ -518,7 +528,7 @@ int main(int argc, char **argv) {
 
     if (in_paths.len > 1 && !dump_tokens && !(dump_ast && !dump_c)) {
         for (size_t i = 0; i < in_paths.len; i++) {
-            collect_known_functions_from_file((const char*)in_paths.data[i]);
+            collect_known_symbols_from_file((const char*)in_paths.data[i]);
         }
     }
 

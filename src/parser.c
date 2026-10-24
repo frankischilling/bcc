@@ -203,7 +203,7 @@ Stmt *parse_auto_decl(Parser *P) {
                 error_at(&P->cur, P->source, "bracketed auto vectors are outside Thompson B72; use auto name size");
             item->size = parse_expr(P);
             expect(P, TK_RBRACK);
-        } else if (P->cur.kind == TK_NUM) {
+        } else if (P->cur.kind == TK_NUM || P->cur.kind == TK_CHR) {
             item->size = new_expr(EX_NUM, P->cur.line, P->cur.col);
             item->size->as.num = P->cur.num;
             next(P);

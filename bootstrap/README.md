@@ -46,11 +46,20 @@ respective count-prefixed and zero-based layouts. External name initializers
 refer to addresses, not the current contents of those variables. Tests cover
 both scalar and vector initializers, including the predefined argument cell.
 
+The compiler scans the project's definitions before lowering each input.
+C-keyword names are kept distinct from ordinary B names. Its statement
+parser handles function bodies during that scan too, including
+unbraced and labeled bodies. External data is stored as cell arrays, so a
+simple definition with several initializers is accessible through `&name`.
+
+Checked limits are 1,024 functions and 2,048 external data names per project,
+256 input files, and 256 extra compiler options. Exceeding them produces a
+diagnostic before a table write. The tests exercise each limit's rejection.
+
 ## Remaining differences
 
 Computed branches use function-local label values, including forward
 references. The bootstrap compiler still uses host-sized, byte-addressed
 storage rather than the host compiler's 16-bit address translation. Function-valued calls are covered, but mutable
 function-name storage and complete block-scope resolution still need work.
-Simple globals with several initializers also need further work. These
-limits are separate from the generated-C fixed-point check.
+These limits are separate from the generated-C fixed-point check.

@@ -162,6 +162,7 @@ struct Expr {
     int line, col;
     int function_value; /* This name denotes a function rvalue. */
     int builtin_argv;   /* The predefined argv vector, not argv(i). */
+    int global_value;   /* 1: B storage cell; 2: external or host macro. */
     int indirect_call;  /* The callee is an evaluated B word. */
     size_t string_len; // EX_STR byte length, excluding the implicit *e
     union {
@@ -238,6 +239,7 @@ typedef enum { EXTVAR_SCALAR, EXTVAR_BLOB, EXTVAR_VECTOR } ExtVarKind;
 typedef struct {
     int is_func;           // 1 if function declaration, 0 if variable
     int is_implicit_static; // 1 if created for undeclared variable
+    int is_macro_external; // external reference may name a host header macro
     char *name;
 
     union {
@@ -247,7 +249,7 @@ typedef struct {
             // for VECTOR only:
             Expr *bound;      // NULL for []
             int  has_empty;   // 1 if [] form used
-            long bound_const; // folded const-expr value (upper bound), valid when bound!=NULL
+            long bound_const; // folded constant element count, valid when bound!=NULL
             // initializer tree:
             Init *init;       // NULL means no init
         } var;
@@ -316,6 +318,8 @@ typedef struct {
     Vec extern_names;      // char* - names declared as extern
     Vec function_names;    // char* - defined functions
     Vec implicit_statics;  // char* - undeclared variables that become static
+    Vec global_refs;       // char* - referenced external storage
+    Program *program;
 } SemState;
 
 typedef struct {
@@ -443,6 +447,7 @@ extern Vec g_include_paths;
 extern Vec g_included_files;
 extern Vec g_parsing_files;
 extern Vec g_known_functions;
+extern Vec g_known_variables;
 
 // Dialect and Extension Flags
 

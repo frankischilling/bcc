@@ -7,6 +7,9 @@ import subprocess
 import tempfile
 
 CASES = {
+    'character-automatic': ('', 9, "auto data '*t'; data[8]=7; return(data[8]!=7);"),
+    'character-external': ("data['*t'];", 9, 'data[8]=7; return(data[8]!=7);'),
+    'automatic': ('', 3, 'auto data 3; data[0]=1; data[2]=7; return(data[0]!=1 | data[2]!=7);'),
     'uninitialized': ('data[3];', 3, 'data[2]=7; return(data[0]!=0 | data[2]!=7);'),
     'padded': ('data[5] 3,4;', 5, 'return(data[0]!=3 | data[1]!=4 | data[4]!=0);'),
     'extended': ('data[2] 1,2,3,4;', 4, 'return(data[0]!=1 | data[3]!=4);'),
@@ -26,18 +29,18 @@ def main():
         for mode, inline in modes:
             for name, (definition, extent, body) in CASES.items():
                 source = root/'case.b'
-                source.write_text(definition + '\nmain(){extrn data; ' + body + '}\n')
+                source.write_text(definition + '\nmain(){' + ('extrn data; ' if definition else '') + body + '}\n')
                 command = [str(args.compiler.resolve()), '--strict', '--pedantic']
                 if not args.bootstrap: command += [f'--word={mode}']
                 if inline: command += ['--inline-runtime']
                 result = subprocess.run([*command, '-S', str(source)], capture_output=True, timeout=30)
-                match = re.search(rb'static\s+word\s+__data_store\b[^;]*;', result.stdout)
+                match = re.search(rb'(?:static\s+)?word\s+__data_store\b[^;]*;', result.stdout)
                 ok = result.returncode == 0 and match is not None
                 if ok:
                     # Compile a size assertion, rather than assuming a spelling
                     # for the constant expression emitted by either compiler.
                     check = root/'extent.c'
-                    check.write_bytes(b'#include <stdint.h>\ntypedef intptr_t word;\n' + match[0] + f'\ntypedef char extent_check[(sizeof(__data_store)/sizeof(word)=={extent})?1:-1];\n'.encode())
+                    check.write_bytes(b'#include <stdint.h>\ntypedef intptr_t word;\n#define WVAL(x) (x)\n' + match[0] + f'\ntypedef char extent_check[(sizeof(__data_store)/sizeof(word)=={extent})?1:-1];\n'.encode())
                     result = subprocess.run(['gcc', '-std=c99', '-c', str(check), '-o', str(root/'extent.o')], capture_output=True, timeout=30)
                     ok = result.returncode == 0
                 if ok:

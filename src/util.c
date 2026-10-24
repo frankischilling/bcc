@@ -16,6 +16,7 @@ Vec g_parsing_files;
 
 // Top-level function names collected across all input files
 Vec g_known_functions;
+Vec g_known_variables;
 
 // Developer flags
 int g_no_line = 0;

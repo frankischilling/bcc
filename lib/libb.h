@@ -100,6 +100,7 @@ typedef uintptr_t uword;
 #define B_BYTEPTR 1
 #endif
 #include "btarget.h"
+#include "binit.h"
 
 /* Runtime Library Function Declarations */
 

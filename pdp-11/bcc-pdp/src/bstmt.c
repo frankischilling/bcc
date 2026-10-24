@@ -83,6 +83,14 @@ gconst() {
 	return (v);
 }
 
+/* Include the pointer cell when budgeting an automatic vector. */
+vsize() {
+	extern tval;
+	int tval;
+	if (tval < 0 | tval > 8190) fatal("bad vector size");
+	return (tval + 1);
+}
+
 /* Emit one ival (kbman §7.0): constant OR name (address-of). */
 gival() {
 	extern tok, tnam;
@@ -104,8 +112,8 @@ gdef(name) char name[]; {
 	if (tok == '[') {
 		gettok();
 		n = 0;                          /* kbman §7.2: missing size -> 0 */
-		if (tok == 2) {
-			n = tval;
+		if (tok == 2 | tok == 4) {
+			n = vsize() - 1;
 			gettok();
 		}
 		if (tok != ']') fatal("expected ] in global vector");
@@ -192,18 +200,19 @@ fdef(name) char name[]; {
 				if (tok == '[') {
 					if (!extflg) fatal("auto [] requires -x");
 					gettok();
-					if (tok != 2) fatal("expected vector size");
-					sz = tval + 1;
+					if (tok != 2) if (tok != 4) fatal("expected vector size");
+					sz = vsize();
 					gettok();
 					if (tok != ']') fatal("expected ] after vector size");
 					gettok();
 					cgavecsz(saved, sz);
 				}
-				if (tok == 2) {              /* T_NUM */
-					sz = tval + 1;
+				if (tok == 2 | tok == 4) {    /* numeric or character constant */
+					sz = vsize();
 					gettok();
 					cgavecsz(saved, sz);
 				}
+				if (nlocals > 8191 - sz) fatal("auto frame too large");
 				nlocals = nlocals + sz;
 				if (tok == ',') gettok();
 			}

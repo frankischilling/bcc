@@ -8,7 +8,36 @@
 SRC; SRCLEN; POS; LINE; COL; STRICT; WANT_NCURSES;
 TOK; TNUM; TTEXT; TTEXTLEN;
 OUT; FUNS; NFUNS; MAIN_NARGS; HAS_MAIN; GLOBS; NGLOBS;
+ALLFUNS; NALLFUNS; ALLGLOBS; NALLGLOBS;
 VERBOSE; LIBDIR; LOCALS; NLOCALS; LABELS; NLABELS; LABELPASS;
+
+CWORDS[] "auto","break","case","char","const","continue","default",
+    "do","double","else","enum","extern","float","for","goto","if",
+    "inline","int","long","register","restrict","return","short","signed",
+    "sizeof","static","struct","switch","typedef","union","unsigned",
+    "void","volatile","while","_Alignas","_Alignof","_Atomic","_Bool",
+    "_Complex","_Generic","_Imaginary","_Noreturn","_Static_assert",
+    "_Thread_local",0;
+
+c_reserved(name) {
+    auto i;
+    i = 0;
+    while (CWORDS[i]) {
+        if (streq(name,CWORDS[i])) return(1);
+        i = i + 1;
+    }
+    return(0);
+}
+
+private_name(name) {
+    auto i;
+    i = 0;
+    while (i < 6) {
+        if (char(name,i) != char("__bbc_",i)) return(0);
+        i = i + 1;
+    }
+    return(1);
+}
 
 fatal(msg) {
     extrn printf, exit;
@@ -400,7 +429,10 @@ next() {
         s = new_text(start, POS - start);
         TTEXT = s;
         TOK = keyword(s);
-        if (STRICT & (streq(s, "break") | streq(s, "continue") | streq(s, "default"))) TTEXT = scat("__bbc_", s);
+        if (TOK == 1) {
+            if (private_name(s)) TTEXT = scat("__bbc_user_",s);
+            else if (c_reserved(s)) TTEXT = scat("__bbc_id_",s);
+        }
         return(0);
     }
     if (is_digit(c)) {
@@ -712,7 +744,7 @@ call_name(name) {
     if (has_local(name)) return(name);
     if (streq(name, "main")) return("__b_user_main");
     if (has_function(name)) return(name);
-    if (streq(name, "char")) return("b_char");
+    if (streq(name, "char") | streq(name, "__bbc_id_char")) return("b_char");
     if (streq(name, "lchar")) return("b_lchar");
     if (streq(name, "getchar")) return("b_getchar");
     if (streq(name, "getchr")) return("b_getchr");
@@ -877,6 +909,8 @@ primary() {
             buf_str(b, "((word)");
             buf_num(b, label_id(name));
             buf_ch(b, ')');
+        } else if (has_global(name) & !has_local(name)) {
+            buf_str(b, name); buf_str(b, "[0]");
         } else if ((TOK != 30) & streq(name, "argv") & !has_local(name) & !has_global(name) & !has_function(name)) {
             buf_str(b, "b_argv_vector");
         } else if ((TOK != 30) & !has_local(name) & !has_global(name) & (has_function(name) | !streq(call_name(name), name))) {
@@ -1092,7 +1126,7 @@ auto_decl() {
             emit(" = B_PTR(__");
             emit(name);
             emit("_store)");
-        } else if (TOK == 2) {
+        } else if ((TOK == 2) | (TOK == 4)) {
             emit("__");
             emit(name);
             emit("_store[");
@@ -1274,6 +1308,7 @@ stmt() {
             emit("__bbc_label_");
             emit(itoa(label_id(name)));
             emitln(":;");
+            stmt();
             return(0);
         }
         POS = psave;
@@ -1289,6 +1324,8 @@ stmt() {
 }
 
 add_fun(name, nargs) {
+    if (has_function(name)) fatal("duplicate function");
+    if (NFUNS >= 1024) fatal("too many functions");
     FUNS[NFUNS * 2] = name;
     FUNS[NFUNS * 2 + 1] = nargs;
     NFUNS = NFUNS + 1;
@@ -1305,63 +1342,52 @@ has_global(name) {
 }
 
 add_global(name) {
-    if (has_global(name)) return(0);
+    if (has_global(name)) fatal("duplicate global");
+    if (NGLOBS >= 2048) fatal("too many globals");
     GLOBS[NGLOBS] = name;
     NGLOBS = NGLOBS + 1;
 }
 
 scan_functions() {
-    auto name, n, depth;
-    NFUNS = 0;
-    NGLOBS = 0;
-    MAIN_NARGS = 0;
-    HAS_MAIN = 0;
-    depth = 0;
+    auto name, n;
+    extrn free;
+    NFUNS = 0; NGLOBS = 0; MAIN_NARGS = 0; HAS_MAIN = 0;
+    NLOCALS = 0; NLABELS = 0; LABELPASS = 1;
+    OUT = buf_new(1024);
     next();
     while (TOK != 0) {
-        if ((TOK == 11) & (depth == 0)) {
-            while ((TOK != 37) & (TOK != 0)) next();
-            if (TOK == 37) next();
-        } else if (TOK == 32) {
-            depth = depth + 1;
-            next();
-        } else if (TOK == 33) {
-            depth = depth - 1;
-            next();
-        } else if ((TOK == 1) & (depth == 0)) {
-            name = TTEXT;
-            next();
-		if (TOK == 30) {
-                n = 0;
-                next();
+        if (TOK == 11) { extrn_stmt(); }
+        else if (TOK == 10) {
+            fatal("top-level auto not supported");
+        } else {
+            if(TOK!=1) fatal("expected definition");
+            name = TTEXT; next();
+            if (TOK == 30) {
+                NLOCALS = 0; NLABELS = 0; n = 0; next();
                 while (TOK != 31) {
-                    if (TOK == 1) {
-                        n = n + 1;
-                        next();
-                    }
-                    if (TOK == 36) next();
-                    else if (TOK != 31) next();
+                    if(TOK!=1) fatal("expected parameter");
+                    add_local(TTEXT); n = n + 1; next();
+                    if (TOK != 36) break;
+                    next();
                 }
-                if (TOK == 31) next();
-                if (streq(name, "main")) {
-                    MAIN_NARGS = n;
-                    HAS_MAIN = 1;
-                }
+                expect(31);
                 add_fun(name, n);
-                if (TOK != 32) {
-                    while ((TOK != 37) & (TOK != 0)) next();
-                    if (TOK == 37) next();
-                }
+                if(streq(name,"main")) { MAIN_NARGS=n; HAS_MAIN=1; }
+                stmt();
+                NLOCALS = 0; NLABELS = 0;
             } else {
                 add_global(name);
-                while ((TOK != 37) & (TOK != 0)) next();
-                if (TOK == 37) next();
+                while ((TOK != 37)&(TOK != 0)) next();
+                expect(37);
             }
-        } else {
-            next();
         }
     }
+    LABELPASS = 0;
     POS = 0; LINE = 1; COL = 1;
+    free(OUT[0]);
+    free(OUT);
+    OUT = 0;
+    return(0);
 }
 
 emit_prototypes() {
@@ -1383,9 +1409,9 @@ emit_prototypes() {
     }
     i = 0;
     while (i < NGLOBS) {
-        emit("word ");
+        emit("extern word ");
         emit(GLOBS[i]);
-        emitln(";");
+        emitln("[];");
         i = i + 1;
     }
     emitln("");
@@ -1399,8 +1425,102 @@ global_ival() {
     next();
     if (streq(name, "argv") & !has_global(name) & !has_function(name))
         name = "b_argv_vector";
-    else if (!has_global(name)) name = call_name(name);
+    else if (has_global(name)) name = scat(name, "[0]");
+    else name = call_name(name);
     return(scat(scat("B_ADDR(", name), ")"));
+}
+
+emit_global_storage(name, size, values, count, vector) {
+    if (vector) {
+        emit("typedef char __bbc_extent_"); emit(name);
+        emit("[(("); emit(size); emitln(") >= 0) ? 1 : -1];");
+        emit("static word __"); emit(name); emit("_store[("); emit(size);
+        emit(") > "); if (count) emit(itoa(count)); else emit("1");
+        emit(" ? ("); emit(size); emit(") : ");
+        if (count) emit(itoa(count)); else emit("1");
+        emitln("];");
+    }
+    emit("word "); emit(name); emit("[");
+    if (vector | !count) emit("1"); else emit(itoa(count));
+    emitln("];");
+    if (!vector & !count) return(0);
+    emit("static void __attribute__((constructor(102))) __bbc_init_");
+    emit(name); emitln("(void) {");
+    if (vector) {
+        emit(name); emit("[0] = B_PTR(__"); emit(name); emitln("_store);");
+    }
+    if (count) {
+        emit("word __bbc_values[] = {"); emit(values); emitln("};");
+        emit("for (int __i=0; __i<"); emit(itoa(count)); emit("; __i++) ");
+        if (vector) { emit("__"); emit(name); emit("_store"); }
+        else emit(name);
+        emitln("[__i] = __bbc_values[__i];");
+    }
+    emitln("}");
+}
+
+/* Collect the project's definitions before lowering its individual files. */
+scan_project(inputs, count) {
+    auto i, j, k;
+    extrn malloc;
+    ALLFUNS = malloc(2048 * &0[1]);
+    ALLGLOBS = malloc(2048 * &0[1]);
+    NALLFUNS = 0;
+    NALLGLOBS = 0;
+    i = 0;
+    while (i < count) {
+        read_file(inputs[i]);
+        FUNS = malloc(2048 * &0[1]); GLOBS = malloc(2048 * &0[1]);
+        LOCALS = malloc(2048 * &0[1]); LABELS = malloc(2048 * &0[1]);
+        scan_functions();
+        j = 0;
+        while (j < NFUNS) {
+            k = 0;
+            while (k < NALLFUNS) {
+                if (streq(ALLFUNS[2*k],FUNS[2*j])) fatal("duplicate external function");
+                k = k + 1;
+            }
+            if (NALLFUNS>=1024) fatal("too many functions");
+            ALLFUNS[2 * NALLFUNS] = FUNS[2 * j];
+            ALLFUNS[2 * NALLFUNS + 1] = FUNS[2 * j + 1];
+            NALLFUNS = NALLFUNS + 1; j = j + 1;
+        }
+        j = 0;
+        while (j < NGLOBS) {
+            k = 0;
+            while (k < NALLGLOBS) {
+                if(streq(ALLGLOBS[k],GLOBS[j])) fatal("duplicate external variable");
+                k = k + 1;
+            }
+            if(NALLGLOBS>=2048) fatal("too many globals");
+            ALLGLOBS[NALLGLOBS] = GLOBS[j];
+            NALLGLOBS = NALLGLOBS + 1; j = j + 1;
+        }
+        i = i + 1;
+    }
+    i = 0;
+    while (i < NALLFUNS) {
+        j = 0;
+        while (j < NALLGLOBS) {
+            if(streq(ALLFUNS[2*i],ALLGLOBS[j])) fatal("conflicting external definition");
+            j = j + 1;
+        }
+        i = i + 1;
+    }
+}
+
+merge_project() {
+    auto i;
+    i = 0;
+    while (i < NALLFUNS) {
+        if (!has_function(ALLFUNS[2 * i])) add_fun(ALLFUNS[2 * i], ALLFUNS[2 * i + 1]);
+        i = i + 1;
+    }
+    i = 0;
+    while (i < NALLGLOBS) {
+        if (!has_global(ALLGLOBS[i])) add_global(ALLGLOBS[i]);
+        i = i + 1;
+    }
 }
 
 global_or_func() {
@@ -1439,71 +1559,29 @@ global_or_func() {
         emitln("");
         return(0);
     }
+    size="0"; braced=0;
     if (TOK == 34) {
-        next();
-        size = "0";
-        if (TOK == 35) next();
-        else {
+        braced = 1; next();
+        if (TOK != 35) {
+            if (TOK == 1) fatal("vector size must be constant");
             size = expr(1);
-            expect(35);
         }
-        /* Collect initializers before choosing max(size, count). */
-        init = buf_new(128);
-        n = 0;
-        braced = TOK == 32;
-        if (braced) next();
-        while (TOK != 37) {
-            if (braced & (TOK == 33)) break;
-            p = global_ival();
-            if (n) buf_str(init, ", ");
-            buf_str(init, p);
-            n = n + 1;
-            if (TOK == 36) next();
-            else break;
-        }
-        if (braced) expect(33);
-        emit("static word __");
-        emit(name);
-        emit("_store[(");
-        emit(size);
-        emit(") > ");
-        if (n) emit(itoa(n)); else emit("1");
-        emit(" ? ("); emit(size); emit(") : ");
-        if (n) emit(itoa(n)); else emit("1");
-        emit("]");
-        if (n) {
-            emit(" = {"); emit(buf_take(init)); emit("}");
-        }
-        emitln(";");
-        emit("word "); emit(name);
-        emit(" = B_PTR(__"); emit(name); emitln("_store);");
-        expect(37);
-        return(0);
+        expect(35);
     }
-    if (TOK == 3) {
-        emit("static const unsigned char __");
-        emit(name);
-        emit("_str[] = ");
-        emit_c_quoted_eot(TTEXT);
-        emitln(";");
-        emit("word ");
-        emit(name);
-        emit(" = B_PTR(__");
-        emit(name);
-        emitln("_str);");
+    init = buf_new(128); n = 0;
+    first = TOK == 32;
+    if (first) next();
+    while (TOK != 37) {
+        if (first & (TOK == 33)) break;
+        p = global_ival();
+        if(n) buf_str(init,", ");
+        buf_str(init, p); n = n + 1;
+        if (TOK != 36) break;
         next();
-        expect(37);
-        return(0);
     }
-    emit("word ");
-    emit(name);
-    if (TOK != 37) {
-        init = global_ival();
-        emit(" = ");
-        emit(init);
-    }
+    if (first) expect(33);
+    emit_global_storage(name, size, buf_take(init), n, braced);
     expect(37);
-    emitln(";");
 }
 
 parse_program() {
@@ -1575,6 +1653,7 @@ emit_main_wrapper() {
     if (!HAS_MAIN) return(0);
     emitln("int main(int argc, char ****argv) {");
     emitln("    __b_setargs(argc, argv);");
+    emitln("    __b_init();");
     if (MAIN_NARGS == 0) {
         emitln("    return (int)__b_user_main();");
     } else if (MAIN_NARGS == 1) {
@@ -1596,6 +1675,7 @@ compile_to_c(inpath) {
     LABELPASS = 0;
     NLOCALS = 0;
     scan_functions();
+    merge_project();
     OUT = buf_new(1048576);
     emit_header();
     emit_prototypes();
@@ -1731,11 +1811,13 @@ main() {
             i = i + 1;
             if (i >= ac) fatal("missing -l value");
             if (streq(argv(i), "ncurses") | streq(argv(i), "panel")) WANT_NCURSES = 1;
+            if(nextra>=256) fatal("too many compiler options");
             extras[nextra] = scat("-l", argv(i));
             nextra = nextra + 1;
         } else if (streq(a, "-X")) {
             i = i + 1;
             if (i >= ac) fatal("missing -X value");
+            if(nextra>=256) fatal("too many compiler options");
             extras[nextra] = argv(i);
             nextra = nextra + 1;
         } else if (streq(a, "--libdir")) {
@@ -1751,6 +1833,7 @@ main() {
         } else if (streq(a, "--dump-ast")) {
             fatal("--dump-ast is not implemented");
         } else {
+            if(ninputs>=256) fatal("too many input files");
             inputs[ninputs] = a;
             ninputs = ninputs + 1;
         }
@@ -1760,6 +1843,7 @@ main() {
         usage();
         return(2);
     }
+    scan_project(inputs,ninputs);
     nc = 0;
     i = 0;
     while (i < ninputs) {

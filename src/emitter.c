@@ -172,6 +172,8 @@ static int source_function(const char *name) {
 
 static int predefined_argv(const char *name) {
     if (strcmp(name, "argv") != 0 || source_function(name)) return 0;
+    for (size_t i = 0; i < g_known_variables.len; i++)
+        if (strcmp(g_known_variables.data[i], name) == 0) return 0;
     for (size_t i = 0; current_program && i < current_program->tops.len; i++) {
         Top *t = current_program->tops.data[i];
         if (t->kind == TOP_EXTERN_DEF && strcmp(t->as.ext_def->name, name) == 0)
@@ -184,6 +186,23 @@ static int predefined_argv(const char *name) {
         }
     }
     return 1;
+}
+
+static int global_data_kind(const char *name) {
+    int known = 0;
+    for (size_t i = 0; i < g_known_variables.len; i++)
+        if (strcmp(g_known_variables.data[i], name) == 0) known = 1;
+    for (size_t i = 0; current_program && i < current_program->tops.len; i++) {
+        Top *t = current_program->tops.data[i];
+        if (t->kind == TOP_EXTERN_DEF && strcmp(t->as.ext_def->name, name) == 0) return 1;
+    }
+    if (source_function(name) || (runtime_function(name) && !known)) return 0;
+    for (size_t i = 0; current_program && i < current_program->tops.len; i++) {
+        Top *t = current_program->tops.data[i];
+        if (t->kind == TOP_EXTERN_DECL && strcmp(t->as.ext_decl->name, name) == 0)
+            return t->as.ext_decl->is_macro_external ? 2 : 1;
+    }
+    return known;
 }
 
 // Get or create mangled name for an identifier
@@ -200,7 +219,7 @@ static const char *get_mangled_name(const char *original) {
     char *mangled = mangle_name_raw(original);
     // Keep B library-name definitions clear of both libc and runtime symbols.
     // Escape source names in this namespace too, independent of encounter order.
-    if (runtime_function(original) || strncmp(original, "__bcc_user_", 11) == 0) {
+    if (runtime_function(original) || strncmp(original, "__bcc_", 6) == 0) {
         char *private_name = xmalloc(strlen(mangled) + 14);
         sprintf(private_name, "__bcc_user_%c_%s",
                 runtime_function(original) ? 'r' : 'x', mangled);
@@ -210,8 +229,8 @@ static const char *get_mangled_name(const char *original) {
 
     // Check if it's a C keyword
     if (is_c_keyword(mangled)) {
-        char *prefixed = xmalloc(strlen(mangled) + 3);
-        sprintf(prefixed, "b_%s", mangled);
+        char *prefixed = xmalloc(strlen(mangled) + 15);
+        sprintf(prefixed, "__bcc_keyword_%s", mangled);
         if (!g_compilation_arena) free(mangled);
         mangled = prefixed;
     }
@@ -739,7 +758,12 @@ void emit_expr(FILE *out, Expr *e, const char *filename) {
                 fputs("B_FUNCTION(", out);
                 emit_function_name(out, e->as.var);
                 fputc(')', out);
-            } else emit_name(out, e->as.var);
+            } else if (e->global_value == 2) {
+                fprintf(out, "__b_external_%s", get_mangled_name(e->as.var));
+            } else {
+                emit_name(out, e->as.var);
+                if (e->global_value == 1) fputs("[0]", out);
+            }
             return;
         }
 
@@ -1107,7 +1131,12 @@ void emit_ival_expr(FILE *out, Expr *e, const char *filename){
     if (e->kind == EX_VAR) {
         fputs("B_ADDR(", out);
         if (predefined_argv(e->as.var)) fputs("b_argv_vector", out);
-        else emit_name(out, e->as.var);
+        else if (global_data_kind(e->as.var) == 2)
+            fprintf(out, "__b_external_%s", get_mangled_name(e->as.var));
+        else {
+            emit_name(out, e->as.var);
+            if (global_data_kind(e->as.var) == 1) fputs("[0]", out);
+        }
         fputc(')', out);
         return;
     }
@@ -1271,7 +1300,7 @@ void emit_stmt(FILE *out, Stmt *s, int indent, int is_function_body, const char 
                     emit_indent(out, indent);
                     fprintf(out, "word __%s_store[(", mname);
                     emit_expr(out, item->size, filename);
-                    fprintf(out, ") + 1];\n"); // B bound is last index
+                    fprintf(out, ")];\n"); // Automatic vector constants are element counts.
 
                     // Emit pointer variable
                     emit_indent(out, indent);
@@ -1407,25 +1436,111 @@ static void emit_function_body(FILE *out, Func *f, const char *filename) {
 }
 
 /* Register backing storage before an initializer can take an interior address. */
-static void emit_global_regions(FILE *out, Program *prog) {
-    if (current_word_bits != 16) return;
+/* All B external data is an array. The name denotes its first cell;
+   unlike a vector, a multiword simple definition has no pointer cell. */
+static size_t vector_extent(ExternItem *item) {
+    size_t count = item->as.var.init && item->as.var.init->kind == INIT_LIST
+        ? init_list_length(item->as.var.init) : 0;
+    long bound = item->as.var.bound_const;
+    if (item->as.var.bound && bound > 0 && (size_t)bound > count)
+        count = (size_t)bound;
+    return count;
+}
+
+static size_t global_words(ExternItem *item) {
+    if (item->as.var.vkind != EXTVAR_BLOB) return 1;
+    size_t base = item->as.var.init && item->as.var.init->kind == INIT_LIST
+        ? init_list_length(item->as.var.init) : 1;
+    size_t tail = edge_tail_words_top(item->as.var.init);
+    return base + tail ? base + tail : 1;
+}
+
+static void emit_function_prototypes(FILE *out, Program *prog) {
+    emit_known_external_function_prototypes(out, prog);
+    for (size_t i = 0; i < prog->tops.len; i++) {
+        Top *t = prog->tops.data[i];
+        if (t->kind != TOP_FUNC) continue;
+        Func *f = t->as.fn;
+        if (strcmp(f->name, "main") == 0 || strcmp(f->name, "b_main") == 0)
+            fputs("static word __b_user_main(", out);
+        else { fputs("word ", out); emit_name(out, f->name); fputc('(', out); }
+        for (size_t j = 0; j < f->params.len; j++) {
+            if (j) fputs(", ", out);
+            fputs("word", out);
+        }
+        fputs(");\n", out);
+    }
+}
+
+static void emit_global_declarations(FILE *out, Program *prog, const char *filename) {
+    for (size_t i = 0; i < prog->tops.len; i++) {
+        Top *t = prog->tops.data[i];
+        if (t->kind == TOP_GAUTO) {
+            emit_stmt(out, t->as.gauto, 0, 0, filename);
+            continue;
+        }
+        if (t->kind != TOP_EXTERN_DEF && t->kind != TOP_EXTERN_DECL) continue;
+        ExternItem *item = t->as.ext_def;
+        const char *name = get_mangled_name(item->name);
+        if (t->kind == TOP_EXTERN_DECL) {
+            int kind = global_data_kind(item->name);
+            if (!kind) continue;
+            if (item->is_macro_external) {
+                fprintf(out, "#ifndef %s\nextern word %s[];\n#define __b_external_%s (%s[0])\n#else\n#define __b_external_%s (%s)\n#endif\n",
+                        name, name, name, name, name, name);
+            } else fprintf(out, "extern word %s[];\n", name);
+            continue;
+        }
+        fprintf(out, "%sword %s[%zu];\n", item->is_implicit_static ? "static " : "", name, global_words(item));
+        if (item->as.var.vkind == EXTVAR_VECTOR) {
+            size_t total = vector_extent(item) + edge_tail_words_top(item->as.var.init);
+            fprintf(out, "static word __%s_store[%zu];\n", name, total ? total : 1);
+        }
+    }
+}
+
+static void emit_global_initializers(FILE *out, Program *prog, const char *filename) {
+    /* Register every module's complete objects before any address initializer
+       runs. Otherwise a forward reference could register only the first word. */
+    if (current_word_bits == 16) {
+        fputs("static void __attribute__((constructor(101))) __b_register_globals(void) {\n", out);
+        for (size_t i = 0; i < prog->tops.len; i++) {
+            Top *t = prog->tops.data[i];
+            if (t->kind != TOP_EXTERN_DEF) continue;
+            ExternItem *item = t->as.ext_def;
+            const char *name = get_mangled_name(item->name);
+            fprintf(out, "    (void)B_PTR_N(%s, sizeof(%s));\n", name, name);
+            if (item->as.var.vkind == EXTVAR_VECTOR)
+                fprintf(out, "    (void)B_PTR_N(__%s_store, sizeof(__%s_store));\n", name, name);
+        }
+        fputs("}\n", out);
+    }
+    fputs("static void __b_initialize_globals(void) {\n", out);
     for (size_t i = 0; i < prog->tops.len; i++) {
         Top *t = prog->tops.data[i];
         if (t->kind != TOP_EXTERN_DEF) continue;
         ExternItem *item = t->as.ext_def;
         const char *name = get_mangled_name(item->name);
-        fprintf(out, "    (void)B_PTR_N(&%s, sizeof(%s));\n", name, name);
-        if (item->as.var.vkind == EXTVAR_VECTOR)
-            fprintf(out, "    (void)B_PTR_N(__%s_store, sizeof(__%s_store));\n", name, name);
-        else if (item->as.var.vkind == EXTVAR_BLOB) {
-            Init *in = item->as.var.init;
-            int string = in && in->kind == INIT_LIST && in->as.list.len == 1 &&
-                ((Init*)in->as.list.data[0])->kind == INIT_EXPR &&
-                ((Init*)in->as.list.data[0])->as.expr->kind == EX_STR;
-            if (!string)
-                fprintf(out, "    (void)B_PTR_N(__%s_blob, sizeof(__%s_blob));\n", name, name);
+        Init *in = item->as.var.init;
+        if (item->as.var.vkind == EXTVAR_VECTOR) {
+            fprintf(out, "    %s[0] = B_PTR_N(__%s_store, sizeof(__%s_store));\n", name, name, name);
+            if (in && in->kind == INIT_LIST) {
+                char *store = fmt("__%s_store", name);
+                emit_edge_list_init(out, store, 0, in, vector_extent(item), 1, filename);
+            }
+        } else if (in && in->kind == INIT_LIST) {
+            emit_edge_list_init(out, name, 0, in, init_list_length(in), 1, filename);
+        } else if (in && in->kind == INIT_EXPR) {
+            fprintf(out, "    %s[0] = ", name);
+            emit_ival_expr(out, in->as.expr, filename);
+            fputs(";\n", out);
         }
     }
+    fputs("}\n"
+          "static struct __bcc_initializer __bcc_module = {__b_initialize_globals, 0, 0};\n"
+          "static void __attribute__((constructor(102))) __bcc_register_module(void) {\n"
+          "    __bcc_register_initializer(&__bcc_module);\n"
+          "}\n\n", out);
 }
 
 // Forward declaration for assembly emitter
@@ -1557,7 +1672,23 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
         fputs("\n", out);
         free(header);
     }
+    {
+        char *path = fmt("%s/binit.h", g_libb_path);
+        size_t length;
+        char *header = read_file_all(path, &length);
+        fputs("#define B_INIT_DEFINE\n#define B_INIT_STORAGE __attribute__((common))\n", out);
+        fwrite(header, 1, length, out);
+        fputc('\n', out);
+        free(header);
+    }
     fputs(
+"static void __b_init(void) {\n"
+"    if (!__bcc_runtime_initialized) {\n"
+"        setvbuf(stdout, NULL, _IONBF, 0);\n"
+"        __bcc_runtime_initialized = 1;\n"
+"    }\n"
+"    __bcc_run_initializers();\n"
+"}\n"
 "static int rd_fd = 0;  /* current input fd */\n"
 "static int wr_fd = 1;  /* current output fd */\n"
 "static word rd_unit = 0; /* exposed to B if needed */\n"
@@ -2451,182 +2582,9 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
         fputc('\n', out);
     }
 
-    // First pass: emit all global declarations and storage
-    for (size_t i = 0; i < prog->tops.len; i++) {
-        Top *t = (Top*)prog->tops.data[i];
-
-        if (t->kind == TOP_GAUTO) {
-            emit_stmt(out, t->as.gauto, 0, 0, filename); // not a function body
-            fputc('\n', out);
-            continue;
-        }
-
-        if (t->kind == TOP_EXTERN_DECL) {
-            ExternItem *item = t->as.ext_decl;
-            fputs("extern word ", out);
-            emit_name(out, item->name);
-            fputs(";\n", out);
-            continue;
-        }
-
-        if (t->kind == TOP_EXTERN_DEF) {
-            ExternItem *item = t->as.ext_def;
-            const char *mname = get_mangled_name(item->name);
-            if (item->as.var.vkind == EXTVAR_BLOB) {
-                int is_single_str =
-                    item->as.var.init &&
-                    item->as.var.init->kind == INIT_LIST &&
-                    item->as.var.init->as.list.len == 1 &&
-                    ((Init*)item->as.var.init->as.list.data[0])->kind == INIT_EXPR &&
-                    ((Init*)item->as.var.init->as.list.data[0])->as.expr &&
-                    ((Init*)item->as.var.init->as.list.data[0])->as.expr->kind == EX_STR;
-
-                if (is_single_str) {
-                    fprintf(out, "word %s;\n", mname);
-                    continue;
-                }
-
-                // Blob external: contiguous words at &name
-                size_t base_len = (item->as.var.init && item->as.var.init->kind == INIT_LIST) ? init_list_length(item->as.var.init) : 1;
-                size_t tail     = (item->as.var.init && item->as.var.init->kind == INIT_LIST) ? edge_tail_words_top(item->as.var.init) : 0;
-                size_t total    = base_len + tail;
-                if (total == 0) total = 1;
-                fprintf(out, "static word __%s_blob[%zu];\n", mname, total);
-                fprintf(out, "word %s;\n", mname);
-            } else if (item->as.var.vkind == EXTVAR_VECTOR) {
-                // Vector external: pointer + backing store
-                size_t init_len = (item->as.var.init && item->as.var.init->kind == INIT_LIST) ? init_list_length(item->as.var.init) : 0;
-                size_t outer_len = 1;
-
-                if (item->as.var.has_empty) {
-                    outer_len = init_len ? init_len : 1;
-                } else if (item->as.var.bound) {
-                    long bv = 0;
-                    if (try_eval_const_expr(item->as.var.bound, &bv)) {
-                        if (bv < 0) bv = 0;
-                        outer_len = (size_t)bv;
-                    } else {
-                        outer_len = init_len ? init_len : 1;
-                    }
-                    if (init_len > outer_len) outer_len = init_len;
-                } else {
-                    outer_len = init_len ? init_len : 1;
-                }
-
-                size_t tail = (item->as.var.init && item->as.var.init->kind == INIT_LIST) ? edge_tail_words_top(item->as.var.init) : 0;
-                size_t total = outer_len + tail;
-                if (total == 0) total = 1;
-
-                fprintf(out, "static word __%s_store[%zu];\n", mname, total);
-                fprintf(out, "word %s;\n", mname);
-            } else {
-                // Scalar external
-                if (item->is_implicit_static) {
-                    fprintf(out, "static word %s;\n", mname);
-                } else {
-                    fprintf(out, "word %s;\n", mname);
-                }
-            }
-            continue;
-        }
-    }
-
-    // Emit __b_init function
-    fputs("static void __b_init(void) {\n", out);
-    fputs("    setvbuf(stdout, NULL, _IONBF, 0);\n", out);
-    emit_global_regions(out, prog);
-    for (size_t i = 0; i < prog->tops.len; i++) {
-        Top *t = (Top*)prog->tops.data[i];
-        if (t->kind == TOP_EXTERN_DEF) {
-            ExternItem *item = t->as.ext_def;
-            const char *mname = get_mangled_name(item->name);
-
-            if (item->as.var.vkind == EXTVAR_SCALAR && item->as.var.init && item->as.var.init->kind == INIT_EXPR) {
-                fprintf(out, "    %s = ", mname);
-                emit_ival_expr(out, item->as.var.init->as.expr, filename);
-                fputs(";\n", out);
-            } else if (item->as.var.vkind == EXTVAR_BLOB) {
-                int is_single_str =
-                    item->as.var.init &&
-                    item->as.var.init->kind == INIT_LIST &&
-                    item->as.var.init->as.list.len == 1 &&
-                    ((Init*)item->as.var.init->as.list.data[0])->kind == INIT_EXPR &&
-                    ((Init*)item->as.var.init->as.list.data[0])->as.expr &&
-                    ((Init*)item->as.var.init->as.list.data[0])->as.expr->kind == EX_STR;
-                if (is_single_str) {
-                    fprintf(out, "    %s = ", mname);
-                    emit_ival_expr(out, ((Init*)item->as.var.init->as.list.data[0])->as.expr, filename);
-                    fputs(";\n", out);
-                    continue;
-                }
-                // Set blob pointer to backing store (or scalar if size 1)
-                size_t base_len = (item->as.var.init && item->as.var.init->kind == INIT_LIST) ? init_list_length(item->as.var.init) : 1;
-                size_t tail     = (item->as.var.init && item->as.var.init->kind == INIT_LIST) ? edge_tail_words_top(item->as.var.init) : 0;
-                size_t total    = base_len + tail;
-                // Initialize blob elements + edge subvectors in tail if present
-                if (item->as.var.init && item->as.var.init->kind == INIT_LIST) {
-                    char buf[256];
-                    snprintf(buf, sizeof(buf), "__%s_blob", mname);
-                    (void)emit_edge_list_init(out, buf, 0, item->as.var.init, base_len, 2, filename);
-                }
-                if (total == 1 || (base_len <= 1 && tail == 0)) {
-                    fprintf(out, "    %s = __%s_blob[0];\n", mname, mname);
-                } else {
-                    fprintf(out, "    %s = B_PTR_N(__%s_blob, sizeof(__%s_blob));\n", mname, mname, mname);
-                }
-            } else if (item->as.var.vkind == EXTVAR_VECTOR) {
-                // Set vector pointer
-                fprintf(out, "    %s = B_PTR_N(__%s_store, sizeof(__%s_store));\n", mname, mname, mname);
-                // Initialize vector elements if present
-                if (item->as.var.init && item->as.var.init->kind == INIT_LIST) {
-                    // outer_len is where the tail cursor starts (reserved outer slots)
-                    size_t init_len = init_list_length(item->as.var.init);
-                    size_t outer_len = 1;
-                    if (item->as.var.has_empty) outer_len = init_len ? init_len : 1;
-                    else if (item->as.var.bound) {
-                        long bv = 0;
-                        if (try_eval_const_expr(item->as.var.bound, &bv)) {
-                            if (bv < 0) bv = 0;
-                            outer_len = (size_t)bv;
-                        } else outer_len = init_len ? init_len : 1;
-                        if (init_len > outer_len) outer_len = init_len;
-                    } else outer_len = init_len ? init_len : 1;
-
-                    {
-                        char buf[256];
-                        snprintf(buf, sizeof(buf), "__%s_store", mname);
-                        (void)emit_edge_list_init(out, buf, 0, item->as.var.init, outer_len, 2, filename);
-                    }
-                }
-            }
-        }
-    }
-
-    fputs("}\n\n", out);
-
-    emit_known_external_function_prototypes(out, prog);
-
-    // Emit function prototypes for C99 compatibility
-    for (size_t i = 0; i < prog->tops.len; i++) {
-        Top *t = (Top*)prog->tops.data[i];
-        if (t->kind == TOP_FUNC) {
-            Func *f = t->as.fn;
-            if (strcmp(f->name, "main") == 0 || strcmp(f->name, "b_main") == 0) {
-                fprintf(out, "static word __b_user_main(");
-            } else {
-                /* No 'static' - functions need external linkage for multi-file */
-                fputs("word ", out);
-                emit_name(out, f->name);
-                fputc('(', out);
-            }
-            for (size_t p = 0; p < f->params.len; p++) {
-                if (p) fputs(", ", out);
-                fputs("word", out);
-            }
-            fputs(");\n", out);
-        }
-    }
-    fputc('\n', out);
+    emit_function_prototypes(out, prog);
+    emit_global_declarations(out, prog, filename);
+    emit_global_initializers(out, prog, filename);
 
     // Second pass: emit all functions
     int has_main = 0;
@@ -2717,170 +2675,9 @@ void emit_program_c_ext(FILE *out, Program *prog, const char *filename, int byte
         fputc('\n', out);
     }
 
-    // First pass: emit all global declarations and storage
-    for (size_t i = 0; i < prog->tops.len; i++) {
-        Top *t = (Top*)prog->tops.data[i];
-
-        if (t->kind == TOP_GAUTO) {
-            emit_stmt(out, t->as.gauto, 0, 0, filename);
-            fputc('\n', out);
-            continue;
-        }
-
-        if (t->kind == TOP_EXTERN_DECL) {
-            ExternItem *item = t->as.ext_decl;
-            fputs("extern word ", out);
-            emit_name(out, item->name);
-            fputs(";\n", out);
-            continue;
-        }
-
-        if (t->kind == TOP_EXTERN_DEF) {
-            ExternItem *item = t->as.ext_def;
-            const char *mname = get_mangled_name(item->name);
-            if (item->as.var.vkind == EXTVAR_BLOB) {
-                int is_single_str =
-                    item->as.var.init &&
-                    item->as.var.init->kind == INIT_LIST &&
-                    item->as.var.init->as.list.len == 1 &&
-                    ((Init*)item->as.var.init->as.list.data[0])->kind == INIT_EXPR &&
-                    ((Init*)item->as.var.init->as.list.data[0])->as.expr &&
-                    ((Init*)item->as.var.init->as.list.data[0])->as.expr->kind == EX_STR;
-
-                if (is_single_str) {
-                    fprintf(out, "word %s;\n", mname);
-                    continue;
-                }
-
-                size_t base_len = (item->as.var.init && item->as.var.init->kind == INIT_LIST) ? init_list_length(item->as.var.init) : 1;
-                size_t tail     = (item->as.var.init && item->as.var.init->kind == INIT_LIST) ? edge_tail_words_top(item->as.var.init) : 0;
-                size_t total    = base_len + tail;
-                if (total == 0) total = 1;
-                fprintf(out, "static word __%s_blob[%zu];\n", mname, total);
-                fprintf(out, "word %s;\n", mname);
-            } else if (item->as.var.vkind == EXTVAR_VECTOR) {
-                size_t init_len = (item->as.var.init && item->as.var.init->kind == INIT_LIST) ? init_list_length(item->as.var.init) : 0;
-                size_t outer_len = 1;
-
-                if (item->as.var.has_empty) {
-                    outer_len = init_len ? init_len : 1;
-                } else if (item->as.var.bound) {
-                    long bv = 0;
-                    if (try_eval_const_expr(item->as.var.bound, &bv)) {
-                        if (bv < 0) bv = 0;
-                        outer_len = (size_t)bv;
-                    } else {
-                        outer_len = init_len ? init_len : 1;
-                    }
-                    if (init_len > outer_len) outer_len = init_len;
-                } else {
-                    outer_len = init_len ? init_len : 1;
-                }
-
-                size_t tail = (item->as.var.init && item->as.var.init->kind == INIT_LIST) ? edge_tail_words_top(item->as.var.init) : 0;
-                size_t total = outer_len + tail;
-                if (total == 0) total = 1;
-
-                fprintf(out, "static word __%s_store[%zu];\n", mname, total);
-                fprintf(out, "word %s;\n", mname);
-            } else {
-                if (item->is_implicit_static) {
-                    fprintf(out, "static word %s;\n", mname);
-                } else {
-                    fprintf(out, "word %s;\n", mname);
-                }
-            }
-            continue;
-        }
-    }
-
-    // Emit per-file __b_init_file function for this file's globals
-    // Create a safe init function name from program pointer (unique per compilation)
-    fprintf(out, "\nstatic void __b_init_file_%p(void) {\n", (void*)prog);
-    emit_global_regions(out, prog);
-    for (size_t i = 0; i < prog->tops.len; i++) {
-        Top *t = (Top*)prog->tops.data[i];
-        if (t->kind == TOP_EXTERN_DEF) {
-            ExternItem *item = t->as.ext_def;
-            const char *mname = get_mangled_name(item->name);
-
-            if (item->as.var.vkind == EXTVAR_SCALAR && item->as.var.init && item->as.var.init->kind == INIT_EXPR) {
-                fprintf(out, "    %s = ", mname);
-                emit_ival_expr(out, item->as.var.init->as.expr, filename);
-                fputs(";\n", out);
-            } else if (item->as.var.vkind == EXTVAR_BLOB) {
-                int is_single_str =
-                    item->as.var.init &&
-                    item->as.var.init->kind == INIT_LIST &&
-                    item->as.var.init->as.list.len == 1 &&
-                    ((Init*)item->as.var.init->as.list.data[0])->kind == INIT_EXPR &&
-                    ((Init*)item->as.var.init->as.list.data[0])->as.expr &&
-                    ((Init*)item->as.var.init->as.list.data[0])->as.expr->kind == EX_STR;
-                if (is_single_str) {
-                    fprintf(out, "    %s = ", mname);
-                    emit_ival_expr(out, ((Init*)item->as.var.init->as.list.data[0])->as.expr, filename);
-                    fputs(";\n", out);
-                    continue;
-                }
-                size_t base_len = (item->as.var.init && item->as.var.init->kind == INIT_LIST) ? init_list_length(item->as.var.init) : 1;
-                size_t tail     = (item->as.var.init && item->as.var.init->kind == INIT_LIST) ? edge_tail_words_top(item->as.var.init) : 0;
-                size_t total    = base_len + tail;
-                if (item->as.var.init && item->as.var.init->kind == INIT_LIST) {
-                    char buf[256];
-                    snprintf(buf, sizeof(buf), "__%s_blob", mname);
-                    (void)emit_edge_list_init(out, buf, 0, item->as.var.init, base_len, 2, filename);
-                }
-                if (total == 1 || (base_len <= 1 && tail == 0)) {
-                    fprintf(out, "    %s = __%s_blob[0];\n", mname, mname);
-                } else {
-                    fprintf(out, "    %s = B_PTR_N(__%s_blob, sizeof(__%s_blob));\n", mname, mname, mname);
-                }
-            } else if (item->as.var.vkind == EXTVAR_VECTOR) {
-                fprintf(out, "    %s = B_PTR_N(__%s_store, sizeof(__%s_store));\n", mname, mname, mname);
-                if (item->as.var.init && item->as.var.init->kind == INIT_LIST) {
-                    size_t init_len = init_list_length(item->as.var.init);
-                    size_t outer_len = 1;
-                    if (item->as.var.has_empty) outer_len = init_len ? init_len : 1;
-                    else if (item->as.var.bound) {
-                        long bv = 0;
-                        if (try_eval_const_expr(item->as.var.bound, &bv)) {
-                            if (bv < 0) bv = 0;
-                            outer_len = (size_t)bv;
-                        } else outer_len = init_len ? init_len : 1;
-                        if (init_len > outer_len) outer_len = init_len;
-                    } else outer_len = init_len ? init_len : 1;
-
-                    char buf[256];
-                    snprintf(buf, sizeof(buf), "__%s_store", mname);
-                    (void)emit_edge_list_init(out, buf, 0, item->as.var.init, outer_len, 2, filename);
-                }
-            }
-        }
-    }
-    fputs("}\n\n", out);
-
-    emit_known_external_function_prototypes(out, prog);
-
-    // Emit function prototypes for C99 compatibility
-    for (size_t i = 0; i < prog->tops.len; i++) {
-        Top *t = (Top*)prog->tops.data[i];
-        if (t->kind == TOP_FUNC) {
-            Func *f = t->as.fn;
-            if (strcmp(f->name, "main") == 0 || strcmp(f->name, "b_main") == 0) {
-                fprintf(out, "static word __b_user_main(");
-            } else {
-                fputs("word ", out);
-                emit_name(out, f->name);
-                fputc('(', out);
-            }
-            for (size_t p = 0; p < f->params.len; p++) {
-                if (p) fputs(", ", out);
-                fputs("word", out);
-            }
-            fputs(");\n", out);
-        }
-    }
-    fputc('\n', out);
+    emit_function_prototypes(out, prog);
+    emit_global_declarations(out, prog, filename);
+    emit_global_initializers(out, prog, filename);
 
     // Second pass: emit all functions
     int has_main = 0;
@@ -2916,7 +2713,6 @@ void emit_program_c_ext(FILE *out, Program *prog, const char *filename, int byte
         fputs("int main(int argc, char **argv){\n", out);
         fputs("    __b_setargs(argc, argv);\n", out);
         fputs("    __b_init();\n", out);
-        fprintf(out, "    __b_init_file_%p();\n", (void*)prog);
         if (main_param_count == 0) {
             fputs("    return (int)__b_user_main();\n", out);
         } else if (main_param_count == 1) {
@@ -2927,11 +2723,5 @@ void emit_program_c_ext(FILE *out, Program *prog, const char *filename, int byte
             fputs("    return (int)__b_user_main();\n", out);
         }
         fputs("}\n", out);
-    } else {
-        // If no main in this file, we still need to call the per-file init
-        // This will be called from the file that has main()
-        // Export the init function for linking
-        fprintf(out, "void __b_init_file_%p_export(void) __attribute__((constructor));\n", (void*)prog);
-        fprintf(out, "void __b_init_file_%p_export(void) { __b_init_file_%p(); }\n", (void*)prog, (void*)prog);
     }
 }

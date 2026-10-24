@@ -23,7 +23,7 @@ def main():
             shutil.copyfile(root / 'runtime' / name, work / 'usr/lib' / name)
         env = dict(os.environ, APOUT_ROOT=str(work))
         (work / 'good.b').write_text("main(){putchar('O');putchar('K');putchar('*n');return(0);}\n")
-        (work / 'large.b').write_text('large[9000];main(){return(0); }\n')
+        (work / 'large.b').write_text('first[5000];second[5000];main(){return(0); }\n')
         (work / 'undef.b').write_text('main(){extrn missing; missing();return(0); }\n')
         (work / 'bad.b').write_text('main(){auto ; this is not B}\n')
         shutil.copyfile(root / 'tests/run/t24_ctime.b', work / 'clock.b')
@@ -31,6 +31,8 @@ def main():
         for name, source, expected in cases:
             result = subprocess.run([str(apout), str(work/'bin/b'), source], cwd=work, env=env, capture_output=True, timeout=30)
             ok = (result.returncode == 0) == (expected is not None)
+            if name == 'oversized-program':
+                ok = ok and b'program exceeds 16 KB' in result.stdout + result.stderr
             if ok and expected is not None:
                 run = subprocess.run([str(apout), str(work/'a.out')], cwd=work, env=env, capture_output=True, timeout=5)
                 ok = run.returncode == 0 and run.stdout == expected

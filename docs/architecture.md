@@ -3,8 +3,9 @@
 ## Host compiler
 
 `src/main.c` handles arguments, input files, runtime lookup, generated files,
-and host-toolchain subprocesses. It collects function names across input
-files before compiling individual units.
+and host-toolchain subprocesses. It collects function and external-data names across input files before
+compiling individual units. C-keyword mappings are deterministic across files,
+so names such as `int` and `b_int` remain distinct.
 
 `src/lexer.c` reads B tokens and escapes. `src/parser.c` builds the syntax
 tree. `src/sem.c` resolves declarations, function/label scope, and strict-mode
@@ -35,6 +36,27 @@ The predefined `argv` cell points to a count-prefixed vector with native
 NUL-terminated strings. Compatibility calls retain a separate zero-based
 array of EOT-terminated strings. Generated main wrappers obtain that array
 directly; they must not reconstruct it from a pointer to the first string.
+
+## External storage
+
+Every B external data object is a C array of cells. Reading its B name reads
+cell zero. A simple definition such as `data 11,22,33;` places all three
+values at consecutive locations starting at `&data`. A vector definition
+still has a pointer cell plus separate element storage.
+
+The shared and inline C emitters use the same declaration and initializer
+helpers. In 16-bit mode, every file registers its complete objects before
+any address initializers run. This uses [GCC constructor priorities](https://gcc.gnu.org/onlinedocs/gcc/Common-Attributes.html):
+101 for address registration, then 102 for registering each file's initializer.
+`lib/binit.h` keeps that list shared across files. The main wrapper sets up
+arguments before running the initializers, once each. This also preserves
+compatibility initializers that call `argc()` or read `argv`. A forward
+reference must not register only the first word of a larger object.
+
+Generated B data objects must be rebuilt together after this layout change.
+A C caller inspecting generated storage should use an array declaration,
+not the previous scalar declaration. The generated C shows any name mangling. A C entry point embedding generated
+B modules should call `__b_setargs` and `__b_init` before using their data.
 
 ## Other compiler builds
 

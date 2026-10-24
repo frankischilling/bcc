@@ -23,7 +23,11 @@ character output. Character tests check exact bytes rather than terminal text. V
 compile size assertions against emitted storage and then execute the B
 programs; checking values alone would miss an extra allocated element. Argument tests distinguish the predefined vector
 from compatibility calls and check multi-file access, mutable pointer cells,
-empty arguments, and main parameters. Tests of the runner guard against
+empty arguments, and main parameters. Global-storage tests also exercise
+cross-file initialization order, contiguous simple definitions, cycles,
+mutations, duplicate definitions, and statement-bodied functions. Host-only
+compatibility cases check argument-dependent global initializers and ensure
+that invoking initialization twice does not reset globals. Tests of the runner guard against
 false-green reports.
 
 `bccasm` runs the same host suite. The B-written compiler runs lexical and
