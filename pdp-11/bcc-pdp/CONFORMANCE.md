@@ -23,9 +23,8 @@ the strict 1972 set).
 ## §3  Rvalues and Lvalues
 
 ✔ rvalues are 16-bit words.
-✚ Lvalues are **byte addresses**, not word addresses (kbman §12 specifies
-word-addressed; this compiler is byte-addressed. See
-[README.md](README.md) Deviations.).
+✔ Data lvalues use word addresses. Loads, stores, character access, and
+syscall wrappers translate to machine byte addresses where needed.
 
 ## §4  Expression Evaluation
 
@@ -65,14 +64,11 @@ Unix V1 gives each process 16 KB of address space.  The installed compiler
 therefore runs as `b00 -> b01 -> b1`, and each binary is checked for both
 `text + data <= 16384` and `text + data + bss <= 16384`.
 
-Measured `text + data + bss` for the current sources:
+Read the current binary sizes from the build rather than a frozen table:
 
-| Binary | Role | Current total |
-|---|---|---:|
-| `b00` | lex + parse + raw IC | 15542 bytes |
-| `b01` | symbols + IC resolution | 12404 bytes |
-| `b1` | assembly emitter | 15730 bytes |
-| `b` | driver | 4082 bytes |
+```sh
+bash pdp-11/bcc-pdp/tests/check_v1_binaries.sh
+```
 
 These totals exclude the argument frame and runtime stack. Passing the binary
 size check does not establish that every input or recursion depth fits.
@@ -83,7 +79,6 @@ size check does not establish that every input or recursion depth fits.
 statements. Numeric and character-valued extents are accepted.
 Vector slots hold mutable pointers, for both automatic and external vectors.
 Indexing a scalar or parameter loads its pointer value before selecting an element.
-The pointer still uses byte units, so this does not resolve the §12 deviation.
 A vector slot holds a pointer to its data area. The resolved `vi` record
 initializes it where the declaration is executed. The stack frame reserves
 space for every automatic before the body runs, including late declarations.
@@ -100,8 +95,7 @@ to their function; unresolved and duplicate definitions are rejected.
 | 7.2 | `name [size] {ival, ival, ...} ;` | ✔ numeric, character, and string constants or external addresses |
 | 7.3 | `name(args) stmt` | ✔ includes declaration-prefixed bodies |
 
-A name initializer emits the mapped assembler symbol (the byte address of
-the named external) at the data slot. String initializers hold the address
+A name initializer emits the word address of the named external cell. String initializers hold the address
 of writable, B-terminated byte storage. Empty strings and embedded NULs
 are preserved. Tests interleave strings with numeric cells and definitions
 with function bodies, so literal emission cannot break contiguous storage.
@@ -119,7 +113,7 @@ assembly syscall wrappers and B library functions:
 
 | Function | File | Notes |
 |---|---|---|
-| `char(s, i)` | `runtime/brt.s` | byte-addressed: `s` is byte addr |
+| `char(s, i)` | `runtime/brt.s` | `s` is a word address; `i` is a byte index |
 | `lchar(s, i, c)` | `runtime/brt.s` | |
 | `chdir`, `chmod`, `chown` | `runtime/brt.s` | V1 syscalls 12, 15, 16 |
 | `close` | `runtime/brt.s` | V1 syscall 6 |
@@ -136,7 +130,7 @@ assembly syscall wrappers and B library functions:
 | `link`, `unlink` | `runtime/brt.s` | V1 syscalls 9, 10 |
 | `mkdir` (called `makdir`) | `runtime/brt.s` | V1 syscall 14 (super-user only on early V1) |
 | `open`, `read`, `write` | `runtime/brt.s` | V1 syscalls 5, 3, 4 |
-| `printf` | `runtime/libb.b` | kbman §9.3 adapted for byte ptrs |
+| `printf` | `runtime/libb.b` | Argument traversal uses word-addressed cells |
 | `printn` | `runtime/libb.b` | based on §9.1, with negative-number/base-16 extensions |
 | `seek` | `runtime/brt.s` | V1 syscall 19 |
 | `setuid` | `runtime/brt.s` | V1 syscall 23 |
@@ -147,7 +141,7 @@ assembly syscall wrappers and B library functions:
 
 Predefined `argv[]` (kbman §8 last paragraph): a pointer cell and a 32-word vector populated by
 `runtime/bmain.s` from the V1 kernel argument frame.  `argv[0] = argc`,
-`argv[1..argv[0]]` are byte-address pointers to argument strings.
+`argv[1..argv[0]]` are word-address pointers to aligned copies of argument strings.
 The program name occupies `argv[1]`; user arguments start at `argv[2]`.
 At most 31 string pointers fit, and the count reports only stored entries.
 Strings retain the kernel's NUL terminator. The fixed capacity is a limit,
@@ -167,7 +161,8 @@ optional `main(count, values)` parameters exclude the program name.
 - kbman §12 describes a threaded-code interpreter (`r3 = PC`, `r4 = display`,
   `r5 = stack`).  This compiler emits direct calls and arithmetic instead;
   there is no interpreter loop. No comparative speed claim is made here.
-- Lvalues are byte addresses (kbman §12 uses word addresses `asr` shift).
+- Data lvalues use the section 12 word-address model. Opaque function and
+  label values identify code entries.
 
 ## §13  Nasties
 
@@ -197,5 +192,6 @@ The fast runner uses an unchanged-text compatibility container to observe
 results that the pinned apout 0405 mode discards. Full-system tests remain
 separate and cover real V1 files, processes, tty state, and time registers.
 See [the test guide](../../docs/testing.md). The native compiler still needs
-work on word-addressed pointers and cross-file linkage for mapped external names. Table
+work on cross-file linkage for mapped external names and mutable internal
+label cells. Table
 entries above describe implemented paths, not a claim of complete conformance.

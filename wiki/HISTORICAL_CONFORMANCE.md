@@ -115,7 +115,10 @@ and library interposition. Native external initializers also accept writable str
 strings and embedded NULs. Regressions check stable storage for repeated
 evaluation of one literal and separate storage for equal literals in
 different source locations. The C emitter no longer merges those writable
-objects by content. Native data pointers still use byte addresses.
+objects by content. Native data pointers now use word addresses as in section
+12, with byte conversion at memory and syscall boundaries. Argument strings
+are copied into word-aligned storage. Function and label values retain their
+code-entry representation.
 
 The manual's example 9.2 ends with a packed pair of newlines passed to
 `putchar`. Character constants use high-byte-first numeric packing, and
@@ -179,3 +182,9 @@ Strict host/bootstrap mode and the native compiler bind each declaration
 prefix to its following statement and reserve automatic storage for the
 function invocation. Tests cover late vectors, loop and conditional bodies,
 nested-block visibility, dangling `else`, and malformed declaration lists.
+
+The native executable header is checked against the [November 1971 a.out
+format](https://www.tuhs.org/cgi-bin/utree.pl?file=V1/man/man5/a.out.5). The driver
+and host-side test converter emit stripped files with the correct field
+positions and text length. A V2 symbol-table length is not a V1 data-area
+length; copying it there had caused a real execution failure.

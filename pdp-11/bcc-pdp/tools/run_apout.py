@@ -9,7 +9,7 @@ import subprocess
 import struct
 import sys
 import tempfile
-from apout_image import test_image
+from apout_image import native_image, test_image
 
 
 def main():
@@ -66,7 +66,7 @@ def main():
             raise ValueError('bad assembler output')
         if text + data + bss + 12 > 16384:
             raise ValueError('program exceeds 16 KB')
-        subprocess.run([sys.executable, str(v1 / 'tools/fixaout.py')], cwd=work, check=True, timeout=10)
+        (work / 'a.out').write_bytes(native_image((work / 'a.out').read_bytes()))
         executable = work / 'a.out'
         if not args.raw_v1:
             executable = work / 'test.out'

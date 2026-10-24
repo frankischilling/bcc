@@ -142,9 +142,10 @@ in the body cannot overwrite the caller's frame.
 
 ## Limits and differences
 
-- Pointers are byte-addressed, not the manual's word addresses. Vector
-  names have mutable pointer cells, and indexing loads a pointer value
-  before selecting an element.
+- Data pointers count 16-bit words. Adding one advances by two bytes;
+  character indices and read/write lengths still count bytes. Vector names
+  have mutable pointer cells. Rebuild native B programs and runtime files
+  together when moving from the old byte-pointer ABI.
 - Function names, including library functions, are writable cells containing
   code addresses. Calls accept values stored in variables or vectors, passed
   as parameters, selected by expressions, or returned by another call.
@@ -153,7 +154,8 @@ in the body cannot overwrite the caller's frame.
 - The startup argument vector keeps at most 31 entries, including the
   program name at `argv[1]`. Its count reports only stored entries. The
   optional `main(count, values)` extension still receives user arguments
-  only, excluding the program name.
+  only, excluding the program name. Strings are copied into aligned stack
+  storage; startup rejects copies that would overlap the program.
 - Character constants require one or two characters; empty, oversized,
   and unfinished constants are rejected.
 - Source strings, including external initializers, are limited to 255 bytes
@@ -179,3 +181,15 @@ in the body cannot overwrite the caller's frame.
 - Out-of-range shifts, division by zero, and some negative arithmetic cases
   are not specified by the B manual. Implementation choices are not
   conformance requirements.
+
+## Executable headers
+
+The driver emits a stripped 0405 executable with a six-word V1 header. Its
+text size includes the header; symbol, relocation, and zero-fill sizes are
+zero. Only the assembled text is copied. V2 symbol and relocation records
+are not V1 records and cannot be preserved by relabeling the header.
+
+This follows the field layout in [a.out(V), November 1971](https://www.tuhs.org/cgi-bin/utree.pl?file=V1/man/man5/a.out.5).
+The test-side converter uses the same layout, with unit checks for malformed
+headers. Driver tests check file length and all six words, including a large
+clock program that exposed the old symbol-size-as-data-size mistake.

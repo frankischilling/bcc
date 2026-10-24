@@ -91,7 +91,7 @@ vector initialization records stay at their source execution points.
 
 Native `runtime/brt.s` supplies startup-adjacent helpers and syscall wrappers;
 `runtime/libb.b` supplies library routines written in B. The native compiler
-still uses byte-addressed B pointers. Public B function symbols address mutable
+uses word-addressed B data pointers. Public B function symbols address mutable
 cells initialized to the function body. Every call saves the callee value on
 the stack, evaluates and reverses the arguments into the existing ABI order,
 then calls that saved address. Cleanup removes the arguments and the saved
@@ -112,3 +112,16 @@ Bootstrap strict mode passes the same word-addressing selection to generated
 C and the linked runtime. Compatibility mode keeps byte-addressed pointers.
 The pointer-step and guarded status-buffer tests catch mismatches between
 those two compilation units.
+
+Native static pointer initializers use absolute word-address expressions based
+on the fixed 040014 load origin. Dynamic lvalue addresses are converted to
+word units; loads, stores, and byte-oriented syscalls convert back at their
+boundaries. Function and label values remain opaque code-entry values.
+Startup copies kernel argument strings into aligned stack storage and checks
+that the copies cannot reach the assembled program end. The normal emitter
+defines that end marker; library-only output does not.
+
+Native executable conversion emits only the fixed-origin text with a stripped
+V1 header. The text length includes the 12-byte header. Incompatible V2 symbol
+and relocation metadata is discarded, not copied into a V1 section or
+reported as zero-fill memory. Conversion failure removes the partial output.

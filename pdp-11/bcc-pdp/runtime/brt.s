@@ -109,6 +109,7 @@ _write:
 	.+2
 	mov	2(sp), r0
 	mov	4(sp), 0f
+	asl	0f
 	mov	6(sp), 0f+2
 	sys	write; 0:..; ..
 	bes	1f
@@ -122,6 +123,7 @@ _read:
 	.+2
 	mov	2(sp), r0
 	mov	4(sp), 0f
+	asl	0f
 	mov	6(sp), 0f+2
 	sys	read; 0:..; ..
 	bes	1f
@@ -187,6 +189,7 @@ _seek:
 _putstr:
 	.+2
 	mov	2(sp), r1
+	asl	r1
 1:
 	movb	(r1)+, r0
 	cmpb	r0, $EOT
@@ -347,14 +350,14 @@ _putstr:
 
 
 / =========== kbman §8 library: char, lchar ===========
-/ This compiler is byte-addressed (deviation from kbman §12 word-addressed
-/ model — see README).  So a "string" rvalue is a byte address.
+/ String values are B word addresses; character indices count bytes.
 / char(s, i) = the i-th byte; lchar(s, i, c) sets it.
 
 / ---- _char(s, i) -> int (byte zero-extended) ----
 _char:
 	.+2
-	mov	2(sp), r0		/ r0 = s (byte addr of string base)
+	mov	2(sp), r0		/ r0 = s (B word address)
+	asl	r0
 	add	4(sp), r0		/ r0 = &s[i]
 	clr	r1
 	bisb	(r0), r1		/ r1 = zero-extended byte
@@ -365,6 +368,7 @@ _char:
 _lchar:
 	.+2
 	mov	2(sp), r0
+	asl	r0
 	add	4(sp), r0		/ r0 = &s[i]
 	mov	6(sp), r1		/ r1 = c
 	movb	r1, (r0)
@@ -471,6 +475,7 @@ _stat:
 	jsr	pc, .path1
 	bes	9f
 	mov	4(sp), 0f+2
+	asl	0f+2
 	sys	sstat; 0:.bp1; ..
 	bes	9f
 	clr	r0
@@ -499,6 +504,7 @@ _fstat:
 	.+2
 	mov	2(sp), r0
 	mov	4(sp), 0f
+	asl	0f
 	sys	sfstat; 0:..
 	bes	9f
 	clr	r0
@@ -511,6 +517,7 @@ _stty:
 	.+2
 	mov	2(sp), r0
 	mov	4(sp), 0f
+	asl	0f
 	sys	stty; 0:..
 	bes	9f
 	clr	r0
@@ -523,6 +530,7 @@ _gtty:
 	.+2
 	mov	2(sp), r0
 	mov	4(sp), 0f
+	asl	0f
 	sys	sgtty; 0:..
 	bes	9f
 	clr	r0
@@ -552,6 +560,7 @@ _time:
 	.+2
 	sys	stime
 	mov	2(sp), r2
+	asl	r2
 	mov	ac, (r2)+
 	mov	mq, (r2)
 	clr	r0
@@ -569,6 +578,7 @@ _execv:
 	bhi	9f
 	mov	r3, .ecnt
 	mov	4(sp), r4
+	asl	r4
 	mov	$.earg, .evp
 	mov	$.estr, r1
 	mov	$512., r2
@@ -610,6 +620,7 @@ _execl:
 	mov	2(sp), r3
 	mov	sp, r0
 	add	$4, r0
+	asr	r0
 	mov	r2, -(sp)
 	mov	r0, -(sp)
 	mov	r3, -(sp)
@@ -621,7 +632,7 @@ _execl:
 	rts	pc
 
 / Convert a B byte string to NUL-terminated syscall storage.
-/ R0 source, R1 destination, R2 remaining bytes; R4 and R5 are preserved.
+/ R0 is a B word address, R1 a byte destination, R2 remaining bytes; R4 and R5 are preserved.
 .path1:
 	mov	$.bp1, r1
 	mov	$256., r2
@@ -632,6 +643,7 @@ _execl:
 .strz:
 	tst	r0
 	beq	9f
+	asl	r0
 1:
 	tst	r2
 	beq	9f

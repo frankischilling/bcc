@@ -8,6 +8,8 @@ _fact:
 	sub	$L30000f, sp
 	mov	r5, r0
 	add	$4., r0
+	asr	r0
+	asl	r0
 	mov	(r0), r0
 	mov	r0, -(sp)
 	mov	$1., r0
@@ -27,13 +29,19 @@ L1:
 L2:
 	mov	r5, r0
 	add	$4., r0
+	asr	r0
+	asl	r0
 	mov	(r0), r0
 	mov	r0, -(sp)
 	mov	$_fact, r0
+	asr	r0
+	asl	r0
 	mov	(r0), r0
 	mov	r0, -(sp)
 	mov	r5, r0
 	add	$4., r0
+	asr	r0
+	asl	r0
 	mov	(r0), r0
 	mov	r0, -(sp)
 	mov	$1., r0
@@ -62,15 +70,19 @@ _atoi:
 	sub	$L30001f, sp
 	mov	r5, r0
 	sub	$2., r0
+	asr	r0
 	mov	r0, -(sp)
 	mov	$0., r0
 	mov	(sp)+, r1
+	asl	r1
 	mov	r0, (r1)
 	mov	r5, r0
 	sub	$4., r0
+	asr	r0
 	mov	r0, -(sp)
 	mov	$0., r0
 	mov	(sp)+, r1
+	asl	r1
 	mov	r0, (r1)
 L3:
 	mov	$1., r0
@@ -80,16 +92,23 @@ L3:
 1:
 	mov	r5, r0
 	sub	$6., r0
+	asr	r0
 	mov	r0, -(sp)
 	mov	$_char, r0
+	asr	r0
+	asl	r0
 	mov	(r0), r0
 	mov	r0, -(sp)
 	mov	r5, r0
 	add	$4., r0
+	asr	r0
+	asl	r0
 	mov	(r0), r0
 	mov	r0, -(sp)
 	mov	r5, r0
 	sub	$2., r0
+	asr	r0
+	asl	r0
 	mov	(r0), r0
 	mov	r0, -(sp)
 	mov	0.(sp), r0
@@ -100,9 +119,12 @@ L3:
 	jsr	pc, (r0)
 	add	$6., sp
 	mov	(sp)+, r1
+	asl	r1
 	mov	r0, (r1)
 	mov	r5, r0
 	sub	$6., r0
+	asr	r0
+	asl	r0
 	mov	(r0), r0
 	mov	r0, -(sp)
 	mov	$48., r0
@@ -119,11 +141,15 @@ L6:
 1:
 	mov	r5, r0
 	sub	$4., r0
+	asr	r0
+	asl	r0
 	mov	(r0), r0
 	jmp	L30001
 L7:
 	mov	r5, r0
 	sub	$6., r0
+	asr	r0
+	asl	r0
 	mov	(r0), r0
 	mov	r0, -(sp)
 	mov	$57., r0
@@ -140,14 +166,19 @@ L9:
 1:
 	mov	r5, r0
 	sub	$4., r0
+	asr	r0
+	asl	r0
 	mov	(r0), r0
 	jmp	L30001
 L10:
 	mov	r5, r0
 	sub	$4., r0
+	asr	r0
 	mov	r0, -(sp)
 	mov	r5, r0
 	sub	$4., r0
+	asr	r0
+	asl	r0
 	mov	(r0), r0
 	mov	r0, -(sp)
 	mov	$10., r0
@@ -156,6 +187,8 @@ L10:
 	mov	r0, -(sp)
 	mov	r5, r0
 	sub	$6., r0
+	asr	r0
+	asl	r0
 	mov	(r0), r0
 	mov	(sp)+, r1
 	add	r1, r0
@@ -165,18 +198,23 @@ L10:
 	sub	r0, r1
 	mov	r1, r0
 	mov	(sp)+, r1
+	asl	r1
 	mov	r0, (r1)
 	mov	r5, r0
 	sub	$2., r0
+	asr	r0
 	mov	r0, -(sp)
 	mov	r5, r0
 	sub	$2., r0
+	asr	r0
+	asl	r0
 	mov	(r0), r0
 	mov	r0, -(sp)
 	mov	$1., r0
 	mov	(sp)+, r1
 	add	r1, r0
 	mov	(sp)+, r1
+	asl	r1
 	mov	r0, (r1)
 	jmp	L3
 L4:
@@ -194,12 +232,14 @@ _main:
 	mov	sp, r5
 	sub	$L30002f, sp
 	mov	$_argv, r0
+	asr	r0
+	asl	r0
 	mov	(r0), r0
 	mov	r0, -(sp)
 	mov	$0., r0
-	asl	r0
 	mov	(sp)+, r1
 	add	r1, r0
+	asl	r0
 	mov	(r0), r0
 	mov	r0, -(sp)
 	mov	$1., r0
@@ -216,41 +256,55 @@ L12:
 1:
 	mov	r5, r0
 	sub	$2., r0
+	asr	r0
 	mov	r0, -(sp)
 	mov	$_atoi, r0
+	asr	r0
+	asl	r0
 	mov	(r0), r0
 	mov	r0, -(sp)
 	mov	$_argv, r0
+	asr	r0
+	asl	r0
 	mov	(r0), r0
 	mov	r0, -(sp)
 	mov	$1., r0
-	asl	r0
 	mov	(sp)+, r1
 	add	r1, r0
+	asl	r0
 	mov	(r0), r0
 	mov	r0, -(sp)
 	mov	2.(sp), r0
 	jsr	pc, (r0)
 	add	$4., sp
 	mov	(sp)+, r1
+	asl	r1
 	mov	r0, (r1)
 	jmp	L14
 L13:
 	mov	r5, r0
 	sub	$2., r0
+	asr	r0
 	mov	r0, -(sp)
 	mov	$5., r0
 	mov	(sp)+, r1
+	asl	r1
 	mov	r0, (r1)
 L14:
 	mov	$_printn, r0
+	asr	r0
+	asl	r0
 	mov	(r0), r0
 	mov	r0, -(sp)
 	mov	$_fact, r0
+	asr	r0
+	asl	r0
 	mov	(r0), r0
 	mov	r0, -(sp)
 	mov	r5, r0
 	sub	$2., r0
+	asr	r0
+	asl	r0
 	mov	(r0), r0
 	mov	r0, -(sp)
 	mov	2.(sp), r0
@@ -267,6 +321,8 @@ L14:
 	jsr	pc, (r0)
 	add	$6., sp
 	mov	$_putchar, r0
+	asr	r0
+	asl	r0
 	mov	(r0), r0
 	mov	r0, -(sp)
 	mov	$10., r0
@@ -279,3 +335,6 @@ L30002:
 	mov	(sp)+, r5
 	rts	pc
 L30002f = 2.
+
+.globl .bend
+.bend:

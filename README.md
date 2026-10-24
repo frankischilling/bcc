@@ -106,9 +106,9 @@ per B word. It selects word addressing by default, as does `--strict`.
 `--byteptr` or `--wordptr` overrides that choice. `--word=32` wraps arithmetic
 but retains native pointers, which can still be truncated by arithmetic.
 
-The 16-bit mode does not reproduce a PDP-11 process image. The separate
-native compiler still uses byte-addressed pointers, a documented difference
-from the manual's word-addressed model.
+The host 16-bit mode does not reproduce a PDP-11 process image. The separate
+native compiler emits PDP-11 code with word-addressed data pointers; its
+runtime converts those pointers at byte-oriented syscall boundaries.
 
 ## Compiler output and runtime
 
@@ -178,7 +178,7 @@ are in `tests/`; example programs are in `examples/`. Variant-specific build
 and test code stays under `asm/`, `bootstrap/`, and `pdp-11/bcc-pdp/`.
 
 Known gaps include mutable function-name storage in the C backends, host filesystem/terminal emulation
-limits, native word-addressed pointers, and 16-bit bootstrap storage.
+limits, native cross-file symbol linkage, and 16-bit bootstrap storage.
 Passing tests establish the cases they check, not a claim that the compiler
 is bug-free or fully equivalent to the original implementation.
 

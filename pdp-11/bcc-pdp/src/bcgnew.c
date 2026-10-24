@@ -90,19 +90,17 @@ cggvc(v) {
 }
 
 cggvn(name) char name[]; {
-	extern gvinit;
-	int gvinit;
-	outc('\t');
-	cgsym(name);
-	outc('\n');
-	gvinit = gvinit + 1;
+    extern gvinit;
+    int gvinit;
+    outs("\t["); cgsym(name); outs("-start+40014]\\/2\n");
+    gvinit = gvinit + 1;
 }
 
 cggvl(id) {
     extern gvinit, nstr;
     int gvinit, nstr;
     if (id < 0 | id >= nstr) fatal("bad literal reference");
-    outs("\tS"); outd(id); outc('\n');
+    outs("\t[S"); outd(id); outs("-start+40014]\\/2\n");
     gvinit = gvinit + 1;
 }
 
@@ -118,7 +116,7 @@ cggve() {
 
 cggvp(name, n) char name[]; {
     cggvb(name, n);
-    outs("\t.+2\n");
+    outs("\t[.+2-start+40014]\\/2\n");
 }
 
 /* V1 as folds case and keeps seven characters. Keep the short lowercase

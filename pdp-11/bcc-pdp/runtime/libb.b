@@ -52,8 +52,8 @@ getstr(s) {
  *   %d  decimal     %o  octal     %c  char     %s  string     %%  literal %
  * Calling convention: cgcll reverses the pushed args so leftmost ends up
  * at TOS.  Arg layout in callee (r5 frame):  fmt at r5+4, x1 at r5+6,
- * x2 at r5+8, ...  Walking adx=&x1 by +2 advances to next user arg.
- * (Pointer step is 2 bytes - byte-addressed model, kbman §12 deviation.)
+ * x2 at r5+8, ...  Walking adx=&x1 by +1 advances to next user arg.
+ * B pointers count words; each physical PDP-11 word is two bytes.
  */
 printf(fmt, x1, x2, x3, x4, x5, x6, x7, x8, x9) {
 	extrn printn, char, putchar;
@@ -72,7 +72,7 @@ loop:
 	}
 	i = i + 1;                                /* past '%' */
 	x = *adx;
-	adx = adx + 2;                            /* args grow upward, byte step */
+	adx = adx + 1;                            /* args grow upward, one B word per argument */
 
 	c = char(fmt, i);
 	i = i + 1;
@@ -101,7 +101,7 @@ loop:
 	/* unrecognized %X: print '%' literally and back up */
 	putchar('%');
 	i = i - 1;
-	adx = adx - 2;
+	adx = adx - 1;
 	goto loop;
 }
 

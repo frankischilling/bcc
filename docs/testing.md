@@ -104,8 +104,8 @@ explains these safeguards and the offset-preserving historical-tool overlay.
 
 Tests establish specific cases, not complete historical equivalence. See
 [the conformance notes](../wiki/HISTORICAL_CONFORMANCE.md) for primary sources
-and remaining gaps, including host stat/terminal layouts, native word-addressed
-pointers, and full function-name storage semantics. A bootstrap fixed point
+and remaining gaps, including host terminal mapping, native cross-file
+linkage, and full function-name storage in the C backends. A bootstrap fixed point
 can preserve the same bug across stages. Sanitizer results should state both
 which code was instrumented and whether leak checking was available.
 
@@ -118,3 +118,10 @@ bodies, duplicate locals, and malformed parameter lists.
 files, including size/time wraparound, guard cells, failed calls, directory
 flags, and historical permission conversion. It runs both host layouts and
 word modes, plus the three bootstrap stages.
+
+Native word-address tests cover pointer increments, differences, static
+initializers, packed strings, file-buffer offsets, exec vectors, and copied
+argument alignment. `tests/argv_storage.py` also checks the fixed argument
+capacity and startup rejection before copies reach program data. The real
+V1 runner accepts repeated `--argument` options for simple shell words; it
+rejects shell metacharacters rather than interpolating them into commands.

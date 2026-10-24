@@ -27,11 +27,6 @@ cgnst(n) {
 	outs("., r0\n");
 }
 
-asnum(n) {
-	outd(n);
-	outc('.');
-}
-
 cgpsh() {
 	eop("mov\tr0, -(sp)");
 }
@@ -170,40 +165,12 @@ cgvini(slot, dataoff) {
 	outs("\tsub\t$");
 	outd(2 * (dataoff + 1));
 	outs("., r0\n");
+    cgword();
 	eop("mov\tr5, r1");
 	outs("\tsub\t$");
 	outd(2 * (slot + 1));
 	outs("., r1\n");
 	eop("mov\tr0, (r1)");
-}
-
-cggwd(name, val) char name[]; {
-	outs("\n.text\n\t.globl\t");
-	cgsym(name);
-	outc('\n');
-	cgsym(name);
-	outs(":\n\t");
-	asnum(val);
-	outc('\n');
-	outs("\t.even\n");
-}
-
-cggab(name, n, ninit, buf) char name[]; char buf[]; {
-	int i;
-	outs("\n.text\n\t.globl\t");
-	cgsym(name);
-	outc('\n');
-	cgsym(name);
-	outs(":\n");
-	i = 0;
-	while (i < n) {
-		outc('\t');
-		if (i < ninit) asnum(nxti(buf));
-		else           asnum(0);
-		outc('\n');
-		i = i + 1;
-	}
-	outs("\t.even\n");
 }
 
 cgepi(nlocals) {
@@ -234,6 +201,7 @@ cglca(off) {
 	outs("\tsub\t$");
 	outd(2 * (off + 1));
 	outs("., r0\n");
+    cgword();
 }
 
 cgara(off) {
@@ -242,15 +210,21 @@ cgara(off) {
 	outs("\tadd\t$");
 	outd(2 * (off + 2));
 	outs("., r0\n");
+    cgword();
 }
 
+cgword() { eop("asr\tr0"); }
+cgbyte() { eop("asl\tr0"); }
+
 cgdrf() {
+    cgbyte();
 	eop("mov\t(r0), r0");
 }
 
 cgasn() {
 	/* TOS = addr, R0 = value.  *addr = value; R0 stays. */
 	eop("mov\t(sp)+, r1");
+    eop("asl\tr1");
 	eop("mov\tr0, (r1)");
 }
 
@@ -279,12 +253,14 @@ cgext(name) char name[]; {
 	outs("\tmov\t$");
 	cgsym(name);
 	outs(", r0\n");
+    cgword();
 }
 
 cgsta(id) {
 	outs("\tmov\t$S");
 	outd(id);
 	outs(", r0\n");
+    cgword();
 }
 
 /* Non-! unary only.  ! uses cguopn (caller-supplied labels). */
@@ -358,8 +334,7 @@ cgtne(le) {
 }
 
 cgidx() {
-	/* TOS = base, R0 = idx.  R0 = base + 2*idx. */
-	eop("asl\tr0");
+	/* Both the base and index use B word units. */
 	eop("mov\t(sp)+, r1");
 	eop("add\tr1, r0");
 }
@@ -369,13 +344,12 @@ cgcae(op) {
 	 * For non-compare op only (compares go through cgcaec). */
 	eop("mov\tr0, -(sp)");         /* save rhs   -> [addr, rhs]     */
 	eop("mov\t2(sp), r0");         /* r0 = addr (peek 2 below TOS)  */
-	eop("mov\t(r0), r0");          /* r0 = *addr (LHS for binop)    */
+	cgdrf();          /* r0 = *addr (LHS for binop)    */
 	eop("mov\tr0, -(sp)");         /* push LHS  -> [addr, rhs, LHS] */
 	eop("mov\t2(sp), r0");         /* r0 = rhs (RHS for binop)      */
 	cgbin(op);                      /* pops LHS; r0 = result         */
 	eop("tst\t(sp)+");             /* discard rhs                    */
-	eop("mov\t(sp)+, r1");         /* pop addr                       */
-	eop("mov\tr0, (r1)");          /* *addr = result                 */
+    cgasn();
 }
 
 /* Compound assign with comparison op.  Same shape as cgcae but uses
@@ -383,17 +357,17 @@ cgcae(op) {
 cgcaec(op, lfa, lend) {
 	eop("mov\tr0, -(sp)");
 	eop("mov\t2(sp), r0");
-	eop("mov\t(r0), r0");
+	cgdrf();
 	eop("mov\tr0, -(sp)");
 	eop("mov\t2(sp), r0");
 	cgbinc(op, lfa, lend);          /* pops LHS; r0 = 0 or 1 */
 	eop("tst\t(sp)+");
-	eop("mov\t(sp)+, r1");
-	eop("mov\tr0, (r1)");
+    cgasn();
 }
 
 cgpoi(isinc) {
 	/* post-inc/dec: R0 = address.  After: R0 = old *addr; *addr += 1. */
+    cgbyte();
 	eop("mov\tr0, r1");
 	eop("mov\t(r1), r0");
 	if (isinc) eop("inc\t(r1)");
@@ -402,15 +376,11 @@ cgpoi(isinc) {
 
 cgpri(isinc) {
 	/* pre-inc/dec: R0 = address.  After: *addr += 1; R0 = new value. */
+    cgbyte();
 	eop("mov\tr0, r1");
 	if (isinc) eop("inc\t(r1)");
 	else       eop("dec\t(r1)");
 	eop("mov\t(r1), r0");
 }
-
-/* unused placeholders; kept for forward compatibility */
-cgrtz() {}
-cginc(o) {}
-cgdec(o) {}
 
 /* 1972-strict additions live in bcgnew.c (split for V1 cc throughput). */

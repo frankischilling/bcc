@@ -127,10 +127,14 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("program", nargs="?", default="hi.b")
     parser.add_argument("--expected", type=Path)
+    parser.add_argument("--argument", action="append", default=[], help="simple argument passed to the guest program")
     parser.add_argument("--expect-compile-error", action="store_true")
     parser.add_argument("--trace-stages", action="store_true", help="run each compiler pass directly before checking the driver")
     parser.add_argument("--selfhost", action="store_true", help="rebuild and compare the four compiler binaries inside V1")
     args = parser.parse_args()
+    if any(not re.fullmatch(r"[A-Za-z0-9_.-]+", value) for value in args.argument):
+        parser.error("guest arguments must be simple shell words")
+    run_command = "./a.out" + "".join(" " + value for value in args.argument)
     PROG = args.program
     TRACE = args.trace_stages
     if not re.fullmatch(r"[A-Za-z0-9_.-]+", PROG):
@@ -253,7 +257,7 @@ def main() -> int:
             return 1
 
         sys.stderr.write("Guest: running a.out\n")
-        sock.sendall(b"./a.out\n")
+        sock.sendall((run_command + "\n").encode("ascii"))
         out = run_until_done(sock, simh, timeout=60)
     except Exception:
         if not STOPPED:
@@ -289,7 +293,7 @@ def main() -> int:
 
     text = out.decode("latin-1", errors="replace")
     # Strip the echoed "./a.out" and a returned shell prompt if present.
-    text = re.sub(r"^\.?/?a\.out\s*\r?\n", "", text)
+    text = re.sub(r"^\.?/?a\.out" + re.escape("".join(" " + value for value in args.argument)) + r"\s*\r?\n", "", text)
     text = re.sub(r"# $", "", text).replace("\r\n", "\n")
     sys.stdout.write(text)
     if args.expected is not None and text.encode("latin-1") != args.expected.read_bytes():

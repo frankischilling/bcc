@@ -97,6 +97,7 @@ main(argc, argv) int argv[]; {
 	sa(asarg, 4, "/usr/tmp/b.s");
 	asarg[5] = 0;
 	aslog = 1;
+    unlink("a.out");
 	unlink("/usr/tmp/b.aslog");
 	run("/bin/as", asarg);
 	checkas();
@@ -116,44 +117,51 @@ main(argc, argv) int argv[]; {
 	exit(0);
 }
 
-/* Convert 0407 -> 0405 a.out (same as host tools/fixaout.py).
- * Original header (8 words / 16 bytes):
- *   0:magic 2:a_text 4:a_data 6:a_bss 8:a_syms 10:a_entry 12:unused 14:flag
- * New 0405 header (6 words / 12 bytes):
- *   [0405, 12+a_text, 0, 0, a_syms, 0]
- * Then text+data unchanged (was at byte 16, now at byte 12). */
+/* Emit a stripped V1 executable. V2 symbol/relocation records are not V1
+ * records; they must not be copied or reported as zero-fill data. */
 fixout(name) char name[]; {
-	int fdin, fdout, hdr[8], nhdr[6], n;
+	int fdin, fdout, hdr[8], nhdr[6], n, left;
 	char buf[512];
 	fdin = open(name, 0);
-	if (fdin < 0) failmsg("b: no assembler output\n");
+	if (fdin < 0) badout("b: no assembler output\n");
 	n = read(fdin, hdr, 16);
-	if (n != 16) failmsg("b: truncated assembler output\n");
-    if (hdr[0] != 0407) failmsg("b: bad assembler output\n");
-    if (hdr[1] < 0) failmsg("b: program exceeds 16 KB\n");
-    if (hdr[1] > 16372) failmsg("b: program exceeds 16 KB\n");
-    if (hdr[2] != 0) failmsg("b: unsupported data segment\n");
-    if (hdr[3] != 0) failmsg("b: unsupported bss segment\n");
+	if (n != 16) badout("b: truncated assembler output\n");
+    if (hdr[0] != 0407) badout("b: bad assembler output\n");
+    if (hdr[1] < 0) badout("b: program exceeds 16 KB\n");
+    if (hdr[1] > 16372) badout("b: program exceeds 16 KB\n");
+    n = hdr[1] & 1;
+    if (n != 0) badout("b: odd text size\n");
+    if (hdr[2] != 0) badout("b: unsupported data segment\n");
+    if (hdr[3] != 0) badout("b: unsupported bss segment\n");
 	nhdr[0] = 0405;
 	nhdr[1] = 12 + hdr[1];
 	nhdr[2] = 0;
 	nhdr[3] = 0;
-	nhdr[4] = hdr[4];
+	nhdr[4] = 0;
 	nhdr[5] = 0;
 	fdout = creat(".b.aout", 036);
-	if (fdout < 0) failmsg("b: cannot create converted output\n");
-	if (write(fdout, nhdr, 12) != 12) failmsg("b: header write failed\n");
-	n = read(fdin, buf, 512);
-	while (n > 0) {
-		if (write(fdout, buf, n) != n) failmsg("b: output write failed\n");
-		n = read(fdin, buf, 512);
-	}
-	if (n < 0) failmsg("b: output read failed\n");
+	if (fdout < 0) badout("b: cannot create converted output\n");
+	if (write(fdout, nhdr, 12) != 12) badout("b: header write failed\n");
+    left = hdr[1];
+    while (left > 0) {
+        n = left;
+        if (n > 512) n = 512;
+        n = read(fdin, buf, n);
+        if (n <= 0) badout("b: truncated program text\n");
+        if (write(fdout, buf, n) != n) badout("b: output write failed\n");
+        left = left - n;
+    }
 	close(fdin);
 	close(fdout);
-	if (unlink(name) < 0) failmsg("b: cannot replace output\n");
-	if (link(".b.aout", name) < 0) failmsg("b: cannot install output\n");
+	if (unlink(name) < 0) badout("b: cannot replace output\n");
+	if (link(".b.aout", name) < 0) badout("b: cannot install output\n");
 	unlink(".b.aout");
+}
+
+badout(s) char s[]; {
+    unlink("a.out");
+    unlink(".b.aout");
+    failmsg(s);
 }
 
 run(prog, args) char prog[]; int args[]; {
@@ -183,7 +191,10 @@ run(prog, args) char prog[]; int args[]; {
         }
         child = wait(&status);
     }
-    if (status != 0) exit(1);
+    if (status != 0) {
+        if (aslog) unlink("a.out");
+        exit(1);
+    }
 }
 
 note(s) char s[]; {
@@ -225,7 +236,7 @@ checkas() {
     int fd, n, ok;
     char text[512];
     fd = open("/usr/tmp/b.aslog", 0);
-    if (fd < 0) exit(1);
+    if (fd < 0) badout("b: no assembler log\n");
     n = read(fd, text, 6);
     ok = n == 5;
     if (ok) {
@@ -243,10 +254,7 @@ checkas() {
     }
     close(fd);
     unlink("/usr/tmp/b.aslog");
-    if (!ok) {
-        puterr("b: assembler failed\n", 20);
-        exit(1);
-    }
+    if (!ok) badout("b: assembler failed\n");
 }
 
 failmsg(s) char s[]; {

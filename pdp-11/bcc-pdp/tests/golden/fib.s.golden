@@ -8,6 +8,8 @@ _fib:
 	sub	$L30000f, sp
 	mov	r5, r0
 	add	$4., r0
+	asr	r0
+	asl	r0
 	mov	(r0), r0
 	mov	r0, -(sp)
 	mov	$2., r0
@@ -24,14 +26,20 @@ L1:
 1:
 	mov	r5, r0
 	add	$4., r0
+	asr	r0
+	asl	r0
 	mov	(r0), r0
 	jmp	L30000
 L2:
 	mov	$_fib, r0
+	asr	r0
+	asl	r0
 	mov	(r0), r0
 	mov	r0, -(sp)
 	mov	r5, r0
 	add	$4., r0
+	asr	r0
+	asl	r0
 	mov	(r0), r0
 	mov	r0, -(sp)
 	mov	$1., r0
@@ -44,10 +52,14 @@ L2:
 	add	$4., sp
 	mov	r0, -(sp)
 	mov	$_fib, r0
+	asr	r0
+	asl	r0
 	mov	(r0), r0
 	mov	r0, -(sp)
 	mov	r5, r0
 	add	$4., r0
+	asr	r0
+	asl	r0
 	mov	(r0), r0
 	mov	r0, -(sp)
 	mov	$2., r0
@@ -76,13 +88,17 @@ _main:
 	sub	$L30001f, sp
 	mov	r5, r0
 	sub	$2., r0
+	asr	r0
 	mov	r0, -(sp)
 	mov	$0., r0
 	mov	(sp)+, r1
+	asl	r1
 	mov	r0, (r1)
 L3:
 	mov	r5, r0
 	sub	$2., r0
+	asr	r0
+	asl	r0
 	mov	(r0), r0
 	mov	r0, -(sp)
 	mov	$15., r0
@@ -98,13 +114,19 @@ L6:
 	jmp	L4
 1:
 	mov	$_printn, r0
+	asr	r0
+	asl	r0
 	mov	(r0), r0
 	mov	r0, -(sp)
 	mov	$_fib, r0
+	asr	r0
+	asl	r0
 	mov	(r0), r0
 	mov	r0, -(sp)
 	mov	r5, r0
 	sub	$2., r0
+	asr	r0
+	asl	r0
 	mov	(r0), r0
 	mov	r0, -(sp)
 	mov	2.(sp), r0
@@ -121,6 +143,8 @@ L6:
 	jsr	pc, (r0)
 	add	$6., sp
 	mov	$_putchar, r0
+	asr	r0
+	asl	r0
 	mov	(r0), r0
 	mov	r0, -(sp)
 	mov	$32., r0
@@ -130,19 +154,25 @@ L6:
 	add	$4., sp
 	mov	r5, r0
 	sub	$2., r0
+	asr	r0
 	mov	r0, -(sp)
 	mov	r5, r0
 	sub	$2., r0
+	asr	r0
+	asl	r0
 	mov	(r0), r0
 	mov	r0, -(sp)
 	mov	$1., r0
 	mov	(sp)+, r1
 	add	r1, r0
 	mov	(sp)+, r1
+	asl	r1
 	mov	r0, (r1)
 	jmp	L3
 L4:
 	mov	$_putchar, r0
+	asr	r0
+	asl	r0
 	mov	(r0), r0
 	mov	r0, -(sp)
 	mov	$10., r0
@@ -155,3 +185,6 @@ L30001:
 	mov	(sp)+, r5
 	rts	pc
 L30001f = 2.
+
+.globl .bend
+.bend:

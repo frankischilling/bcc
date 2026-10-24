@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
+import struct
 import tempfile
 
 
@@ -31,11 +32,18 @@ def main():
         for name, source, expected in cases:
             result = subprocess.run([str(apout), str(work/'bin/b'), source], cwd=work, env=env, capture_output=True, timeout=30)
             ok = (result.returncode == 0) == (expected is not None)
+            if name == 'unresolved-symbol':
+                ok = ok and not (work/'a.out').exists()
             if name == 'oversized-program':
-                ok = ok and b'program exceeds 16 KB' in result.stdout + result.stderr
+                ok = ok and b'program exceeds 16 KB' in result.stdout + result.stderr and not (work/'a.out').exists()
             if ok and expected is not None:
+                data = (work/'a.out').read_bytes()
+                header = struct.unpack_from('<6H', data)
+                ok = header == (0o405, len(data), 0, 0, 0, 0)
+                if not ok: print('header:', header, 'file size:', len(data))
                 run = subprocess.run([str(apout), str(work/'a.out')], cwd=work, env=env, capture_output=True, timeout=5)
-                ok = run.returncode == 0 and run.stdout == expected
+                ok = ok and run.returncode == 0 and run.stdout == expected
+                if not ok: print('execution:', run.returncode, repr(run.stdout), repr(run.stderr))
             print(f'{"PASS" if ok else "FAIL"}: driver/{name}', flush=True)
             if not ok: print(result.returncode, repr(result.stdout), repr(result.stderr))
             passed += ok

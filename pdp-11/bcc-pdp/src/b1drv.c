@@ -76,6 +76,7 @@ main(argc, argv) int argv[]; {
 	icini(ifd);
 	outinit(ofd);
 	dispat();
+    if (!libmod) outs("\n.globl .bend\n.bend:\n");
 	if (ofd != 1) close(ofd);
 	if (done) markok(done);
 	exit(0);
@@ -123,7 +124,6 @@ disp2() {
 	if (tageq(dtag, "po"))  { a = nxti(dbuf); cgpoi(a); return (1); }
 	if (tageq(dtag, "pi"))  { a = nxti(dbuf); cgpri(a); return (1); }
 	if (tageq(dtag, "vi"))  { a = nxti(dbuf); b = nxti(dbuf); cgvini(a, b); return (1); }
-	if (tageq(dtag, "gw"))  { nxtnam(dbuf, dnm); a = nxti(dbuf); cggwd(dnm, a); return (1); }
 	return (0);
 }
 
@@ -132,13 +132,6 @@ disp3() {
 	char dbuf[], dtag[], dnm[], dsb[];
 	int dsk[];
 	int a, b, ld, lp, le, nc, ii, sid, slen, j;
-	if (tageq(dtag, "ga")) {
-		nxtnam(dbuf, dnm);
-		a = nxti(dbuf);
-		b = nxti(dbuf);
-		cggab(dnm, a, b, dbuf);
-		return (1);
-	}
 	if (tageq(dtag, "swb")) { a = nxti(dbuf); cgswb(a); return (1); }
 	if (tageq(dtag, "swe")) {
 		ld = nxti(dbuf);
