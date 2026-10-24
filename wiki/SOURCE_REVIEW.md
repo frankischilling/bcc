@@ -155,6 +155,25 @@ These artifacts explain constraints on the restored C toolchain. They do
 not make BCC an original 1971 B compiler, nor do they make a successful
 native self-rebuild equivalent to the B-written bootstrap.
 
+### Accounts of B, C, and early Unix
+
+Ritchie's complete [C development history](https://cm-bell-labs.github.io/who/dmr/chist.html)
+and [Unix evolution paper](https://cm-bell-labs.github.io/who/dmr/hist.html)
+were read. They describe several versions and transitions, not one frozen
+language or operating-system interface.
+
+The C history explains B's mutable vector pointers, packed strings, word
+addresses, threaded execution, and later native-code experiments. It also
+places increment operators before the PDP-11 port. Its retrospective examples
+must still be checked against the target's contemporary manual: an account
+of B generally is not a precise specification of January 1972 PDP-11 B.
+
+The Unix account distinguishes PDP-7 word-based file I/O from PDP-11 byte
+I/O, and early process and directory mechanisms from their successors.
+Its explanation of shared file offsets after `fork` matters when testing
+runtime wrappers. Later pipelines and C-era facilities must not be silently
+attributed to the November 1971 system.
+
 ### BCPL source provenance
 
 Ritchie's complete [1967 BCPL provenance account](https://cm-bell-labs.github.io/who/dmr/bcpl.html)
@@ -180,6 +199,27 @@ compares these choices with B. They are useful context, not features to add
 to strict BCC under the name of historical accuracy.
 
 ## Later GCOS8 manuals
+
+### Waterloo's 1978 and 1979 reference manuals
+
+The complete supplied OCR texts of the [September 1978 reference](https://archive.org/download/b-reference-manual/B%20Reference%20Manual_djvu.txt)
+and [March 1979 version 4.0 reference](https://archive.org/download/b-reference-manual/User%27s%20Reference%20to%20B%20V4.0_djvu.txt)
+were read, including diagnostics and library indexes. The OCR is damaged in
+places; exact syntax and tables need scan checks before becoming test fixtures.
+These are Honeywell/Waterloo manuals, not additional PDP-11 B editions.
+
+They explicitly describe changes from earlier B: logical operators, floating
+point, expanded switches, and changed operator rules. Both use NUL-terminated
+strings and upper-bound vector declarations. Their unspecified binary operand
+evaluation order must not replace the PDP-11 manual's explicit rules for
+`&` and `|`.
+
+Version 4.0 announces a new stack format and revised file-opening conventions.
+Its entry/return linkage includes frame information, stack checks, and separate
+return information for interception and debugging. The older and newer calling
+sequences must not be mixed. Neither is the calling convention of BCC's
+PDP-11 backend or host runtime. The library indexes establish names and brief
+purposes, not complete contracts for every routine listed.
 
 ### Language reference and tutorial
 
@@ -301,6 +341,14 @@ describes a system combining V1 syscall behavior with later memory and
 executable-format support. Its emulator observations are dated observations,
 not universal guarantees about every restored system.
 
+The complete [2009 Unix restoration paper](https://www.usenix.org/event/usenix09/tech/full_papers/toomey/toomey.pdf)
+was read through the public web copy. It records restoration patches, memory
+limits, seed executables, and the distinction between an application emulator
+and a restored kernel. Its dated account should be compared with later
+artifact analyses rather than treated as a timeless description of every
+tape or reconstruction. BCC's full-system checks must state which restored
+system and patches they use.
+
 The two remaining November 1971 command excerpts,
 [man11](https://www.nokia.com/bell-labs/about/dennis-m-ritchie/man11.pdf) and
 [man12](https://www.nokia.com/bell-labs/about/dennis-m-ritchie/man12.pdf), were
@@ -310,6 +358,91 @@ one-byte length difference can escape comparison. Full-system bootstrap
 checks must therefore establish exact lengths and bytes, not merely trust a
 quiet invocation of an old comparison tool. The other command pages describe
 the surrounding tools and their limitations, not additional B syntax.
+
+## Compiler structure and bootstrap evidence
+
+### BCPL's intermediate-code bootstrap
+
+Richards's complete [1973 bootstrap paper](https://softwarepreservation.computerhistory.org/BCPL/cambridge/Richards-Bootstrapping_BCPL-1973.pdf)
+and [INTCODE description, revised in 1975](https://softwarepreservation.computerhistory.org/BCPL/cambridge/Richards-Intcode_for_BCPL-1975.pdf)
+were read, including the latter's assembler and interpreter listing. The
+extracted listing has apparent transcription errors, so it is not a ready-to-run
+implementation.
+
+The papers distinguish a compiler's portable intermediate representation
+from the smaller interpreter used to get it running on a new machine.
+A working bootstrap also needs character conversion, storage conventions,
+and operating-system interfaces. The interpreter is a possible starting
+point, not proof that a later native toolchain is independent of its seed.
+
+For BCC, a B-written frontend that emits C still depends on a C toolchain.
+Removing GCC and binutils from subsequent rebuilds requires a B-written
+backend plus executable construction, or an assembler and linker, and an
+appropriate runtime. This is a separate goal from the current generated-C
+fixed point. The choice of target and seed remains to be investigated after
+the source review and accuracy fixes.
+
+### Threaded code
+
+Bell's complete [1973 paper](https://www.ittc.ku.edu/~kulkarni/teaching/archieve/EECS800-Spring-2008/threaded_code.pdf)
+was read. It describes dispatch through routine addresses, inline parameters,
+and combinations of threaded and native code. Its speed and size measurements
+are tied to particular hardware and workloads; they are not performance
+promises for a new B implementation.
+
+The paper helps explain the historical B runtime. It does not require BCC
+to use that runtime to implement the language, or make threaded output the
+same thing as a native compiler bootstrap.
+
+### What a fixed point proves
+
+Thompson's complete [1984 lecture](https://www.cs.cmu.edu/~rdriley/487/papers/Thompson_1984_ReflectionsonTrustingTrust.pdf)
+was read. Its compiler example shows why inspecting source and reproducing
+a binary are not, by themselves, proof that a seed compiler is trustworthy.
+BCC should record seed provenance and distinguish reproducibility checks
+from independent semantic tests. No claim of a trusted-from-nothing bootstrap
+follows from matching successive builds.
+
+### Language comparisons
+
+Ritchie's complete [HOPL talk transcript](https://cm-bell-labs.github.io/who/dmr/hopl.html)
+was read. It compares naming, dereferencing, machine-word models, portability,
+and practical system interfaces across contemporary languages. It is a
+retrospective explanation, not an additional B grammar. Its discussion of
+machine-dependent words supports documenting target layouts explicitly
+instead of calling every host configuration a PDP-11 implementation.
+
+## PDP-11 hardware evidence
+
+The complete extracted text of the [1970 handbook scan](https://deramp.com/downloads/mfe_archive/011-Digital%20Equipment%20Corporation/00%20Digital%20Handbooks/11%20PDP-11%20Family/PDP-11%20Handbook/PDP-11_Handbook_Second_Edition_1970.pdf)
+was read; diagrams and uncertain OCR glyphs have not all been checked
+visually. The scan was obtained from a public mirror because the supplied
+copy could not be retrieved.
+
+The handbook distinguishes byte addresses from word-sized values, specifies
+source-before-destination address calculation, keeps stack-pointer byte
+operations aligned, and sign-extends `MOVB` into a register. Its arithmetic
+right shift is not B's zero-filling right shift. The native backend must
+implement the language operation rather than substitute a similarly named
+instruction.
+
+The KA11 instruction set must also be kept separate from later PDP-11
+extensions. A footnote on printed page 46 gives special autoincrement
+behavior for `JMP` and `JSR`; that needs original-page and model-specific
+checking before using it to change an emulator or code generator. Hardware
+examples and opcode tables are evidence to cross-check, not infallible tests.
+
+The complete OCR text of the [May 1971 KE11-A manual](https://deramp.com/downloads/mfe_archive/011-Digital%20Equipment%20Corporation/08%20PDP-11/05%20Unibus%20Options/KE11%20Extended%20Arithmatic%20Elements/KE11-A%201120%20Extended%20Arithmetic%20Element/01%20KE11-A%20Documentation/KE11-A_ExtendedArithElem.pdf)
+was also read. Its diagrams, equations, and some numeric tables still need
+visual verification. It describes a memory-mapped Unibus arithmetic device,
+not the later processor's multiply and divide instructions.
+
+Loading MQ sign-extends into AC, so loading a double-word dividend requires
+careful ordering. Division produces a signed quotient and a remainder with
+the dividend's sign; overflow makes the result unusable. Logical and arithmetic
+shifts differ, and the device's status register is not the processor status
+word. These distinctions matter when auditing native arithmetic helpers and
+the emulator used to test them.
 
 ## Findings to check in the implementation
 
@@ -350,9 +483,9 @@ in the inventory so that missing or duplicated material is visible.
 | 007 | [bref.pdf](https://cm-bell-labs.github.io/who/dmr/bref.pdf) | PDF rendition: selected sections checked |
 | 008 | [B Programming Language Manuals : University of Waterloo : Free Download, Borrow, and Streaming : ...](https://archive.org/details/b-reference-manual) | Retrieved; not yet reviewed |
 | 009 | [B Reference Manual.pdf](https://archive.org/download/b-reference-manual/B%20Reference%20Manual.pdf) | PDF retrieval returned 503; OCR copy is available at 010 |
-| 010 | [B Reference Manual_djvu.txt](https://archive.org/download/b-reference-manual/B%20Reference%20Manual_djvu.txt) | Retrieved; not yet reviewed |
+| 010 | [B Reference Manual_djvu.txt](https://archive.org/download/b-reference-manual/B%20Reference%20Manual_djvu.txt) | Complete supplied OCR read; damaged syntax and tables need scan checks |
 | 011 | [User's Reference to B V4.0.pdf](https://archive.org/download/b-reference-manual/User%27s%20Reference%20to%20B%20V4.0.pdf) | Larger PDF retrieved; not yet reviewed |
-| 012 | [User's Reference to B V4.0_djvu.txt](https://archive.org/download/b-reference-manual/User%27s%20Reference%20to%20B%20V4.0_djvu.txt) | Retrieved; not yet reviewed |
+| 012 | [User's Reference to B V4.0_djvu.txt](https://archive.org/download/b-reference-manual/User%27s%20Reference%20to%20B%20V4.0_djvu.txt) | Complete supplied OCR read; damaged syntax and tables need scan checks |
 
 ### Early Unix manuals and archives
 
@@ -407,7 +540,7 @@ in the inventory so that missing or duplicated material is visible.
 | 054 | [TUHS 1972 UNIX V2 "Beta" Resurrected](https://www.tuhs.org/pipermail/tuhs/2025-February/031420.html) | Read in full |
 | 055 | [GitHub - aap/abc: (OBSOLETE) A B Compiler for x86 · GitHub](https://github.com/aap/abc) | Retrieved; not yet reviewed |
 | 056 | [GitHub - dobyrch/dbc: B compiler front end implemented using Flex+Bison+LLVM · GitHub](https://github.com/dobyrch/dbc) | Retrieved; not yet reviewed |
-| 057 | [toomey.pdf](https://www.usenix.org/event/usenix09/tech/full_papers/toomey/toomey.pdf) | Not retrieved: 403: Forbidden |
+| 057 | [toomey.pdf](https://www.usenix.org/event/usenix09/tech/full_papers/toomey/toomey.pdf) | Full paper read through web retrieval; direct download failed |
 | 058 | [restoration-early-unix-artifacts](https://www.usenix.org/conference/usenix-09/restoration-early-unix-artifacts) | Not retrieved: 403: Forbidden |
 
 ### Waterloo and GCOS documentation
@@ -437,12 +570,12 @@ in the inventory so that missing or duplicated material is visible.
 
 | ID | Reference | Review status |
 | --- | --- | --- |
-| 077 | [Chistory](https://cm-bell-labs.github.io/who/dmr/chist.html) | Retrieved; not yet reviewed |
-| 078 | [Early Unix history and evolution](https://cm-bell-labs.github.io/who/dmr/hist.html) | Retrieved; not yet reviewed |
+| 077 | [Chistory](https://cm-bell-labs.github.io/who/dmr/chist.html) | Read in full |
+| 078 | [Early Unix history and evolution](https://cm-bell-labs.github.io/who/dmr/hist.html) | Read in full |
 | 079 | [Primeval C: two very early compilers](https://cm-bell-labs.github.io/who/dmr/primevalC.html) | Read in full |
 | 080 | [cman74.pdf](https://cm-bell-labs.github.io/who/dmr/cman74.pdf) | OCR available; not yet reviewed |
 | 081 | [cman.pdf](https://cm-bell-labs.github.io/who/dmr/cman.pdf) | Retrieved; not yet reviewed |
-| 082 | [HOPL C Transcript](https://cm-bell-labs.github.io/who/dmr/hopl.html) | Retrieved; not yet reviewed |
+| 082 | [HOPL C Transcript](https://cm-bell-labs.github.io/who/dmr/hopl.html) | Read in full |
 | 083 | [CS-76-45.pdf](https://cs.uwaterloo.ca/research/tr/1976/CS-76-45.pdf) | Full OCR text read; ambiguous symbols need visual checks |
 
 ### BCPL sources
@@ -454,8 +587,8 @@ in the inventory so that missing or duplicated material is visible.
 | 086 | [BCPL Reference Manual (1967)](https://cm-bell-labs.github.io/who/dmr/bcpl.html) | Read in full |
 | 087 | [1476793.1476880](https://dl.acm.org/doi/10.1145/1476793.1476880) | Not retrieved: 403: Forbidden |
 | 088 | [spe.4380010204](https://onlinelibrary.wiley.com/doi/10.1002/spe.4380010204) | Not retrieved: 403: Forbidden |
-| 089 | [Richards-Intcode_for_BCPL-1975.pdf](https://softwarepreservation.computerhistory.org/BCPL/cambridge/Richards-Intcode_for_BCPL-1975.pdf) | Retrieved; not yet reviewed |
-| 090 | [Richards-Bootstrapping_BCPL-1973.pdf](https://softwarepreservation.computerhistory.org/BCPL/cambridge/Richards-Bootstrapping_BCPL-1973.pdf) | Retrieved; not yet reviewed |
+| 089 | [Richards-Intcode_for_BCPL-1975.pdf](https://softwarepreservation.computerhistory.org/BCPL/cambridge/Richards-Intcode_for_BCPL-1975.pdf) | Full text and appendix read; listing transcription issues remain |
+| 090 | [Richards-Bootstrapping_BCPL-1973.pdf](https://softwarepreservation.computerhistory.org/BCPL/cambridge/Richards-Bootstrapping_BCPL-1973.pdf) | Read in full |
 | 091 | [Scan 2.PDF](https://people.csail.mit.edu/saltzer/Multics/MHP-Saltzer-060508/filedrawers/177.bcpl/Scan%202.PDF) | OCR available; not yet reviewed |
 | 092 | [richards-manual-1974.pdf](https://softwarepreservation.computerhistory.org/BCPL/cambridge/richards-manual-1974.pdf) | Retrieved; not yet reviewed |
 | 093 | [bcpl-language-and-its-compiler](https://www.cambridge.org/bd/universitypress/subjects/computer-science/programming-languages-and-applied-logic/bcpl-language-and-its-compiler?format=PB&isbn=9780521286817) | Not retrieved: 403: Forbidden |
@@ -470,19 +603,19 @@ in the inventory so that missing or duplicated material is visible.
 | ID | Reference | Review status |
 | --- | --- | --- |
 | 099 | [362248.362270](https://dl.acm.org/doi/10.1145/362248.362270) | Not retrieved: 403: Forbidden |
-| 100 | [threaded_code.pdf](https://www.ittc.ku.edu/~kulkarni/teaching/archieve/EECS800-Spring-2008/threaded_code.pdf) | Retrieved; not yet reviewed |
+| 100 | [threaded_code.pdf](https://www.ittc.ku.edu/~kulkarni/teaching/archieve/EECS800-Spring-2008/threaded_code.pdf) | Complete Bell paper read; adjacent article excluded |
 | 101 | [360825.360849](https://dl.acm.org/doi/10.1145/360825.360849) | Not retrieved: 403: Forbidden |
 | 102 | [Indirect.Threaded.Code.p330-dewar.pdf](https://figforth.org.uk/library/Indirect.Threaded.Code.p330-dewar.pdf) | Not retrieved: 465: Unknown |
-| 103 | [Thompson_1984_ReflectionsonTrustingTrust.pdf](https://www.cs.cmu.edu/~rdriley/487/papers/Thompson_1984_ReflectionsonTrustingTrust.pdf) | Retrieved; not yet reviewed |
+| 103 | [Thompson_1984_ReflectionsonTrustingTrust.pdf](https://www.cs.cmu.edu/~rdriley/487/papers/Thompson_1984_ReflectionsonTrustingTrust.pdf) | Full lecture text read; code figures not independently transcribed |
 | 104 | [358198.358210](https://dl.acm.org/doi/10.1145/358198.358210) | Not retrieved: 403: Forbidden |
 
 ### PDP-11 hardware manuals
 
 | ID | Reference | Review status |
 | --- | --- | --- |
-| 105 | [PDP-11_Handbook_Second_Edition_1970.pdf](https://www.bitsavers.org/pdf/dec/pdp11/1120/PDP-11_Handbook_Second_Edition_1970.pdf) | Not retrieved: 403: Forbidden |
+| 105 | [PDP-11_Handbook_Second_Edition_1970.pdf](https://www.bitsavers.org/pdf/dec/pdp11/1120/PDP-11_Handbook_Second_Edition_1970.pdf) | Complete extracted text read from public mirror; diagrams not all checked |
 | 106 | [KA11_ProcessorMan_Sep1970.pdf](https://bitsavers.trailing-edge.com/pdf/dec/pdp11/1120/KA11_ProcessorMan_Sep1970.pdf) | Not retrieved: 403: Forbidden |
-| 107 | [KE11-A_ExtendedArithElem.pdf](https://bitsavers.trailing-edge.com/pdf/dec/pdp11/1120/KE11-A_ExtendedArithElem.pdf) | Not retrieved: 403: Forbidden |
+| 107 | [KE11-A_ExtendedArithElem.pdf](https://bitsavers.trailing-edge.com/pdf/dec/pdp11/1120/KE11-A_ExtendedArithElem.pdf) | Full OCR read from public mirror; diagrams and numeric tables need checks |
 | 108 | [pdp11-40.pdf](https://pdos.csail.mit.edu/6.828/2005/readings/pdp11-40.pdf) | BR instruction checked on PDF page 83; remainder pending |
 | 109 | [PDP-11_40_Processor_Handbook_1972.pdf](https://bitsavers.trailing-edge.com/pdf/dec/pdp11/handbooks/PDP-11_40_Processor_Handbook_1972.pdf) | Not retrieved: 403: Forbidden |
 
