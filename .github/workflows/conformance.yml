@@ -24,6 +24,12 @@ jobs:
         run: make test-install
       - name: Check the B-written bootstrap
         run: make -C bootstrap test
+      - name: Reject delayed compiler output failures
+        run: |
+          python3 tests/test_output_errors.py --compiler ./bcc --close-faults
+          for stage in 1 2 3; do
+            python3 tests/test_output_errors.py --bootstrap --compiler bootstrap/build/stage$stage/bbc --close-faults
+          done
       - name: Check assembly-source builds
         if: matrix.cc == 'gcc'
         run: |
