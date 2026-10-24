@@ -32,6 +32,7 @@ Its historical language baseline is Thompson's January 7, 1972 PDP-11
 - [Architecture](../docs/architecture.md).
 - [Assembly-source build](../asm/README.md).
 - [B-written bootstrap](../bootstrap/README.md).
+- [B-native bootstrap goals and verification](BOOTSTRAP.md).
 - [Native PDP-11 build](../pdp-11/bcc-pdp/README.md).
 
 The chapter examples are executed by the documentation test. Claims about

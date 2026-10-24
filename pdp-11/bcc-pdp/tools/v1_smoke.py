@@ -23,6 +23,7 @@ import time
 import pexpect
 from v1_image import inspect
 from v1_files import verify_files
+from compile_native import validate_progress, validate_image
 from console_protocol import command_line, completion_pattern, program_output, compile_failure
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -151,6 +152,9 @@ def main() -> int:
                         for name in ('b00', 'b01', 'b1')},
         }
         expected_rebuilds['rk0.dsk']['tmp/l.s'] = Path(V1, 'fs/usr/lib/bcc/libb.ref').read_bytes()
+        validate_image(expected_rebuilds['rf0.dsk']['bin/b'])
+        for name in ('b00', 'b01', 'b1'):
+            validate_image(expected_rebuilds['rk0.dsk'][f'lib/bcc/{name}'], 512 if name == 'b00' else 256)
     run_command = "./a.out" + "".join(" " + value for value in args.argument)
     PROG = args.program
     TRACE = args.trace_stages
@@ -216,6 +220,7 @@ def main() -> int:
                 destination = "/bin/b" if name == "b" else f"/usr/lib/bcc/{name}"
                 command("rm a.out")
                 output = command("cc " + sources)
+                validate_progress(output.encode("latin-1"), sources.split())
                 listing = command("ls a.out")
                 if listing.strip() != "a.out":
                     raise RuntimeError(f"in-system {name} build produced no binary: {output!r} {listing!r}")

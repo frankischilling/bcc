@@ -13,7 +13,9 @@ stages, execute accepted programs, reject selected invalid syntax, and
 compare the C emitted by all three stages. Matching output is a bootstrap
 fixed-point check, not proof that the compiler implements every B rule.
 The bootstrap compiler currently targets the host C runtime and does not
-replace the separate native PDP-11 compiler.
+replace the separate native PDP-11 compiler. See the
+[B-native bootstrap goals](../wiki/BOOTSTRAP.md) for the remaining dependencies
+and the checks needed for a self-contained rebuild.
 
 When invoked by its build-tree path, `bbc` finds the runtime relative to
 that path. If you move the executable or launch it through `PATH`, supply

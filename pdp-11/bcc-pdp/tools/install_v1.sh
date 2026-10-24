@@ -10,10 +10,15 @@ HERE="$(cd "$(dirname "$0")/.." && pwd)"
 V1="$(cd "$HERE/../unix-v1" && pwd)"
 . "$HERE/tools/native-lock.sh"
 
-# Ensure binaries are built.
-if [ ! -x "$HERE/build/b00" ] || [ ! -x "$HERE/build/b01" ] || [ ! -x "$HERE/build/b1" ]; then
-	(cd "$HERE" && make)
-fi
+# Rebuild changed sources and reject unsafe images before staging anything.
+(cd "$HERE" && make)
+PYTHONPATH="$HERE/tools" python3 - "$HERE/build" <<'PY_CHECK'
+from pathlib import Path
+import sys
+from compile_native import validate_image
+for name in ('b00', 'b01', 'b1', 'b'):
+    validate_image((Path(sys.argv[1])/name).read_bytes(), 512 if name == 'b00' else 256)
+PY_CHECK
 
 ROOT=$V1/fs/root
 USR=$V1/fs/usr

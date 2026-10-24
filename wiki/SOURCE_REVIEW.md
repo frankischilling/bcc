@@ -822,6 +822,16 @@ and branches into or out of the body do not remove another word. Tests cover
 no match, fall-through, and negative case constants. These are implementation
 corrections to the control-flow rules, not new B syntax.
 
+A seed-toolchain check showed that the historical C driver can leave an
+`a.out` after the linker reports an unresolved symbol. Checking for a fresh
+file was therefore not enough. Native builds now require the expected clean
+progress output, a complete executable image, and room for arguments and
+stack. Tests reject unresolved symbols, malformed C, oversized images, and
+stale output. The in-system rebuild checks compiler diagnostics too, before
+comparing and installing the result. This closes a validation gap; it does
+not turn the C-written compiler into a B-written one. The
+[bootstrap goals](BOOTSTRAP.md) describe that separate work.
+
 ## Reference inventory
 
 "Read" below describes the review scope, not a promise that every feature in

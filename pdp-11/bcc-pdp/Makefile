@@ -86,38 +86,38 @@ $(AROOT)/.stamp: $(CRT0) tools/build-apout-root.sh runtime/bmain.s runtime/brt.s
 	touch $@
 
 # Common build helper: copy named srcs into aroot, run V1 cc, mv a.out.
-# V1 cc's exit code is unreliable -- ignore it and test for a.out instead.
-$(B00): $(AROOT)/.stamp $(addprefix $(SRCDIR)/,$(B00_SRCS))
+# V1 cc's exit code is unreliable; validate its diagnostics and fresh image.
+$(B00): $(AROOT)/.stamp $(addprefix $(SRCDIR)/,$(B00_SRCS)) tools/compile_native.py
 	@for f in $(B00_SRCS); do cp $(SRCDIR)/$$f $(AROOT)/$$f; done
 	@rm -f $(AROOT)/a.out
-	-cd $(AROOT) && APOUT_ROOT=. $(abspath $(APOUT)) ./bin/cc $(B00_SRCS)
+	python3 tools/compile_native.py --root $(AROOT) --emulator $(APOUT) --reserve 512 $(B00_SRCS)
 	@test -f $(AROOT)/a.out || { echo "cc failed (no a.out for b00)"; exit 1; }
 	mv $(AROOT)/a.out $@
 	@for f in $(B00_SRCS); do rm -f $(AROOT)/$${f%.c}.o $(AROOT)/$$f; done
 	@echo "built: $(B00)"
 
-$(B1): $(AROOT)/.stamp $(addprefix $(SRCDIR)/,$(B1_SRCS))
+$(B1): $(AROOT)/.stamp $(addprefix $(SRCDIR)/,$(B1_SRCS)) tools/compile_native.py
 	@for f in $(B1_SRCS); do cp $(SRCDIR)/$$f $(AROOT)/$$f; done
 	@rm -f $(AROOT)/a.out
-	-cd $(AROOT) && APOUT_ROOT=. $(abspath $(APOUT)) ./bin/cc $(B1_SRCS)
+	python3 tools/compile_native.py --root $(AROOT) --emulator $(APOUT) --reserve 256 $(B1_SRCS)
 	@test -f $(AROOT)/a.out || { echo "cc failed (no a.out for b1)"; exit 1; }
 	mv $(AROOT)/a.out $@
 	@for f in $(B1_SRCS); do rm -f $(AROOT)/$${f%.c}.o $(AROOT)/$$f; done
 	@echo "built: $(B1)"
 
-$(B01): $(AROOT)/.stamp $(addprefix $(SRCDIR)/,$(B01_SRCS))
+$(B01): $(AROOT)/.stamp $(addprefix $(SRCDIR)/,$(B01_SRCS)) tools/compile_native.py
 	@for f in $(B01_SRCS); do cp $(SRCDIR)/$$f $(AROOT)/$$f; done
 	@rm -f $(AROOT)/a.out
-	-cd $(AROOT) && APOUT_ROOT=. $(abspath $(APOUT)) ./bin/cc $(B01_SRCS)
+	python3 tools/compile_native.py --root $(AROOT) --emulator $(APOUT) --reserve 256 $(B01_SRCS)
 	@test -f $(AROOT)/a.out || { echo "cc failed (no a.out for b01)"; exit 1; }
 	mv $(AROOT)/a.out $@
 	@for f in $(B01_SRCS); do rm -f $(AROOT)/$${f%.c}.o $(AROOT)/$$f; done
 	@echo "built: $(B01)"
 
-$(BDRV): $(AROOT)/.stamp $(addprefix $(SRCDIR)/,$(BDRV_SRCS))
+$(BDRV): $(AROOT)/.stamp $(addprefix $(SRCDIR)/,$(BDRV_SRCS)) tools/compile_native.py
 	@for f in $(BDRV_SRCS); do cp $(SRCDIR)/$$f $(AROOT)/$$f; done
 	@rm -f $(AROOT)/a.out
-	-cd $(AROOT) && APOUT_ROOT=. $(abspath $(APOUT)) ./bin/cc $(BDRV_SRCS)
+	python3 tools/compile_native.py --root $(AROOT) --emulator $(APOUT) --reserve 256 $(BDRV_SRCS)
 	@test -f $(AROOT)/a.out || { echo "cc failed (no a.out for bdrv)"; exit 1; }
 	mv $(AROOT)/a.out $@
 	@for f in $(BDRV_SRCS); do rm -f $(AROOT)/$${f%.c}.o $(AROOT)/$$f; done

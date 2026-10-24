@@ -62,7 +62,9 @@ and `auto v[n]`) require `-x`; strict mode rejects them.
 
 The restored Unix V1 test configuration reserves 16 KiB for each process.  The installed compiler
 therefore runs as `b00 -> b01 -> b1`, and each binary is checked for both
-`text + data <= 16384` and `text + data + bss <= 16384`.
+`text + data <= 16384` and `text + data + bss <= 16384`. The checked
+build additionally reserves at least 512 bytes for the parser's arguments
+and stack, and 256 bytes for each other compiler process.
 
 Read the current binary sizes from the build rather than a frozen table:
 

@@ -30,11 +30,17 @@ python3 pdp-11/bcc-pdp/tests/driver_cases.py
 python3 pdp-11/bcc-pdp/tests/ic_cases.py
 python3 pdp-11/bcc-pdp/tests/image_tools.py
 python3 pdp-11/bcc-pdp/tests/file_verification.py
+python3 pdp-11/bcc-pdp/tests/native_build.py
 bash pdp-11/bcc-pdp/tests/check_v1_binaries.sh
 ```
 
 Make builds apout, assembles `crt0.o`, and prepares a private filesystem copy
-for the historical C compiler. Each B execution test uses another temporary
+for the historical C compiler.
+The C build helper checks the expected tool progress and the fresh executable
+header rather than trusting the old driver's exit status or the presence of
+`a.out`. Unresolved symbols, syntax errors, truncated images, and insufficient
+stack room fail the build. Installation also rechecks changed sources and
+image bounds. Each B execution test uses another temporary
 copy, so intermediate files from one case cannot make another case pass.
 Expected output is compared as bytes, including NULs and trailing newlines.
 Optional `.files.json` fixtures check file contents outside the B API.
