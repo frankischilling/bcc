@@ -46,6 +46,7 @@ python3 pdp-11/bcc-pdp/tests/driver_cases.py
 python3 pdp-11/bcc-pdp/tests/ic_cases.py
 python3 pdp-11/bcc-pdp/tests/image_tools.py
 python3 pdp-11/bcc-pdp/tests/file_verification.py
+python3 pdp-11/bcc-pdp/tests/console_protocol.py
 python3 pdp-11/bcc-pdp/tests/runtime_selection.py
 python3 pdp-11/bcc-pdp/tests/build_lock.py
 bash pdp-11/bcc-pdp/tests/check_v1_binaries.sh
@@ -104,6 +105,10 @@ The console is not a binary-output channel: it can discard NULs. The full
 system date fixture checks those bytes in memory and prints an ASCII verdict.
 This does not weaken the byte-exact fast tests. CPU halts, kernel panics,
 missing executables, and output mismatches fail the full-system runner.
+A fresh completion marker printed by the shell frames each program run, so
+program output containing `# ` cannot be mistaken for the prompt. Framing
+preserves empty output and output without a final newline. Console fixtures
+exercise both cases in the real kernel.
 
 The image workflow reserves swap/kernel blocks and moves scratch files off
 the small root disk. It validates the generated image before booting; tests

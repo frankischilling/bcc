@@ -16,12 +16,14 @@ from pathlib import Path
 import tempfile
 import re
 import socket
+import secrets
 import sys
 import time
 
 import pexpect
 from v1_image import inspect
 from v1_files import verify_files
+from console_protocol import command_line, completion_pattern, program_output
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 V1 = os.path.normpath(os.path.join(HERE, "..", "..", "unix-v1"))
@@ -89,12 +91,13 @@ def drain(sock: socket.socket, idle: float = 0.5) -> bytes:
         buf.extend(strip_iac(chunk))
 
 
-def run_until_done(sock: socket.socket, simh: pexpect.spawn, timeout: float) -> bytes:
-    """Collect DCI output until the program returns to the shell."""
+def run_until_done(sock: socket.socket, simh: pexpect.spawn, timeout: float, marker: str) -> bytes:
+    """Collect output until the shell prints a fresh completion marker."""
     global STOPPED
     buf = bytearray()
     deadline = time.time() + timeout
     sock.setblocking(False)
+    complete = completion_pattern(marker)
 
     while time.time() < deadline:
         try:
@@ -105,7 +108,7 @@ def run_until_done(sock: socket.socket, simh: pexpect.spawn, timeout: float) -> 
             chunk = b""
         if chunk:
             buf.extend(strip_iac(chunk))
-            if re.search(rb"# ", buf):
+            if complete.search(buf):
                 return bytes(buf)
 
         try:
@@ -268,8 +271,10 @@ def main() -> int:
             return 1
 
         sys.stderr.write("Guest: running a.out\n")
-        sock.sendall((run_command + "\n").encode("ascii"))
-        out = run_until_done(sock, simh, timeout=60)
+        marker = "bccdone_" + secrets.token_hex(8)
+        line = command_line(run_command, marker)
+        sock.sendall((line + "\n").encode("ascii"))
+        out = run_until_done(sock, simh, timeout=60, marker=marker)
     except Exception:
         if not STOPPED:
             simh.sendcontrol("e")
@@ -309,10 +314,7 @@ def main() -> int:
     if expected_rebuilds:
         sys.stderr.write("PASS: exact disk bytes match all four compiler binaries and B library assembly\n")
 
-    text = out.decode("latin-1", errors="replace")
-    # Strip the echoed "./a.out" and a returned shell prompt if present.
-    text = re.sub(r"^\.?/?a\.out" + re.escape("".join(" " + value for value in args.argument)) + r"\s*\r?\n", "", text)
-    text = re.sub(r"# $", "", text).replace("\r\n", "\n")
+    text = program_output(out, line, marker)
     sys.stdout.write(text)
     if args.expected is not None and text.encode("latin-1") != args.expected.read_bytes():
         sys.stderr.write(f"console output differs from {args.expected}: {text!r}\n")

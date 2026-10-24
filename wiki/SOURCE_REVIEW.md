@@ -759,6 +759,13 @@ and function-value `exit()` calls terminate with zero in that observer, while
 an explicit status remains intact. This is not a claim that the original V1
 kernel reports modern process exit status.
 
+A full-system regression also showed that the runner could mistake program
+output containing `# ` for the shell prompt and stop before the program
+finished. It now waits for a fresh shell-generated completion marker. Separate
+protocol tests and kernel fixtures check prompt-like text, empty output, and
+output without a final newline. These remain text-console checks, not a
+replacement for byte-exact file verification.
+
 ## Reference inventory
 
 "Read" below describes the review scope, not a promise that every feature in
