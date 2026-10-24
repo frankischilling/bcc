@@ -587,7 +587,11 @@ next() {
             TOK = 59;
             return(0);
         }
-        if (c == '!') { getc1(); TOK = 81; return(0); }
+        if (c == '!') {
+            if (POS+1 < SRCLEN) if (char(SRC,POS+1) == '=') {
+                getc1(); getc1(); TOK = 81; return(0);
+            }
+        }
         TOK = 70; return(0);
     }
     fatal("bad character");
@@ -646,6 +650,30 @@ c_op(op) {
     if (op == 78) return("<<=");
     if (op == 79) return(">>=");
     return("?");
+}
+
+word_op(op) {
+    if (op == 40) return("WADD");
+    if (op == 41) return("WSUB");
+    if (op == 42) return("WMUL");
+    if (op == 43) return("WDIV");
+    if (op == 44) return("WMOD");
+    if (op == 48) return("WSHL");
+    if (op == 49) return("WSHR");
+    return(0);
+}
+
+update_op(op) {
+    if (op == 71) return("b_add_assign");
+    if (op == 72) return("b_sub_assign");
+    if (op == 73) return("b_mul_assign");
+    if (op == 74) return("b_div_assign");
+    if (op == 75) return("b_mod_assign");
+    if (op == 76) return("b_and_assign");
+    if (op == 77) return("b_or_assign");
+    if (op == 78) return("b_lsh_assign");
+    if (op == 79) return("b_rsh_assign");
+    return(0);
 }
 
 rel_assign_op(op) {
@@ -1027,11 +1055,10 @@ postfix() {
             lhs = buf_take(b);
         } else if ((TOK == 51) | (TOK == 52)) {
             b = buf_new(128);
-            buf_ch(b, '(');
+            if (TOK == 51) buf_str(b, "b_postinc(&(");
+            else buf_str(b, "b_postdec(&(");
             buf_str(b, lhs);
-            if (TOK == 51) buf_str(b, "++");
-            else buf_str(b, "--");
-            buf_ch(b, ')');
+            buf_str(b, "))");
             next();
             lhs = buf_take(b);
         } else {
@@ -1056,11 +1083,15 @@ unary() {
             buf_str(b, e);
             buf_ch(b, ')');
         } else if (op == 51) {
-            buf_str(b, "(++");
+            buf_str(b, "b_preinc(&(");
             buf_str(b, e);
-            buf_ch(b, ')');
+            buf_str(b, "))");
         } else if (op == 52) {
-            buf_str(b, "(--");
+            buf_str(b, "b_predec(&(");
+            buf_str(b, e);
+            buf_str(b, "))");
+        } else if (op == 41) {
+            buf_str(b, "WNEG(");
             buf_str(b, e);
             buf_ch(b, ')');
         } else {
@@ -1109,16 +1140,23 @@ expr(minp) {
             buf_str(b, "); __left ");
             buf_str(b, c_op(op));
             buf_str(b, " __right;})");
+        } else if (word_op(op) | update_op(op)) {
+            if (update_op(op)) {
+                buf_str(b, update_op(op)); buf_str(b, "(&(");
+                buf_str(b, lhs); buf_str(b, "), ");
+            } else {
+                buf_str(b, word_op(op)); buf_ch(b, '(');
+                buf_str(b, lhs); buf_str(b, ", ");
+            }
+            buf_str(b, rhs); buf_ch(b, ')');
         } else if (rel) {
-            buf_ch(b, '(');
+            buf_str(b, "({word **__dest=&(");
             buf_str(b, lhs);
-            buf_str(b, " = (");
-            buf_str(b, lhs);
-            buf_ch(b, ' ');
-            buf_str(b, rel);
-            buf_ch(b, ' ');
+            buf_str(b, "); word __rhs=(");
             buf_str(b, rhs);
-            buf_str(b, "))");
+            buf_str(b, "); **__dest=(**__dest ");
+            buf_str(b, rel);
+            buf_str(b, " __rhs);})");
         } else {
             buf_ch(b, '(');
             buf_str(b, lhs);

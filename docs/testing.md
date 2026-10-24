@@ -197,3 +197,14 @@ call-by-value, recursive invocations, retained heap allocations between freed
 frames, cross-file calls, callable parameters, and compatibility-mode local
 shadowing. The common argument-cell case also runs on native PDP-11 and in
 Unix V1.
+
+Word-arithmetic cases check zero-filled shifts, signed comparison results,
+wrapping at both limits, unary negation, multiplication, division, remainder,
+and single-evaluation updates. Boundary results are BCC's defined behavior,
+not a claim that the historical manual specified every overflow case.
+
+CI also runs the host suite with AddressSanitizer and UndefinedBehaviorSanitizer
+on the compiler, then instruments generated arithmetic programs. Inline-runtime
+cases instrument their runtime too; the cached shared runtime is built separately
+and is not instrumented by the extra compiler flag. Leak detection is disabled
+for these runs.

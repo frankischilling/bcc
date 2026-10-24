@@ -133,6 +133,18 @@ static inline void __b_target_leave(b_target_frame *frame) {
 #define B_STR(s) B_PTR(s)
 #define B_WORD_BYTES (WORD_BITS == 16 ? 2 : sizeof(word))
 
+/* A shift by the full word width discards every bit. Larger or negative
+ * counts retain BCC's masked-count extension, outside the B72 guarantee. */
+static inline word __b_word_shl(word a, word n) {
+    if ((uword)n == (uword)SHIFT_MASK + 1) return 0;
+    return (word)WVAL(((uword)a & WORD_MASK) << ((uword)n & SHIFT_MASK));
+}
+
+static inline word __b_word_shr(word a, word n) {
+    if ((uword)n == (uword)SHIFT_MASK + 1) return 0;
+    return (word)WVAL(((uword)a & WORD_MASK) >> ((uword)n & SHIFT_MASK));
+}
+
 /* Divide magnitudes to avoid signed MIN/-1 overflow. Negative results use
  * truncation toward zero; kbman requires exact divisible results (4.3). */
 static inline word __b_word_div(word a, word b) {

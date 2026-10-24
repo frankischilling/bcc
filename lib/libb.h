@@ -60,7 +60,7 @@ typedef uintptr_t uword;
 
 /*
  * Word size emulation:
- *   WORD_BITS=0   -> host native (no wrapping)
+ *   WORD_BITS=0   -> wrap at the host pointer width
  *   WORD_BITS=16  -> wrap arithmetic like PDP-11 16-bit words
  *   WORD_BITS=32  -> wrap arithmetic at 32 bits
  */
@@ -78,7 +78,7 @@ typedef uintptr_t uword;
   #define SHIFT_MASK 31
 #else
   #define WORD_MASK (~(uword)0)
-  #define WVAL(x) (x)
+  #define WVAL(x) ((word)(x))
   #define SHIFT_MASK ((int)(sizeof(word)*8 - 1))
 #endif
 
@@ -93,8 +93,8 @@ typedef uintptr_t uword;
 #define WMUL(a,b) WVAL((uword)(a) * (uword)(b))
 #define WDIV(a,b) __b_word_div((a),(b))
 #define WMOD(a,b) __b_word_mod((a),(b))
-#define WSHL(a,n) WVAL(((uword)(a) & WORD_MASK) << ((uword)(n) & SHIFT_MASK))
-#define WSHR(a,n) WVAL(((uword)(a) & WORD_MASK) >> ((uword)(n) & SHIFT_MASK))
+#define WSHL(a,n) __b_word_shl((a),(n))
+#define WSHR(a,n) __b_word_shr((a),(n))
 #define WAND(a,b) WVAL((uword)(a) & (uword)(b))
 #define WOR(a,b)  WVAL((uword)(a) | (uword)(b))
 #define WXOR(a,b) WVAL((uword)(a) ^ (uword)(b))

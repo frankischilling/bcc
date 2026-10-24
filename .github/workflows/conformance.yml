@@ -26,6 +26,22 @@ jobs:
         run: |
           make -C asm check
           make -C asm bootstrap
+  sanitizers:
+    runs-on: ubuntu-24.04
+    env:
+      ASAN_OPTIONS: detect_leaks=0
+      UBSAN_OPTIONS: halt_on_error=1
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build with address and undefined-behavior checks
+        run: make CFLAGS="-std=c99 -g -O1 -fsanitize=address,undefined -fno-omit-frame-pointer"
+      - name: Check the instrumented compiler
+        run: make test
+      - name: Check generated arithmetic and inline runtime code
+        run: |
+          printf '#!/bin/sh\nexec "%s/bcc" -X -fsanitize=address,undefined "$@"\n' "$PWD" > "$RUNNER_TEMP/bcc-instrumented"
+          chmod +x "$RUNNER_TEMP/bcc-instrumented"
+          python3 tests/test_word_arithmetic.py --compiler "$RUNNER_TEMP/bcc-instrumented"
   pdp11:
     runs-on: ubuntu-24.04
     steps:
@@ -102,6 +118,7 @@ jobs:
           make -C pdp-11/bcc-pdp v1-run B=tests/run/t93_source_printf.b
           make -C pdp-11/bcc-pdp v1-run B=tests/run/t94_source_library_data.b
           make -C pdp-11/bcc-pdp v1-run B=tests/run/t95_parameter_cells.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t96_word_arithmetic.b
           bash pdp-11/bcc-pdp/tools/v1-run.sh pdp-11/bcc-pdp/tests/run/t86_word_argv_alignment.b --argument a --argument bb --argument ccc --argument dddd
           bash pdp-11/bcc-pdp/tools/v1-run.sh pdp-11/bcc-pdp/tests/run/t19a_tilde.b --expect-compile-error
           bash pdp-11/bcc-pdp/tools/v1-run.sh pdp-11/bcc-pdp/tests/run/t44_missing_label.b --expect-compile-error

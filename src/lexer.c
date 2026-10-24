@@ -227,7 +227,7 @@ Token lx_next(Lexer *L) {
         long v;
         if (base == 8 && !is_hex) {
             /* B octal: allow digits 0-9 but interpret as octal (e.g., 09 == 011 octal == 9 decimal) */
-            v = 0;
+            unsigned long bits = 0;
             for (size_t i = 0; i < n; i++) {
                 char digit = s[i];
                 if (digit < '0' || digit > '9') {
@@ -235,8 +235,9 @@ Token lx_next(Lexer *L) {
                     snprintf(msg, sizeof(msg), "bad octal digit '%c'", digit);
                     error_at_location(L->filename, line, col, ERR_EXPR_SYNTAX, msg);
                 }
-                v = v * 8 + (digit - '0');
+                bits = bits * 8 + (unsigned)(digit - '0');
             }
+            v = (long)bits;
         } else {
             errno = 0;
             unsigned long long uv = strtoull(s, NULL, base);

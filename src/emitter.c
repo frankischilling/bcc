@@ -1,6 +1,7 @@
 // emitter.c - C code emitter
 
 #include "bcc.h"
+#include <limits.h>
 
 /* Packed B strings, terminated by octal 004. */
 
@@ -527,12 +528,6 @@ static int stmt_is_block(const Stmt *s) {
     return s && s->kind == ST_BLOCK;
 }
 
-// Check if expression is a complex lvalue (indexing or dereference, not simple variable)
-static int is_complex_lvalue(Expr *e) {
-    if (!e) return 0;
-    return e->kind == EX_INDEX || (e->kind == EX_UNARY && e->as.unary.op == TK_STAR);
-}
-
 typedef enum { CTRL_LOOP, CTRL_SWITCH } CtrlKind;
 
 typedef struct CtrlFrame {
@@ -966,27 +961,15 @@ void emit_expr(FILE *out, Expr *e, const char *filename) {
                 return;
             }
 
-            /* keep the rest normal, but parenthesize to avoid precedence surprises */
             if (op == TK_PLUSPLUS || op == TK_MINUSMINUS) {
-                Expr *rhs = e->as.unary.rhs;
-                /* Use helper function for complex lvalues OR when in non-host mode (for proper wrapping) */
-                if (is_complex_lvalue(rhs) || current_word_bits != 0) {
-                    fputs("b_", out);
-                    fputs(op == TK_PLUSPLUS ? "preinc" : "predec", out);
-                    fputs("(&(", out);
-                    emit_expr(out, rhs, filename);
-                    fputs("))", out);
-                } else {
-                    fputs(tk_name(op), out);
-                    fputc('(', out);
-                    emit_expr(out, rhs, filename);
-                    fputc(')', out);
-                }
+                fputs(op == TK_PLUSPLUS ? "b_preinc(&(" : "b_predec(&(", out);
+                emit_expr(out, e->as.unary.rhs, filename);
+                fputs("))", out);
                 return;
             }
 
             /* Use safe WNEG macro for unary negation to avoid signed overflow UB */
-            if (op == TK_MINUS && current_word_bits != 0) {
+            if (op == TK_MINUS) {
                 fputs("WNEG(", out);
                 emit_expr(out, e->as.unary.rhs, filename);
                 fputc(')', out);
@@ -1004,19 +987,9 @@ void emit_expr(FILE *out, Expr *e, const char *filename) {
             // postfix ops
             TokenKind op = e->as.post.op;
             Expr *lhs = e->as.post.lhs;
-            /* Use helper function for complex lvalues OR when in non-host mode (for proper wrapping) */
-            if (is_complex_lvalue(lhs) || current_word_bits != 0) {
-                fputs("b_", out);
-                fputs(op == TK_PLUSPLUS ? "postinc" : "postdec", out);
-                fputs("(&(", out);
-                emit_expr(out, lhs, filename);
-                fputs("))", out);
-            } else {
-                fputc('(', out);
-                emit_expr(out, lhs, filename);
-                fputs(tk_name(op), out);
-                fputc(')', out);
-            }
+            fputs(op == TK_PLUSPLUS ? "b_postinc(&(" : "b_postdec(&(", out);
+            emit_expr(out, lhs, filename);
+            fputs("))", out);
             return;
         }
 
@@ -1035,7 +1008,7 @@ void emit_expr(FILE *out, Expr *e, const char *filename) {
             }
             /* Use safe W* macros to avoid host-C undefined behavior */
             const char *wmacro = NULL;
-            if (current_word_bits != 0) {
+            {
                 switch (op) {
                 case TK_PLUS:   wmacro = "WADD"; break;
                 case TK_MINUS:  wmacro = "WSUB"; break;
@@ -1082,21 +1055,18 @@ void emit_expr(FILE *out, Expr *e, const char *filename) {
             default: break;
             }
             if (rel_op != TK_EOF) {
-                // Relational assignment: lhs = (lhs rel_op rhs)
-                fputc('(', out);
+                unsigned id = ++expression_id;
+                fprintf(out, "({ word *__b_dest_%u = &(", id);
                 emit_expr(out, lhs, filename);
-                fputs(" = (", out);
-                emit_expr(out, lhs, filename);
-                fprintf(out, " %s ", tk_name(rel_op));
+                fprintf(out, "); word __b_rhs_%u = (", id);
                 emit_expr(out, rhs, filename);
-                fputs("))", out);
+                fprintf(out, "); *__b_dest_%u = (*__b_dest_%u %s __b_rhs_%u); })",
+                        id, id, tk_name(rel_op), id);
                 return;
             }
 
-            // For compound assignments, use helper function when:
-            // - complex lvalue (to avoid double evaluation), OR
-            // - non-host mode (to ensure proper word wrapping)
-            if (op != TK_ASSIGN && (is_complex_lvalue(lhs) || current_word_bits != 0)) {
+            /* Update the lvalue once and wrap at the selected word width. */
+            if (op != TK_ASSIGN) {
                 const char *helper_name = NULL;
                 switch (op) {
                 case TK_PLUSEQ: helper_name = "add_assign"; break;
@@ -1189,7 +1159,7 @@ int try_eval_const_expr(Expr *e, long *out) {
             long v = 0;
             if (!try_eval_const_expr(e->as.unary.rhs, &v)) return 0;
             switch (e->as.unary.op) {
-                case TK_MINUS: *out = -v; return 1;
+                case TK_MINUS: *out = (long)(-(unsigned long)v); return 1;
                 case TK_BANG:  *out = (!v); return 1;
                 default: return 0; // deref, address, increment, and decrement are not foldable here
             }
@@ -1202,8 +1172,14 @@ int try_eval_const_expr(Expr *e, long *out) {
                 case TK_PLUS:    *out = (long)((unsigned long)a + (unsigned long)b); return 1;
                 case TK_MINUS:   *out = (long)((unsigned long)a - (unsigned long)b); return 1;
                 case TK_STAR:    *out = (long)((unsigned long)a * (unsigned long)b); return 1;
-                case TK_SLASH:   if (b == 0) return 0; *out = a / b; return 1;
-                case TK_PERCENT: if (b == 0) return 0; *out = a % b; return 1;
+                case TK_SLASH:
+                    if (b == 0) return 0;
+                    *out = a == LONG_MIN && b == -1 ? LONG_MIN : a / b;
+                    return 1;
+                case TK_PERCENT:
+                    if (b == 0) return 0;
+                    *out = a == LONG_MIN && b == -1 ? 0 : a % b;
+                    return 1;
                 case TK_LT:      *out = (a <  b); return 1;
                 case TK_LE:      *out = (a <= b); return 1;
                 case TK_GT:      *out = (a >  b); return 1;
@@ -1703,7 +1679,7 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
     fputs(
         "/*\n"
         "  Word size emulation:\n"
-        "    WORD_BITS=0   -> host native (no wrapping)\n"
+        "    WORD_BITS=0   -> wrap at the host pointer width\n"
         "    WORD_BITS=16  -> wrap arithmetic like PDP-11 16-bit words\n"
         "    WORD_BITS=32  -> wrap arithmetic at 32 bits\n"
         "  WVAL(x) sign-extends to word width after masking.\n"
@@ -1718,7 +1694,7 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
         "  #define SHIFT_MASK 31\n"
         "#else\n"
         "  #define WORD_MASK (~(uword)0)\n"
-        "  #define WVAL(x) (x)\n"
+        "  #define WVAL(x) ((word)(x))\n"
         "  #define SHIFT_MASK ((int)(sizeof(word)*8 - 1))\n"
         "#endif\n"
         "\n"
@@ -1733,8 +1709,8 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
         "#define WMUL(a,b) WVAL((uword)(a) * (uword)(b))\n"
         "#define WDIV(a,b) __b_word_div((a),(b))\n"
         "#define WMOD(a,b) __b_word_mod((a),(b))\n"
-        "#define WSHL(a,n) WVAL(((uword)(a) & WORD_MASK) << ((uword)(n) & SHIFT_MASK))\n"
-        "#define WSHR(a,n) WVAL(((uword)(a) & WORD_MASK) >> ((uword)(n) & SHIFT_MASK))\n"
+        "#define WSHL(a,n) __b_word_shl((a),(n))\n"
+        "#define WSHR(a,n) __b_word_shr((a),(n))\n"
         "#define WAND(a,b) WVAL((uword)(a) & (uword)(b))\n"
         "#define WOR(a,b)  WVAL((uword)(a) | (uword)(b))\n"
         "#define WXOR(a,b) WVAL((uword)(a) ^ (uword)(b))\n"

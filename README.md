@@ -101,7 +101,8 @@ String literals end with octal `004`. B escapes include `*n`, `*t`, `*e`, `*0`,
 `**`, `*(`, and `*)`; the last two represent braces. Addition binds more
 tightly than shifting, so `1 << 2 + 1` means `1 << (2 + 1)`.
 
-`--word=host` uses host-sized words. `--word=16` wraps arithmetic and
+`--word=host` wraps arithmetic at the host pointer width. Shifts fill
+vacated bits with zero in every word mode. `--word=16` wraps arithmetic and
 translates B addresses through registered host storage, with two characters
 per B word. It selects word addressing by default, as does `--strict`.
 `--byteptr` or `--wordptr` overrides that choice. `--word=32` wraps arithmetic

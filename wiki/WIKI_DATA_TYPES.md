@@ -16,7 +16,11 @@ Decimal constants have no prefix. A leading zero selects octal: `010` is
 eight. A negative value uses unary minus, as in `-17`. Hexadecimal `0x`
 constants are a host compatibility extension, not B72 syntax.
 
-BCC defines wrapping behavior for its selected arithmetic word modes.
+BCC wraps arithmetic at the selected width, including host-sized words and
+the bootstrap. Both shifts fill vacated bits with zero; a right shift does
+not preserve a negative operand's sign bit. Arithmetic results remain signed
+words for comparisons. Increment, decrement, and compound assignment evaluate
+the destination once. A shift by exactly the word width produces zero.
 Do not mistake every tested edge case for a historical language guarantee:
 Thompson's reference leaves some negative division/remainder and
 out-of-range shift cases undefined. In particular, portable programs should
