@@ -142,3 +142,23 @@ compatibility external mechanism are checked by their original spelling.
 The bootstrap also namespaces its local and parameter bindings. Source-
 defined functions named after C APIs do not receive C pointer or string
 conversions just because their names match.
+
+Source-defined functions use data cells separate from their private C bodies.
+The host registers those cells before address initializers, then initializes
+their callable values once during startup. Calls, saved values, and address-
+based replacements use the cells. The host-sized bootstrap can initialize
+its function cells directly from body addresses. Both main wrappers read the
+main cell after global initialization. Bundled host-runtime callbacks are a
+separate remaining interposition task.
+
+The native driver's `bsel.c` module selects library definitions before
+assembly. It recognizes public labels in compiler-generated output, then
+filters matching labels from the runtime while preserving its code and data.
+Buffered reads keep this step practical inside V1. Temporary copies are
+created only for affected runtime files. This is symbol precedence, not
+archive-member extraction or dead-code elimination.
+
+Host source-function cells change the generated object ABI: rebuild all B
+objects with the same compiler and runtime modes. A function's public binding
+is data, while its executable body has a private C name. Separate strict
+objects therefore use the same cell interface for calls and replacements.

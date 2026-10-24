@@ -11,6 +11,7 @@ set -eu
 
 HERE="$(cd "$(dirname "$0")/.." && pwd)"
 V1="$(cd "$HERE/../unix-v1" && pwd)"
+. "$HERE/tools/native-lock.sh"
 AROOT="$HERE/build/aroot"
 STAMP="$HERE/build/.aroot.stamp"
 

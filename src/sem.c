@@ -212,6 +212,8 @@ static void sem_check_lvalue(SemState *st, Expr *e) {
                 }
             } else if (sym->is_builtin && strcmp(sym->name, "argv") == 0) {
                 e->builtin_argv = 1;
+            } else if (sym->kind == SYM_FUNC && !sym->is_builtin) {
+                e->function_value = 1;
             } else if (sym->kind != SYM_VAR && sym->kind != SYM_LABEL) {
                 dief("'%s' is not a variable at %d:%d", e->as.var, e->line, e->col);
             }
@@ -219,7 +221,7 @@ static void sem_check_lvalue(SemState *st, Expr *e) {
         }
 
         case EX_INDEX:
-            sem_check_lvalue(st, e->as.index.base);
+            sem_check_expr(st, e->as.index.base);
             sem_check_expr(st, e->as.index.idx);
             break;
 
@@ -288,7 +290,7 @@ static void sem_check_expr(SemState *st, Expr *e) {
             break;
 
         case EX_UNARY:
-            if (e->as.unary.op == TK_PLUSPLUS || e->as.unary.op == TK_MINUSMINUS) {
+            if (e->as.unary.op == TK_PLUSPLUS || e->as.unary.op == TK_MINUSMINUS || e->as.unary.op == TK_AMP) {
                 sem_check_lvalue(st, e->as.unary.rhs);
             } else {
                 sem_check_expr(st, e->as.unary.rhs);

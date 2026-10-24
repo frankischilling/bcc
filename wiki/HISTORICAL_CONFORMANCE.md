@@ -93,8 +93,10 @@ structure. Disk addresses are unavailable and creation time uses host status-
 change time; these approximations are documented in the runtime guide. Terminal
 interfaces still need separate ABI conformance work. The 32-bit mode
 is arithmetic emulation with native pointers; arithmetic on those pointers
-can still truncate them. Function values can be called through variables and expressions; mutable
-function-name cells are not yet a complete implementation of section 7.3.
+can still truncate them. Source-defined function names now have writable
+cells, and calls read the current value. Saved values, address-based changes,
+and cross-file references are tested. Built-in host runtime names still lack
+the complete writable-cell/interposition model.
 B source can define library names such as `printn` and `printf`, as the
 manual's examples do. The host and assembly-source compilers use those
 source definitions for direct calls and function values, including calls
@@ -102,7 +104,7 @@ between input files compiled together. Internal calls made by a bundled
 runtime routine still use that runtime's own helpers; this is not full
 library interposition or support for the manual's stack-walking `printf`.
 The B-written bootstrap now shares the tested expression and lexical rules,
-including computed label values. Its strict mode now uses word-addressed
+including computed label values and writable source-function cells. Its strict mode now uses word-addressed
 pointers, while compatibility mode keeps byte addresses. It still lacks
 16-bit storage.
 The native compiler now loads pointer values before indexing scalar and
@@ -242,3 +244,10 @@ Johnson's [reference](https://cm-bell-labs.github.io/who/dmr/bref.html) includes
 features outside the selected PDP-11 grammar, including `~`, `^`, and switch
 `default`. It is comparison evidence for other B dialects, not a reason to
 silently change the January 1972 strict mode.
+
+Native program definitions take precedence over bundled library cells. This
+allows source routines such as the manual's `printn` and `printf` examples
+to coexist with the runtime instead of failing with duplicate assembler
+symbols. Matching runtime labels are removed before assembly, while their
+unused bodies remain. That is not a reproduction of the original archive
+loader or its exact output size.

@@ -10,3 +10,5 @@ __pycache__/
 /bootstrap/build/
 /bootstrap/src/*.b.c
 /pdp-11/bcc-pdp/build/
+
+/pdp-11/bcc-pdp/.native-build.lock

@@ -6,6 +6,7 @@
  *           b01 -i /usr/tmp/b.r1 -o /usr/tmp/b.r2
  *           b1  -i /usr/tmp/b.r2 -o /usr/tmp/b.s
  *           as /usr/lib/bmain.s /usr/lib/brt.s /usr/lib/libb.s /usr/tmp/b.s
+ * Selects library labels after b1 so program definitions take precedence.
  * Leaves a.out in the current directory.
  *
  * Written in V1 last1120c dialect (same as the bcc-pdp sources):
@@ -90,10 +91,15 @@ main(argc, argv) int argv[]; {
 	b1arg[7] = 0;
 	runp("/usr/lib/bcc/b1", b1arg);
 
+    unlink("/usr/tmp/b.br");
+    unlink("/usr/tmp/b.lb");
+    selfns("/usr/tmp/b.s");
 	sa(asarg, 0, "as");
 	sa(asarg, 1, "/usr/lib/bmain.s");
 	sa(asarg, 2, "/usr/lib/brt.s");
 	sa(asarg, 3, "/usr/lib/libb.s");
+    if (selfil("/usr/lib/brt.s", "/usr/tmp/b.br")) sa(asarg, 2, "/usr/tmp/b.br");
+    if (selfil("/usr/lib/libb.s", "/usr/tmp/b.lb")) sa(asarg, 3, "/usr/tmp/b.lb");
 	sa(asarg, 4, "/usr/tmp/b.s");
 	asarg[5] = 0;
 	aslog = 1;
@@ -114,6 +120,8 @@ main(argc, argv) int argv[]; {
 	unlink("/usr/tmp/b.r1");
 	unlink("/usr/tmp/b.r2");
 	unlink("/usr/tmp/b.s");
+    unlink("/usr/tmp/b.br");
+    unlink("/usr/tmp/b.lb");
 	exit(0);
 }
 

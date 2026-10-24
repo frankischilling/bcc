@@ -3,6 +3,7 @@
 # binaries under fs/ make it onto the rk0.dsk / rf0.dsk filesystems.
 set -eu
 HERE="$(cd "$(dirname "$0")/.." && pwd)"
+. "$HERE/tools/native-lock.sh"
 cd "$HERE/../unix-v1/build"
 rm -rf root usr protofs rk0.dsk rf0.dsk
 make protofs unix

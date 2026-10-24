@@ -44,6 +44,8 @@ jobs:
           python3 pdp-11/bcc-pdp/tests/argv_storage.py
           python3 pdp-11/bcc-pdp/tests/image_tools.py
           python3 pdp-11/bcc-pdp/tests/golden.py
+          python3 pdp-11/bcc-pdp/tests/runtime_selection.py
+          python3 pdp-11/bcc-pdp/tests/build_lock.py
           python3 tests/test_docs_examples.py --native
 
   unix-v1:
@@ -95,6 +97,10 @@ jobs:
           make -C pdp-11/bcc-pdp v1-run B=tests/run/t87_word_exec_offset.b
           make -C pdp-11/bcc-pdp v1-run B=tests/run/t89_format_capture.b
           make -C pdp-11/bcc-pdp v1-run B=tests/run/t90_label_cells.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t91_call_index_lvalue.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t92_source_library.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t93_source_printf.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t94_source_library_data.b
           bash pdp-11/bcc-pdp/tools/v1-run.sh pdp-11/bcc-pdp/tests/run/t86_word_argv_alignment.b --argument a --argument bb --argument ccc --argument dddd
           bash pdp-11/bcc-pdp/tools/v1-run.sh pdp-11/bcc-pdp/tests/run/t19a_tilde.b --expect-compile-error
           bash pdp-11/bcc-pdp/tools/v1-run.sh pdp-11/bcc-pdp/tests/run/t44_missing_label.b --expect-compile-error

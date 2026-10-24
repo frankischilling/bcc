@@ -8,6 +8,8 @@
 
 set -eu
 cd "$(dirname "$0")/.."
+HERE=$(pwd)
+. "$HERE/tools/native-lock.sh"
 
 make >/dev/null
 

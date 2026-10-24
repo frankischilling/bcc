@@ -28,7 +28,9 @@ def main():
         (work / 'undef.b').write_text('main(){extrn missing; missing();return(0); }\n')
         (work / 'bad.b').write_text('main(){auto ; this is not B}\n')
         shutil.copyfile(root / 'tests/run/t24_ctime.b', work / 'clock.b')
-        cases = [('valid', 'good.b', b'OK\n'), ('large-clock', 'clock.b', (root / 'tests/run/t24_ctime.out').read_bytes()), ('syntax-error', 'bad.b', None), ('missing-input', 'missing.b', None), ('unresolved-symbol', 'undef.b', None), ('oversized-program', 'large.b', None)]
+        for case in ('t92_source_library','t93_source_printf','t94_source_library_data'):
+            shutil.copyfile(root/'tests/run'/f'{case}.b', work/f'{case}.b')
+        cases = [('source-data','t94_source_library_data.b',b'OK\n'), ('source-library','t92_source_library.b',b'OK\n'), ('source-printf','t93_source_printf.b',b'custom\n'), ('valid', 'good.b', b'OK\n'), ('large-clock', 'clock.b', (root / 'tests/run/t24_ctime.out').read_bytes()), ('syntax-error', 'bad.b', None), ('missing-input', 'missing.b', None), ('unresolved-symbol', 'undef.b', None), ('oversized-program', 'large.b', None)]
         for name, source, expected in cases:
             result = subprocess.run([str(apout), str(work/'bin/b'), source], cwd=work, env=env, capture_output=True, timeout=30)
             ok = (result.returncode == 0) == (expected is not None)

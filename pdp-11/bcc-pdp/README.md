@@ -194,3 +194,24 @@ This follows the field layout in [a.out(V), November 1971](https://www.tuhs.org/
 The test-side converter uses the same layout, with unit checks for malformed
 headers. Driver tests check file length and all six words, including a large
 clock program that exposed the old symbol-size-as-data-size mistake.
+
+## Source definitions and library selection
+
+The driver lets program definitions replace bundled library bindings, including
+functions such as `printn` and ordinary external data with a library name.
+`src/bsel.c` scans the generated program's public labels and makes a runtime
+copy only when a definition needs replacement. It removes the conflicting
+label, not the retained code or data bytes, so aliases and internal offsets
+keep their layout. The fast host runner uses the same selection rule.
+
+Use the driver or `tools/run-apout.sh` for programs that supply library
+definitions. Manually assembling the unselected runtime files alongside such
+a program still produces duplicate symbols. This selection is not a full
+historical archive linker: unused library bodies remain in the image.
+
+Separate native builds are serialized because the historical tools use fixed
+scratch names. The same lock covers full-system staging and survives
+`make clean`. The fast runner snapshots its tools before execution, so a
+later rebuild cannot replace the passes it is already using. Use the supplied
+Make targets and scripts rather than launching historical compiler processes
+against the shared build root yourself.

@@ -193,7 +193,7 @@ def main() -> int:
                 "b00": "b00drv.c bstmt.c bexpr.c blex.c bemit0.c butil.c",
                 "b01": "b01drv.c blex1.c bsym.c butil.c",
                 "b1": "b1drv.c bcg.c bcgnew.c blex1.c blit.c butil.c",
-                "b": "bdrv.c",
+                "b": "bdrv.c bsel.c",
             }
             for name, sources in builds.items():
                 destination = "/bin/b" if name == "b" else f"/usr/lib/bcc/{name}"
@@ -228,7 +228,7 @@ def main() -> int:
             for line in [f"/usr/lib/bcc/b00 -o /usr/tmp/b.r1 ./{PROG}",
                          "/usr/lib/bcc/b01 -i /usr/tmp/b.r1 -o /usr/tmp/b.r2",
                          "/usr/lib/bcc/b1 -i /usr/tmp/b.r2 -o /usr/tmp/b.s",
-                         "as /usr/lib/bmain.s /usr/lib/brt.s /usr/lib/libb.s /usr/tmp/b.s", "df"]:
+                         "ls /usr/tmp/b.s", "df"]:
                 sys.stderr.write("Guest pass: " + line + "\n")
                 sock.sendall(line.encode() + b"\n")
                 response = recv_until(sock, rb"# ", timeout=90)

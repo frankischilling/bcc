@@ -1,3 +1,15 @@
+# Historical compiler tools use fixed scratch files. One lock covers separate
+# Make processes and full-system staging, not just jobs in a single Make run.
+ifeq ($(_BCC_NATIVE_LOCKED),)
+.DEFAULT_GOAL := all
+_BCC_GOALS := $(if $(MAKECMDGOALS),$(MAKECMDGOALS),all)
+.PHONY: __bcc_locked $(_BCC_GOALS)
+$(_BCC_GOALS): __bcc_locked ;
+__bcc_locked:
+	+flock "$(CURDIR)/.native-build.lock" $(MAKE) _BCC_NATIVE_LOCKED=1 $(_BCC_GOALS)
+else
+export _BCC_NATIVE_LOCKED
+
 # bcc-pdp Makefile -- builds B compiler as PDP-11 a.out binaries
 # (b00 + b01 + b1) using V1 cc under apout.
 #
@@ -22,7 +34,7 @@ RUN    = APOUT_ROOT=$(AROOT) $(APOUT)
 B00_SRCS = b00drv.c bstmt.c bexpr.c blex.c bemit0.c butil.c
 B01_SRCS = b01drv.c blex1.c bsym.c butil.c
 B1_SRCS = b1drv.c bcg.c bcgnew.c blex1.c blit.c butil.c
-BDRV_SRCS = bdrv.c
+BDRV_SRCS = bdrv.c bsel.c
 
 B00     = $(BUILD)/b00
 B01     = $(BUILD)/b01
@@ -144,3 +156,5 @@ $(V1)/tools/mkfs: $(V1)/tools/mkfs.c
 	$(MAKE) -C $(V1)/tools mkfs
 
 v1-run v1-smoke v1-selfhost: $(V1)/tools/mkfs
+
+endif

@@ -69,7 +69,7 @@ Computed branches use writable function-local label cells, including forward
 references. Their contents persist across invocations. Source-defined functions, external data, parameters, and automatic names
 use private C names to avoid collisions with host library declarations. Strict mode uses word-addressed pointers; compatibility mode keeps
 byte-addressed pointers. Storage is still host-sized rather than the host
-compiler's translated 16-bit model. Function-valued calls are covered, but
-mutable function-name storage and compatibility block-scope resolution still
-need work.
+compiler's translated 16-bit model. Source-function cells are writable and
+preserve saved callable values, including across input files. Writable built-in
+runtime bindings and compatibility block-scope resolution still need work.
 These limits are separate from the generated-C fixed-point check.

@@ -45,6 +45,8 @@ bash pdp-11/bcc-pdp/tests/ext/run.sh
 python3 pdp-11/bcc-pdp/tests/driver_cases.py
 python3 pdp-11/bcc-pdp/tests/ic_cases.py
 python3 pdp-11/bcc-pdp/tests/image_tools.py
+python3 pdp-11/bcc-pdp/tests/runtime_selection.py
+python3 pdp-11/bcc-pdp/tests/build_lock.py
 bash pdp-11/bcc-pdp/tests/check_v1_binaries.sh
 ```
 
@@ -170,3 +172,22 @@ Allocation tests cover valid and zero-size requests, negative counts, the
 minimum word, and host byte-count overflow. They run through shared/inline
 runtimes and every bootstrap stage; the large-value fixture is chosen to
 expose multiplication overflow without requiring a large successful allocation.
+
+Source-function-cell checks cover saved bodies, persistent changes, addresses
+in external initializers, cross-file replacement, references to main, and
+source-defined library names. A compatibility-only check changes main during
+global initialization; another ensures repeated runtime initialization does
+not reset a changed function cell.
+
+Native library-selection tests cover unchanged files, replacements, aliases,
+external data definitions, and declaration-only references. Driver and full-
+system tests also compile programs that replace `printn`, `printf`, and
+`putchar`, verifying that retained library calls reach the program's cells.
+
+Native Make invocations and full-system staging share one host lock outside
+`build/`, so cleaning the build cannot unlink a held lock. The shell entry
+points use the same lock order, and nested Make calls reuse their caller's
+locked scope. The fast runner copies the compiler passes, emulator, and
+runtime under a shared lock, then executes those private copies. Lock tests
+exercise two Make processes and a shell-script/Make pair against shared
+scratch files, including nested entry points.

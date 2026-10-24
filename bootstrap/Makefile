@@ -54,6 +54,8 @@ test: stage3
 
 	@set -e; for stage in 1 2 3; do python3 ../tests/test_allocation_sizes.py --bootstrap --compiler build/stage$$stage/bbc; done
 
+	@set -e; for stage in 1 2 3; do python3 ../tests/test_function_cells.py --bootstrap --compiler build/stage$$stage/bbc; done
+
 clean:
 	rm -rf $(BUILD)
 	rm -f src/*.b.c

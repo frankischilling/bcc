@@ -200,3 +200,10 @@ to their code-entry values. Taking a label's address yields a word pointer
 to its cell; loading, replacing, and indirect branching use that storage.
 The label-cell regression checks saved values, address-based writes, bare
 and parenthesized goto, and changes retained by later calls.
+
+Program definitions now take precedence over bundled library cells during
+assembly. Regressions define `putchar`, `printn`, and `printf`, check calls
+from retained library routines, and use library names for external data.
+Both the host runner and the native driver select matching public labels.
+This fixes duplicate-symbol failures without claiming byte-for-byte archive
+loading: retained library bodies are not discarded.

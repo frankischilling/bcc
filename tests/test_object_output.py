@@ -27,13 +27,13 @@ def main():
                     print(f'{"PASS" if ok else "FAIL"}: object/{bits}/{inline}/{label}', flush=True)
                     if not ok: print(detail)
                 source = work/'part name.b'
-                source.write_text('item 41; select(n){return(n+1);} malloc(n){return(n+1);} strlen(n){return(n+1);}\n')
+                source.write_text('item 41; select(n){return(n+1);} malloc(n){return(n+2);} strlen(n){return(n+1);}\n')
                 result = run('-c', str(source), '-o', 'part name.o')
                 obj = work/'part name.o'
                 ok = result.returncode == 0 and obj.is_file() and obj.read_bytes().startswith(b'\x7fELF')
                 check(ok, 'named', result.stderr)
                 caller = work/'caller.b'
-                caller.write_text('main(){extrn select,item,malloc,strlen;return(select(item)!=42 | malloc(item)!=42 | strlen(item)!=42);}\n')
+                caller.write_text('main(){extrn select,item,malloc,strlen;auto saved;saved=select;select=malloc;if(select(item)!=43 | saved(item)!=42)return(1);select=saved;return(select(item)!=42 | malloc(item)!=43 | strlen(item)!=42);}\n')
                 if ok:
                     result = run(str(caller), '-X', str(obj), '-o', 'linked')
                     if result.returncode == 0:

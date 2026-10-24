@@ -69,12 +69,17 @@ main() {
 }
 ```
 
-The historical language also gives a function name an assignable cell
-containing its function value. The native PDP-11 compiler implements those
-cells, including address-based replacement and runtime-function replacement.
-The host C backend and B-written bootstrap do not yet implement that complete
-model. Calling a saved function value is supported; assigning a new value to
-a function's defining name is not a portable cross-backend operation here.
+A source-defined function name has an assignable cell containing its function
+value. The host, bootstrap, and native compilers support replacement through
+the name or its address, and a saved copy of the previous value still calls
+the original body. See the [runnable function-cell example](../examples/b72/function_cells.b).
+Cells are initialized once, not each time the function is called.
+
+The host and bootstrap do not yet give every built-in runtime name this
+same writable-cell interface. A B definition can replace a library name in
+source-level calls, but internal bundled-runtime calls still use their own
+helpers. The native runtime supports those writable library cells and
+interposition too. Keep this distinction separate from source-function cells.
 
 BCC does not promise C ABI compatibility for arbitrary B function values.
 Use documented host interoperability facilities where needed, and keep those

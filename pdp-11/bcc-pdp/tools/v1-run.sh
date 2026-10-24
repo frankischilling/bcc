@@ -19,10 +19,9 @@ esac
 HERE="$(cd "$(dirname "$0")/.." && pwd)"
 V1="$(cd "$HERE/../unix-v1" && pwd)"
 
-# Staging and disk images are shared by all full-system tests.
+# Builds, staging, and images share one lock, in the same acquisition order.
+. "$HERE/tools/native-lock.sh"
 mkdir -p "$HERE/build"
-exec 9>"$HERE/build/v1.lock"
-flock 9
 BASE=v1.b
 STAGE="$V1/fs/root/$BASE"
 BACKUP="$HERE/build/v1-run.$$.bak"

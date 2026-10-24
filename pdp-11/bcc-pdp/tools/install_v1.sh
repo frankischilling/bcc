@@ -8,6 +8,7 @@ set -eu
 
 HERE="$(cd "$(dirname "$0")/.." && pwd)"
 V1="$(cd "$HERE/../unix-v1" && pwd)"
+. "$HERE/tools/native-lock.sh"
 
 # Ensure binaries are built.
 if [ ! -x "$HERE/build/b00" ] || [ ! -x "$HERE/build/b01" ] || [ ! -x "$HERE/build/b1" ]; then

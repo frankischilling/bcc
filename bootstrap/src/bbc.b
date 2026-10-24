@@ -931,7 +931,9 @@ primary() {
             buf_str(b, global_name(name)); buf_str(b, "[0]");
         } else if ((TOK != 30) & streq(name, "argv") & !has_local(name) & !has_global(name) & !has_function(name)) {
             buf_str(b, "b_argv_vector");
-        } else if ((TOK != 30) & !has_local(name) & !has_global(name) & (has_function(name) | !streq(call_name(name), name))) {
+        } else if ((TOK != 30) & !has_local(name) & has_function(name)) {
+            buf_str(b, global_name(name)); buf_str(b, "[0]");
+        } else if ((TOK != 30) & !has_local(name) & !has_global(name) & !streq(call_name(name), name)) {
             buf_str(b, "B_FUNCTION(");
             buf_str(b, call_name(name));
             buf_ch(b, ')');
@@ -961,7 +963,10 @@ postfix() {
             cname = call_name(name);
             b = buf_new(256);
             if (wrap_malloc(name)) buf_str(b, "B_PTR(");
-            if (has_local(name) | has_global(name) | !c_name(name)) {
+            if (has_function(name)) {
+                buf_str(b, "((word(**)())B_FUNCTION_CPTR(");
+                buf_str(b, global_name(name)); buf_str(b, "[0]))");
+            } else if (has_local(name) | has_global(name) | !c_name(name)) {
                 buf_str(b, "((word(**)())B_FUNCTION_CPTR(");
                 buf_str(b, name);
                 buf_str(b, "))");
@@ -1421,6 +1426,7 @@ emit_prototypes() {
             j = j + 1;
         }
         emitln(");");
+        emit("extern word "); emit(global_name(FUNS[i * 2])); emitln("[];");
         i = i + 1;
     }
     i = 0;
@@ -1441,7 +1447,7 @@ global_ival() {
     next();
     if (streq(name, "argv") & !has_global(name) & !has_function(name))
         name = "b_argv_vector";
-    else if (has_global(name)) name = scat(global_name(name), "[0]");
+    else if (has_global(name) | has_function(name)) name = scat(global_name(name), "[0]");
     else name = call_name(name);
     return(scat(scat("B_ADDR(", name), ")"));
 }
@@ -1550,6 +1556,8 @@ global_or_func() {
         NLOCALS = 0;
         NLABELS = 0;
         next();
+        emit("word "); emit(global_name(name));
+        emit("[1] = {B_FUNCTION("); emit(function_name(name)); emitln(")};");
         emit("word ");
         emit(function_name(name));
         emit("(");
@@ -1679,16 +1687,15 @@ emit_header() {
 
 emit_main_wrapper() {
     if (!HAS_MAIN) return(0);
+    if (MAIN_NARGS > 2) fatal("main supports at most two host compatibility parameters");
     emitln("int main(int argc, char ****argv) {");
     emitln("    __b_setargs(argc, argv);");
     emitln("    __b_init();");
-    if (MAIN_NARGS == 0) {
-        emitln("    return (int)__b_user_main();");
-    } else if (MAIN_NARGS == 1) {
-        emitln("    return (int)__b_user_main((word)argc);");
-    } else {
-        emitln("    return (int)__b_user_main((word)argc, __b_argvalues());");
-    }
+    emit("    return (int)((word(**)())B_FUNCTION_CPTR(");
+    emit(global_name("main")); emit("[0]))(");
+    if (MAIN_NARGS >= 1) emit("(word)argc");
+    if (MAIN_NARGS == 2) emit(", __b_argvalues()");
+    emitln(");");
     emitln("}");
 }
 

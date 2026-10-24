@@ -8,6 +8,8 @@ import tempfile
 
 
 CASES = {
+    'address_rvalue_rejected': ('main(){auto p;p= &(1+2);return(0);}', None),
+    'call_index_lvalue': ('data[2];fetch(){extrn data;return(data);} main(){extrn fetch,data;auto p;fetch()[1]=42;p= &fetch()[1];return(*p!=42 | p!= &data[1]);}',0),
     'no_argument_exit': ('main(){extrn exit; exit(); return(9);}', 0),
     'source_defined_exit': ('exit(){return(42);} main(){extrn exit;return(exit()!=42);}', 0),
     "bare_return_unused": ("f(){return;} main(){f();return(0);}", 0),

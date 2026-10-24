@@ -145,8 +145,9 @@ foreign ABI or floating-point argument convention is promised.
 
 Source-defined library functions replace host source-level calls, including
 function values. Internal calls within the bundled host runtime still use
-its own helpers. The native runtime supports writable function cells and
-interposition; the host backend does not yet implement that whole model.
+its own helpers. All three compilers support writable cells for source-defined functions.
+The native runtime also exposes writable library cells and interposition;
+the host and bootstrap still lack that complete runtime interface.
 
 Return conventions are per function, not a universal zero/success rule.
 In particular, printing and string helpers should not be used as reliable

@@ -223,10 +223,10 @@ static const char *get_mangled_name(const char *original) {
     char *mangled = mangle_name_raw(original);
     /* Strict B names do not share the host headers' namespace. Compatibility
        mode still isolates library replacements and escapes private prefixes. */
-    if (g_strict || runtime_function(original) || strncmp(original, "__bcc_", 6) == 0) {
+    if (g_strict || source_function(original) || runtime_function(original) || strncmp(original, "__bcc_", 6) == 0) {
         char *private_name = xmalloc(strlen(mangled) + 14);
         sprintf(private_name, "__bcc_user_%c_%s",
-                g_strict ? 'b' : runtime_function(original) ? 'r' : 'x', mangled);
+                g_strict ? 'b' : source_function(original) ? 'f' : runtime_function(original) ? 'r' : 'x', mangled);
         if (!g_compilation_arena) free(mangled);
         mangled = private_name;
     }
@@ -280,6 +280,16 @@ static int runtime_function(const char *name) {
     return 0;
 }
 
+static void emit_function_body_name(FILE *out, const char *name) {
+    if (!strcmp(name, "main")) fputs("__b_user_main", out);
+    else { fputs("__bcc_body_", out); emit_name(out, name); }
+}
+
+static void emit_function_cell(FILE *out, const char *name) {
+    emit_name(out, name);
+    fputs("[0]", out);
+}
+
 static void emit_function_name(FILE *out, const char *name) {
     if (strcmp(name, "main") == 0) fputs("__b_user_main", out);
     else if (runtime_function(name) && !source_function(name)) fprintf(out, "b_%s", name);
@@ -300,12 +310,11 @@ static void emit_known_external_function_prototypes(FILE *out, Program *prog) {
     int emitted = 0;
     for (size_t i = 0; i < g_known_functions.len; i++) {
         const char *name = (const char*)g_known_functions.data[i];
-        if (strcmp(name, "main") == 0 || strcmp(name, "b_main") == 0) continue;
         if (program_defines_function(prog, name)) continue;
 
         fputs("extern word ", out);
         emit_name(out, name);
-        fputs("();\n", out);
+        fputs("[];\n", out);
         emitted = 1;
     }
     if (emitted) fputc('\n', out);
@@ -767,7 +776,9 @@ void emit_expr(FILE *out, Expr *e, const char *filename) {
             int id = label_id(e->as.var);
             if (id) fprintf(out, "__b_label_value_%d", id);
             else if (e->builtin_argv) fputs("b_argv_vector", out);
-            else if (e->function_value) {
+            else if (e->function_value && source_function(e->as.var)) {
+                emit_function_cell(out, e->as.var);
+            } else if (e->function_value) {
                 fputs("B_FUNCTION(", out);
                 emit_function_name(out, e->as.var);
                 fputc(')', out);
@@ -781,9 +792,13 @@ void emit_expr(FILE *out, Expr *e, const char *filename) {
         }
 
         case EX_CALL: {
-            if (e->indirect_call) {
+            const char *direct = e->as.call.callee->kind == EX_VAR ? e->as.call.callee->as.var : NULL;
+            int cell_call = direct && !e->indirect_call &&
+                (source_function(direct) || (g_strict && !runtime_function(direct)));
+            if (e->indirect_call || cell_call) {
                 fputs("((word (*)())B_FUNCTION_CPTR(", out);
-                emit_expr(out, e->as.call.callee, filename);
+                if (cell_call) emit_function_cell(out, direct);
+                else emit_expr(out, e->as.call.callee, filename);
                 fputs("))(", out);
                 for (size_t i = 0; i < e->as.call.args.len; i++) {
                     if (i) fputs(", ", out);
@@ -1148,7 +1163,7 @@ void emit_ival_expr(FILE *out, Expr *e, const char *filename){
             fprintf(out, "__b_external_%s", get_mangled_name(e->as.var));
         else {
             emit_name(out, e->as.var);
-            if (global_data_kind(e->as.var) == 1) fputs("[0]", out);
+            if (source_function(e->as.var) || global_data_kind(e->as.var) == 1) fputs("[0]", out);
         }
         fputc(')', out);
         return;
@@ -1498,16 +1513,17 @@ static void emit_function_prototypes(FILE *out, Program *prog) {
     for (size_t i = 0; i < external_calls.len; ++i) {
         fputs("extern word ", out);
         emit_name(out, external_calls.data[i]);
-        fputs("();\n", out);
+        fputs("[];\n", out);
     }
     emit_known_external_function_prototypes(out, prog);
     for (size_t i = 0; i < prog->tops.len; i++) {
         Top *t = prog->tops.data[i];
         if (t->kind != TOP_FUNC) continue;
         Func *f = t->as.fn;
-        if (strcmp(f->name, "main") == 0 || strcmp(f->name, "b_main") == 0)
-            fputs("static word __b_user_main(", out);
-        else { fputs("word ", out); emit_name(out, f->name); fputc('(', out); }
+        if (!strcmp(f->name, "main") && f->params.len > 2)
+            dief("main supports at most two host compatibility parameters");
+        fputs("word ", out); emit_name(out, f->name); fputs("[1];\n", out);
+        fputs("static word ", out); emit_function_body_name(out, f->name); fputc('(', out);
         for (size_t j = 0; j < f->params.len; j++) {
             if (j) fputs(", ", out);
             fputs("word", out);
@@ -1550,6 +1566,11 @@ static void emit_global_initializers(FILE *out, Program *prog, const char *filen
         fputs("static void __attribute__((constructor(101))) __b_register_globals(void) {\n", out);
         for (size_t i = 0; i < prog->tops.len; i++) {
             Top *t = prog->tops.data[i];
+            if (t->kind == TOP_FUNC) {
+                const char *name = get_mangled_name(t->as.fn->name);
+                fprintf(out, "    (void)B_PTR_N(%s, sizeof(%s));\n", name, name);
+                continue;
+            }
             if (t->kind != TOP_EXTERN_DEF) continue;
             ExternItem *item = t->as.ext_def;
             const char *name = get_mangled_name(item->name);
@@ -1559,6 +1580,15 @@ static void emit_global_initializers(FILE *out, Program *prog, const char *filen
         }
         fputs("}\n", out);
     }
+    fputs("static void __attribute__((constructor(102))) __bcc_bind_functions(void) {\n", out);
+    for (size_t i = 0; i < prog->tops.len; ++i) {
+        Top *t = prog->tops.data[i];
+        if (t->kind != TOP_FUNC) continue;
+        fputs("    ", out); emit_function_cell(out, t->as.fn->name);
+        fputs(" = B_FUNCTION(", out); emit_function_body_name(out, t->as.fn->name);
+        fputs(");\n", out);
+    }
+    fputs("}\n", out);
     fputs("static void __b_initialize_globals(void) {\n", out);
     for (size_t i = 0; i < prog->tops.len; i++) {
         Top *t = prog->tops.data[i];
@@ -2534,14 +2564,14 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
 
         if (t->kind == TOP_FUNC) {
             Func *f = t->as.fn;
-            if (strcmp(f->name, "main") == 0 || strcmp(f->name, "b_main") == 0) {
+            if (strcmp(f->name, "main") == 0) {
                 has_main = 1;
                 main_param_count = f->params.len;
                 // Rename main to __b_user_main
                 fprintf(out, "word __b_user_main(");
             } else {
-                fputs("word ", out);
-                emit_name(out, f->name);
+                fputs("static word ", out);
+                emit_function_body_name(out, f->name);
                 fputc('(', out);
             }
             for (size_t p = 0; p < f->params.len; p++) {
@@ -2561,16 +2591,12 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
         fputs("int main(int argc, char **argv){\n", out);
         fputs("    __b_setargs(argc, argv);\n", out);
         fputs("    __b_init();\n", out);
-        if (main_param_count == 0) {
-            fputs("    return (int)__b_user_main();\n", out);
-        } else if (main_param_count == 1) {
-            fputs("    return (int)__b_user_main((word)argc);\n", out);
-        } else if (main_param_count == 2) {
-            fputs("    return (int)__b_user_main((word)argc, __b_argvalues());\n", out);
-        } else {
-            // For more parameters, we don't support yet
-            fputs("    return (int)__b_user_main();\n", out);
-        }
+        fputs("    return (int)((word (*)())B_FUNCTION_CPTR(", out);
+        emit_function_cell(out, "main");
+        fputs("))(", out);
+        if (main_param_count >= 1) fputs("(word)argc", out);
+        if (main_param_count == 2) fputs(", __b_argvalues()", out);
+        fputs(");\n", out);
         fputs("}\n", out);
     }
 }
@@ -2629,13 +2655,13 @@ void emit_program_c_ext(FILE *out, Program *prog, const char *filename, int byte
 
         if (t->kind == TOP_FUNC) {
             Func *f = t->as.fn;
-            if (strcmp(f->name, "main") == 0 || strcmp(f->name, "b_main") == 0) {
+            if (strcmp(f->name, "main") == 0) {
                 has_main = 1;
                 main_param_count = f->params.len;
                 fprintf(out, "word __b_user_main(");
             } else {
-                fputs("word ", out);
-                emit_name(out, f->name);
+                fputs("static word ", out);
+                emit_function_body_name(out, f->name);
                 fputc('(', out);
             }
             for (size_t p = 0; p < f->params.len; p++) {
@@ -2655,15 +2681,12 @@ void emit_program_c_ext(FILE *out, Program *prog, const char *filename, int byte
         fputs("int main(int argc, char **argv){\n", out);
         fputs("    __b_setargs(argc, argv);\n", out);
         fputs("    __b_init();\n", out);
-        if (main_param_count == 0) {
-            fputs("    return (int)__b_user_main();\n", out);
-        } else if (main_param_count == 1) {
-            fputs("    return (int)__b_user_main((word)argc);\n", out);
-        } else if (main_param_count == 2) {
-            fputs("    return (int)__b_user_main((word)argc, __b_argvalues());\n", out);
-        } else {
-            fputs("    return (int)__b_user_main();\n", out);
-        }
+        fputs("    return (int)((word (*)())B_FUNCTION_CPTR(", out);
+        emit_function_cell(out, "main");
+        fputs("))(", out);
+        if (main_param_count >= 1) fputs("(word)argc", out);
+        if (main_param_count == 2) fputs(", __b_argvalues()", out);
+        fputs(");\n", out);
         fputs("}\n", out);
     }
 }
