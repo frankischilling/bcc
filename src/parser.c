@@ -75,46 +75,14 @@ static int is_unary(TokenKind k) {
             k == TK_PLUSPLUS || k == TK_MINUSMINUS);
 }
 
-/*
- * B operator precedence table (Thompson B 1972).
+/* kbman sections 4.1-4.11, from tightest to loosest:
+ * calls/indexing; postfix; unary; multiplication/division/remainder;
+ * addition/subtraction; shifts; relations; equality; &; |; conditional;
+ * assignment. Assignments and conditionals associate right to left.
  *
- * This table defines the canonical operator precedence for the B language,
- * based on the 1972 B Reference Manual and validated against known B behavior.
- *
- * Precedence from highest to lowest:
- * Level 15: () [] f(), left-to-right, grouping, indexing, call.
- * Level 14: postfix increment and decrement, left-to-right.
- * Level 13: prefix increment/decrement plus unary - ! * &, right-to-left.
- * Level 12: * / %, left-to-right.
- * Level 11: + -, left-to-right.
- * Level 10: << >>, left-to-right.
- * Level 9: < <= > >=, left-to-right.
- * Level 8: == !=, left-to-right.
- * Level 7: &, left-to-right.
- * Level 6: |, left-to-right.
- * Level 5: ||, left-to-right, BCC logical OR extension.
- * Level 4: ?:, right-to-left.
- * Level 3: = =+ =- =* =/ =% =<< =>> =& =|, right-to-left.
- * Level 2: comma, left-to-right.
- *
- * NOTES:
- * - Thompson B72 has no || or && operators. This compiler accepts || in
- *   extension mode only; use conditionals or bitwise operators in strict B.
- * - Compound assignments are B-style: x =+ 1 (not x += 1)
- * - Assignment is right-associative: a = b = c means a = (b = c)
- * - Relational operators return 1 (true) or 0 (false)
- * - All operators work on machine words (no type distinctions)
- *
- * EVALUATION ORDER:
- * - Binary operators evaluate left operand first, then right
- * - Function arguments: left-to-right (B convention, unspecified in original)
- * - Side effects from increment, decrement, and assignment complete before sequence points
- *
- * DIFFERENCES FROM C:
- * - No logical && operator; || is a BCC extension
- * - Compound assignments: B uses =op, C uses op=
- * - B shifts at same level as + - (C puts shifts below relational)
- * - B has no sizeof, cast, or -> operators
+ * BCC also accepts || and comma expressions in compatibility syntax.
+ * The emitter sequences & and | operands from left to right. The manual
+ * leaves function argument evaluation order unspecified.
  */
 
 static int precedence(TokenKind k) {
@@ -138,16 +106,17 @@ static int precedence(TokenKind k) {
         case TK_GT:
         case TK_GE:     return 6;
 
-        /* Level 10-11: Additive and Shift (B groups these together) */
-        case TK_PLUS:
-        case TK_MINUS:
+        /* Shifts bind less tightly than addition. */
         case TK_LSHIFT:
         case TK_RSHIFT: return 7;
+
+        case TK_PLUS:
+        case TK_MINUS: return 8;
 
         /* Level 12: Multiplicative (highest binary precedence) */
         case TK_STAR:
         case TK_SLASH:
-        case TK_PERCENT:return 8;
+        case TK_PERCENT:return 9;
 
         default:         return 0;
     }
@@ -227,8 +196,10 @@ Stmt *parse_auto_decl(Parser *P) {
 
         next(P);
 
-        // Vector syntax: either legacy "name constant" or bracketed "name[constant]"
+        /* PDP-11 syntax is name constant; brackets are a dialect extension. */
         if (accept(P, TK_LBRACK)) {
+            if (!EXT_ENABLED(EXT_BRACKET_AUTO))
+                error_at(&P->cur, P->source, "bracketed auto vectors are outside Thompson B72; use auto name size");
             item->size = parse_expr(P);
             expect(P, TK_RBRACK);
         } else if (P->cur.kind == TK_NUM) {
@@ -565,9 +536,7 @@ static Stmt *parse_goto(Parser *P) {
     int line = P->cur.line, col = P->cur.col;
     expect(P, TK_GOTO);
 
-    if (P->cur.kind != TK_ID) dief("expected label after goto at %d:%d", P->cur.line, P->cur.col);
-    char *target = sdup(P->cur.lexeme);
-    next(P);
+    Expr *target = parse_expr(P);
 
     expect(P, TK_SEMI);
 
@@ -758,7 +727,9 @@ Expr *parse_primary(Parser *P) {
     }
     if (P->cur.kind == TK_STR) {
         Expr *e = new_expr(EX_STR, line, col);
-        e->as.str = sdup(P->cur.lexeme);
+        e->string_len = P->cur.string_len;
+        e->as.str = xmalloc(e->string_len + 1);
+        memcpy(e->as.str, P->cur.lexeme, e->string_len + 1);
         next(P);
         return e;
     }

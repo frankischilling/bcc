@@ -1,0 +1,3 @@
+/bcc
+/src/*.o
+__pycache__/

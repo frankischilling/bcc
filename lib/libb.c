@@ -5,6 +5,7 @@
  * It is compiled separately and linked with generated B code.
  */
 
+#define B_TARGET_DEFINE
 #include "libb.h"
 
 /* Global I/O State */
@@ -142,7 +143,9 @@ word b_abort(void) {
 }
 
 word b_free(word p) {
-    free(B_CPTR(p));
+    void *host = B_CPTR(p);
+    B_FORGET(host);
+    free(host);
     return 0;
 }
 
@@ -155,7 +158,7 @@ word b_alloc(word nwords) {
         fprintf(stderr, "alloc: out of memory\n");
         exit(1);
     }
-    return B_PTR(p);
+    return B_PTR_N(p, bytes);
 }
 
 /* Low-Level Memory Operations */
@@ -164,13 +167,7 @@ word b_load(word addr) {
     return B_DEREF(addr);
 }
 
-void b_store(word addr, word v) {
-#if B_BYTEPTR
-    *(word*)(uword)addr = v;
-#else
-    *(word*)(uword)((uword)addr * sizeof(word)) = v;
-#endif
-}
+void b_store(word addr, word v) { B_DEREF(addr) = WVAL(v); }
 
 /* String/Character Operations */
 
@@ -179,29 +176,29 @@ void b_store(word addr, word v) {
  * In B_BYTEPTR=0 mode, bytes are packed into words with byte 0 at the LSB.
  */
 word b_char(word s, word i) {
-#if B_BYTEPTR
+#if B_BYTEPTR && WORD_BITS != 16
     const unsigned char *p = (const unsigned char*)B_CPTR(s);
     return (word)p[(size_t)i];
 #else
-    const uword W = (uword)sizeof(word);
+    const uword W = (uword)B_WORD_BYTES;
     uword wi = (uword)i / W;
     uword bi = (uword)i % W;
-    uword w  = (uword)b_load((word)(s + (word)wi));
+    uword w  = (uword)B_INDEX(s, wi);
     return (word)((w >> (bi * 8)) & 0xFF);
 #endif
 }
 
 word b_lchar(word s, word i, word c) {
-#if B_BYTEPTR
+#if B_BYTEPTR && WORD_BITS != 16
     unsigned char *p = (unsigned char*)B_CPTR(s);
     p[(size_t)i] = (unsigned char)(c & 0xFF);
     return c;
 #else
-    const uword W = (uword)sizeof(word);
+    const uword W = (uword)B_WORD_BYTES;
     uword wi = (uword)i / W;
     uword bi = (uword)i % W;
 
-    word addr = (word)(s + (word)wi);
+    word addr = B_ADDR(B_INDEX(s, wi));
     uword w   = (uword)b_load(addr);
 
     uword mask = (uword)0xFF << (bi * 8);
@@ -289,7 +286,7 @@ void __b_bstr_to_cstr(word s, char *buf, size_t max) {
 
 word __b_pack_cstr(const char *s) {
     size_t n = strlen(s);
-    size_t W = sizeof(word);
+    size_t W = B_WORD_BYTES;
     size_t total = n + 1;  /* +1 for 004 terminator */
     size_t words = (total + W - 1) / W;
 
@@ -508,7 +505,7 @@ word b_reread(void) {
 /* File I/O */
 
 word b_open(word name, word mode) {
-    const char *p = (const char*)B_CPTR(name);
+    const char *p = __b_cstr(name);
     int flags = ((int)mode == 0) ? O_RDONLY : O_WRONLY;
     return (word)open(p, flags);
 }
@@ -564,18 +561,37 @@ word b_close(word fd) {
 }
 
 word b_read(word fd, word buf, word n) {
+#if WORD_BITS == 16
+    if (n < 0) return -1;
+    unsigned char *bytes = malloc(n ? (size_t)n : 1);
+    if (!bytes) return -1;
+    ssize_t count = read((int)fd, bytes, (size_t)n);
+    for (ssize_t i = 0; i < count; i++) b_lchar(buf, (word)i, bytes[i]);
+    free(bytes);
+    return WVAL(count);
+#else
     char *p = (char*)B_CPTR(buf);
     if ((size_t)n < sizeof(word)) memset(p, 0, sizeof(word));
     return (word)read((int)fd, p, (size_t)n);
+#endif
 }
 
 word b_write(word fd, word buf, word n) {
-    const char *p = (const char*)B_CPTR(buf);
-    return (word)write((int)fd, p, (size_t)n);
+#if WORD_BITS == 16
+    if (n < 0) return -1;
+    unsigned char *bytes = malloc(n ? (size_t)n : 1);
+    if (!bytes) return -1;
+    for (word i = 0; i < n; i++) bytes[i] = (unsigned char)b_char(buf, i);
+    ssize_t count = write((int)fd, bytes, (size_t)n);
+    free(bytes);
+    return WVAL(count);
+#else
+    return (word)write((int)fd, B_CPTR(buf), (size_t)n);
+#endif
 }
 
 word b_creat(word name, word mode) {
-    const char *p = (const char*)B_CPTR(name);
+    const char *p = __b_cstr(name);
     return (word)creat(p, (mode_t)mode);
 }
 
@@ -600,7 +616,7 @@ word b_wait(void) {
 }
 
 word b_execl(word path, ...) {
-    const char *p = (const char*)B_CPTR(path);
+    const char *p = __b_cstr(path);
 
     char *argv[64];
     int i = 0;
@@ -621,7 +637,7 @@ word b_execl(word path, ...) {
 }
 
 word b_execv(word path, word argv) {
-    const char *p = (const char*)B_CPTR(path);
+    const char *p = __b_cstr(path);
     word *av = (word*)B_CPTR(argv);
 
     char *cargv[256];
@@ -689,6 +705,7 @@ word b_time(word tvp) {
 
 word b_ctime(word tvp) {
     static word bufw[32];
+    word bp = B_PTR_N(bufw, sizeof(bufw));
     word *tv = (word*)B_CPTR(tvp);
     time_t t = (time_t)((uint16_t)tv[0]) | ((time_t)((uint16_t)tv[1]) << 16);
 
@@ -697,11 +714,11 @@ word b_ctime(word tvp) {
 
     size_t i = 0;
     while (cs[i] && cs[i] != '\n' && i < 63) {
-        b_lchar(B_PTR(bufw), (word)i, (word)(unsigned char)cs[i]);
+        b_lchar(bp, (word)i, (word)(unsigned char)cs[i]);
         i++;
     }
-    b_lchar(B_PTR(bufw), (word)i, 004);
-    return B_PTR(bufw);
+    b_lchar(bp, (word)i, 004);
+    return bp;
 }
 
 /* System Functions */
@@ -715,33 +732,33 @@ word b_setuid(word uid) {
 }
 
 word b_chdir(word path) {
-    const char *p = (const char*)B_CPTR(path);
+    const char *p = __b_cstr(path);
     return (word)chdir(p);
 }
 
 word b_chmod(word path, word mode) {
-    const char *p = (const char*)B_CPTR(path);
+    const char *p = __b_cstr(path);
     return (word)chmod(p, (mode_t)mode);
 }
 
 word b_chown(word path, word owner) {
-    const char *p = (const char*)B_CPTR(path);
+    const char *p = __b_cstr(path);
     return (word)chown(p, (uid_t)owner, (gid_t)-1);
 }
 
 word b_link(word old, word new) {
-    const char *o = (const char*)B_CPTR(old);
-    const char *n = (const char*)B_CPTR(new);
+    const char *o = __b_cstr(old);
+    const char *n = __b_cstr(new);
     return (word)link(o, n);
 }
 
 word b_unlink(word path) {
-    const char *p = (const char*)B_CPTR(path);
+    const char *p = __b_cstr(path);
     return (word)unlink(p);
 }
 
 word b_stat(word path, word bufp) {
-    const char *p = (const char*)B_CPTR(path);
+    const char *p = __b_cstr(path);
     struct stat st;
     if (stat(p, &st) != 0) return -1;
     if (bufp) {
@@ -768,7 +785,7 @@ word b_fstat(word fd, word bufp) {
 }
 
 word b_makdir(word path, word mode) {
-    const char *p = (const char*)B_CPTR(path);
+    const char *p = __b_cstr(path);
     return (word)mkdir(p, (mode_t)mode);
 }
 

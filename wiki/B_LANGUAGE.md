@@ -1,6 +1,11 @@
 # B Programming Language Reference
 
-This document provides comprehensive documentation for the B programming language as implemented by the **BCC compiler**. BCC targets the Thompson B dialect (PDP-11, 1972) while supporting modern host systems.
+This guide describes BCC, which compiles B through C. The language baseline is
+Thompson's January 7, 1972 PDP-11 reference. Examples using `break`, `continue`,
+`default`, bracketed automatic vectors, or C-style escapes require compatibility
+mode. Use `--strict --pedantic --word=16` for the covered PDP-11 behavior.
+See [historical conformance references](HISTORICAL_CONFORMANCE.md) for the
+primary sources and the limits of that mode.
 
 ---
 
@@ -21,8 +26,8 @@ This document provides comprehensive documentation for the B programming languag
 
 ### Memory Model
 
-- **Byte-Addressed (default):** Standard byte-addressed pointers (modern C semantics)
-- **Word-Addressed:** Pointers refer to word boundaries when byte-pointer mode is disabled
+- **Byte-addressed (compatibility default):** Standard byte-addressed pointers (modern C semantics)
+- **Word-addressed:** `--wordptr`, strict mode, and 16-bit mode select word addresses unless `--byteptr` is explicit
 - **Character Packing:** Thompson B72 character constants are one or two bytes; default extension mode also accepts three or four
 - **String Termination:** Strings use `*e` (EOT, ASCII 4) as terminator, not null bytes
 
@@ -717,9 +722,9 @@ main() {
 
 ### See Also
 
-- [BCC Compiler README](README.md)
+- [BCC Compiler README](../README.md)
 - [Runtime Library Reference](WIKI_RUNTIME_LIBRARY.md)
 - [Data Types & Literals](WIKI_DATA_TYPES.md)
 - [Examples](WIKI_EXAMPLES.md)
 - [File I/O](WIKI_FILE_IO.md)
-- [System Calls](WIKI_SYSTEM_CALLS.md)
+- [System Calls](WIKI_RUNTIME_LIBRARY.md)

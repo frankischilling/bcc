@@ -96,26 +96,36 @@ static char *compile_libb(int verbose, int byteptr, int word_bits) {
     char libb_c_path[4096];
     
     snprintf(libb_c_path, sizeof(libb_c_path), "%s/libb.c", g_libb_dir);
-    snprintf(libb_o_path, sizeof(libb_o_path), "/tmp/bcc_libb_%d_%d.o", byteptr, word_bits);
+    /* Include headers in the cache key so the compiler and runtime use the
+     * same address model, including when multiple checkouts share /tmp. */
+    uint64_t key = UINT64_C(14695981039346656037);
+    const char *dependencies[] = {"libb.c", "libb.h", "btarget.h"};
+    for (size_t i = 0; i < sizeof(dependencies) / sizeof(dependencies[0]); i++) {
+        char path[8192];
+        snprintf(path, sizeof(path), "%s/%s", g_libb_dir, dependencies[i]);
+        FILE *input = fopen(path, "rb");
+        if (!input) dief("cannot read runtime dependency %s", path);
+        int c;
+        while ((c = fgetc(input)) != EOF) {
+            key ^= (unsigned char)c;
+            key *= UINT64_C(1099511628211);
+        }
+        if (ferror(input)) dief("cannot read runtime dependency %s", path);
+        fclose(input);
+    }
+    snprintf(libb_o_path, sizeof(libb_o_path), "/tmp/bcc_libb_%016" PRIx64 "_%d_%d.o", key, byteptr, word_bits);
     
     /* Check if libb.c exists */
     if (access(libb_c_path, R_OK) != 0) {
         dief("libb.c not found at %s", libb_c_path);
     }
     
-    /* Check if we need to recompile (simple timestamp check) */
-    struct stat src_stat, obj_stat;
-    int need_compile = 1;
-    if (stat(libb_c_path, &src_stat) == 0 && stat(libb_o_path, &obj_stat) == 0) {
-        if (obj_stat.st_mtime >= src_stat.st_mtime) {
-            need_compile = 0;
-        }
-    }
+    int need_compile = access(libb_o_path, R_OK) != 0;
     
     if (need_compile) {
         if (verbose) fprintf(stderr, "Compiling runtime library...\n");
         
-        char include_flag[4096];
+        char include_flag[8192];
         char byteptr_flag[64];
         char wordbits_flag[64];
         
@@ -123,10 +133,15 @@ static char *compile_libb(int verbose, int byteptr, int word_bits) {
         snprintf(byteptr_flag, sizeof(byteptr_flag), "-DB_BYTEPTR=%d", byteptr ? 1 : 0);
         snprintf(wordbits_flag, sizeof(wordbits_flag), "-DWORD_BITS=%d", word_bits);
         
+        char temporary[8192];
+        snprintf(temporary, sizeof(temporary), "%s.XXXXXX", libb_o_path);
+        int fd = mkstemp(temporary);
+        if (fd < 0) dief("cannot create runtime object");
+        close(fd);
         const char *argv[] = {
             "gcc", "-std=c99", "-O2", "-c",
             include_flag, byteptr_flag, wordbits_flag,
-            libb_c_path, "-o", libb_o_path, NULL
+            libb_c_path, "-o", temporary, NULL
         };
         
         pid_t pid = fork();
@@ -135,7 +150,12 @@ static char *compile_libb(int verbose, int byteptr, int word_bits) {
         
         int st = 0;
         if (waitpid(pid, &st, 0) < 0 || !WIFEXITED(st) || WEXITSTATUS(st) != 0) {
+            unlink(temporary);
             dief("Failed to compile libb.c");
+        }
+        if (rename(temporary, libb_o_path) != 0) {
+            unlink(temporary);
+            dief("cannot cache runtime object");
         }
     }
     
@@ -317,7 +337,8 @@ int main(int argc, char **argv) {
     int wall = 1;          /* -Wall (default on) */
     int wextra = 1;        /* -Wextra (default on) */
     int werror = 0;        /* -Werror */
-    int byteptr = 1;       /* byte pointer flag (default on for byte-addressed programs) */
+    int byteptr = 1;       /* Compatibility mode uses byte addresses. */
+    int pointer_mode_explicit = 0;
     int dump_tokens = 0;   /* token dump flag */
     int dump_ast = 0;      /* AST dump flag */
     int dump_c = 0;        /* C dump flag */
@@ -332,6 +353,7 @@ int main(int argc, char **argv) {
 
     /* Initialize libb path based on executable location */
     init_libb_path(argv[0]);
+    g_libb_path = g_libb_dir;
 
     /* Initialize compilation arena */
     g_compilation_arena = arena_new();
@@ -370,6 +392,10 @@ int main(int argc, char **argv) {
             werror = 1;
         } else if (strcmp(argv[i], "--byteptr") == 0) {
             byteptr = 1;
+            pointer_mode_explicit = 1;
+        } else if (strcmp(argv[i], "--wordptr") == 0) {
+            byteptr = 0;
+            pointer_mode_explicit = 1;
         } else if (strncmp(argv[i], "--word=", 7) == 0) {
             const char *val = argv[i] + 7;
             if (strcmp(val, "16") == 0) {
@@ -422,6 +448,8 @@ int main(int argc, char **argv) {
         }
     }
 
+    if (!pointer_mode_explicit && (g_strict || word_bits == 16)) byteptr = 0;
+
     /* Set developer flags */
     g_no_line = no_line;
     g_verbose_errors = verbose_errors;
@@ -449,13 +477,14 @@ int main(int argc, char **argv) {
         fprintf(stderr, "  -Wno-extra  disable extra warnings\n");
         fprintf(stderr, "  -Werror     treat warnings as errors\n");
         fprintf(stderr, "  --byteptr   use byte-addressed pointers\n");
+        fprintf(stderr, "  --wordptr   use word-addressed pointers (strict/16-bit default)\n");
         fprintf(stderr, "  --word=N    word size: 16, 32, or host (default: host)\n");
-        fprintf(stderr, "              16-bit mode wraps arithmetic like PDP-11\n");
+        fprintf(stderr, "              16-bit mode uses translated B addresses and packed words\n");
         fprintf(stderr, "  -v          verbose compilation output\n");
         fprintf(stderr, "  --inline-runtime  embed runtime in each C file (old behavior)\n");
         fprintf(stderr, "\n");
         fprintf(stderr, "Strictness:\n");
-        fprintf(stderr, "  --strict        strict B72 mode: disable all modern extensions\n");
+        fprintf(stderr, "  --strict        select the Thompson PDP-11 B72 dialect checks\n");
         fprintf(stderr, "  --pedantic      error on any non-standard syntax (use with --strict)\n");
         fprintf(stderr, "\n");
         fprintf(stderr, "Extensions disabled by --strict:\n");
@@ -463,6 +492,8 @@ int main(int argc, char **argv) {
         fprintf(stderr, "  - Line comments (//)         use /* */ instead\n");
         fprintf(stderr, "  - Backslash escapes (\\n)     use *n instead\n");
         fprintf(stderr, "  - C-style compound (+=)      use =+ instead\n");
+        fprintf(stderr, "  - Bracketed auto vectors      use auto v 3; instead\n");
+        fprintf(stderr, "  - break/continue/default      ordinary identifiers in B72\n");
         fprintf(stderr, "  - Logical OR (||)            use | or ?: instead\n");
         fprintf(stderr, "  - Long char constants        use one or two chars\n");
         fprintf(stderr, "\n");

@@ -94,7 +94,8 @@ in expression context creates an implicit C_EXTRN.
 
 ## §8  Library Functions
 
-All kbman §8 functions are provided.  Two implementation files:
+The runtime exposes the documented function names. The `ctime` entry remains
+a placeholder. Two implementation files:
 
 | Function | File | Notes |
 |---|---|---|
@@ -103,7 +104,7 @@ All kbman §8 functions are provided.  Two implementation files:
 | `chdir`, `chmod`, `chown` | `runtime/brt.s` | V1 syscalls 12, 15, 16 |
 | `close` | `runtime/brt.s` | V1 syscall 6 |
 | `creat` | `runtime/brt.s` | V1 syscall 8 |
-| `ctime` | `runtime/brt.s` | not a V1 syscall - stub zero-fills 16-byte buf |
+| `ctime` | `runtime/brt.s` | placeholder: writes `Jan  1 00:00:00` regardless of the input |
 | `execl`, `execv` | `runtime/brt.s` | V1 syscall 11 (exec) |
 | `exit` | `runtime/brt.s` | V1 syscall 1 |
 | `fork` | `runtime/brt.s` | V1 syscall 2 |

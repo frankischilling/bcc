@@ -29,8 +29,8 @@ static int parse_escape(Lexer *L, int line, int col) {
     switch (e) {
         case '0': return '\0';    /* *0 - null */
         case 'e': return '\4';    /* *e - escape/end marker (EOT, octal 004) */
-        case '(': return '(';     /* *( - left parenthesis */
-        case ')': return ')';     /* *) - right parenthesis */
+        case '(': return '{';     /* kbman section 2.2 */
+        case ')': return '}';
         case 't': return '\t';    /* *t - tab */
         case '*': return '*';     /* ** - asterisk */
         case '\'': return '\'';   /* *' - single quote */
@@ -120,6 +120,7 @@ Token mk_tok(TokenKind k, int line, int col, const char *filename) {
     Token t;
     t.kind = k;
     t.lexeme = NULL;
+    t.string_len = 0;
     t.owns_lexeme = 0;  /* default: doesn't own lexeme */
     t.num = 0;
     t.line = line;
@@ -135,12 +136,12 @@ static TokenKind kw_kind(const char *s) {
     if (strcmp(s, "while") == 0) return TK_WHILE;
     if (strcmp(s, "return") == 0) return TK_RETURN;
     if (strcmp(s, "extrn") == 0) return TK_EXTRN;
-    if (strcmp(s, "break") == 0) return TK_BREAK;
-    if (strcmp(s, "continue") == 0) return TK_CONTINUE;
+    if (EXT_ENABLED(EXT_CONTROL) && strcmp(s, "break") == 0) return TK_BREAK;
+    if (EXT_ENABLED(EXT_CONTROL) && strcmp(s, "continue") == 0) return TK_CONTINUE;
     if (strcmp(s, "goto") == 0) return TK_GOTO;
     if (strcmp(s, "switch") == 0) return TK_SWITCH;
     if (strcmp(s, "case") == 0) return TK_CASE;
-    if (strcmp(s, "default") == 0) return TK_DEFAULT;
+    if (EXT_ENABLED(EXT_CONTROL) && strcmp(s, "default") == 0) return TK_DEFAULT;
     return TK_ID;
 }
 
@@ -291,6 +292,7 @@ Token lx_next(Lexer *L) {
 
         Token t = mk_tok(TK_STR, line, col, L->filename);
         t.lexeme = buf;
+        t.string_len = n;
         t.owns_lexeme = owns_lexeme;
         return t;
     }
@@ -313,7 +315,12 @@ Token lx_next(Lexer *L) {
             if (ch == '*') {
                 int look = lx_peek(L);
                 switch (look) {
-                    case '\'': /* literal '*' before closing quote */ break;
+                    case '\'':
+                        /* *' quotes a single quote; '*' remains a one-byte
+                         * constant when no second closing quote follows. */
+                        if (L->i + 1 < L->len && L->src[L->i + 1] == '\'')
+                            ch = parse_escape(L, line, col);
+                        break;
                     case '0': case 'e': case '(': case ')':
                     case 't': case '*': case '"': case 'n':
                         ch = parse_escape(L, line, col);
@@ -372,7 +379,7 @@ Token lx_next(Lexer *L) {
         int next = lx_peek2(L);
         if (next == '+') { lx_get(L); lx_get(L); return mk_tok(TK_PLUSEQ, line, col, L->filename); }
         if (next == '-') { lx_get(L); lx_get(L); return mk_tok(TK_MINUSEQ, line, col, L->filename); }
-        /* do not treat '=*' as '*=' to allow assignments like x = *ptr */
+        if (next == '*') { lx_get(L); lx_get(L); return mk_tok(TK_STAREQ, line, col, L->filename); }
         if (next == '/') { lx_get(L); lx_get(L); return mk_tok(TK_SLASHEQ, line, col, L->filename); }
         if (next == '%') { lx_get(L); lx_get(L); return mk_tok(TK_PERCENTEQ, line, col, L->filename); }
         if (next == '&') { lx_get(L); lx_get(L); return mk_tok(TK_ANDEQ, line, col, L->filename); }

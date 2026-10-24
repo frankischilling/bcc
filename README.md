@@ -1,20 +1,30 @@
 # BCC - B Programming Language Compiler
 
-A faithful implementation of Ken Thompson's B programming language compiler from Bell Labs, using the January 7, 1972 PDP-11 *Users' Reference to B* as the canonical language reference. BCC is written in C99, targets the GNU toolchain (gcc + binutils), and ships with a full `libb` built on top of libc for practical, portable use.
+BCC compiles B source through C99 and the GNU toolchain. Its language baseline
+is Ken Thompson's January 7, 1972 PDP-11 *Users' Reference to B*. The host
+runtime uses libc; it does not reproduce the Unix V1 ABI or original threaded
+object code.
 
-The repository also includes a **basic working** B compiler for **PDP-11 Unix V1**, implemented in **Unix V1 C** and maintained under [`pdp-11/bcc-pdp/`](pdp-11/bcc-pdp/) (details in [PDP-11 Unix V1 native compiler](#pdp-11-unix-v1-native-compiler-pdp-11-bcc-pdp) below).
+The separate native compiler in [`pdp-11/bcc-pdp/`](pdp-11/bcc-pdp/) runs on
+PDP-11 Unix V1. Its pointer model and runtime have their own limitations.
+
+For historical source, use:
+
+```bash
+./bcc --strict --pedantic --word=16 program.b -o program
+```
+
+This selects the PDP-11 syntax checks, 16-bit arithmetic, word addresses, and
+two-byte character packing. Default mode retains host-sized words and
+compatibility syntax. See [historical conformance references](wiki/HISTORICAL_CONFORMANCE.md)
+for the source hierarchy, dialect differences, tests, and remaining gaps.
 
 ## Overview
 
-BCC is a complete B compiler written in C99 that implements Ken Thompson's PDP-11 B language as documented in 1972. B is an untyped systems programming language where everything is a machine word, with explicit operations for indirection, address-of, and pointer arithmetic.
-
-This implementation includes:
-- A basic working native B compiler for PDP-11 Unix V1 in V1 C ([`pdp-11/bcc-pdp/`](pdp-11/bcc-pdp/))
-- Full B language compiler matching PDP-11 B semantics
-- Complete runtime library (`libb.a`) with all original functions
-- Authentic B syntax including compound assignments (`=+`, `=-`, etc.)
-- Word-based memory model with configurable pointer addressing modes
-- Historical accuracy to Thompson's 1972 PDP-11 B reference, with modern conveniences kept behind extension mode
+B has one word-sized value representation. Integer arithmetic, addresses,
+labels, and function values use that representation. BCC supports automatic
+and external variables, vectors, functions, conditional statements, loops,
+switches, label values, and computed branches within a function.
 
 ## Features
 
@@ -24,13 +34,13 @@ This implementation includes:
 - **Auto variable declarations**: Local variables with `auto`
 - **External declarations**: Global variables with `extrn`
 - **Function definitions**: `name(args) { ... }` syntax
-- **Control structures**: `if`/`else`, `while`, `break`/`continue`, `switch`/`case` (fall-through by default)
+- **Control structures**: `if`/`else`, `while`, and `switch`/`case`; compatibility mode also accepts `break`, `continue`, and switch defaults
 - **Arrays (vectors)**: `name[size]` with word-addressed indexing
-- **Goto and labels**: Unrestricted control flow
+- **Goto and labels**: Direct and computed branches within the current function
 - **Truth values**: Relational/equality operators return 1 (true) or 0 (false)
 
 ### B-Specific Features
-- **Compound assignments**: `=+`, `=-`, `=*`, `=/`, `=%`, `=&`, `=|`, `=<<`, `=>>` (value op variable)
+- **Compound assignments**: `=+`, `=-`, `=*`, `=/`, `=%`, `=&`, `=|`, `=<<`, `=>>` (variable op value)
 - **String literals**: `*e` terminated (EOT marker), not null-terminated
 - **Character handling**: `char(base, offset)` and `lchar(base, offset, value)` for byte access (endian-neutral)
 - **Escape sequences**: `*n` (newline), `*t` (tab), `*e` (end), `*0` (null), `**` (asterisk)
@@ -45,7 +55,7 @@ This implementation includes:
 - **Flexible organization**: Split large programs across logical modules
 
 ### Standard Library (`libb.a`)
-Complete implementation of B's runtime library (using libc) including:
+The libc-based runtime provides:
 - I/O functions: `putchar`, `getchar`, `print`, `printf`, `putstr`, `getstr`
 - File operations: `open`, `close`, `read`, `write`, `creat`, `seek`
 - File redirection helpers: `openr`, `openw`, `flush` for switching stdin/stdout units
@@ -58,7 +68,7 @@ Complete implementation of B's runtime library (using libc) including:
 Link B programs with any C library:
 - **`-l LIB`**: Link with C library LIB (e.g., `-l raylib`, `-l ncurses`)
 - **`-X FLAG`**: Pass arbitrary GCC flags (e.g., `-X -O3`, `-X -I/path/to/include`)
-- **Full C Compatibility**: Direct access to modern libraries like raylib, SDL, OpenGL
+- **C library calls**: Host mode can call libraries such as raylib, SDL, and OpenGL; 16-bit packed storage requires explicit conversion at foreign interfaces
 - **Custom Build Options**: Include paths, defines, optimization, and linker flags
 - Dynamic loading: set `B_CALLF_LIB=/path/to/lib1.so:/path/to/lib2.so` so `callf` can find your Fortran/GMAP symbols via `dlsym` (also tries `name_` for Fortran)
 - System calls: `chdir`, `chmod`, `chown`, `link`, `unlink`, etc.
@@ -92,7 +102,8 @@ Link B programs with any C library:
 - `-g`: Include debug information
 - `-Wall`: Enable all warnings (default)
 - `-Werror`: Treat warnings as errors
-- `--byteptr`: Use byte-addressed pointers
+- `--byteptr`: Select byte-addressed pointers explicitly
+- `--wordptr`: Select word-addressed pointers explicitly
 - `--word={host|16|32}`: Select word size/semantics (see Word Semantics Modes; mainly for historical compatibility)
 - `--keep-c`: Don't delete temporary C files after compilation
 - `--emit-c`: Generate C files with nice names (file.b → file.b.c)
@@ -106,53 +117,41 @@ Link B programs with any C library:
 - `--no-line`: Disable #line directives
 - `--verbose-errors`: Use descriptive error messages instead of 2-letter codes
 
-### Strict Mode
+### Strict mode
 
-BCC defaults to accepting modern conveniences (hex literals, `//` comments, C-style `+=`, `||`, longer character constants). Use `--strict --pedantic` to enforce Thompson B72 syntax and report non-standard constructs directly.
+`--strict` selects the PDP-11 dialect. `--pedantic` gives direct diagnostics
+for disabled compatibility syntax, including hex literals, line comments,
+backslash escapes, C-style assignments, and logical OR. Strict mode also
+rejects bracketed automatic vectors and unresolved internal names.
 
-**Flags:**
-- `--strict`: Disable all modern extensions (strict B72 mode)
-- `--pedantic`: Error on non-standard syntax (use with `--strict`)
+Use `auto v 3;` for a three-word automatic vector. The words `break`,
+`continue`, and `default` are ordinary identifiers in this dialect. They can
+name declared variables or labels; they do not introduce control statements.
+Kernighan's tutorial describes another B environment that includes `break`,
+`default`, and bracketed automatic vectors. Those forms remain available in
+BCC's default compatibility mode.
 
-**Extensions Disabled by `--strict`:**
+Adjacent operators matter:
 
-| Feature | Modern | Strict | Use Instead |
-|---------|--------|--------|-------------|
-| Hex literals (`0x10`) | ✓ | ✗ | Octal `020` or decimal |
-| Line comments (`//`) | ✓ | ✗ | Block comments `/* */` |
-| Backslash escapes (`\n`) | ✓ | ✗ | B escapes `*n` |
-| C-style compound (`+=`) | ✓ | ✗ | B-style `=+` |
-| Logical OR (`||`) | ✓ | ✗ | Bitwise `|` or `?:` |
-| 3-4 byte char constants | ✓ | ✗ | 1-2 byte constants |
-
-**Why Strict Mode Exists:**
-
-B predates C, and the syntax differs in important ways:
-- B uses `=+` where C uses `+=` (order was reversed when C was created)
-- B uses `*n` escapes where C uses `\n` (asterisk, not backslash)
-- B had no hex literals (octal was standard on PDP machines)
-- B only had `/* */` comments (`//` came from C++)
-
-**Examples:**
-```bash
-# Default: accept all syntax
-./bcc program.b -o program
-
-# Strict mode: disable extensions
-./bcc --strict program.b -o program
-
-# Pedantic: error directly on any extension
-./bcc --strict --pedantic program.b -o program
+```b
+x =* 10;     /* multiply x by 10 */
+x = *p;     /* assign the word stored through p */
+x =- 1;     /* subtract 1 from x */
+x = -1;     /* assign negative one */
 ```
 
-**Historical Note:**
-The canonical Thompson B language reference for the PDP-11 is the Bell Labs memorandum dated January 7, 1972. Earlier B work began around 1969, but this compiler treats that B72 manual as the syntax and semantics baseline. `--strict --pedantic` enforces that baseline; default mode keeps documented compatibility extensions.
+The escapes `*(` and `*)` represent `{` and `}`. Addition binds more tightly
+than shifts: `1 << 2 + 1` means `1 << (2 + 1)`.
+
+Strict syntax and a selected word size cover different parts of compatibility.
+Neither flag is a claim that every original runtime interface is reproduced.
 
 ## Installation
 
 ### Prerequisites
 - GCC or compatible C99 compiler (we build and link with gcc and GNU binutils)
 - GNU Make
+- Python 3 for `make test`
 - Unix-like system (Linux, macOS, BSD)
 
 ### Building
@@ -172,24 +171,24 @@ Use `make install PREFIX=/custom/path` to override the install directory.
 The `bcc` executable will be created in the root directory.
 
 ## Compatibility
-- **Supported**: Modern Linux (x86_64) with gcc/libc and GNU binutils; recent macOS and BSDs with gcc or clang in GNU-compat mode.
-- **Pointer models**: Both byte-addressed and word-addressed modes are supported via `--byteptr`.
+- **Target hosts**: Unix-like systems with libc, GNU binutils, and a GNU-compatible C compiler. Run `make test` on the target host.
+- **Pointer models**: Select byte or word addresses with `--byteptr` or `--wordptr`.
 - **Dependencies**: Requires libc at runtime (runtime library is implemented atop libc; not a freestanding syscall-only build).
 - **Linking**: Uses the GNU toolchain by default; alternate compilers may work if they honor C99 and GNU ld flags.
 
 ## PDP-11 Unix V1 native compiler (`pdp-11/bcc-pdp/`)
 
 A second, fully separate **basic working** B compiler for **PDP-11 Unix V1** lives under [`pdp-11/bcc-pdp/`](pdp-11/bcc-pdp/).
-It is implemented in **Unix V1 C** (not C99), is **strictly conformant to Ken Thompson's 1972 *Users' Reference to B*** (kbman) - no
-modern extensions accepted - builds via 1972 `cc` (e.g. under apout), runs on emulated PDP-11 Unix V1 (e.g. SIMH), and self-hosts.
+It is implemented in **Unix V1 C** (not C99), uses Ken Thompson's 1972 *Users' Reference to B* (kbman) as its syntax baseline, builds via 1972 `cc` (e.g. under apout), runs on emulated PDP-11 Unix V1 (e.g. SIMH), and self-hosts.
 
 - Supported: every kbman §2–§9 feature including `switch/case`, `char`/`lchar`,
   `printf`/`printn`, `argv` vector, computed `goto`, vector init by name, all 16
   compound assigns (`= =| =& === =!= =< =<= => =>= =<< =>> =+ =- =% =* =/`).
-- Removed (post-1972 extensions): `~ ^ && || break continue =^`.
+- Extensions outside the selected PDP-11 dialect: `~ ^ && || break continue =^`.
 - See [`pdp-11/bcc-pdp/CONFORMANCE.md`](pdp-11/bcc-pdp/CONFORMANCE.md) for the
   section-by-section matrix and [`pdp-11/bcc-pdp/README.md`](pdp-11/bcc-pdp/README.md)
-  for build/install/test instructions.
+  for build/install/test instructions. Its byte-addressed pointers and fixed
+  `ctime` output remain deviations from the reference.
 
 ## Usage
 
@@ -286,11 +285,11 @@ copy() {
 
 ## Documentation
 
-This implementation is based on Dennis Ritchie's B language reference manual.
+The language baseline is Ken Thompson's PDP-11 B reference. Kernighan's tutorial and Unix documentation provide additional dialect and implementation context.
 
-**📖 B Language Wiki**: See [`WIKI_HOME.md`](WIKI_HOME.md) for the complete B programming language wiki homepage.
+**📖 B Language Wiki**: See [the language guide](wiki/B_LANGUAGE.md) for the complete B programming language wiki homepage.
 
-**📚 Language Reference**: See [`B_LANGUAGE.md`](B_LANGUAGE.md) for comprehensive B language documentation, syntax, and examples.
+**📚 Language Reference**: See [`B_LANGUAGE.md`](wiki/B_LANGUAGE.md) for comprehensive B language documentation, syntax, and examples.
 
 **Source Documentation**:
 - [B Reference Manual](https://www.nokia.com/bell-labs/about/dennis-m-ritchie/kbman.html)
@@ -298,7 +297,7 @@ This implementation is based on Dennis Ritchie's B language reference manual.
 - [Unix v1 Manual](https://www.nokia.com/bell-labs/about/dennis-m-ritchie/man71.pdf)
 
 **Original Sources**:
-- `src/docs.MD`: Scanned original B language manual from 1972
+- [Original scanned B manual](https://www.nokia.com/bell-labs/about/dennis-m-ritchie/kbman.pdf): January 7, 1972 PDP-11 reference
 
 ## Technical Architecture
 
@@ -353,7 +352,7 @@ BCC follows a traditional multi-stage compiler architecture with the following p
 ### Key Technical Features
 
 #### B-Specific Syntax Handling
-- **Assignment Operators**: `=+`, `=-`, `=*`, `=/` (value op variable)
+- **Assignment Operators**: `=+`, `=-`, `=*`, `=/` (variable op value)
 - **String Literals**: `*e` termination instead of null bytes
 - **Character Constants**: Thompson B72 packs one or two characters; default extension mode also accepts three or four
 - **Array Syntax**: `name[constant]` with word-addressed semantics
@@ -486,37 +485,18 @@ src/
 
 ## Project Structure
 
-```
+```text
 bcc/
-├── README.md              # Compiler documentation
-├── WIKI_HOME.md           # B programming language wiki homepage
-├── B_LANGUAGE.md          # B programming language reference
-├── WIKI_DATA_TYPES.md     # Data types and literals guide
-├── WIKI_CONTROL_STRUCTURES.md  # Control structures guide
-├── WIKI_FUNCTIONS.md      # Functions guide
-├── WIKI_ARRAYS_POINTERS.md     # Arrays and pointers guide
-├── WIKI_RUNTIME_LIBRARY.md     # Runtime library guide
-├── WIKI_IO_FUNCTIONS.md        # I/O functions guide
-├── WIKI_EXAMPLES.md            # Programming examples
-├── WIKI_FILE_IO.md             # File I/O guide
-├── WIKI_STRING_OPERATIONS.md   # String operations guide
-├── WIKI_SYSTEM_CALLS.md        # System calls guide
-├── Makefile            # Build system
-├── bcc                 # Compiled compiler executable
-├── src/                # Source code
-│   ├── bcc.h          # Main header file
-│   ├── main.c         # Program entry point
-│   ├── lexer.c        # Lexical analyzer
-│   ├── parser.c       # Syntax parser
-│   ├── sem.c          # Semantic analyzer
-│   ├── emitter.c      # Code generator
-│   ├── util.c         # Utilities and error handling
-│   ├── arena.c        # Memory allocator
-│   ├── docs.MD        # Original B documentation
-│   └── create_parser.c # Parser utilities
-├── *.b                # B language test files
-├── *.c                # Generated C code examples
-└── test*              # Compiled test executables
+  Makefile       Build and test targets
+  README.md      Build, usage, and compatibility notes
+  src/           C99 compiler
+  lib/           Shared runtime and target-address translation
+  tests/         Execution, AST, multi-file, and historical regressions
+  wiki/          Language guides and primary-source conformance notes
+  pdp-11/        Native Unix V1 compiler and historical system documentation
+  bootstrap/     B bootstrap sources
+  asm/           Assembly implementation
+  examples/      Example B programs
 ```
 
 ### Key Files Description
@@ -633,7 +613,7 @@ The B-in-B and historical Unix goals are inspired by [aap/b](https://github.com/
 
 BCC supports two pointer addressing modes to match different B implementations:
 
-**Word Addressing (Default)**
+**Word addressing (`--wordptr`, or the strict/16-bit default)**
 ```c
 #define B_DEREF(p)   (*(word*)(uword)((uword)(p) * sizeof(word)))
 #define B_ADDR(x)    B_PTR(&(x))
@@ -651,63 +631,43 @@ BCC supports two pointer addressing modes to match different B implementations:
 - Array access: `arr[i]` → `*((word*)arr + i)`
 - Matches modern C pointer semantics
 
-### Word Semantics Modes
+### Word semantics modes
 
-Select the arithmetic word size and wraparound behavior with `--word`.  
-**Note:** These modes exist primarily for compatibility with historical B code; for new programs, the default `--word=host` is recommended.
+`--word=host` uses host-sized words and native pointers. `--word=32` wraps
+arithmetic at 32 bits while retaining host storage and pointers. These modes
+support programs that depend on a modern host environment.
 
-#### `--word=host` (default)
-- Uses native host word size (typically 64-bit)
-- No arithmetic wraparound
-- Fastest option; programs relying on 16-bit wrap may behave differently
+`--word=16` represents integer results and B addresses as 16-bit values. It
+selects word addressing by default; `--byteptr` is an explicit alternative.
+`--strict` also selects word addressing unless a pointer mode is specified.
+For example, `32767 + 1` yields `-32768`, and `-1 >> 1` yields `32767`.
 
-#### `--word=16`
-- Emulates PDP-11 16-bit word semantics
-- Arithmetic wraps at 16-bit (-32768..32767)
-- Examples: `32767 + 1` → `-32768`; `-32768 - 1` → `32767`
-- Bitwise ops mask to 16 bits
-- Shifts are logical (unsigned), so `-1 >> 1` → `32767`
-- Use for historical B programs expecting PDP-11 behavior
+The address translator in `lib/btarget.h` maps registered host storage to B
+addresses. Pointer arithmetic preserves the B address rather than truncating
+a host pointer. Vectors register their full backing storage; function-local
+registrations are released on return, and `free` releases heap registrations.
+Shared compilation units use one address table. Generated C uses GNU statement
+expressions for ordered bitwise evaluation and the GCC/Clang cleanup attribute
+for 16-bit function frames. The inline runtime embeds the
+same translator for standalone generated C.
 
-#### `--word=32`
-- Emulates 32-bit word semantics
-- Arithmetic wraps at 32-bit boundaries
-- Useful for code written with 32-bit assumptions
+Characters occupy two bytes per B word in 16-bit mode. String literals,
+`char`, `lchar`, and packed file I/O use that layout. Host storage cells remain
+`intptr_t` sized, and address translation uses host memory. This is a language
+compatibility layer, not an exact PDP-11 process image. Foreign C interfaces
+must account for the difference in storage layout.
 
-#### Safe Arithmetic Implementation
-
-When `--word=16` or `--word=32` is specified, BCC generates code using safe arithmetic macros that avoid **host-C undefined behavior**:
-
-| Macro | Operation | Safety Feature |
-|-------|-----------|----------------|
-| `WADD(a,b)` | Addition | Unsigned arithmetic prevents signed overflow UB |
-| `WSUB(a,b)` | Subtraction | Unsigned arithmetic prevents signed overflow UB |
-| `WMUL(a,b)` | Multiplication | Unsigned arithmetic prevents signed overflow UB |
-| `WDIV(a,b)` | Division | Unsigned division |
-| `WMOD(a,b)` | Modulo | Unsigned modulo |
-| `WSHL(a,n)` | Left shift | Shift count masked; operand masked to word width |
-| `WSHR(a,n)` | Right shift | Shift count masked; operand masked (logical shift) |
-| `WAND(a,b)` | Bitwise AND | Standard bitwise AND with wrapping |
-| `WOR(a,b)` | Bitwise OR | Standard bitwise OR with wrapping |
-| `WNEG(a)` | Unary negation | Unsigned negation prevents MIN_INT overflow UB |
-
-**Key safety guarantees:**
-- **No signed overflow UB**: All arithmetic is performed on unsigned types
-- **No shift UB**: Shift counts are masked to valid range (0-15 for 16-bit, 0-31 for 32-bit)
-- **Proper word-width emulation**: Operands are masked to word width before shifts
-- **Deterministic behavior**: Same results on all C compilers/platforms
-
-**Examples of edge cases handled correctly:**
-```
-1 << 15      → -32768 (16-bit: sign bit set)
-1 << 20      → 16     (16-bit: shift masked to 4)
--1 >> 1     → 32767  (16-bit: logical right shift of 0xFFFF)
-32767 + 1   → -32768 (16-bit: overflow wrap)
--(-32768)   → -32768 (16-bit: negation of MIN wraps back)
+Arithmetic helpers wrap addition, subtraction, multiplication, and logical
+shifts. Signed division preserves exact results for negative operands; BCC
+chooses truncation toward zero for inexact quotients. Bitwise `&` and `|`
+evaluate their operands from left to right. BCC masks large shift counts as an implementation choice. The manual
+leaves out-of-range shifts and some negative division/remainder cases
+undefined; those choices do not establish historical conformance. Division
+by zero is not given a portable result.
 
 ### Endianness and Byte Packing
 
-In word-addressed mode (no `--byteptr`), `char()` and `lchar()` pack bytes into words:
+In word-addressed mode (`--wordptr`), `char()` and `lchar()` pack bytes into words:
 
 **Byte Packing Convention:**
 - Byte 0 is stored at the least-significant position (LSB)
@@ -1047,14 +1007,14 @@ word main(void) {
 
 **B-Specific Features**
 - **String Handling**: `*e` (EOT) termination, not null bytes
-- **Word Semantics**: All operations work on PDP-11 word values
+- **Word semantics**: Select 16-bit arithmetic and addresses with `--word=16`
 - **Character Packing**: Multi-character constants packed into words
 - **Pointer Models**: Configurable word vs byte addressing modes
 
 ## Testing
 
 ### Test Suite
-The compiler includes comprehensive test files:
+The test suite includes compile, execution, AST, multi-file, runtime, and historical cases:
 - `mixed_test.b`: Full language feature coverage
 - `bitwise_test.b`: Bitwise operator validation
 - `switch_test.b`: Switch/case statement testing
@@ -1096,7 +1056,13 @@ Run an example:
 Run the test suite:
 ```bash
 make test
+# Run only the source-based historical regressions:
+python3 tests/test_b72_conformance.py
 ```
+
+`make test` stages the shell tests with Unix line endings, then runs the
+historical regressions against both runtime paths. The expected results come
+from the cited reference sections, not from BCC-generated golden output.
 
 ### Validation Tools
 - **AST Inspection**: `--dump-ast` for parse tree verification
@@ -1141,11 +1107,11 @@ This project is licensed under the GNU General Public License v3.0 (GPL-3.0).
 ### Primary Sources
 - [B Reference Manual - Nokia/Bell Labs](https://www.nokia.com/bell-labs/about/dennis-m-ritchie/kbman.html)
 - [B Tutorial - Bell Labs](https://www.nokia.com/bell-labs/about/dennis-m-ritchie/btut.pdf)
-- [Unix Programmer's Manual v1](https://www.nokia.com/bell-labs/about/dennis-m-ritchie/man71.pdf)
+- [Unix Programmer's Manual v1, section VII excerpt](https://www.nokia.com/bell-labs/about/dennis-m-ritchie/man71.pdf)
 
 ### Historical Unix
 - [Unix Heritage Society](https://www.tuhs.org/)
-- [Unix V4 Tape Contents](https://www.tuhs.org/Archive/Applications/Dennis_Tapes/Gao_Analysis/v4_dist/setup.pdf)
+- [Setting Up UNIX (distribution installation)](https://www.tuhs.org/Archive/Applications/Dennis_Tapes/Gao_Analysis/v4_dist/setup.pdf)
 - [Mike Taylor's libb.a Analysis](https://www.miketaylor.org.uk/tech/libb-a.html)
 
 ### Inspiration
@@ -1153,11 +1119,6 @@ This project is licensed under the GNU General Public License v3.0 (GPL-3.0).
 
 ## Authors
 
-Developed as a faithful recreation of Ken Thompson's B compiler from Bell Labs, with the 1972 PDP-11 manual as the canonical language reference.
+The language baseline is Ken Thompson's 1972 PDP-11 manual. See the [conformance note](wiki/HISTORICAL_CONFORMANCE.md) for supported behavior and documented differences.
 
 Written by @frankischilling
-
----
-
-*"B was a chud programming language written by and for chuds*"
-- Ken Thompson

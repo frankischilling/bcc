@@ -1,5 +1,10 @@
 # Arrays & Pointers
 
+The examples include compatibility syntax. Strict PDP-11 mode uses `auto v 3;`
+for automatic vectors and `goto` for loop exits. It supports computed branches
+within the current function. See [historical conformance references](HISTORICAL_CONFORMANCE.md)
+for the dialect rules and source evidence.
+
 B's array and pointer system works with word-sized values. BCC's command-line compiler uses byte-addressed pointers by default while preserving word-sized array elements and B-style pointer operations.
 
 ---
@@ -833,7 +838,7 @@ main() {
 - [Runtime Library](WIKI_RUNTIME_LIBRARY.md)
 - [I/O Functions](WIKI_IO_FUNCTIONS.md)
 - [File I/O](WIKI_FILE_IO.md)
-- [System Calls](WIKI_SYSTEM_CALLS.md)
+- [System Calls](WIKI_RUNTIME_LIBRARY.md)
 - [String Operations](WIKI_STRING_OPERATIONS.md)
 - [Data Types & Literals](WIKI_DATA_TYPES.md)
 - [Control Structures](WIKI_CONTROL_STRUCTURES.md)

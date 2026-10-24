@@ -120,6 +120,7 @@ typedef enum {
 typedef struct {
     TokenKind kind;
     char *lexeme;     // for IDs / STR
+    size_t string_len; // TK_STR can contain embedded zero bytes
     int owns_lexeme;  // 1 if lexeme should be freed, 0 if arena-allocated
     long num;         // for NUM
     int line, col;
@@ -159,6 +160,7 @@ typedef enum {
 struct Expr {
     ExprKind kind;
     int line, col;
+    size_t string_len; // EX_STR byte length, excluding the implicit *e
     union {
         long num;          // EX_NUM
         char *str;         // EX_STR
@@ -201,7 +203,7 @@ struct Stmt {
         struct { Expr *e; } expr;
         struct { Vec names; } extrn;                           // names: char*
 
-        struct { char *target; } goto_;
+        struct { Expr *target; } goto_;
         struct { char *name; Stmt *stmt; } label_;
         struct { Expr *expr; Stmt *body; } switch_;
         struct { int has_range; TokenKind relop; int64_t lo; int64_t hi; } case_;
@@ -450,6 +452,8 @@ typedef enum {
     EXT_C_COMPOUND_ASGN = 1 << 3,  // +=, -=, etc. (C-style)
     EXT_LOGICAL_OR      = 1 << 4,  // || logical OR (not in Thompson B72)
     EXT_LONG_CHAR_CONST = 1 << 5,  // 3-4 byte character constants
+    EXT_CONTROL         = 1 << 6,  // break, continue, default (other B dialects)
+    EXT_BRACKET_AUTO    = 1 << 7,  // auto v[n] instead of auto v n
     EXT_ALL             = 0xFFFF,  // All extensions
 } BExtensions;
 

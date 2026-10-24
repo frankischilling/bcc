@@ -86,8 +86,8 @@ typedef uintptr_t uword;
 #define WADD(a,b) WVAL((uword)(a) + (uword)(b))
 #define WSUB(a,b) WVAL((uword)(a) - (uword)(b))
 #define WMUL(a,b) WVAL((uword)(a) * (uword)(b))
-#define WDIV(a,b) WVAL((uword)(a) / (uword)(b))
-#define WMOD(a,b) WVAL((uword)(a) % (uword)(b))
+#define WDIV(a,b) __b_word_div((a),(b))
+#define WMOD(a,b) __b_word_mod((a),(b))
 #define WSHL(a,n) WVAL(((uword)(a) & WORD_MASK) << ((uword)(n) & SHIFT_MASK))
 #define WSHR(a,n) WVAL(((uword)(a) & WORD_MASK) >> ((uword)(n) & SHIFT_MASK))
 #define WAND(a,b) WVAL((uword)(a) & (uword)(b))
@@ -95,30 +95,10 @@ typedef uintptr_t uword;
 #define WXOR(a,b) WVAL((uword)(a) ^ (uword)(b))
 #define WNEG(a)   WVAL(-(uword)(a))
 
-/*
- * Pointer model macros:
- *   B_BYTEPTR=1  -> pointers are byte addresses
- *   B_BYTEPTR=0  -> pointers are word addresses (Thompson B)
- */
 #ifndef B_BYTEPTR
 #define B_BYTEPTR 1
 #endif
-
-#if B_BYTEPTR
-  #define B_DEREF(p)   (*(word*)(uword)(p))
-  #define B_ADDR(x)    B_PTR(&(x))
-  #define B_INDEX(a,i) (*(word*)((uword)(a) + (uword)(i) * sizeof(word)))
-  #define B_PTR(p)     ((word)(uword)(p))
-  #define B_CPTR(p)    ((void*)(uword)(p))
-#else
-  #define B_DEREF(p)   (*(word*)(uword)((uword)(p) * sizeof(word)))
-  #define B_ADDR(x)    B_PTR(&(x))
-  #define B_INDEX(a,i) B_DEREF((a) + (i))
-  #define B_PTR(p)     ((word)((uword)(p) / sizeof(word)))
-  #define B_CPTR(p)    ((void*)((uword)(p) * sizeof(word)))
-#endif
-
-#define B_STR(s)     B_PTR((const char*)(s))
+#include "btarget.h"
 
 /* Runtime Library Function Declarations */
 

@@ -173,6 +173,8 @@ static void sem_check_lvalue(SemState *st, Expr *e) {
         case EX_VAR: {
             Symbol *sym = scope_find(st->current, e->as.var);
             if (!sym) {
+                if (g_strict && !is_extern_name(st, e->as.var))
+                    dief("undefined internal name '%s' at %d:%d", e->as.var, e->line, e->col);
                 if (!is_extern_name(st, e->as.var) && !is_implicit_static(st, e->as.var)) {
                     // Undeclared variable used as lvalue - add to implicit statics
                     vec_push(&st->implicit_statics, sdup(e->as.var));
@@ -210,6 +212,8 @@ static void sem_check_expr(SemState *st, Expr *e) {
             // Check if variable is declared or extern
             Symbol *sym = scope_find(st->current, e->as.var);
             if (!sym && !is_extern_name(st, e->as.var) && !is_implicit_static(st, e->as.var)) {
+                if (g_strict)
+                    dief("undefined internal name '%s' at %d:%d", e->as.var, e->line, e->col);
                 // Undeclared variable - add to implicit statics
                 vec_push(&st->implicit_statics, sdup(e->as.var));
             }
@@ -276,6 +280,7 @@ static void sem_check_expr(SemState *st, Expr *e) {
 
         case EX_NUM:
         case EX_STR:
+            break;
         case EX_POST:
             sem_check_lvalue(st, e->as.post.lhs);
             break;
@@ -355,17 +360,10 @@ static void sem_check_stmt(SemState *st, Stmt *s) {
             break;
 
         case ST_GOTO:
-            // We'll check labels separately in a pass that collects all labels first
+            sem_check_expr(st, s->as.goto_.target);
             break;
 
         case ST_LABEL: {
-            if (scope_has_in_current(st->current, s->as.label_.name)) {
-                dief("duplicate label '%s' at %d:%d", s->as.label_.name, s->line, s->col);
-            }
-
-            Symbol *sym = symbol_new(SYM_LABEL, s->as.label_.name, s->line, s->col);
-            scope_add(st->current, sym);
-
             sem_check_stmt(st, s->as.label_.stmt);
             break;
         }
@@ -379,6 +377,30 @@ static void sem_check_stmt(SemState *st, Stmt *s) {
         case ST_CASE:
             // These are handled by the switch statement checking
             break;
+    }
+}
+
+/* Labels have function scope, including forward references and labels in blocks. */
+static void sem_collect_labels(SemState *st, Stmt *s) {
+    if (!s) return;
+    switch (s->kind) {
+    case ST_LABEL:
+        if (scope_has_in_current(st->current, s->as.label_.name))
+            dief("duplicate label '%s' at %d:%d", s->as.label_.name, s->line, s->col);
+        scope_add(st->current, symbol_new(SYM_LABEL, s->as.label_.name, s->line, s->col));
+        sem_collect_labels(st, s->as.label_.stmt);
+        break;
+    case ST_BLOCK:
+        for (size_t i = 0; i < s->as.block.items.len; i++)
+            sem_collect_labels(st, s->as.block.items.data[i]);
+        break;
+    case ST_IF:
+        sem_collect_labels(st, s->as.ifs.then_s);
+        sem_collect_labels(st, s->as.ifs.else_s);
+        break;
+    case ST_WHILE: sem_collect_labels(st, s->as.whiles.body); break;
+    case ST_SWITCH: sem_collect_labels(st, s->as.switch_.body); break;
+    default: break;
     }
 }
 
@@ -398,6 +420,7 @@ static void sem_check_func(SemState *st, Func *f) {
         scope_add(st->current, sym);
     }
 
+    sem_collect_labels(st, f->body);
     // Check function body
     sem_check_stmt(st, f->body);
 

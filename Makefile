@@ -11,8 +11,12 @@ BINDIR ?= $(PREFIX)/bin
 # Runtime library
 LIBB_SRC = lib/libb.c
 LIBB_HDR = lib/libb.h
+PYTHON ?= python3
 
 all: $(TARGET)
+
+test: $(TARGET)
+	$(PYTHON) tests/run_suite.py
 
 $(TARGET): $(OBJECTS)
 	$(CC) $(CFLAGS) -o $(TARGET) $(OBJECTS) -lm
@@ -34,6 +38,6 @@ install: $(TARGET)
 	install -d $(BINDIR)
 	install -m 755 $(TARGET) $(BINDIR)/$(TARGET)
 
-.PHONY: all clean test-libb install
+.PHONY: all clean test-libb install test
 
 .PHONY: all clean test-libb

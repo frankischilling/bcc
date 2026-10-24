@@ -1,5 +1,10 @@
 # Control Structures
 
+The examples include compatibility syntax. Strict PDP-11 mode uses `auto v 3;`
+for automatic vectors and `goto` for loop exits. It supports computed branches
+within the current function. See [historical conformance references](HISTORICAL_CONFORMANCE.md)
+for the dialect rules and source evidence.
+
 B provides essential control flow constructs for conditional execution, loops, and multi-way branching. This page covers B's control structures in detail, including syntax, semantics, and implementation notes.
 
 ---
@@ -525,7 +530,7 @@ done:
 - [Runtime Library](WIKI_RUNTIME_LIBRARY.md)
 - [I/O Functions](WIKI_IO_FUNCTIONS.md)
 - [File I/O](WIKI_FILE_IO.md)
-- [System Calls](WIKI_SYSTEM_CALLS.md)
+- [System Calls](WIKI_RUNTIME_LIBRARY.md)
 - [String Operations](WIKI_STRING_OPERATIONS.md)
 - [Data Types & Literals](WIKI_DATA_TYPES.md)
 - [Functions](WIKI_FUNCTIONS.md)

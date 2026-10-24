@@ -384,14 +384,9 @@ char *fmt(const char *fmt_s, ...) {
     va_end(ap);
     if (n < 0) dief("fmt: vsnprintf failed");
 
-    if (g_compilation_arena) {
-        va_start(ap, fmt_s);
-        char *buf = arena_fmt(g_compilation_arena, fmt_s, ap);
-        va_end(ap);
-        return buf;
-    }
-
-    char *buf = (char*)malloc((size_t)n + 1);
+    char *buf = g_compilation_arena
+        ? arena_alloc(g_compilation_arena, (size_t)n + 1)
+        : (char*)malloc((size_t)n + 1);
     if (!buf) dief("out of memory");
     vsnprintf(buf, (size_t)n + 1, fmt_s, ap2);
     va_end(ap2);
