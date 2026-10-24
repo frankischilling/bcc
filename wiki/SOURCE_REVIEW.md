@@ -528,8 +528,10 @@ For BCC, a B-written frontend that emits C still depends on a C toolchain.
 Removing GCC and binutils from subsequent rebuilds requires a B-written
 backend plus executable construction, or an assembler and linker, and an
 appropriate runtime. This is a separate goal from the current generated-C
-fixed point. The choice of target and seed remains to be investigated after
-the source review and accuracy fixes.
+fixed point. The host goal covers `bcc`, `bccasm`, and the existing bootstrap. A separate
+native goal replaces the PDP-11 compiler's early-C implementation with B and
+rebuilds it on the PDP-11. Both need a documented seed and a complete rebuild
+path; these remain work after the source review and accuracy fixes.
 
 ### Threaded code
 
@@ -548,6 +550,25 @@ was read separately. It adds an indirection through an address cell and
 explains the resulting operand and representation choices. Its measured
 tradeoffs remain machine-specific. Neither threaded-code paper specifies
 BCC's source-language semantics.
+
+### Modern BCPL is implementation guidance, not the B baseline
+
+Selected sections of Richards's [current Cintsys/Cintpos guide](https://www.cl.cam.ac.uk/~mr10/bcplman.pdf)
+were reviewed: the overview, startup, OCODE design, compiler organization,
+and Sial introduction. The retrieved copy is dated June 24, 2026; this was
+not a complete review of its language extensions or libraries.
+
+The guide separates parsing, intermediate-code translation, and target code
+generation. Its account of a 1980 change says non-global functions and labels
+ceased to be variables to permit position-independent code. Applying that
+later rule to B would remove historical writable cells. Its Sial introduction
+also states that support for newer BCPL constructs is incomplete, so that
+backend cannot be treated as a complete modern-language oracle.
+
+The section titled "Bootstrapping Cintsys" describes startup of an existing
+interpreter and loading runtime modules. That use of the word bootstrap is
+different from rebuilding a compiler and its toolchain from source. BCC's
+bootstrap documentation must state which operation a test actually proves.
 
 ### What a fixed point proves
 
@@ -599,6 +620,58 @@ shifts differ, and the device's status register is not the processor status
 word. These distinctions matter when auditing native arithmetic helpers and
 the emulator used to test them.
 
+Selected PDP-11/40 sections were also checked for stack addressing, `MOVB`,
+`JSR`, `RTS`, and parameter linkage. They confirm word-sized SP increments,
+register sign extension by `MOVB`, and the distinction between hardware
+linkage and a software argument convention. They do not make optional
+PDP-11/40 instructions available on the PDP-11/20 target.
+
+## Host toolchain and repository evidence
+
+The selected [C99 consolidated draft](https://www.open-std.org/jtc1/sc22/wg14/www/docs/n1256.pdf)
+clauses reviewed here cover integer representations, pointer conversions,
+expression sequencing, calls, shifts, inline definitions, and variable
+arguments. This is not a review of the entire standard.
+
+C's bitwise operators do not establish left-to-right operand evaluation.
+Signed overflow, oversized shifts, incompatible function calls, and reading
+past supplied variadic arguments can also be undefined. A B frontend must
+implement its own target semantics rather than inherit those cases from C.
+Pointer/integer conversions need explicit platform assumptions, and inline
+runtime definitions do not automatically share mutable state across modules.
+These clauses support separate arithmetic, call-adapter, and multi-file
+runtime tests.
+
+The GNU compiler, assembler, and linker entry pages were inspected as host
+toolchain references, not historical B specifications. Their indexes are not
+the full manuals. The x86-64 ABI was subsequently retrieved through the project's official
+PDF artifact. The copy is dated March 12, 2025. Its function-call, variable-
+argument, and Linux syscall sections were reviewed, not the entire ABI.
+
+The [AMD64 ABI](https://gitlab.com/x86-psABIs/x86-64-ABI/-/jobs/artifacts/master/raw/x86-64-ABI/abi.pdf?job=build)
+requires stack alignment and preserved registers across ordinary calls, and
+passes the first integer arguments in registers. A C argument list is not a
+contiguous B parameter vector: BCC must construct that representation itself.
+Variadic calls carry vector-register information in `al`; the Linux syscall
+interface uses `r10` rather than `rcx` for its fourth argument and clobbers
+`rcx` and `r11`. A future B-written native host backend must distinguish those
+interfaces rather than reuse one call sequence for both.
+
+The supplied repository snapshots were read in full. They are project claims,
+not independent historical evidence. Several old claims were wrong: automatic
+vectors were described as initialized scalars, function names as unsuitable
+for `extrn`, and native rebuilds as complete B self-hosting. The old native
+planning notes also described a system-library link path that the maintained
+compiler does not use.
+
+The local first-edition document overview mixed in later C facilities,
+including `stdio.h`, `scanf`, and `malloc`, and incorrectly named the
+PDP-11/45 as its hardware. November 1971 section III instead describes
+assembly routines in `/etc/liba.a`. Its replacement summary cites the scan
+and keeps the 134-byte buffer layout distinct from the second edition's
+518-byte layout. Other working transcriptions remain subject to checking;
+removing those false overview claims does not certify every transcription.
+
 ## Findings to check in the implementation
 
 These are audit questions, not claims that the corresponding fixes are done:
@@ -629,7 +702,7 @@ in the inventory so that missing or duplicated material is visible.
 
 | ID | Reference | Review status |
 | --- | --- | --- |
-| 001 | [GitHub - frankischilling/bcc: A modern compiler for Ken Thompson's B programming language, transl...](https://github.com/frankischilling/bcc) | Retrieved; not yet reviewed |
+| 001 | [GitHub - frankischilling/bcc: A modern compiler for Ken Thompson's B programming language, transl...](https://github.com/frankischilling/bcc) | Project README snapshot read; project claims checked against primary sources |
 | 002 | [Thompson's B Manual](https://cm-bell-labs.github.io/who/dmr/kbman.html) | Read in full |
 | 003 | [kbman.pdfA](https://cm-bell-labs.github.io/who/dmr/kbman.pdfA) | Original PDF checked on pages 13-14; full HTML read |
 | 004 | [btut.pdf](https://cm-bell-labs.github.io/who/dmr/btut.pdf) | Read in full |
@@ -637,9 +710,9 @@ in the inventory so that missing or duplicated material is visible.
 | 006 | [bref.ms](https://cm-bell-labs.github.io/who/dmr/bref.html) | Read in full |
 | 007 | [bref.pdf](https://cm-bell-labs.github.io/who/dmr/bref.pdf) | PDF rendition: selected sections checked |
 | 008 | [B Programming Language Manuals : University of Waterloo : Free Download, Borrow, and Streaming : ...](https://archive.org/details/b-reference-manual) | Catalog description and download inventory read |
-| 009 | [B Reference Manual.pdf](https://archive.org/download/b-reference-manual/B%20Reference%20Manual.pdf) | PDF retrieval returned 503; OCR copy is available at 010 |
+| 009 | [B Reference Manual.pdf](https://archive.org/download/b-reference-manual/B%20Reference%20Manual.pdf) | Scan download failed; complete corresponding OCR text read as entry 010 |
 | 010 | [B Reference Manual_djvu.txt](https://archive.org/download/b-reference-manual/B%20Reference%20Manual_djvu.txt) | Complete supplied OCR read; damaged syntax and tables need scan checks |
-| 011 | [User's Reference to B V4.0.pdf](https://archive.org/download/b-reference-manual/User%27s%20Reference%20to%20B%20V4.0.pdf) | Larger PDF retrieved; not yet reviewed |
+| 011 | [User's Reference to B V4.0.pdf](https://archive.org/download/b-reference-manual/User%27s%20Reference%20to%20B%20V4.0.pdf) | Scan retrieved; complete corresponding OCR text read as entry 012; not all pages visually checked |
 | 012 | [User's Reference to B V4.0_djvu.txt](https://archive.org/download/b-reference-manual/User%27s%20Reference%20to%20B%20V4.0_djvu.txt) | Complete supplied OCR read; damaged syntax and tables need scan checks |
 
 ### Early Unix manuals and archives
@@ -741,7 +814,7 @@ in the inventory so that missing or duplicated material is visible.
 | 085 | [Richards-BCPL-ReferenceManual.pdf](https://softwarepreservation.computerhistory.org/BCPL/project_mac/Richards-BCPL-ReferenceManual.pdf) | Full original-scan OCR read; exact glyphs need visual checks |
 | 086 | [BCPL Reference Manual (1967)](https://cm-bell-labs.github.io/who/dmr/bcpl.html) | Read in full |
 | 087 | [1476793.1476880](https://dl.acm.org/doi/10.1145/1476793.1476880) | Not retrieved: 403: Forbidden |
-| 088 | [spe.4380010204](https://onlinelibrary.wiley.com/doi/10.1002/spe.4380010204) | Not retrieved: 403: Forbidden |
+| 088 | [spe.4380010204](https://onlinelibrary.wiley.com/doi/10.1002/spe.4380010204) | Publisher abstract and references read; full article unavailable |
 | 089 | [Richards-Intcode_for_BCPL-1975.pdf](https://softwarepreservation.computerhistory.org/BCPL/cambridge/Richards-Intcode_for_BCPL-1975.pdf) | Full text and appendix read; listing transcription issues remain |
 | 090 | [Richards-Bootstrapping_BCPL-1973.pdf](https://softwarepreservation.computerhistory.org/BCPL/cambridge/Richards-Bootstrapping_BCPL-1973.pdf) | Read in full |
 | 091 | [Scan 2.PDF](https://people.csail.mit.edu/saltzer/Multics/MHP-Saltzer-060508/filedrawers/177.bcpl/Scan%202.PDF) | Full 1973 manual OCR read, including appendices; glyph checks remain |
@@ -751,18 +824,18 @@ in the inventory so that missing or duplicated material is visible.
 | 095 | [BCPLCTSS](https://www.cl.cam.ac.uk/~mr10/BCPLCTSS.html) | Distribution overview read; archive source not exhaustively reviewed |
 | 096 | [BCPL and Tripos Archive](https://www.cl.cam.ac.uk/~mr10/Archive.html) | Archive overview read; linked files not exhaustively reviewed |
 | 097 | [cpl2bcpl.pdf](https://www.cl.cam.ac.uk/~mr10/cpl2bcpl.pdf) | Complete paper read |
-| 098 | [bcplman.pdf](https://www.cl.cam.ac.uk/~mr10/bcplman.pdf) | Retrieved; not yet reviewed |
+| 098 | [bcplman.pdf](https://www.cl.cam.ac.uk/~mr10/bcplman.pdf) | 2026 guide: abstract, contents, section 4.1, chapter 8, compiler overview and Sial introduction reviewed; remainder not reviewed |
 
 ### Threaded code and bootstrap trust
 
 | ID | Reference | Review status |
 | --- | --- | --- |
-| 099 | [362248.362270](https://dl.acm.org/doi/10.1145/362248.362270) | Not retrieved: 403: Forbidden |
+| 099 | [362248.362270](https://dl.acm.org/doi/10.1145/362248.362270) | Publisher page unavailable; complete paper read at entry 100 |
 | 100 | [threaded_code.pdf](https://www.ittc.ku.edu/~kulkarni/teaching/archieve/EECS800-Spring-2008/threaded_code.pdf) | Complete Bell paper read; adjacent article excluded |
-| 101 | [360825.360849](https://dl.acm.org/doi/10.1145/360825.360849) | Not retrieved: 403: Forbidden |
+| 101 | [360825.360849](https://dl.acm.org/doi/10.1145/360825.360849) | Publisher page unavailable; complete paper read at entry 102 |
 | 102 | [Indirect.Threaded.Code.p330-dewar.pdf](https://figforth.org.uk/library/Indirect.Threaded.Code.p330-dewar.pdf) | Complete two-page paper read through web retrieval; figures need visual checks |
 | 103 | [Thompson_1984_ReflectionsonTrustingTrust.pdf](https://www.cs.cmu.edu/~rdriley/487/papers/Thompson_1984_ReflectionsonTrustingTrust.pdf) | Full lecture text read; code figures not independently transcribed |
-| 104 | [358198.358210](https://dl.acm.org/doi/10.1145/358198.358210) | Not retrieved: 403: Forbidden |
+| 104 | [358198.358210](https://dl.acm.org/doi/10.1145/358198.358210) | Publisher page unavailable; complete lecture read at entry 103 |
 
 ### PDP-11 hardware manuals
 
@@ -771,34 +844,34 @@ in the inventory so that missing or duplicated material is visible.
 | 105 | [PDP-11_Handbook_Second_Edition_1970.pdf](https://www.bitsavers.org/pdf/dec/pdp11/1120/PDP-11_Handbook_Second_Edition_1970.pdf) | Complete extracted text read from public mirror; diagrams not all checked |
 | 106 | [KA11_ProcessorMan_Sep1970.pdf](https://bitsavers.trailing-edge.com/pdf/dec/pdp11/1120/KA11_ProcessorMan_Sep1970.pdf) | Not retrieved: 403: Forbidden |
 | 107 | [KE11-A_ExtendedArithElem.pdf](https://bitsavers.trailing-edge.com/pdf/dec/pdp11/1120/KE11-A_ExtendedArithElem.pdf) | Full OCR read from public mirror; diagrams and numeric tables need checks |
-| 108 | [pdp11-40.pdf](https://pdos.csail.mit.edu/6.828/2005/readings/pdp11-40.pdf) | BR instruction checked on PDF page 83; remainder pending |
-| 109 | [PDP-11_40_Processor_Handbook_1972.pdf](https://bitsavers.trailing-edge.com/pdf/dec/pdp11/handbooks/PDP-11_40_Processor_Handbook_1972.pdf) | Not retrieved: 403: Forbidden |
+| 108 | [pdp11-40.pdf](https://pdos.csail.mit.edu/6.828/2005/readings/pdp11-40.pdf) | BR page visually checked; SP, MOVB, JSR/RTS and linkage sections read; other sections not fully reviewed |
+| 109 | [PDP-11_40_Processor_Handbook_1972.pdf](https://bitsavers.trailing-edge.com/pdf/dec/pdp11/handbooks/PDP-11_40_Processor_Handbook_1972.pdf) | Alternate scan unavailable; selected matching handbook sections reviewed at entry 108 |
 
 ### Host language and toolchain references
 
 | ID | Reference | Review status |
 | --- | --- | --- |
-| 110 | [n1256.pdf](https://www.open-std.org/jtc1/sc22/wg14/www/docs/n1256.pdf) | Retrieved; not yet reviewed |
-| 111 | [Top (Using the GNU Compiler Collection (GCC))](https://gcc.gnu.org/onlinedocs/gcc/) | Retrieved; not yet reviewed |
+| 110 | [n1256.pdf](https://www.open-std.org/jtc1/sc22/wg14/www/docs/n1256.pdf) | Reviewed clauses 6.2.6.2, 6.3.2.3, 6.5, 6.5.2.2, 6.5.7, 6.7.4, and 7.15; not the whole standard |
+| 111 | [Top (Using the GNU Compiler Collection (GCC))](https://gcc.gnu.org/onlinedocs/gcc/) | Manual overview and relevant contents inspected; not all linked chapters |
 | 112 | [C Extensions (Using the GNU Compiler Collection (GCC))](https://gcc.gnu.org/onlinedocs/gcc/C-Extensions.html) | Extension overview read; linked extension chapters not all reviewed |
-| 113 | [Top (Using as)](https://sourceware.org/binutils/docs/as/) | Retrieved; not yet reviewed |
-| 114 | [Top (LD)](https://sourceware.org/binutils/docs/ld/) | Retrieved; not yet reviewed |
-| 115 | [x86 psABIs / x86-64 psABI · GitLab](https://gitlab.com/x86-psABIs/x86-64-ABI) | Only project metadata retrieved; ABI document not present |
+| 113 | [Top (Using as)](https://sourceware.org/binutils/docs/as/) | Assembler overview and relevant contents inspected; not all linked chapters |
+| 114 | [Top (LD)](https://sourceware.org/binutils/docs/ld/) | Linker overview and contents read; not all linked chapters |
+| 115 | [x86 psABIs / x86-64 psABI · GitLab](https://gitlab.com/x86-psABIs/x86-64-ABI) | Official ABI PDF (March 12, 2025) retrieved; function calling, varargs and Linux syscall sections reviewed |
 
 ### Repository snapshots and catalog records
 
 | ID | Reference | Review status |
 | --- | --- | --- |
-| 116 | [bcc/blob/c16e24a6013a5e84d71b1aacfea5f43aab3fddd0/README.md](https://github.com/frankischilling/bcc/blob/c16e24a6013a5e84d71b1aacfea5f43aab3fddd0/README.md) | Retrieved; not yet reviewed |
-| 117 | [bcc/blob/c16e24a6013a5e84d71b1aacfea5f43aab3fddd0/asm/README.md](https://github.com/frankischilling/bcc/blob/c16e24a6013a5e84d71b1aacfea5f43aab3fddd0/asm/README.md) | Retrieved; not yet reviewed |
-| 118 | [bcc/blob/c16e24a6013a5e84d71b1aacfea5f43aab3fddd0/asm/bootstrap/README.md](https://github.com/frankischilling/bcc/blob/c16e24a6013a5e84d71b1aacfea5f43aab3fddd0/asm/bootstrap/README.md) | Retrieved; not yet reviewed |
-| 119 | [bcc/blob/c16e24a6013a5e84d71b1aacfea5f43aab3fddd0/pdp-11/bcc-pdp/README.md](https://github.com/frankischilling/bcc/blob/c16e24a6013a5e84d71b1aacfea5f43aab3fddd0/pdp-11/bcc-pdp/README.md) | Retrieved; not yet reviewed |
-| 120 | [bcc/blob/c16e24a6013a5e84d71b1aacfea5f43aab3fddd0/pdp-11/bcc-pdp/CONFORMANCE.md](https://github.com/frankischilling/bcc/blob/c16e24a6013a5e84d71b1aacfea5f43aab3fddd0/pdp-11/bcc-pdp/CONFORMANCE.md) | Retrieved; not yet reviewed |
-| 121 | [bcc/blob/c16e24a6013a5e84d71b1aacfea5f43aab3fddd0/pdp-11/NOTES_RUNTIME.md](https://github.com/frankischilling/bcc/blob/c16e24a6013a5e84d71b1aacfea5f43aab3fddd0/pdp-11/NOTES_RUNTIME.md) | Retrieved; not yet reviewed |
-| 122 | [bcc/blob/c16e24a6013a5e84d71b1aacfea5f43aab3fddd0/pdp-11/NOTES_ASSEMBLY.md](https://github.com/frankischilling/bcc/blob/c16e24a6013a5e84d71b1aacfea5f43aab3fddd0/pdp-11/NOTES_ASSEMBLY.md) | Retrieved; not yet reviewed |
-| 123 | [bcc/blob/c16e24a6013a5e84d71b1aacfea5f43aab3fddd0/pdp-11/unix-v1-docs/README.md](https://github.com/frankischilling/bcc/blob/c16e24a6013a5e84d71b1aacfea5f43aab3fddd0/pdp-11/unix-v1-docs/README.md) | Retrieved; not yet reviewed |
-| 124 | [bcc/blob/c16e24a6013a5e84d71b1aacfea5f43aab3fddd0/wiki/B_LANGUAGE.md](https://github.com/frankischilling/bcc/blob/c16e24a6013a5e84d71b1aacfea5f43aab3fddd0/wiki/B_LANGUAGE.md) | Retrieved; not yet reviewed |
+| 116 | [bcc/blob/c16e24a6013a5e84d71b1aacfea5f43aab3fddd0/README.md](https://github.com/frankischilling/bcc/blob/c16e24a6013a5e84d71b1aacfea5f43aab3fddd0/README.md) | Complete pinned repository document read; not independent historical evidence |
+| 117 | [bcc/blob/c16e24a6013a5e84d71b1aacfea5f43aab3fddd0/asm/README.md](https://github.com/frankischilling/bcc/blob/c16e24a6013a5e84d71b1aacfea5f43aab3fddd0/asm/README.md) | Complete pinned repository document read; not independent historical evidence |
+| 118 | [bcc/blob/c16e24a6013a5e84d71b1aacfea5f43aab3fddd0/asm/bootstrap/README.md](https://github.com/frankischilling/bcc/blob/c16e24a6013a5e84d71b1aacfea5f43aab3fddd0/asm/bootstrap/README.md) | Complete pinned repository document read; not independent historical evidence |
+| 119 | [bcc/blob/c16e24a6013a5e84d71b1aacfea5f43aab3fddd0/pdp-11/bcc-pdp/README.md](https://github.com/frankischilling/bcc/blob/c16e24a6013a5e84d71b1aacfea5f43aab3fddd0/pdp-11/bcc-pdp/README.md) | Complete pinned repository document read; not independent historical evidence |
+| 120 | [bcc/blob/c16e24a6013a5e84d71b1aacfea5f43aab3fddd0/pdp-11/bcc-pdp/CONFORMANCE.md](https://github.com/frankischilling/bcc/blob/c16e24a6013a5e84d71b1aacfea5f43aab3fddd0/pdp-11/bcc-pdp/CONFORMANCE.md) | Complete pinned repository document read; not independent historical evidence |
+| 121 | [bcc/blob/c16e24a6013a5e84d71b1aacfea5f43aab3fddd0/pdp-11/NOTES_RUNTIME.md](https://github.com/frankischilling/bcc/blob/c16e24a6013a5e84d71b1aacfea5f43aab3fddd0/pdp-11/NOTES_RUNTIME.md) | Complete pinned repository document read; not independent historical evidence |
+| 122 | [bcc/blob/c16e24a6013a5e84d71b1aacfea5f43aab3fddd0/pdp-11/NOTES_ASSEMBLY.md](https://github.com/frankischilling/bcc/blob/c16e24a6013a5e84d71b1aacfea5f43aab3fddd0/pdp-11/NOTES_ASSEMBLY.md) | Complete pinned repository document read; not independent historical evidence |
+| 123 | [bcc/blob/c16e24a6013a5e84d71b1aacfea5f43aab3fddd0/pdp-11/unix-v1-docs/README.md](https://github.com/frankischilling/bcc/blob/c16e24a6013a5e84d71b1aacfea5f43aab3fddd0/pdp-11/unix-v1-docs/README.md) | Complete pinned repository document read; not independent historical evidence |
+| 124 | [bcc/blob/c16e24a6013a5e84d71b1aacfea5f43aab3fddd0/wiki/B_LANGUAGE.md](https://github.com/frankischilling/bcc/blob/c16e24a6013a5e84d71b1aacfea5f43aab3fddd0/wiki/B_LANGUAGE.md) | Complete pinned repository document read; not independent historical evidence |
 | 125 | [b-reference-manual](https://archive.org/metadata/b-reference-manual) | Complete archive metadata read; not a language specification |
-| 126 | [bcc/blob/main/README.md](https://github.com/frankischilling/bcc/blob/main/README.md) | Retrieved; not yet reviewed |
-| 127 | [bcc/blob/main/pdp-11/bcc-pdp/README.md](https://github.com/frankischilling/bcc/blob/main/pdp-11/bcc-pdp/README.md) | Retrieved; not yet reviewed |
-| 128 | [bcc/blob/main/asm/README.md](https://github.com/frankischilling/bcc/blob/main/asm/README.md) | Retrieved; not yet reviewed |
+| 126 | [bcc/blob/main/README.md](https://github.com/frankischilling/bcc/blob/main/README.md) | Retrieved main snapshot matches corresponding pinned document; read in full |
+| 127 | [bcc/blob/main/pdp-11/bcc-pdp/README.md](https://github.com/frankischilling/bcc/blob/main/pdp-11/bcc-pdp/README.md) | Retrieved main snapshot matches corresponding pinned document; read in full |
+| 128 | [bcc/blob/main/asm/README.md](https://github.com/frankischilling/bcc/blob/main/asm/README.md) | Retrieved main snapshot matches corresponding pinned document; read in full |
