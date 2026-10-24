@@ -30,6 +30,22 @@ implements every host helper. The host ABI declarations are in
 [`libb.h`](../lib/libb.h), and source-name binding is in
 [`src/emitter.c`](../src/emitter.c).
 
+## Supplied library bindings
+
+A program can supply its own function or data cell for a library name.
+Formatting follows those bindings when it calls `char`, `putchar`, and
+`printn`; line input follows `getchar` and `lchar`. Changing a supplied cell
+also changes later callbacks. See the [output-capture example](../examples/b72/library_capture.b).
+Host calls and function values resolve supplied library definitions even
+when the provider was compiled into a separate object. Ordinary separate
+B-object linking still requires strict mode when a name is not a known
+runtime entry; compatibility mode also exposes C calls.
+
+This is not yet writable storage for every host-owned built-in. Without a
+supplied source cell, taking a built-in's address or replacing its binding
+still has the documented host limits. The dynamic C-call bridge is a host
+interop helper, not an ordinary historical library binding.
+
 ## Host command-line replay
 
 `reread()` makes subsequent character input replay the program name and

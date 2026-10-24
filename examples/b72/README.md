@@ -6,6 +6,7 @@ PDP-11 compiler.
 
 - `formatting.b`: signed decimal/octal, packed character pairs, and the
   historical handling of repeated percent signs.
+- `library_capture.b`: capturing formatted output with a supplied `putchar`.
 - `function_cells.b`: replacing a source function while retaining its old value.
 - `counted_arguments.b`: reading a counted argument list beyond the declared parameters.
 - `parameter_cells.b`: walking the declared argument cells in order.

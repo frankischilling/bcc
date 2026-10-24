@@ -65,6 +65,12 @@ NULs; host compatibility mode stops at NUL or 004. `putchr(c)` writes only
 the low byte. `print(n)` is a host convenience that adds a newline;
 `putnum(n)` writes decimal without one.
 
+The native helper and strict host `getstr(buf)` return the number of characters
+stored, excluding the final 004. Compatibility host mode retains its buffer
+return value and treats carriage return as a line terminator. Strict mode keeps
+carriage return as data and stops on newline or 004. This helper is a project
+interface, not an entry in the January 1972 library list.
+
 `getstr(buf)` has no length parameter. It cannot prevent a too-long input
 line from overrunning its destination. Prefer a bounded `getchar`/`lchar`
 loop for input you do not control. Its return and carriage-return behavior

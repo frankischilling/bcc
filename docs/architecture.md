@@ -178,3 +178,11 @@ parameters. Calls restore the previous frame on return, including nested and
 recursive calls. Source functions compiled in separate files share the registry.
 Runtime and compatibility C function values retain their existing call path.
 The bootstrap emits the same source-function interface.
+
+Named binding records retain a B name and its cell address, separately from
+the call registry's original three-field records. Data definitions register
+only a binding, without a source-code entry. Default library
+calls can therefore find a supplied definition without depending on C symbol
+interposition or the compilation order of separate files. Formatting and line-input
+callbacks use the same argument-frame path as other B calls. Private string and
+syscall marshalling still uses the runtime's own byte-access helpers.

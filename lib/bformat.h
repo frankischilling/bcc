@@ -8,6 +8,16 @@
 #define __bcc_format_linkage
 #endif
 
+static word __bcc_format_putchar(word character) {
+    word *cell = __bcc_source_binding("putchar");
+    return cell ? __bcc_call1(*cell, character) : b_putchar(character);
+}
+
+static word __bcc_format_char(word string, word index) {
+    word *cell = __bcc_source_binding("char");
+    return cell ? __bcc_call2(*cell, string, index) : b_char(string, index);
+}
+
 static uword __bcc_format_unsigned(word value) {
 #if WORD_BITS == 16
     return (uint16_t)value;
@@ -26,14 +36,14 @@ static void __bcc_format_digits(uword value, unsigned base, int uppercase) {
         digits[used++] = (char)(digit < 10 ? '0' + digit : (uppercase ? 'A' : 'a') + digit - 10);
         value /= base;
     } while (value);
-    while (used) b_putchar((word)digits[--used]);
+    while (used) __bcc_format_putchar((word)digits[--used]);
 }
 
 static void __bcc_format_signed(word value, unsigned base) {
     value = WVAL(value);
     uword magnitude = (uword)value;
     if (value < 0) {
-        b_putchar('-');
+        __bcc_format_putchar('-');
         magnitude = (uword)0 - magnitude;
     }
     __bcc_format_digits(magnitude, base, 1);
@@ -46,21 +56,34 @@ __bcc_format_linkage word b_printn(word value, word base) {
     return 0;
 }
 
+/* The reference printf supplies a magnitude to printn. The minimum signed
+ * word has no positive counterpart, so retain the negative-number extension. */
+static void __bcc_format_number(word value, unsigned base) {
+    word *cell = __bcc_source_binding("printn");
+    if (!cell) { __bcc_format_signed(value, base); return; }
+    value = WVAL(value);
+    if (__bcc_is_source_function(*cell) && value < 0 && WNEG(value) >= 0) {
+        __bcc_format_putchar('-');
+        value = WNEG(value);
+    }
+    (void)__bcc_call2(*cell, value, (word)base);
+}
+
 __bcc_format_linkage word b_printf(word fmt, ...) {
     va_list args;
     va_start(args, fmt);
     word i = 0;
     for (;;) {
-        word ch = b_char(fmt, i++);
+        word ch = __bcc_format_char(fmt, i++);
         if (ch == 004 || (!__bcc_strict_runtime && ch == 0)) break;
-        if (ch != '%') { b_putchar(ch); continue; }
-        word code = b_char(fmt, i++);
-        if (code == 004 || (!__bcc_strict_runtime && code == 0)) { b_putchar('%'); break; }
+        if (ch != '%') { __bcc_format_putchar(ch); continue; }
+        word code = __bcc_format_char(fmt, i++);
+        if (code == 004 || (!__bcc_strict_runtime && code == 0)) { __bcc_format_putchar('%'); break; }
         int kind = (int)code;
 #if !__bcc_strict_runtime
-        if (code == '%') { b_putchar('%'); continue; }
+        if (code == '%') { __bcc_format_putchar('%'); continue; }
         if (code == 'z') {
-            word modifier = b_char(fmt, i);
+            word modifier = __bcc_format_char(fmt, i);
             if (modifier == 'u' || modifier == 'd') {
                 ++i;
                 kind = modifier == 'u' ? 256 : 257;
@@ -74,7 +97,7 @@ __bcc_format_linkage word b_printf(word fmt, ...) {
         if (!recognized) {
             /* B72's example prints '%' and revisits the following character.
                Do not fetch an argument for an unrecognized conversion. */
-            b_putchar('%');
+            __bcc_format_putchar('%');
             --i;
             continue;
         }
@@ -82,13 +105,14 @@ __bcc_format_linkage word b_printf(word fmt, ...) {
         switch (kind) {
         case 'd':
         case 257:
-            __bcc_format_signed(value, 10);
+            __bcc_format_number(value, 10);
             break;
         case 'o':
 #if __bcc_strict_runtime
-            __bcc_format_signed(value, 8);
+            __bcc_format_number(value, 8);
 #else
-            __bcc_format_digits(__bcc_format_unsigned(value), 8, 1);
+            if (WVAL(value) >= 0) __bcc_format_number(value, 8);
+            else __bcc_format_digits(__bcc_format_unsigned(value), 8, 1);
 #endif
             break;
         case 'u':
@@ -96,18 +120,18 @@ __bcc_format_linkage word b_printf(word fmt, ...) {
             __bcc_format_digits(__bcc_format_unsigned(value), 10, 1);
             break;
         case 'p':
-            b_putchar('0'); b_putchar('x');
+            __bcc_format_putchar('0'); __bcc_format_putchar('x');
             __bcc_format_digits(__bcc_format_unsigned(value), 16, 0);
             break;
         case 'c':
-            b_putchar(value);
+            __bcc_format_putchar(value);
             break;
         case 's': {
             word j = 0;
             for (;;) {
-                word c = b_char(value, j++);
+                word c = __bcc_format_char(value, j++);
                 if (c == 004 || (!__bcc_strict_runtime && c == 0)) break;
-                b_putchar(c);
+                __bcc_format_putchar(c);
             }
             break;
         }

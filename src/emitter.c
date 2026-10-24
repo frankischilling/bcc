@@ -486,7 +486,7 @@ void emit_c_string(FILE *out, const char *s) {
         if (c == '\\' || c == '"') { fputc('\\', out); fputc(c, out); }
         else if (c == '\n') fputs("\\n", out);
         else if (c == '\t') fputs("\\t", out);
-        else if (c < 32) fprintf(out, "\\x%02x", c);
+        else if (c < 32) fprintf(out, "\\%03o", c);
         else fputc(c, out);
     }
     fputc('"', out);
@@ -755,6 +755,31 @@ static void emit_switch(FILE *out, Stmt *s, int indent, const char *filename) {
 
 
 
+static void emit_b_call(FILE *out, Expr *e, const char *filename,
+                        const char *direct, unsigned binding) {
+    unsigned id = ++expression_id;
+    size_t count = e->as.call.args.len;
+    fprintf(out, "({ word __bcc_callee_%u = ", id);
+    if (binding) fprintf(out, "*__bcc_binding_%u", binding);
+    else if (direct) emit_function_cell(out, direct);
+    else emit_expr(out, e->as.call.callee, filename);
+    fprintf(out, "; word __bcc_args_%u[%zu] = {", id, count ? count : 1);
+    if (!count) fputc('0', out);
+    for (size_t i = 0; i < count; ++i) {
+        if (i) fputs(", ", out);
+        emit_expr(out, e->as.call.args.data[i], filename);
+    }
+    fprintf(out, "}; __bcc_is_source_function(__bcc_callee_%u) ? "
+            "__bcc_invoke_source(__bcc_callee_%u, %zu, __bcc_args_%u) : "
+            "((word (*)())B_FUNCTION_CPTR(__bcc_callee_%u))(",
+            id, id, count, id, id);
+    for (size_t i = 0; i < count; ++i) {
+        if (i) fputs(", ", out);
+        fprintf(out, "__bcc_args_%u[%zu]", id, i);
+    }
+    fputs("); })", out);
+}
+
 void emit_expr(FILE *out, Expr *e, const char *filename) {
     // Don't emit line directives in the middle of expressions
     // They should only be at statement boundaries
@@ -775,9 +800,14 @@ void emit_expr(FILE *out, Expr *e, const char *filename) {
             else if (e->function_value && source_function(e->as.var)) {
                 emit_function_cell(out, e->as.var);
             } else if (e->function_value) {
+                int library = runtime_function(e->as.var);
+                if (library) {
+                    fputs("__bcc_library_value(", out); emit_c_string(out, e->as.var); fputs(", ", out);
+                }
                 fputs("B_FUNCTION(", out);
                 emit_function_name(out, e->as.var);
                 fputc(')', out);
+                if (library) fputc(')', out);
             } else if (e->global_value == 2) {
                 fprintf(out, "__b_external_%s", get_mangled_name(e->as.var));
             } else {
@@ -792,26 +822,7 @@ void emit_expr(FILE *out, Expr *e, const char *filename) {
             int cell_call = direct && !e->indirect_call &&
                 (source_function(direct) || (g_strict && !runtime_function(direct)));
             if (e->indirect_call || cell_call) {
-                unsigned id = ++expression_id;
-                size_t count = e->as.call.args.len;
-                fprintf(out, "({ word __bcc_callee_%u = ", id);
-                if (cell_call) emit_function_cell(out, direct);
-                else emit_expr(out, e->as.call.callee, filename);
-                fprintf(out, "; word __bcc_args_%u[%zu] = {", id, count ? count : 1);
-                if (!count) fputc('0', out);
-                for (size_t i = 0; i < count; ++i) {
-                    if (i) fputs(", ", out);
-                    emit_expr(out, e->as.call.args.data[i], filename);
-                }
-                fprintf(out, "}; __bcc_is_source_function(__bcc_callee_%u) ? "
-                        "__bcc_invoke_source(__bcc_callee_%u, %zu, __bcc_args_%u) : "
-                        "((word (*)())B_FUNCTION_CPTR(__bcc_callee_%u))(",
-                        id, id, count, id, id);
-                for (size_t i = 0; i < count; ++i) {
-                    if (i) fputs(", ", out);
-                    fprintf(out, "__bcc_args_%u[%zu]", id, i);
-                }
-                fputs("); })", out);
+                emit_b_call(out, e, filename, cell_call ? direct : NULL, 0);
                 return;
             }
             int used_builtin_prefix = 0;
@@ -834,6 +845,16 @@ void emit_expr(FILE *out, Expr *e, const char *filename) {
                     return;
                 }
                 used_builtin_prefix = runtime_function(name) && !source_function(name);
+            }
+            unsigned binding = 0;
+            if (used_builtin_prefix) {
+                binding = ++expression_id;
+                fprintf(out, "({ word *__bcc_binding_%u = __bcc_source_binding(", binding);
+                emit_c_string(out, direct);
+                fprintf(out, "); word __bcc_result_%u; if (__bcc_binding_%u) __bcc_result_%u = ",
+                        binding, binding, binding);
+                emit_b_call(out, e, filename, NULL, binding);
+                fprintf(out, "; else __bcc_result_%u = ", binding);
             }
             const char *cname = NULL;
             int wrap_ret_ptr = 0;
@@ -943,6 +964,7 @@ void emit_expr(FILE *out, Expr *e, const char *filename) {
             fputc(')', out);
             if (wrap_ret_ptr) fputc(')', out);
             if (printf_wrap_s) free(printf_wrap_s);
+            if (binding) fprintf(out, "; __bcc_result_%u; })", binding);
             return;
         }
 
@@ -1577,6 +1599,18 @@ static void emit_global_initializers(FILE *out, Program *prog, const char *filen
         fprintf(out, "    static struct __bcc_source_function __bcc_function_%zu = {(void*)", i);
         emit_function_body_name(out, t->as.fn->name);
         fprintf(out, ", 0, 0};\n    __bcc_register_function(&__bcc_function_%zu);\n", i);
+        fprintf(out, "    static struct __bcc_library_binding __bcc_binding_%zu = {", i);
+        emit_c_string(out, t->as.fn->name);
+        fputs(", ", out); emit_name(out, t->as.fn->name);
+        fprintf(out, ", 0, 0};\n    __bcc_register_binding(&__bcc_binding_%zu);\n", i);
+    }
+    for (size_t i = 0; i < prog->tops.len; ++i) {
+        Top *t = prog->tops.data[i];
+        if (t->kind != TOP_EXTERN_DEF || t->as.ext_def->is_implicit_static) continue;
+        const char *name = t->as.ext_def->name;
+        fprintf(out, "    static struct __bcc_library_binding __bcc_data_%zu = {", i);
+        emit_c_string(out, name); fputs(", ", out); emit_name(out, name);
+        fprintf(out, ", 0, 0};\n    __bcc_register_binding(&__bcc_data_%zu);\n", i);
     }
     fputs("}\n", out);
     fputs("static void __b_initialize_globals(void) {\n", out);
@@ -2080,34 +2114,21 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
 "    __b_sync_wr();\n"
 "    word i = 0;\n"
 "    for (;;) {\n"
-"        word ch = b_char(s, i++);\n"
+"        word ch = __bcc_library_call2(\"char\", b_char, s, i++);\n"
 "        if (ch == 004 || (!__bcc_strict_runtime && ch == 0)) break;\n"
-"        b_putchar(ch);\n"
+"        __bcc_library_call1(\"putchar\", b_putchar, ch);\n"
         "    }\n"
         "    return s;\n"
         "}\n"
 "static word b_getstr(word buf) {\n"
-"    __b_sync_rd();\n"
-"    size_t i = 0;\n"
-"    unsigned char c;\n"
+"    word i = 0;\n"
 "    for (;;) {\n"
-"        ssize_t n = read(rd_fd, &c, 1);\n"
-"        if (n == 1 && c != '\\n' && c != '\\r') {\n"
-"            b_lchar(buf, (word)i, (word)c);\n"
-"            i++;\n"
-"            continue;\n"
-"        }\n"
-"        if (n == 1) break; /* newline */\n"
-"        if (rd_fd != 0) {\n"
-"            close(rd_fd);\n"
-"            rd_fd = 0;\n"
-"            rd_unit = -1;\n"
-"            continue; /* retry on terminal */\n"
-"        }\n"
-"        break; /* EOF */\n"
+"        word c = __bcc_library_call0(\"getchar\", b_getchar);\n"
+"        if (c == 004 || c == '\\n' || (!__bcc_strict_runtime && c == '\\r')) break;\n"
+"        __bcc_library_call3(\"lchar\", b_lchar, buf, i++, c);\n"
 "    }\n"
-"    b_lchar(buf, (word)i, (word)004);\n"
-"    return buf;\n"
+"    __bcc_library_call3(\"lchar\", b_lchar, buf, i, 004);\n"
+"    return __bcc_strict_runtime ? i : buf;\n"
 "}\n"
 "static word b_flush(void){\n"
 "    __b_sync_wr();\n"
@@ -2493,7 +2514,7 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
         "\n"
         "static word b_mkdir(word path, word mode) { return b_makdir(path, mode); }\n"
         "static word b_putnum(word n) {\n"
-        "    b_printn(n, (word)10);\n"
+        "    __bcc_library_call2(\"printn\", b_printn, n, (word)10);\n"
         "    return n;\n"
         "}\n"
         "static volatile sig_atomic_t __b_got_intr = 0;\n"

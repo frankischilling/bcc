@@ -43,6 +43,7 @@ jobs:
           chmod +x "$RUNNER_TEMP/bcc-instrumented"
           python3 tests/test_word_arithmetic.py --compiler "$RUNNER_TEMP/bcc-instrumented"
           python3 tests/test_call_frames.py --compiler "$RUNNER_TEMP/bcc-instrumented"
+          python3 tests/test_library_bindings.py --compiler "$RUNNER_TEMP/bcc-instrumented"
   pdp11:
     runs-on: ubuntu-24.04
     steps:
@@ -121,6 +122,7 @@ jobs:
           make -C pdp-11/bcc-pdp v1-run B=tests/run/t95_parameter_cells.b
           make -C pdp-11/bcc-pdp v1-run B=tests/run/t96_word_arithmetic.b
           make -C pdp-11/bcc-pdp v1-run B=tests/run/t97_call_arguments.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t98_library_callbacks.b
           bash pdp-11/bcc-pdp/tools/v1-run.sh pdp-11/bcc-pdp/tests/run/t86_word_argv_alignment.b --argument a --argument bb --argument ccc --argument dddd
           bash pdp-11/bcc-pdp/tools/v1-run.sh pdp-11/bcc-pdp/tests/run/t19a_tilde.b --expect-compile-error
           bash pdp-11/bcc-pdp/tools/v1-run.sh pdp-11/bcc-pdp/tests/run/t44_missing_label.b --expect-compile-error

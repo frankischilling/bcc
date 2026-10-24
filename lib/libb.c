@@ -94,35 +94,22 @@ word b_putstr(word s) {
     __b_sync_wr();
     word i = 0;
     for (;;) {
-        word ch = b_char(s, i++);
+        word ch = __bcc_library_call2("char", b_char, s, i++);
         if (ch == 004 || (!__bcc_strict_runtime && ch == 0)) break;
-        b_putchar(ch);
+        __bcc_library_call1("putchar", b_putchar, ch);
     }
     return s;
 }
 
 word b_getstr(word buf) {
-    __b_sync_rd();
-    size_t i = 0;
-    unsigned char c;
+    word i = 0;
     for (;;) {
-        ssize_t n = read(b_rd_fd, &c, 1);
-        if (n == 1 && c != '\n' && c != '\r') {
-            b_lchar(buf, (word)i, (word)c);
-            i++;
-            continue;
-        }
-        if (n == 1) break; /* newline */
-        if (b_rd_fd != 0) {
-            close(b_rd_fd);
-            b_rd_fd = 0;
-            b_rd_unit = -1;
-            continue; /* retry on terminal */
-        }
-        break; /* EOF */
+        word c = __bcc_library_call0("getchar", b_getchar);
+        if (c == 004 || c == '\n' || (!__bcc_strict_runtime && c == '\r')) break;
+        __bcc_library_call3("lchar", b_lchar, buf, i++, c);
     }
-    b_lchar(buf, (word)i, (word)004);
-    return buf;
+    __bcc_library_call3("lchar", b_lchar, buf, i, 004);
+    return __bcc_strict_runtime ? i : buf;
 }
 
 word b_flush(void) {
@@ -314,7 +301,7 @@ word __b_pack_cstr(const char *s) {
 #include "bformat.h"
 
 word b_putnum(word n) {
-    b_printn(n, (word)10);
+    __bcc_library_call2("printn", b_printn, n, (word)10);
     return n;
 }
 

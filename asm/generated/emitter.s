@@ -469,7 +469,7 @@ collect_function_labels:
 	.p2align 4
 	.type	collect_function_autos, @function
 collect_function_autos:
-.LFB56:
+.LFB57:
 	.cfi_startproc
 	testq	%rdi, %rdi
 	je	.L120
@@ -581,7 +581,7 @@ collect_function_autos:
 	.cfi_restore 12
 	ret
 	.cfi_endproc
-.LFE56:
+.LFE57:
 	.size	collect_function_autos, .-collect_function_autos
 	.p2align 4
 	.type	get_string_id, @function
@@ -674,7 +674,7 @@ get_string_id:
 	.p2align 4
 	.type	edge_words_total.part.0.isra.0, @function
 edge_words_total.part.0.isra.0:
-.LFB77:
+.LFB78:
 	.cfi_startproc
 	pushq	%r13
 	.cfi_def_cfa_offset 16
@@ -746,7 +746,7 @@ edge_words_total.part.0.isra.0:
 	.cfi_def_cfa_offset 8
 	ret
 	.cfi_endproc
-.LFE77:
+.LFE78:
 	.size	edge_words_total.part.0.isra.0, .-edge_words_total.part.0.isra.0
 	.section	.rodata.str1.1
 .LC3:
@@ -1476,7 +1476,7 @@ emit_function_name:
 	.p2align 4
 	.type	emit_function_prototypes, @function
 emit_function_prototypes:
-.LFB62:
+.LFB63:
 	.cfi_startproc
 	pushq	%r15
 	.cfi_def_cfa_offset 16
@@ -1681,7 +1681,7 @@ emit_function_prototypes:
 	movl	$1, 12(%rsp)
 	jmp	.L287
 	.cfi_endproc
-.LFE62:
+.LFE63:
 	.size	emit_function_prototypes, .-emit_function_prototypes
 	.section	.rodata.str1.1
 .LC23:
@@ -1698,7 +1698,7 @@ emit_function_prototypes:
 	.p2align 4
 	.type	emit_ival_expr.part.0, @function
 emit_ival_expr.part.0:
-.LFB73:
+.LFB74:
 	.cfi_startproc
 	pushq	%r15
 	.cfi_def_cfa_offset 16
@@ -1881,7 +1881,7 @@ emit_ival_expr.part.0:
 	jne	.L358
 	jmp	.L321
 	.cfi_endproc
-.LFE73:
+.LFE74:
 	.size	emit_ival_expr.part.0, .-emit_ival_expr.part.0
 	.p2align 4
 	.type	collect_strings_expr, @function
@@ -2483,7 +2483,7 @@ emit_line_directive:
 .LC31:
 	.string	"\\t"
 .LC32:
-	.string	"\\x%02x"
+	.string	"\\%03o"
 	.text
 	.p2align 4
 	.globl	emit_c_string
@@ -2652,113 +2652,114 @@ emit_c_string:
 .LC58:
 	.string	"__bcc_parameters[%zu]"
 .LC59:
-	.string	"B_FUNCTION("
+	.string	"callf"
 .LC60:
-	.string	"({ word __bcc_callee_%u = "
+	.string	"b_callf_dispatch(%zu"
 .LC61:
-	.string	"; word __bcc_args_%u[%zu] = {"
+	.string	", "
 	.section	.rodata.str1.8
 	.align 8
 .LC62:
-	.string	"}; __bcc_is_source_function(__bcc_callee_%u) ? __bcc_invoke_source(__bcc_callee_%u, %zu, __bcc_args_%u) : ((word (*)())B_FUNCTION_CPTR(__bcc_callee_%u))("
-	.section	.rodata.str1.1
+	.string	"({ word *__bcc_binding_%u = __bcc_source_binding("
+	.align 8
 .LC63:
-	.string	", "
+	.string	"); word __bcc_result_%u; if (__bcc_binding_%u) __bcc_result_%u = "
+	.section	.rodata.str1.1
 .LC64:
-	.string	"__bcc_args_%u[%zu]"
+	.string	"; else __bcc_result_%u = "
 .LC65:
-	.string	"); })"
-.LC66:
-	.string	"callf"
-.LC67:
-	.string	"b_callf_dispatch(%zu"
-.LC68:
 	.string	"printf"
-.LC69:
+.LC66:
 	.string	"malloc"
-.LC70:
+.LC67:
 	.string	"calloc"
-.LC71:
+.LC68:
 	.string	"realloc"
-.LC72:
+.LC69:
 	.string	"B_PTR("
-.LC73:
+.LC70:
 	.string	"-+ #0"
-.LC74:
+.LC71:
 	.string	"exit"
-.LC75:
+.LC72:
 	.string	"strlen"
-.LC76:
+.LC73:
 	.string	"atoi"
-.LC77:
+.LC74:
 	.string	"memmove"
-.LC78:
+.LC75:
 	.string	"tcgetattr"
-.LC79:
+.LC76:
 	.string	"tcsetattr"
-.LC80:
+.LC77:
 	.string	"ioctl"
-.LC81:
+.LC78:
 	.string	"memset"
-.LC82:
+.LC79:
 	.string	"memcpy"
-.LC83:
+.LC80:
 	.string	"__b_cstr("
-.LC84:
+.LC81:
 	.string	"B_CPTR("
 	.section	.rodata.str1.8
 	.align 8
-.LC85:
+.LC82:
 	.string	"(size_t)(sizeof(word) * (uword)("
 	.section	.rodata.str1.1
-.LC86:
+.LC83:
 	.string	"))"
-.LC87:
+.LC84:
+	.string	"; __bcc_result_%u; })"
+.LC85:
 	.string	"B_INDEX("
-.LC88:
+.LC86:
 	.string	"B_DEREF("
-.LC89:
+.LC87:
 	.string	"WNEG("
-.LC90:
+.LC88:
 	.string	"({ word __b_left_%u = "
-.LC91:
+.LC89:
 	.string	"; word __b_right_%u = "
 	.section	.rodata.str1.8
 	.align 8
-.LC92:
+.LC90:
 	.string	"; (word)%s(__b_left_%u, __b_right_%u); })"
 	.section	.rodata.str1.1
-.LC93:
+.LC91:
 	.string	" %s "
-.LC94:
+.LC92:
 	.string	"%s("
-.LC95:
+.LC93:
 	.string	"({ word *__b_dest_%u = &("
-.LC96:
+.LC94:
 	.string	"); word __b_rhs_%u = ("
 	.section	.rodata.str1.8
 	.align 8
-.LC97:
+.LC95:
 	.string	"); *__b_dest_%u = (*__b_dest_%u %s __b_rhs_%u); })"
 	.section	.rodata.str1.1
-.LC98:
+.LC96:
 	.string	"b_"
-.LC99:
+.LC97:
 	.string	"(&("
-.LC100:
+.LC98:
 	.string	"), "
-.LC101:
+.LC99:
 	.string	"="
-.LC102:
+.LC100:
 	.string	" ? "
-.LC103:
+.LC101:
 	.string	" : "
-.LC104:
+.LC102:
 	.string	"snprintf"
-.LC105:
+.LC103:
 	.string	"sprintf"
-.LC106:
+.LC104:
 	.string	"fprintf"
+.LC105:
+	.string	"B_FUNCTION("
+.LC106:
+	.string	"__bcc_library_value("
 .LC107:
 	.string	"dprintf"
 	.text
@@ -2766,11 +2767,14 @@ emit_c_string:
 	.globl	emit_expr
 	.type	emit_expr, @function
 emit_expr:
-.LFB48:
+.LFB49:
 	.cfi_startproc
+	cmpl	$10, (%rsi)
+	ja	.L905
 	pushq	%r15
 	.cfi_def_cfa_offset 16
 	.cfi_offset 15, -16
+	movq	%rsi, %r15
 	pushq	%r14
 	.cfi_def_cfa_offset 24
 	.cfi_offset 14, -24
@@ -2783,18 +2787,15 @@ emit_expr:
 	pushq	%rbp
 	.cfi_def_cfa_offset 48
 	.cfi_offset 6, -48
+	movq	%rdx, %rbp
+	leaq	.L499(%rip), %rdx
 	pushq	%rbx
 	.cfi_def_cfa_offset 56
 	.cfi_offset 3, -56
+	movq	%rdi, %rbx
 	subq	$88, %rsp
 	.cfi_def_cfa_offset 144
-	cmpl	$10, (%rsi)
-	movq	%rdi, 8(%rsp)
-	ja	.L496
 	movl	(%rsi), %eax
-	movq	%rdx, %rbp
-	leaq	.L499(%rip), %rdx
-	movq	%rsi, %r15
 	movslq	(%rdx,%rax,4), %rax
 	addq	%rdx, %rax
 	jmp	*%rax
@@ -2817,9 +2818,8 @@ emit_expr:
 	.p2align 4,,10
 	.p2align 3
 .L500:
-	movq	8(%rsp), %rbx
+	movq	%rdi, %rsi
 	movl	$40, %edi
-	movq	%rbx, %rsi
 	call	fputc@PLT
 	movq	48(%r15), %rsi
 	movq	%rbp, %rdx
@@ -2828,52 +2828,55 @@ emit_expr:
 	movq	%rbx, %rcx
 	movl	$3, %edx
 	movl	$1, %esi
-	leaq	.LC102(%rip), %rdi
+	leaq	.LC100(%rip), %rdi
 	call	fwrite@PLT
 	movq	56(%r15), %rsi
 	movq	%rbp, %rdx
 	movq	%rbx, %rdi
 	call	emit_expr
-	movl	$1, %esi
 	movq	%rbx, %rcx
 	movl	$3, %edx
-	leaq	.LC103(%rip), %rdi
+	movl	$1, %esi
+	leaq	.LC101(%rip), %rdi
+.L928:
 	call	fwrite@PLT
 	movq	64(%r15), %rsi
-.L921:
 	movq	%rbp, %rdx
-.L922:
 	movq	%rbx, %rdi
 	call	emit_expr
-.L923:
-	movq	%rbx, %rsi
-.L926:
+.L922:
 	addq	$88, %rsp
 	.cfi_remember_state
 	.cfi_def_cfa_offset 56
+	movq	%rbx, %rsi
 	movl	$41, %edi
 	popq	%rbx
+	.cfi_restore 3
 	.cfi_def_cfa_offset 48
 	popq	%rbp
+	.cfi_restore 6
 	.cfi_def_cfa_offset 40
 	popq	%r12
+	.cfi_restore 12
 	.cfi_def_cfa_offset 32
 	popq	%r13
+	.cfi_restore 13
 	.cfi_def_cfa_offset 24
 	popq	%r14
+	.cfi_restore 14
 	.cfi_def_cfa_offset 16
 	popq	%r15
+	.cfi_restore 15
 	.cfi_def_cfa_offset 8
 	jmp	fputc@PLT
 	.p2align 4,,10
 	.p2align 3
 .L498:
 	.cfi_restore_state
-	movq	8(%rsp), %rbx
+	movq	%rdi, %rsi
 	movl	$40, %edi
-	movq	%rbx, %rsi
 	call	fputc@PLT
-.L925:
+.L929:
 	movq	48(%r15), %rsi
 	movq	%rbp, %rdx
 	movq	%rbx, %rdi
@@ -2881,33 +2884,42 @@ emit_expr:
 	movq	%rbx, %rcx
 	movl	$2, %edx
 	movl	$1, %esi
-	leaq	.LC63(%rip), %rdi
-.L924:
+	leaq	.LC61(%rip), %rdi
+.L930:
 	call	fwrite@PLT
 	movq	56(%r15), %rsi
-	jmp	.L921
+	movq	%rbp, %rdx
+	movq	%rbx, %rdi
+	call	emit_expr
+	jmp	.L922
 	.p2align 4,,10
 	.p2align 3
 .L509:
 	movq	48(%rsi), %rdx
 	leaq	.LC55(%rip), %rsi
 .L919:
-	movq	8(%rsp), %rdi
 	addq	$88, %rsp
 	.cfi_remember_state
 	.cfi_def_cfa_offset 56
+	movq	%rbx, %rdi
 	xorl	%eax, %eax
 	popq	%rbx
+	.cfi_restore 3
 	.cfi_def_cfa_offset 48
 	popq	%rbp
+	.cfi_restore 6
 	.cfi_def_cfa_offset 40
 	popq	%r12
+	.cfi_restore 12
 	.cfi_def_cfa_offset 32
 	popq	%r13
+	.cfi_restore 13
 	.cfi_def_cfa_offset 24
 	popq	%r14
+	.cfi_restore 14
 	.cfi_def_cfa_offset 16
 	popq	%r15
+	.cfi_restore 15
 	.cfi_def_cfa_offset 8
 	jmp	fprintf@PLT
 	.p2align 4,,10
@@ -2917,25 +2929,31 @@ emit_expr:
 	movq	48(%r15), %rdi
 	movq	40(%rsi), %rsi
 	call	get_string_id
-	movq	8(%rsp), %rdi
 	addq	$88, %rsp
 	.cfi_remember_state
 	.cfi_def_cfa_offset 56
+	movq	%rbx, %rdi
 	leaq	.LC56(%rip), %rsi
 	popq	%rbx
+	.cfi_restore 3
 	.cfi_def_cfa_offset 48
 	movl	%eax, %edx
 	popq	%rbp
+	.cfi_restore 6
 	.cfi_def_cfa_offset 40
 	movl	%eax, %ecx
 	popq	%r12
+	.cfi_restore 12
 	.cfi_def_cfa_offset 32
 	xorl	%eax, %eax
 	popq	%r13
+	.cfi_restore 13
 	.cfi_def_cfa_offset 24
 	popq	%r14
+	.cfi_restore 14
 	.cfi_def_cfa_offset 16
 	popq	%r15
+	.cfi_restore 15
 	.cfi_def_cfa_offset 8
 	jmp	fprintf@PLT
 	.p2align 4,,10
@@ -2962,122 +2980,129 @@ emit_expr:
 	testl	%eax, %eax
 	jne	.L511
 	movl	%ebp, %edx
+	leaq	.LC57(%rip), %rsi
 	addl	$1, %edx
 	je	.L510
-	movq	8(%rsp), %rdi
+.L920:
 	addq	$88, %rsp
 	.cfi_remember_state
 	.cfi_def_cfa_offset 56
-	leaq	.LC57(%rip), %rsi
+	movq	%rbx, %rdi
 	xorl	%eax, %eax
 	popq	%rbx
+	.cfi_restore 3
 	.cfi_def_cfa_offset 48
 	popq	%rbp
+	.cfi_restore 6
 	.cfi_def_cfa_offset 40
 	popq	%r12
+	.cfi_restore 12
 	.cfi_def_cfa_offset 32
 	popq	%r13
+	.cfi_restore 13
 	.cfi_def_cfa_offset 24
 	popq	%r14
+	.cfi_restore 14
 	.cfi_def_cfa_offset 16
 	popq	%r15
+	.cfi_restore 15
 	.cfi_def_cfa_offset 8
 	jmp	fprintf@PLT
 	.p2align 4,,10
 	.p2align 3
 .L506:
 	.cfi_restore_state
-	movq	48(%rsi), %rax
-	movl	24(%rsi), %ebx
-	cmpl	$2, (%rax)
-	je	.L521
-	testl	%ebx, %ebx
-	jne	.L522
-	movb	$0, 32(%rsp)
-	movq	48(%rax), %rsi
+	movq	48(%rsi), %r13
+	movl	24(%rsi), %eax
+	cmpl	$2, 0(%r13)
+	movl	%eax, 12(%rsp)
+	je	.L524
+	testl	%eax, %eax
+	jne	.L677
+	movb	$0, 34(%rsp)
+	movq	48(%r13), %rsi
 	xorl	%r12d, %r12d
 	xorl	%r14d, %r14d
-	movb	$0, 39(%rsp)
-	movq	$0, 24(%rsp)
-.L547:
-	movq	8(%rsp), %rdi
+	movb	$0, 35(%rsp)
+	movq	$0, 16(%rsp)
+	movl	$0, 36(%rsp)
+.L539:
+	movq	%rbx, %rdi
 	call	emit_function_name
-.L554:
-	movq	8(%rsp), %rsi
+.L552:
+	movq	%rbx, %rsi
 	movl	$40, %edi
 	call	fputc@PLT
 	movq	64(%r15), %rdx
-	movq	24(%rsp), %rcx
+	movq	16(%rsp), %rcx
 	cmpq	%rdx, %rcx
-	jnb	.L555
-	cmpb	$0, 39(%rsp)
-	je	.L555
+	jnb	.L553
+	cmpb	$0, 35(%rsp)
+	je	.L553
 	movq	56(%r15), %rax
 	movq	(%rax,%rcx,8), %rax
 	testq	%rax, %rax
-	je	.L582
+	je	.L580
 	cmpl	$1, (%rax)
-	je	.L932
-.L582:
-	movq	$0, 40(%rsp)
-.L558:
-	movl	%ebx, 48(%rsp)
-	movq	8(%rsp), %r13
+	je	.L936
+.L580:
+	movq	$0, 48(%rsp)
+.L556:
 	xorl	%r12d, %r12d
-	movq	%r14, 16(%rsp)
-	movq	%rdx, %r14
-.L621:
-	cmpb	$0, 32(%rsp)
-	je	.L688
-	movl	g_strict(%rip), %ebx
-	testl	%ebx, %ebx
-	je	.L933
-.L688:
-	xorl	%ebx, %ebx
-.L584:
+	cmpb	$0, 34(%rsp)
+	movq	%r14, 24(%rsp)
+	movq	%rdx, %r13
+	je	.L685
+.L939:
+	movl	g_strict(%rip), %r14d
+	testl	%r14d, %r14d
+	je	.L937
+.L685:
+	xorl	%r14d, %r14d
+.L582:
 	movq	56(%r15), %rax
 	movq	%rbp, %rdx
-	movq	%r13, %rdi
+	movq	%rbx, %rdi
 	movq	(%rax,%r12,8), %rsi
 	call	emit_expr
-.L653:
-	testl	%ebx, %ebx
-	jne	.L934
-.L619:
+.L652:
+	testl	%r14d, %r14d
+	jne	.L938
+.L617:
 	addq	$1, %r12
-	cmpq	%r12, %r14
-	je	.L620
-	movq	%r13, %rcx
+	cmpq	%r12, %r13
+	je	.L618
+	movq	%rbx, %rcx
 	movl	$2, %edx
 	movl	$1, %esi
-	leaq	.LC63(%rip), %rdi
+	leaq	.LC61(%rip), %rdi
 	call	fwrite@PLT
-	jmp	.L621
+	cmpb	$0, 34(%rsp)
+	jne	.L939
+	jmp	.L685
 	.p2align 4,,10
 	.p2align 3
 .L505:
-	movq	8(%rsp), %rbx
+	movq	%rdi, %rcx
 	movl	$8, %edx
 	movl	$1, %esi
-	leaq	.LC87(%rip), %rdi
-	movq	%rbx, %rcx
+	leaq	.LC85(%rip), %rdi
 	call	fwrite@PLT
-	jmp	.L925
+	jmp	.L929
 	.p2align 4,,10
 	.p2align 3
 .L504:
 	movl	48(%rsi), %r12d
 	cmpl	$32, %r12d
-	je	.L935
+	je	.L940
 	cmpl	$53, %r12d
-	je	.L936
+	je	.L941
 	leal	-36(%r12), %eax
 	cmpl	$1, %eax
-	jbe	.L937
-	movq	8(%rsp), %rbx
+	jbe	.L942
 	cmpl	$31, %r12d
-	je	.L938
-	movq	%rbx, %rsi
+	je	.L943
+	movq	%rdi, %rsi
 	movl	$40, %edi
 	call	fputc@PLT
 	movl	%r12d, %edi
@@ -3090,45 +3115,50 @@ emit_expr:
 	call	fputc@PLT
 	movq	56(%r15), %rsi
 	movq	%rbp, %rdx
-	jmp	.L927
+	jmp	.L923
 	.p2align 4,,10
 	.p2align 3
 .L503:
 	cmpl	$36, 48(%rsi)
 	movq	56(%rsi), %r12
 	leaq	.LC36(%rip), %rdi
-	jne	.L628
+	jne	.L627
 	leaq	.LC35(%rip), %rdi
-.L628:
-	movq	8(%rsp), %rbx
+.L627:
 	movl	$12, %edx
 	movl	$1, %esi
 	movq	%rbx, %rcx
 	call	fwrite@PLT
 	movq	%rbp, %rdx
 	movq	%r12, %rsi
-.L927:
+.L923:
 	movq	%rbx, %rdi
 	call	emit_expr
 	movq	%rbx, %rcx
 	movl	$2, %edx
 	movl	$1, %esi
-	leaq	.LC86(%rip), %rdi
-.L920:
+	leaq	.LC83(%rip), %rdi
+.L921:
 	addq	$88, %rsp
 	.cfi_remember_state
 	.cfi_def_cfa_offset 56
 	popq	%rbx
+	.cfi_restore 3
 	.cfi_def_cfa_offset 48
 	popq	%rbp
+	.cfi_restore 6
 	.cfi_def_cfa_offset 40
 	popq	%r12
+	.cfi_restore 12
 	.cfi_def_cfa_offset 32
 	popq	%r13
+	.cfi_restore 13
 	.cfi_def_cfa_offset 24
 	popq	%r14
+	.cfi_restore 14
 	.cfi_def_cfa_offset 16
 	popq	%r15
+	.cfi_restore 15
 	.cfi_def_cfa_offset 8
 	jmp	fwrite@PLT
 	.p2align 4,,10
@@ -3138,25 +3168,25 @@ emit_expr:
 	movl	48(%rsi), %r12d
 	leal	-53(%r12), %eax
 	cmpl	$1, %eax
-	jbe	.L939
+	jbe	.L944
 	leal	-28(%r12), %eax
 	cmpl	$6, %eax
-	ja	.L631
-	leaq	.L633(%rip), %rdx
+	ja	.L630
+	leaq	.L632(%rip), %rdx
 	movslq	(%rdx,%rax,4), %rax
 	addq	%rdx, %rax
 	jmp	*%rax
 	.section	.rodata
 	.align 4
 	.align 4
-.L633:
-	.long	.L699-.L633
-	.long	.L638-.L633
-	.long	.L637-.L633
-	.long	.L636-.L633
-	.long	.L635-.L633
-	.long	.L634-.L633
-	.long	.L632-.L633
+.L632:
+	.long	.L693-.L632
+	.long	.L637-.L632
+	.long	.L636-.L632
+	.long	.L635-.L632
+	.long	.L634-.L632
+	.long	.L633-.L632
+	.long	.L631-.L632
 	.text
 	.p2align 4,,10
 	.p2align 3
@@ -3166,40 +3196,56 @@ emit_expr:
 	movq	64(%rsi), %r14
 	leal	-47(%r12), %eax
 	cmpl	$5, %eax
-	jbe	.L940
+	jbe	.L945
 	cmpl	$21, %r12d
-	je	.L641
+	je	.L640
 	leal	-38(%r12), %eax
 	cmpl	$8, %eax
-	ja	.L642
-	leaq	.L644(%rip), %rdx
+	ja	.L641
+	leaq	.L643(%rip), %rdx
 	movslq	(%rdx,%rax,4), %rax
 	addq	%rdx, %rax
 	jmp	*%rax
 	.section	.rodata
 	.align 4
 	.align 4
-.L644:
-	.long	.L652-.L644
-	.long	.L651-.L644
-	.long	.L650-.L644
-	.long	.L649-.L644
-	.long	.L648-.L644
-	.long	.L647-.L644
-	.long	.L646-.L644
-	.long	.L700-.L644
-	.long	.L643-.L644
+.L643:
+	.long	.L651-.L643
+	.long	.L650-.L643
+	.long	.L649-.L643
+	.long	.L648-.L643
+	.long	.L647-.L643
+	.long	.L646-.L643
+	.long	.L645-.L643
+	.long	.L694-.L643
+	.long	.L642-.L643
 	.text
 	.p2align 4,,10
 	.p2align 3
-.L579:
+.L510:
+	movq	32(%r15), %rdx
 	testq	%rdx, %rdx
-	jne	.L582
-	movq	8(%rsp), %rsi
-	movl	$41, %edi
-	call	fputc@PLT
-	testl	%ebx, %ebx
-	jne	.L583
+	jne	.L946
+	movl	16(%r15), %ebp
+	testl	%ebp, %ebp
+	jne	.L947
+	movl	12(%r15), %r11d
+	testl	%r11d, %r11d
+	jne	.L948
+	movl	20(%r15), %eax
+	cmpl	$2, %eax
+	je	.L949
+	testq	%r12, %r12
+	je	.L523
+	movq	%r12, %rdi
+	call	get_mangled_name
+	movq	%rbx, %rsi
+	movq	%rax, %rdi
+	call	fputs@PLT
+	movl	20(%r15), %eax
+.L523:
+	cmpl	$1, %eax
+	je	.L518
 .L496:
 	addq	$88, %rsp
 	.cfi_remember_state
@@ -3219,297 +3265,117 @@ emit_expr:
 	ret
 	.p2align 4,,10
 	.p2align 3
-.L510:
+.L677:
 	.cfi_restore_state
-	movq	32(%r15), %rdx
-	testq	%rdx, %rdx
-	jne	.L941
-	movl	16(%r15), %r13d
-	testl	%r13d, %r13d
-	jne	.L942
-	movl	12(%r15), %ebp
-	testl	%ebp, %ebp
-	jne	.L943
-	movl	20(%r15), %eax
-	cmpl	$2, %eax
-	je	.L944
-	testq	%r12, %r12
-	je	.L520
-	movq	%r12, %rdi
-	call	get_mangled_name
-	movq	8(%rsp), %rsi
-	movq	%rax, %rdi
-	call	fputs@PLT
-	movl	20(%r15), %eax
-.L520:
-	cmpl	$1, %eax
-	jne	.L496
-.L518:
-	movq	8(%rsp), %rcx
-	movl	$3, %edx
-	movl	$1, %esi
-	leaq	.LC27(%rip), %rdi
-	jmp	.L920
-	.p2align 4,,10
-	.p2align 3
-.L933:
-	movq	16(%rsp), %rdi
-	call	source_function
-	movl	%eax, %edx
-	testl	%eax, %eax
-	jne	.L584
-	movq	24(%rsp), %rax
-	movl	current_byteptr(%rip), %ebx
-	cmpq	%rax, %r12
-	sete	%al
-	testb	%al, 39(%rsp)
-	jne	.L585
-	movq	40(%rsp), %rax
-	testq	%rax, %rax
-	je	.L586
-	movl	(%rax,%r12,4), %ecx
-	testl	%ecx, %ecx
-	jne	.L585
-.L586:
-	movq	16(%rsp), %rdi
-	leaq	.LC75(%rip), %rsi
-	movl	%edx, 56(%rsp)
-	call	strcmp@PLT
-	movl	56(%rsp), %edx
-	testl	%eax, %eax
-	jne	.L589
-	testq	%r12, %r12
-	je	.L585
-.L590:
-	movq	16(%rsp), %rdi
-	leaq	.LC77(%rip), %rsi
-	call	strcmp@PLT
-	testl	%eax, %eax
-	jne	.L591
-	cmpq	$1, %r12
-	jbe	.L945
-.L593:
-	movq	16(%rsp), %rdi
-	leaq	.LC79(%rip), %rsi
-	call	strcmp@PLT
-	movl	%eax, 56(%rsp)
-	testl	%eax, %eax
-	jne	.L596
-	cmpq	$2, %r12
-	je	.L597
-.L592:
-	movq	16(%rsp), %rdi
-	leaq	.LC81(%rip), %rsi
-	call	strcmp@PLT
-	testq	%r12, %r12
-	movl	%eax, %edx
-	sete	%al
-	movb	%al, 64(%rsp)
-	testl	%edx, %edx
-	jne	.L600
-	testb	%al, %al
-	jne	.L916
-.L600:
-	movq	16(%rsp), %rdi
-	leaq	.LC82(%rip), %rsi
-	call	strcmp@PLT
-	testl	%eax, %eax
-	jne	.L604
-	cmpq	$1, %r12
-	jbe	.L916
-.L603:
-	leaq	.LC71(%rip), %rcx
-	movq	16(%rsp), %rdi
-	movq	%rcx, %rsi
-	movq	%rcx, 72(%rsp)
-	call	strcmp@PLT
-	testl	%eax, %eax
-	je	.L692
-	movb	$0, 64(%rsp)
-	leaq	.LC71(%rip), %rcx
-.L607:
-	movq	16(%rsp), %rdi
-	leaq	.LC70(%rip), %rsi
-	movq	%rcx, 72(%rsp)
-	call	strcmp@PLT
-	movq	72(%rsp), %rcx
-	testl	%eax, %eax
-	movl	56(%rsp), %eax
-	sete	%dl
-	andb	64(%rsp), %dl
-	xorl	$1, %edx
-	movzbl	%dl, %edx
-	andl	%eax, %edx
-	testl	%ebx, %ebx
-	jne	.L606
-	movq	16(%rsp), %rdi
-	leaq	.LC69(%rip), %rsi
-	movq	%rcx, 72(%rsp)
-	movl	%edx, 56(%rsp)
-	call	strcmp@PLT
-	movl	56(%rsp), %edx
-	movq	72(%rsp), %rcx
-	testl	%eax, %eax
-	jne	.L720
-	cmpb	$0, 64(%rsp)
-	je	.L720
-.L711:
-	movl	%edx, %ebx
-.L909:
-	testl	%edx, %edx
-	jne	.L616
-.L615:
-	movq	%r13, %rcx
-	movl	$32, %edx
-	movl	$1, %esi
-	leaq	.LC85(%rip), %rdi
-	call	fwrite@PLT
-	movq	56(%r15), %rax
+	xorl	%r14d, %r14d
+.L525:
+	addq	$88, %rsp
+	.cfi_remember_state
+	.cfi_def_cfa_offset 56
+	movq	%r14, %rcx
 	movq	%rbp, %rdx
-	movq	%r13, %rdi
-	movq	(%rax,%r12,8), %rsi
-	call	emit_expr
-	movq	%r13, %rcx
-	movl	$2, %edx
-	movl	$1, %esi
-	leaq	.LC86(%rip), %rdi
-	call	fwrite@PLT
-	jmp	.L653
+	movq	%r15, %rsi
+	movq	%rbx, %rdi
+	xorl	%r8d, %r8d
+	popq	%rbx
+	.cfi_restore 3
+	.cfi_def_cfa_offset 48
+	popq	%rbp
+	.cfi_restore 6
+	.cfi_def_cfa_offset 40
+	popq	%r12
+	.cfi_restore 12
+	.cfi_def_cfa_offset 32
+	popq	%r13
+	.cfi_restore 13
+	.cfi_def_cfa_offset 24
+	popq	%r14
+	.cfi_restore 14
+	.cfi_def_cfa_offset 16
+	popq	%r15
+	.cfi_restore 15
+	.cfi_def_cfa_offset 8
+	jmp	emit_b_call
 	.p2align 4,,10
 	.p2align 3
-.L941:
+.L946:
+	.cfi_restore_state
 	subq	$1, %rdx
 	leaq	.LC58(%rip), %rsi
 	jmp	.L919
 	.p2align 4,,10
 	.p2align 3
-.L937:
-	movq	8(%rsp), %rbx
+.L942:
 	cmpl	$36, %r12d
 	leaq	.LC33(%rip), %rax
-	leaq	.LC34(%rip), %rdi
-	cmove	%rax, %rdi
 	movl	$11, %edx
-	movl	$1, %esi
 	movq	%rbx, %rcx
+	leaq	.LC34(%rip), %rdi
+	movl	$1, %esi
+	cmove	%rax, %rdi
 	call	fwrite@PLT
 	movq	56(%r15), %rsi
 	movq	%rbp, %rdx
-	jmp	.L927
-	.p2align 4,,10
-	.p2align 3
-.L522:
-	movq	8(%rsp), %rbx
-	leaq	.LC60(%rip), %rsi
-	movl	expression_id(%rip), %eax
-	movq	64(%r15), %r13
-	leal	1(%rax), %r12d
-	movq	%rbx, %rdi
-	xorl	%eax, %eax
-	movl	%r12d, %edx
-	movl	%r12d, expression_id(%rip)
-	call	fprintf@PLT
-	movq	48(%r15), %rsi
-	movq	%rbp, %rdx
-	movq	%rbx, %rdi
-	call	emit_expr
-.L527:
-	testq	%r13, %r13
-	movl	$1, %ecx
-	movq	8(%rsp), %rdi
-	movl	%r12d, %edx
-	cmovne	%r13, %rcx
-	leaq	.LC61(%rip), %rsi
-	xorl	%eax, %eax
-	xorl	%r14d, %r14d
-	leaq	.LC63(%rip), %rbx
-	call	fprintf@PLT
-	testq	%r13, %r13
-	je	.L946
-	movl	%r12d, 32(%rsp)
-	movq	%r14, %r12
-	movq	%rbp, %r14
-	movq	8(%rsp), %rbp
-	.p2align 4
-	.p2align 3
-.L531:
-	movq	56(%r15), %rax
-	movq	%r14, %rdx
-	movq	%rbp, %rdi
-	movq	(%rax,%r12,8), %rsi
-	addq	$1, %r12
-	call	emit_expr
-	cmpq	%r13, %r12
-	je	.L533
-	movq	%rbp, %rcx
-	movl	$2, %edx
-	movl	$1, %esi
-	movq	%rbx, %rdi
-	call	fwrite@PLT
-	jmp	.L531
-	.p2align 4,,10
-	.p2align 3
-.L638:
-	leaq	.LC42(%rip), %rdx
-	.p2align 4
-	.p2align 3
-.L639:
-	movq	8(%rsp), %rbx
-	leaq	.LC94(%rip), %rsi
-	xorl	%eax, %eax
-	movq	%rbx, %rdi
-	call	fprintf@PLT
-	movq	56(%r15), %rsi
-	movq	%rbp, %rdx
-	movq	%rbx, %rdi
-	call	emit_expr
-	movl	$1, %esi
-	movq	%rbx, %rcx
-	movl	$2, %edx
-	leaq	.LC63(%rip), %rdi
-	call	fwrite@PLT
-	movq	64(%r15), %rsi
-	jmp	.L921
-	.p2align 4,,10
-	.p2align 3
-.L699:
-	leaq	.LC43(%rip), %rdx
-	jmp	.L639
+	jmp	.L923
 	.p2align 4,,10
 	.p2align 3
 .L637:
-	leaq	.LC39(%rip), %rdx
-	jmp	.L639
+	leaq	.LC42(%rip), %rdx
+	.p2align 4
+	.p2align 3
+.L638:
+	leaq	.LC92(%rip), %rsi
+	movq	%rbx, %rdi
+	xorl	%eax, %eax
+	call	fprintf@PLT
+	movq	56(%r15), %rsi
+	movq	%rbp, %rdx
+	movq	%rbx, %rdi
+	call	emit_expr
+	movq	%rbx, %rcx
+	movl	$2, %edx
+	movl	$1, %esi
+	leaq	.LC61(%rip), %rdi
+	jmp	.L928
 	.p2align 4,,10
 	.p2align 3
-.L632:
+.L693:
+	leaq	.LC43(%rip), %rdx
+	jmp	.L638
+	.p2align 4,,10
+	.p2align 3
+.L631:
 	leaq	.LC44(%rip), %rdx
-	jmp	.L639
-	.p2align 4,,10
-	.p2align 3
-.L635:
-	leaq	.LC41(%rip), %rdx
-	jmp	.L639
+	jmp	.L638
 	.p2align 4,,10
 	.p2align 3
 .L636:
-	leaq	.LC40(%rip), %rdx
-	jmp	.L639
+	leaq	.LC39(%rip), %rdx
+	jmp	.L638
 	.p2align 4,,10
 	.p2align 3
 .L634:
+	leaq	.LC41(%rip), %rdx
+	jmp	.L638
+	.p2align 4,,10
+	.p2align 3
+.L635:
+	leaq	.LC40(%rip), %rdx
+	jmp	.L638
+	.p2align 4,,10
+	.p2align 3
+.L633:
 	leaq	.LC45(%rip), %rdx
-	jmp	.L639
-.L643:
-	leaq	.LC47(%rip), %r12
+	jmp	.L638
+.L694:
+	leaq	.LC48(%rip), %r12
 	.p2align 4
 	.p2align 3
-.L645:
-	movq	8(%rsp), %rbx
+.L644:
+	movq	%rbx, %rcx
 	movl	$2, %edx
 	movl	$1, %esi
-	leaq	.LC98(%rip), %rdi
-	movq	%rbx, %rcx
+	leaq	.LC96(%rip), %rdi
 	call	fwrite@PLT
 	movq	%rbx, %rsi
 	movq	%r12, %rdi
@@ -3517,211 +3383,234 @@ emit_expr:
 	movq	%rbx, %rcx
 	movl	$3, %edx
 	movl	$1, %esi
-	leaq	.LC99(%rip), %rdi
+	leaq	.LC97(%rip), %rdi
 	call	fwrite@PLT
 	movq	%rbp, %rdx
 	movq	%r13, %rsi
 	movq	%rbx, %rdi
 	call	emit_expr
-	movl	$3, %edx
 	movq	%rbx, %rcx
+	movl	$3, %edx
 	movl	$1, %esi
-	leaq	.LC100(%rip), %rdi
+	leaq	.LC98(%rip), %rdi
 	call	fwrite@PLT
 	movq	%rbp, %rdx
 	movq	%r14, %rsi
+	movq	%rbx, %rdi
+	call	emit_expr
 	jmp	.L922
-.L700:
-	leaq	.LC48(%rip), %r12
-	jmp	.L645
-.L652:
-	leaq	.LC46(%rip), %r12
-	jmp	.L645
-.L650:
-	leaq	.LC53(%rip), %r12
-	jmp	.L645
+.L642:
+	leaq	.LC47(%rip), %r12
+	jmp	.L644
 .L651:
-	leaq	.LC54(%rip), %r12
-	jmp	.L645
-.L646:
-	leaq	.LC49(%rip), %r12
-	jmp	.L645
-.L647:
-	leaq	.LC50(%rip), %r12
-	jmp	.L645
-.L648:
-	leaq	.LC51(%rip), %r12
-	jmp	.L645
+	leaq	.LC46(%rip), %r12
+	jmp	.L644
 .L649:
+	leaq	.LC53(%rip), %r12
+	jmp	.L644
+.L650:
+	leaq	.LC54(%rip), %r12
+	jmp	.L644
+.L645:
+	leaq	.LC49(%rip), %r12
+	jmp	.L644
+.L646:
+	leaq	.LC50(%rip), %r12
+	jmp	.L644
+.L647:
+	leaq	.LC51(%rip), %r12
+	jmp	.L644
+.L648:
 	leaq	.LC52(%rip), %r12
-	jmp	.L645
+	jmp	.L644
 	.p2align 4,,10
 	.p2align 3
-.L934:
-	movq	%r13, %rsi
+.L938:
+	movq	%rbx, %rsi
 	movl	$41, %edi
 	call	fputc@PLT
-	jmp	.L619
+	jmp	.L617
 	.p2align 4,,10
 	.p2align 3
-.L620:
-	movl	48(%rsp), %ebx
-	movq	8(%rsp), %rsi
-	movl	$41, %edi
-	call	fputc@PLT
-	testl	%ebx, %ebx
-	jne	.L581
-.L622:
-	movq	40(%rsp), %rax
-	testq	%rax, %rax
-	je	.L496
-	addq	$88, %rsp
-	.cfi_remember_state
-	.cfi_def_cfa_offset 56
-	movq	%rax, %rdi
-	popq	%rbx
-	.cfi_def_cfa_offset 48
-	popq	%rbp
-	.cfi_def_cfa_offset 40
-	popq	%r12
-	.cfi_def_cfa_offset 32
-	popq	%r13
-	.cfi_def_cfa_offset 24
-	popq	%r14
-	.cfi_def_cfa_offset 16
-	popq	%r15
-	.cfi_def_cfa_offset 8
-	jmp	free@PLT
-	.p2align 4,,10
-	.p2align 3
-.L555:
-	.cfi_restore_state
-	testb	%r12b, %r12b
-	je	.L579
-	leaq	.LC74(%rip), %rsi
-	movq	%r14, %rdi
-	movq	%rdx, 16(%rsp)
-	call	strcmp@PLT
-	movq	16(%rsp), %rdx
+.L937:
+	movq	24(%rsp), %rdi
+	call	source_function
+	movl	%eax, 40(%rsp)
 	testl	%eax, %eax
-	jne	.L579
-	testq	%rdx, %rdx
 	jne	.L582
-	movq	8(%rsp), %r14
-	movl	$48, %edi
-	movq	%r14, %rsi
-	call	fputc@PLT
-	movq	%r14, %rsi
-	movl	$41, %edi
-	call	fputc@PLT
-	testl	%ebx, %ebx
-	je	.L496
-.L583:
-	movq	$0, 40(%rsp)
+	movq	16(%rsp), %rax
+	movl	current_byteptr(%rip), %ecx
+	cmpq	%rax, %r12
+	movl	%ecx, 56(%rsp)
+	sete	%al
+	andb	35(%rsp), %al
+	movb	%al, 64(%rsp)
+	jne	.L583
+	movq	48(%rsp), %rax
+	testq	%rax, %rax
+	je	.L584
+	movl	(%rax,%r12,4), %eax
+	testl	%eax, %eax
+	je	.L584
+	testl	%ecx, %ecx
+	je	.L585
 	.p2align 4
 	.p2align 3
-.L581:
-	movq	8(%rsp), %rsi
-	movl	$41, %edi
-	call	fputc@PLT
-	jmp	.L622
+.L586:
+	movq	%rbx, %rcx
+	movl	$9, %edx
+	movl	$1, %esi
+	leaq	.LC80(%rip), %rdi
+	call	fwrite@PLT
+.L616:
+	movl	$1, %r14d
+	jmp	.L582
 	.p2align 4,,10
 	.p2align 3
-.L521:
-	movq	48(%rax), %r14
+.L618:
+	movq	%rbx, %rsi
+	movl	$41, %edi
+	call	fputc@PLT
+	movl	12(%rsp), %r8d
+	testl	%r8d, %r8d
+	jne	.L579
+.L620:
+	movq	48(%rsp), %rax
+	testq	%rax, %rax
+	je	.L578
+	movq	%rax, %rdi
+	call	free@PLT
+.L578:
+	movl	36(%rsp), %edi
+	testl	%edi, %edi
+	je	.L496
+	movl	36(%rsp), %edx
+	leaq	.LC84(%rip), %rsi
+	jmp	.L920
+	.p2align 4,,10
+	.p2align 3
+.L524:
+	movq	48(%r13), %r14
 	testq	%r14, %r14
-	je	.L947
-	testl	%ebx, %ebx
-	jne	.L522
+	je	.L950
+	movl	12(%rsp), %r9d
+	testl	%r9d, %r9d
+	jne	.L677
 	movq	%r14, %rdi
 	call	source_function
 	testl	%eax, %eax
-	jne	.L528
-	movl	g_strict(%rip), %ebx
-	testl	%ebx, %ebx
+	jne	.L525
+	movl	g_strict(%rip), %r8d
+	testl	%r8d, %r8d
 	je	.L529
 	leaq	8+names.0(%rip), %r12
 	leaq	.LC3(%rip), %rsi
 	jmp	.L530
 	.p2align 4,,10
 	.p2align 3
-.L948:
+.L951:
 	movq	(%r12), %rsi
 	addq	$8, %r12
 	testq	%rsi, %rsi
-	je	.L528
+	je	.L525
 .L530:
 	movq	%r14, %rdi
 	call	strcmp@PLT
 	testl	%eax, %eax
-	jne	.L948
+	jne	.L951
 .L529:
-	leaq	.LC66(%rip), %rsi
+	leaq	.LC59(%rip), %rsi
 	movq	%r14, %rdi
 	call	strcmp@PLT
 	testl	%eax, %eax
-	je	.L678
+	je	.L675
 	.p2align 4
 	.p2align 3
-.L535:
+.L531:
 	leaq	8+names.0(%rip), %r12
 	leaq	.LC3(%rip), %rsi
-	jmp	.L540
+	jmp	.L536
 	.p2align 4,,10
 	.p2align 3
-.L950:
+.L953:
 	movq	(%r12), %rsi
 	addq	$8, %r12
 	testq	%rsi, %rsi
-	je	.L949
-.L540:
+	je	.L952
+.L536:
 	movq	%r14, %rdi
 	call	strcmp@PLT
 	testl	%eax, %eax
-	jne	.L950
+	jne	.L953
 	movq	%r14, %rdi
-	movl	g_strict(%rip), %r12d
 	call	source_function
-	movl	%eax, %ebx
+	movl	%eax, 12(%rsp)
 	testl	%eax, %eax
-	jne	.L951
-	testl	%r12d, %r12d
-	je	.L666
-	movb	$0, 39(%rsp)
+	je	.L954
+	movl	g_strict(%rip), %eax
+	movl	%eax, 12(%rsp)
+	testl	%eax, %eax
+	je	.L955
+.L672:
+	leaq	.LC65(%rip), %rsi
+	movq	%r14, %rdi
+	call	strcmp@PLT
+	movl	%eax, 12(%rsp)
+	testl	%eax, %eax
+	je	.L540
+	movb	$1, 34(%rsp)
 	movq	%r14, %rsi
-	movq	$0, 24(%rsp)
-.L660:
-	movq	8(%rsp), %rdi
-	movq	%rsi, %rdx
-	xorl	%eax, %eax
-	movl	$1, %r12d
-	leaq	.LC15(%rip), %rsi
-	call	fprintf@PLT
-	movb	$1, 32(%rsp)
-	jmp	.L554
+	xorl	%r12d, %r12d
+	movb	$0, 35(%rsp)
+	movq	$0, 16(%rsp)
+	movl	$0, 12(%rsp)
+	movl	$0, 36(%rsp)
+	jmp	.L539
 	.p2align 4,,10
 	.p2align 3
-.L585:
-	testl	%ebx, %ebx
-	je	.L587
-.L588:
-	movq	%r13, %rcx
-	movl	$9, %edx
-	movl	$1, %esi
-	leaq	.LC83(%rip), %rdi
-	call	fwrite@PLT
-.L618:
-	movl	$1, %ebx
-	jmp	.L584
+.L553:
+	testb	%r12b, %r12b
+	je	.L577
+	leaq	.LC71(%rip), %rsi
+	movq	%r14, %rdi
+	movq	%rdx, 24(%rsp)
+	call	strcmp@PLT
+	movq	24(%rsp), %rdx
+	testl	%eax, %eax
+	jne	.L577
+	testq	%rdx, %rdx
+	jne	.L580
+	movq	%rbx, %rsi
+	movl	$48, %edi
+	call	fputc@PLT
+.L910:
+	movq	%rbx, %rsi
+	movl	$41, %edi
+	call	fputc@PLT
+	movl	12(%rsp), %eax
+	testl	%eax, %eax
+	je	.L578
+	movq	$0, 48(%rsp)
+	.p2align 4
+	.p2align 3
+.L579:
+	movq	%rbx, %rsi
+	movl	$41, %edi
+	call	fputc@PLT
+	jmp	.L620
 	.p2align 4,,10
 	.p2align 3
-.L940:
-	leaq	CSWTCH.181(%rip), %rdx
-	movq	8(%rsp), %rbx
-	leaq	.LC95(%rip), %rsi
+.L577:
+	testq	%rdx, %rdx
+	jne	.L580
+	jmp	.L910
+	.p2align 4,,10
+	.p2align 3
+.L945:
+	leaq	CSWTCH.183(%rip), %rdx
+	leaq	.LC93(%rip), %rsi
 	movl	(%rdx,%rax,4), %r15d
 	movl	expression_id(%rip), %eax
-	movq	%rbx, %rdi
 	leal	1(%rax), %r12d
 	xorl	%eax, %eax
 	movl	%r12d, %edx
@@ -3734,7 +3623,7 @@ emit_expr:
 	movl	%r12d, %edx
 	movq	%rbx, %rdi
 	xorl	%eax, %eax
-	leaq	.LC96(%rip), %rsi
+	leaq	.LC94(%rip), %rsi
 	call	fprintf@PLT
 	movq	%rbp, %rdx
 	movq	%r14, %rsi
@@ -3752,125 +3641,180 @@ emit_expr:
 	movq	%rbx, %rdi
 	xorl	%eax, %eax
 	popq	%rbx
+	.cfi_restore 3
 	.cfi_def_cfa_offset 48
-	leaq	.LC97(%rip), %rsi
+	leaq	.LC95(%rip), %rsi
 	popq	%rbp
+	.cfi_restore 6
 	.cfi_def_cfa_offset 40
 	popq	%r12
+	.cfi_restore 12
 	.cfi_def_cfa_offset 32
 	popq	%r13
+	.cfi_restore 13
 	.cfi_def_cfa_offset 24
 	popq	%r14
+	.cfi_restore 14
 	.cfi_def_cfa_offset 16
 	popq	%r15
+	.cfi_restore 15
 	.cfi_def_cfa_offset 8
 	jmp	fprintf@PLT
 	.p2align 4,,10
 	.p2align 3
-.L938:
+.L943:
 	.cfi_restore_state
-	movq	%rbx, %rcx
+	movq	%rdi, %rcx
 	movl	$5, %edx
 	movl	$1, %esi
-	leaq	.LC89(%rip), %rdi
-	jmp	.L924
-.L949:
-	movl	g_strict(%rip), %eax
+	leaq	.LC87(%rip), %rdi
+	jmp	.L930
+.L952:
+	movl	g_strict(%rip), %r12d
+	testl	%r12d, %r12d
+	jne	.L672
+	movl	$0, 36(%rsp)
+.L663:
+	movq	%r14, %rdi
+	call	source_function
+	testq	%r14, %r14
+	movl	%eax, 24(%rsp)
+	setne	34(%rsp)
 	testl	%eax, %eax
-	je	.L952
-.L674:
+	jne	.L678
+	leaq	.LC65(%rip), %rsi
+	movq	%r14, %rdi
+	call	strcmp@PLT
+	leaq	.LC66(%rip), %rsi
+	movq	%r14, %rdi
+	orl	%r12d, %eax
+	movl	%eax, 12(%rsp)
+	call	strcmp@PLT
+	testl	%eax, %eax
+	je	.L543
+	leaq	.LC67(%rip), %rsi
+	movq	%r14, %rdi
+	call	strcmp@PLT
+	testl	%eax, %eax
+	je	.L543
 	leaq	.LC68(%rip), %rsi
 	movq	%r14, %rdi
 	call	strcmp@PLT
-	movl	%eax, %ebx
 	testl	%eax, %eax
-	je	.L542
-.L717:
-	movq	$0, 24(%rsp)
-	movb	$0, 39(%rsp)
-.L543:
-	movb	$1, 32(%rsp)
-	movq	%r14, %rsi
-	xorl	%r12d, %r12d
-	xorl	%ebx, %ebx
-	jmp	.L547
-	.p2align 4,,10
-	.p2align 3
-.L533:
-	movl	32(%rsp), %r12d
-	subq	$8, %rsp
-	.cfi_def_cfa_offset 152
-	movq	%r13, %r8
+	je	.L543
+	cmpl	$0, 12(%rsp)
+	je	.L956
+	leaq	.LC104(%rip), %rsi
+	movq	%r14, %rdi
+	call	strcmp@PLT
+	testl	%eax, %eax
+	je	.L704
+	leaq	.LC107(%rip), %rsi
+	movq	%r14, %rdi
+	call	strcmp@PLT
+	testl	%eax, %eax
+	je	.L704
+	leaq	.LC103(%rip), %rsi
+	movq	%r14, %rdi
+	call	strcmp@PLT
+	testl	%eax, %eax
+	jne	.L660
+.L704:
+	movb	$1, 35(%rsp)
+	movq	$1, 16(%rsp)
+.L541:
 	xorl	%eax, %eax
-	leaq	.LC62(%rip), %rsi
-	xorl	%ebp, %ebp
-	leaq	.LC64(%rip), %r14
-	pushq	%r12
-	.cfi_def_cfa_offset 160
-	movq	24(%rsp), %rbx
-	movl	%r12d, %r9d
-	movl	%r12d, %ecx
-	movl	%r12d, %edx
-	leaq	.LC63(%rip), %r15
+	movq	48(%r13), %rsi
+	movq	%r13, %rdx
+	movl	%eax, 12(%rsp)
+.L551:
+	testl	%r12d, %r12d
+	je	.L679
+	cmpl	$2, (%rdx)
+	movzbl	34(%rsp), %r12d
+	jne	.L539
+.L664:
+	movq	%rsi, %rdx
 	movq	%rbx, %rdi
-	call	fprintf@PLT
-	popq	%r8
-	.cfi_def_cfa_offset 152
-	popq	%r9
-	.cfi_def_cfa_offset 144
-	jmp	.L534
-	.p2align 4,,10
-	.p2align 3
-.L953:
-	movq	%rbx, %rcx
-	movl	$2, %edx
-	movl	$1, %esi
-	movq	%r15, %rdi
-	call	fwrite@PLT
-.L534:
-	movq	%rbp, %rcx
-	movl	%r12d, %edx
-	movq	%r14, %rsi
-	movq	%rbx, %rdi
+	leaq	.LC15(%rip), %rsi
 	xorl	%eax, %eax
-	addq	$1, %rbp
 	call	fprintf@PLT
-	cmpq	%r13, %rbp
-	jne	.L953
-.L532:
-	movq	8(%rsp), %rcx
-	movl	$5, %edx
-	movl	$1, %esi
-	leaq	.LC65(%rip), %rdi
-	jmp	.L920
+	movzbl	34(%rsp), %r12d
+	jmp	.L552
 	.p2align 4,,10
 	.p2align 3
-.L641:
-	movq	8(%rsp), %rbx
+.L640:
+	movq	%rdi, %rsi
 	movl	$40, %edi
-	movq	%rbx, %rsi
 	call	fputc@PLT
 	movq	%rbp, %rdx
 	movq	%r13, %rsi
 	movq	%rbx, %rdi
 	call	emit_expr
-	leaq	.LC101(%rip), %rdx
-.L929:
-	leaq	.LC93(%rip), %rsi
+	leaq	.LC99(%rip), %rdx
+.L927:
 	movq	%rbx, %rdi
+	leaq	.LC91(%rip), %rsi
 	xorl	%eax, %eax
 	call	fprintf@PLT
 	movq	%rbp, %rdx
 	movq	%r14, %rsi
+	movq	%rbx, %rdi
+	call	emit_expr
 	jmp	.L922
 	.p2align 4,,10
 	.p2align 3
-.L939:
+.L583:
+	movl	56(%rsp), %r11d
+	testl	%r11d, %r11d
+	jne	.L586
+.L585:
+	movq	24(%rsp), %rdi
+	leaq	.LC66(%rip), %rsi
+	call	strcmp@PLT
+	testl	%eax, %eax
+	jne	.L708
+	testq	%r12, %r12
+	je	.L653
+.L708:
+	movl	$1, 56(%rsp)
+	xorl	%r14d, %r14d
+	leaq	.LC68(%rip), %rdx
+.L655:
+	movq	24(%rsp), %rdi
+	movq	%rdx, %rsi
+	call	strcmp@PLT
+	testl	%eax, %eax
+	je	.L933
+.L608:
+	movq	24(%rsp), %rdi
+	leaq	.LC67(%rip), %rsi
+	call	strcmp@PLT
+	testl	%eax, %eax
+	jne	.L610
+.L933:
+	cmpq	$1, %r12
+	je	.L957
+.L610:
+	movl	56(%rsp), %r9d
+	testl	%r9d, %r9d
+	jne	.L586
+.L604:
+	testl	%r14d, %r14d
+	je	.L582
+.L600:
+	movq	%rbx, %rcx
+	movl	$7, %edx
+	movl	$1, %esi
+	leaq	.LC81(%rip), %rdi
+	call	fwrite@PLT
+	jmp	.L616
+	.p2align 4,,10
+	.p2align 3
+.L944:
 	movl	expression_id(%rip), %eax
-	movq	8(%rsp), %rbx
-	leaq	.LC90(%rip), %rsi
+	leaq	.LC88(%rip), %rsi
 	leal	1(%rax), %r13d
-	movq	%rbx, %rdi
 	xorl	%eax, %eax
 	movl	%r13d, %edx
 	movl	%r13d, expression_id(%rip)
@@ -3882,7 +3826,7 @@ emit_expr:
 	movl	%r13d, %edx
 	movq	%rbx, %rdi
 	xorl	%eax, %eax
-	leaq	.LC91(%rip), %rsi
+	leaq	.LC89(%rip), %rsi
 	call	fprintf@PLT
 	movq	64(%r15), %rsi
 	movq	%rbp, %rdx
@@ -3898,92 +3842,45 @@ emit_expr:
 	addq	$88, %rsp
 	.cfi_remember_state
 	.cfi_def_cfa_offset 56
-	leaq	.LC92(%rip), %rsi
+	leaq	.LC90(%rip), %rsi
 	xorl	%eax, %eax
 	popq	%rbx
+	.cfi_restore 3
 	.cfi_def_cfa_offset 48
 	popq	%rbp
+	.cfi_restore 6
 	.cfi_def_cfa_offset 40
 	popq	%r12
+	.cfi_restore 12
 	.cfi_def_cfa_offset 32
 	popq	%r13
+	.cfi_restore 13
 	.cfi_def_cfa_offset 24
 	popq	%r14
+	.cfi_restore 14
 	.cfi_def_cfa_offset 16
 	popq	%r15
+	.cfi_restore 15
 	.cfi_def_cfa_offset 8
 	jmp	fprintf@PLT
 	.p2align 4,,10
 	.p2align 3
-.L942:
+.L947:
 	.cfi_restore_state
-	movq	8(%rsp), %rcx
+	movq	%rbx, %rcx
 	movl	$13, %edx
 	movl	$1, %esi
 	leaq	.LC25(%rip), %rdi
-	jmp	.L920
-.L589:
-	movq	16(%rsp), %rdi
-	leaq	.LC76(%rip), %rsi
-	movl	%edx, 56(%rsp)
-	call	strcmp@PLT
-	testl	%eax, %eax
-	jne	.L590
-	testq	%r12, %r12
-	jne	.L590
-	testl	%ebx, %ebx
-	movl	56(%rsp), %edx
-	jne	.L588
-	.p2align 4
-	.p2align 3
-.L587:
-	movq	16(%rsp), %rdi
-	leaq	.LC69(%rip), %rsi
-	movl	%edx, 56(%rsp)
-	call	strcmp@PLT
-	testq	%r12, %r12
-	movl	56(%rsp), %edx
-	jne	.L719
-	testl	%eax, %eax
-	je	.L911
-.L719:
-	movl	$1, %ebx
-	leaq	.LC71(%rip), %rcx
-.L656:
-	movq	16(%rsp), %rdi
-	movq	%rcx, %rsi
-	movl	%edx, 56(%rsp)
-	call	strcmp@PLT
-	movl	56(%rsp), %edx
-	testl	%eax, %eax
-	jne	.L610
-	cmpq	$1, %r12
-	je	.L954
-.L612:
-	testl	%ebx, %ebx
-	jne	.L588
-.L606:
-	xorl	%ebx, %ebx
-	testl	%edx, %edx
-	je	.L584
-.L602:
-	movq	%r13, %rcx
-	movl	$7, %edx
-	movl	$1, %esi
-	leaq	.LC84(%rip), %rdi
-	call	fwrite@PLT
-	jmp	.L618
-.L935:
-	movq	8(%rsp), %rbx
+	jmp	.L921
+.L940:
+	movq	%rdi, %rcx
 	movl	$8, %edx
 	movl	$1, %esi
-	leaq	.LC88(%rip), %rdi
-	movq	%rbx, %rcx
-	jmp	.L924
-.L631:
-	movq	8(%rsp), %rbx
+	leaq	.LC86(%rip), %rdi
+	jmp	.L930
+.L630:
+	movq	%rdi, %rsi
 	movl	$40, %edi
-	movq	%rbx, %rsi
 	call	fputc@PLT
 	movq	56(%r15), %rsi
 	movq	%rbp, %rdx
@@ -3991,144 +3888,186 @@ emit_expr:
 	call	emit_expr
 	movl	%r12d, %edi
 	call	tk_name@PLT
-	leaq	.LC93(%rip), %rsi
 	movq	%rbx, %rdi
+	leaq	.LC91(%rip), %rsi
 	movq	%rax, %rdx
 	xorl	%eax, %eax
 	call	fprintf@PLT
 	movq	64(%r15), %rsi
-	jmp	.L921
-.L936:
-	movq	8(%rsp), %rbx
+	movq	%rbp, %rdx
+	movq	%rbx, %rdi
+	call	emit_expr
+	jmp	.L922
+.L941:
+	movq	%rdi, %rcx
 	movl	$7, %edx
 	movl	$1, %esi
 	leaq	.LC23(%rip), %rdi
-	movq	%rbx, %rcx
-	jmp	.L924
-.L947:
-	testl	%ebx, %ebx
-	jne	.L522
+	jmp	.L930
+.L950:
+	movl	12(%rsp), %r10d
+	testl	%r10d, %r10d
+	jne	.L525
 	xorl	%edi, %edi
-	leaq	.LC66(%rip), %rsi
+	leaq	.LC59(%rip), %rsi
 	call	strcmp@PLT
 	testl	%eax, %eax
-	jne	.L535
+	jne	.L531
 	xorl	%edi, %edi
 	call	source_function
 	testl	%eax, %eax
-	jne	.L535
-.L678:
+	jne	.L531
+.L675:
 	movq	64(%r15), %r14
 	testq	%r14, %r14
-	jne	.L536
-	movq	8(%rsp), %rdi
+	jne	.L532
 	xorl	%edx, %edx
-	leaq	.LC67(%rip), %rsi
-	xorl	%eax, %eax
-	call	fprintf@PLT
-.L537:
-	movq	8(%rsp), %rsi
-	jmp	.L926
-.L528:
-	movq	8(%rsp), %rbx
 	leaq	.LC60(%rip), %rsi
-	movl	expression_id(%rip), %eax
-	movq	64(%r15), %r13
-	leal	1(%rax), %r12d
 	movq	%rbx, %rdi
 	xorl	%eax, %eax
-	movl	%r12d, %edx
-	movl	%r12d, expression_id(%rip)
 	call	fprintf@PLT
-	movq	%r14, %rdi
-	call	get_mangled_name
-	movq	%rbx, %rsi
-	movq	%rax, %rdi
-	call	fputs@PLT
-	movq	%rbx, %rcx
-	movl	$3, %edx
-	movl	$1, %esi
-	leaq	.LC27(%rip), %rdi
-	call	fwrite@PLT
-	jmp	.L527
-.L943:
+	jmp	.L922
+.L948:
 	movq	%r12, %rdi
+	leaq	8+names.0(%rip), %rbp
 	call	source_function
+	leaq	.LC3(%rip), %rsi
 	testl	%eax, %eax
-	jne	.L955
-	movq	8(%rsp), %rbx
+	jne	.L958
+	.p2align 4
+	.p2align 3
+.L520:
+	movq	%r12, %rdi
+	call	strcmp@PLT
+	testl	%eax, %eax
+	je	.L519
+	movq	0(%rbp), %rsi
+	addq	$8, %rbp
+	testq	%rsi, %rsi
+	jne	.L520
+	movq	%rbx, %rcx
 	movl	$11, %edx
 	movl	$1, %esi
-	leaq	.LC59(%rip), %rdi
-	movq	%rbx, %rcx
+	leaq	.LC105(%rip), %rdi
 	call	fwrite@PLT
 	movq	48(%r15), %rsi
 	movq	%rbx, %rdi
 	call	emit_function_name
-	jmp	.L923
-.L946:
-	movq	8(%rsp), %rbx
-	movl	$48, %edi
-	movq	%rbx, %rsi
-	call	fputc@PLT
-	subq	$8, %rsp
-	.cfi_def_cfa_offset 152
-	movl	%r12d, %r9d
-	xorl	%r8d, %r8d
-	pushq	%r12
-	.cfi_def_cfa_offset 160
-	movl	%r12d, %ecx
-	movl	%r12d, %edx
-	leaq	.LC62(%rip), %rsi
-	movq	%rbx, %rdi
-	xorl	%eax, %eax
-	call	fprintf@PLT
-	popq	%r10
-	.cfi_def_cfa_offset 152
-	popq	%r11
-	.cfi_def_cfa_offset 144
-	jmp	.L532
+	jmp	.L922
+.L584:
+	movq	24(%rsp), %rdi
+	leaq	.LC72(%rip), %rsi
+	call	strcmp@PLT
+	testl	%eax, %eax
+	je	.L925
+	movq	24(%rsp), %rdi
+	leaq	.LC73(%rip), %rsi
+	call	strcmp@PLT
+	testl	%eax, %eax
+	jne	.L588
+.L925:
+	testq	%r12, %r12
+	je	.L583
+.L588:
+	movq	24(%rsp), %rdi
+	leaq	.LC74(%rip), %rsi
+	call	strcmp@PLT
+	testl	%eax, %eax
+	jne	.L589
+	cmpq	$1, %r12
+	jbe	.L959
 .L591:
-	movq	16(%rsp), %rdi
+	movq	24(%rsp), %rdi
+	leaq	.LC76(%rip), %rsi
+	call	strcmp@PLT
+	movl	%eax, %r14d
+	testl	%eax, %eax
+	jne	.L594
+	cmpq	$2, %r12
+	je	.L595
+.L590:
+	movq	24(%rsp), %rdi
 	leaq	.LC78(%rip), %rsi
 	call	strcmp@PLT
-	testl	%eax, %eax
-	jne	.L593
-	cmpq	$1, %r12
-	jne	.L593
-	movq	16(%rsp), %rdi
-	leaq	.LC82(%rip), %rsi
+	testq	%r12, %r12
+	movl	%eax, %edx
+	sete	%al
+	movb	%al, 64(%rsp)
+	testl	%edx, %edx
+	jne	.L598
+	testb	%al, %al
+	jne	.L916
+.L598:
+	movq	24(%rsp), %rdi
+	leaq	.LC79(%rip), %rsi
 	call	strcmp@PLT
 	testl	%eax, %eax
-	jne	.L907
-	testl	%ebx, %ebx
 	jne	.L602
-	leaq	.LC71(%rip), %rcx
-	movq	16(%rsp), %rdi
-	movq	%rcx, %rsi
-	call	strcmp@PLT
-	testl	%eax, %eax
-	je	.L710
-	xorl	%ebx, %ebx
-	movl	$1, %edx
-.L610:
-	movq	16(%rsp), %rdi
-	leaq	.LC70(%rip), %rsi
-	movl	%edx, 56(%rsp)
-	call	strcmp@PLT
 	cmpq	$1, %r12
-	movl	56(%rsp), %edx
-	jne	.L612
+	jbe	.L916
+.L601:
+	leaq	.LC68(%rip), %rdx
+	movq	24(%rsp), %rdi
+	movq	%rdx, %rsi
+	movq	%rdx, 64(%rsp)
+	call	strcmp@PLT
+	leaq	.LC68(%rip), %rdx
 	testl	%eax, %eax
-	jne	.L612
-	testl	%ebx, %ebx
-	jne	.L911
-	xorl	%ebx, %ebx
-	jmp	.L909
-.L642:
-	movq	8(%rsp), %rbx
+	je	.L604
+.L605:
+	movq	24(%rsp), %rdi
+	leaq	.LC67(%rip), %rsi
+	movq	%rdx, 64(%rsp)
+	call	strcmp@PLT
+	testq	%r12, %r12
+	movq	64(%rsp), %rdx
+	sete	%cl
+	testl	%eax, %eax
+	sete	%al
+	andl	%ecx, %eax
+	xorl	$1, %eax
+	movzbl	%al, %eax
+	andl	%eax, %r14d
+	movl	56(%rsp), %eax
+	testl	%eax, %eax
+	jne	.L604
+	movq	24(%rsp), %rdi
+	leaq	.LC66(%rip), %rsi
+	movq	%rdx, 64(%rsp)
+	movb	%cl, 56(%rsp)
+	call	strcmp@PLT
+	movq	64(%rsp), %rdx
+	testl	%eax, %eax
+	jne	.L709
+	movzbl	56(%rsp), %ecx
+	testb	%cl, %cl
+	je	.L709
+.L611:
+	testl	%r14d, %r14d
+	jne	.L614
+	movl	$0, 40(%rsp)
+.L613:
+	movq	%rbx, %rcx
+	movl	$32, %edx
+	movl	$1, %esi
+	leaq	.LC82(%rip), %rdi
+	call	fwrite@PLT
+	movq	56(%r15), %rax
+	movq	%rbp, %rdx
+	movq	%rbx, %rdi
+	movq	(%rax,%r12,8), %rsi
+	call	emit_expr
+	movq	%rbx, %rcx
+	movl	$2, %edx
+	movl	$1, %esi
+	leaq	.LC83(%rip), %rdi
+	call	fwrite@PLT
+	movl	40(%rsp), %eax
+	orl	%eax, %r14d
+	jmp	.L652
+.L641:
+	movq	%rdi, %rsi
 	movl	$40, %edi
-	movq	%rbx, %rsi
 	call	fputc@PLT
 	movq	%rbp, %rdx
 	movq	%r13, %rsi
@@ -4137,383 +4076,436 @@ emit_expr:
 	movl	%r12d, %edi
 	call	tk_name@PLT
 	movq	%rax, %rdx
-	jmp	.L929
-.L952:
-	movq	%r14, %rdi
-	call	source_function
-	testl	%eax, %eax
-	jne	.L717
-	leaq	.LC69(%rip), %rsi
-	movq	%r14, %rdi
-	call	strcmp@PLT
-	leaq	.LC68(%rip), %rsi
-	movq	%r14, %rdi
-	movl	%eax, %ebx
-	call	strcmp@PLT
-	movl	%eax, %r12d
-	testl	%ebx, %ebx
-	je	.L545
-	leaq	.LC70(%rip), %rsi
-	movq	%r14, %rdi
-	call	strcmp@PLT
-	movl	%eax, %ebx
-	testl	%eax, %eax
-	je	.L545
-	xorl	%ebx, %ebx
-.L673:
-	leaq	.LC71(%rip), %rsi
-	movq	%r14, %rdi
-	call	strcmp@PLT
-	testl	%eax, %eax
-	je	.L545
-	testl	%r12d, %r12d
-	je	.L956
-	leaq	.LC106(%rip), %rsi
-	movq	%r14, %rdi
-	call	strcmp@PLT
-	testl	%eax, %eax
-	je	.L713
-	leaq	.LC107(%rip), %rsi
-	movq	%r14, %rdi
-	call	strcmp@PLT
-	testl	%eax, %eax
-	je	.L713
-	leaq	.LC105(%rip), %rsi
-	movq	%r14, %rdi
-	xorl	%r12d, %r12d
-	call	strcmp@PLT
-	testl	%eax, %eax
-	jne	.L662
-.L713:
-	movb	$1, 39(%rsp)
-	movq	$1, 24(%rsp)
-.L553:
-	testl	%ebx, %ebx
-	je	.L543
-	movq	%r14, %rsi
-	xorl	%ebx, %ebx
-	jmp	.L660
-	.p2align 4,,10
-	.p2align 3
-.L542:
+	jmp	.L927
+.L958:
+	testq	%r12, %r12
+	je	.L518
+	movq	%r12, %rdi
+	call	get_mangled_name
+	movq	%rbx, %rsi
+	movq	%rax, %rdi
+	call	fputs@PLT
+.L518:
+	movq	%rbx, %rcx
+	movl	$3, %edx
+	movl	$1, %esi
+	leaq	.LC27(%rip), %rdi
+	jmp	.L921
+.L540:
 	movq	%r14, %rdi
 	xorl	%r12d, %r12d
 	call	source_function
-	movb	$1, 32(%rsp)
+	movb	$1, 34(%rsp)
 	movq	%r14, %rsi
-	movq	$0, 24(%rsp)
 	xorl	$1, %eax
+	movl	$0, 36(%rsp)
+	movq	$0, 16(%rsp)
 	andl	$1, %eax
-	movb	%al, 39(%rsp)
-	jmp	.L547
-.L932:
+	movb	%al, 35(%rsp)
+	jmp	.L539
+.L519:
+	movq	%rbx, %rcx
+	movl	$20, %edx
+	movl	$1, %esi
+	leaq	.LC106(%rip), %rdi
+	call	fwrite@PLT
+	movq	48(%r15), %rsi
+	movq	%rbx, %rdi
+	call	emit_c_string
+	movq	%rbx, %rcx
+	movl	$2, %edx
+	movl	$1, %esi
+	leaq	.LC61(%rip), %rdi
+	call	fwrite@PLT
+	movq	%rbx, %rcx
+	movl	$11, %edx
+	movl	$1, %esi
+	leaq	.LC105(%rip), %rdi
+	call	fwrite@PLT
+	movq	48(%r15), %rsi
+	movq	%rbx, %rdi
+	call	emit_function_name
+	movq	%rbx, %rsi
+	movl	$41, %edi
+	call	fputc@PLT
+	jmp	.L922
+.L936:
 	movq	%rdx, %rdi
 	movl	$4, %esi
-	movq	%rdx, 16(%rsp)
+	movq	%rdx, 24(%rsp)
 	movq	48(%rax), %r12
 	call	calloc@PLT
-	movq	16(%rsp), %rdx
+	movq	24(%rsp), %rdx
 	testq	%rax, %rax
-	movq	%rax, 40(%rsp)
-	je	.L582
-	movq	24(%rsp), %rax
+	movq	%rax, 48(%rsp)
+	je	.L580
+	movq	16(%rsp), %rax
 	xorl	%r13d, %r13d
 	leaq	1(%rax), %rsi
 	movzbl	(%r12), %eax
 	testb	%al, %al
-	je	.L558
-	movq	%r14, 48(%rsp)
-	movl	%ebx, 16(%rsp)
+	je	.L556
+	movq	%r14, 24(%rsp)
+	movq	%rbx, 40(%rsp)
 	movq	%rsi, %rbx
 	movq	%rbp, 56(%rsp)
 	movq	%r12, %rbp
 	movq	%rdx, %r12
 	.p2align 4
 	.p2align 3
-.L557:
+.L555:
 	cmpb	$37, %al
-	jne	.L903
+	jne	.L908
 	addq	$1, %r13
 	movzbl	0(%rbp,%r13), %r14d
 	cmpb	$37, %r14b
-	je	.L903
+	je	.L908
 	testb	%r14b, %r14b
-	jne	.L560
-	jmp	.L901
+	jne	.L558
+	jmp	.L903
 	.p2align 4,,10
 	.p2align 3
-.L563:
+.L561:
 	addq	$1, %r13
 	movzbl	0(%rbp,%r13), %r14d
 	testb	%r14b, %r14b
-	je	.L562
-.L560:
+	je	.L560
+.L558:
 	movsbl	%r14b, %esi
-	leaq	.LC73(%rip), %rdi
+	leaq	.LC70(%rip), %rdi
 	call	strchr@PLT
 	testq	%rax, %rax
-	jne	.L563
+	jne	.L561
 	cmpb	$42, %r14b
-	jne	.L562
+	jne	.L560
 	cmpq	%r12, %rbx
 	adcq	$0, %rbx
 	addq	$1, %r13
 	movzbl	0(%rbp,%r13), %edx
-.L567:
+.L565:
 	cmpb	$46, %dl
-	je	.L957
-.L569:
+	je	.L960
+.L567:
 	cmpb	$104, %dl
-	je	.L958
+	je	.L961
 	cmpb	$108, %dl
-	je	.L959
+	je	.L962
 	testb	%dl, %dl
-	je	.L901
+	je	.L903
 	leaq	1(%r13), %rax
-	cmpq	%r12, %rbx
-	jnb	.L575
 	cmpb	$115, %dl
-	jne	.L575
-	movq	40(%rsp), %rcx
+	jne	.L573
+	cmpq	%r12, %rbx
+	jnb	.L573
+	movq	48(%rsp), %rcx
 	movl	$1, (%rcx,%rbx,4)
 	.p2align 4
 	.p2align 3
-.L575:
+.L573:
 	addq	$1, %rbx
-.L559:
+.L557:
 	movq	%rax, %r13
 	movzbl	0(%rbp,%rax), %eax
 	testb	%al, %al
-	jne	.L557
-.L901:
-	movl	16(%rsp), %ebx
-	movq	48(%rsp), %r14
+	jne	.L555
+.L903:
+	movq	24(%rsp), %r14
+	movq	40(%rsp), %rbx
 	movq	%r12, %rdx
 	movq	56(%rsp), %rbp
-	jmp	.L558
+	jmp	.L556
 	.p2align 4,,10
 	.p2align 3
-.L903:
+.L908:
 	leaq	1(%r13), %rax
-	jmp	.L559
-.L562:
+	jmp	.L557
+.L560:
 	movzbl	0(%rbp,%r13), %edx
 	testb	%dl, %dl
 	movb	%dl, 64(%rsp)
-	je	.L901
+	je	.L903
 	call	__ctype_b_loc@PLT
 	movzbl	64(%rsp), %edx
 	movq	(%rax), %rax
-	jmp	.L565
+	jmp	.L563
 	.p2align 5
 	.p2align 4,,10
 	.p2align 3
-.L568:
+.L566:
 	addq	$1, %r13
 	movzbl	0(%rbp,%r13), %edx
 	testb	%dl, %dl
-	je	.L901
-.L565:
+	je	.L903
+.L563:
 	testb	$8, 1(%rax,%rdx,2)
-	jne	.L568
+	jne	.L566
 	movzbl	0(%rbp,%r13), %edx
-	jmp	.L567
-.L957:
+	jmp	.L565
+.L961:
+	cmpb	$104, 1(%rbp,%r13)
+	leaq	1(%r13), %rax
+	jne	.L573
+.L683:
+	leaq	2(%r13), %rax
+	jmp	.L573
+.L960:
 	movzbl	1(%rbp,%r13), %edx
 	leaq	1(%r13), %rdi
 	movq	%rdi, 64(%rsp)
 	cmpb	$42, %dl
-	jne	.L960
+	jne	.L963
 	cmpq	%r12, %rbx
 	adcq	$0, %rbx
 	addq	$2, %r13
 	movzbl	0(%rbp,%r13), %edx
-	jmp	.L569
-.L958:
-	cmpb	$104, 1(%rbp,%r13)
-	leaq	1(%r13), %rax
-	jne	.L575
-.L686:
-	leaq	2(%r13), %rax
-	jmp	.L575
-.L959:
+	jmp	.L567
+.L962:
 	cmpb	$108, 1(%rbp,%r13)
 	leaq	1(%r13), %rax
-	jne	.L575
-	jmp	.L686
-.L951:
-	testl	%r12d, %r12d
-	jne	.L674
-	jmp	.L717
-.L944:
+	jne	.L573
+	jmp	.L683
+.L543:
+	movl	12(%rsp), %esi
+	testl	%esi, %esi
+	je	.L964
+	leaq	.LC104(%rip), %rsi
+	movq	%r14, %rdi
+	call	strcmp@PLT
+	testl	%eax, %eax
+	je	.L705
+	leaq	.LC107(%rip), %rsi
+	movq	%r14, %rdi
+	call	strcmp@PLT
+	testl	%eax, %eax
+	je	.L705
+	leaq	.LC103(%rip), %rsi
+	movq	%r14, %rdi
+	call	strcmp@PLT
+	testl	%eax, %eax
+	je	.L705
+	movl	$1, 24(%rsp)
+.L660:
+	leaq	.LC102(%rip), %rsi
+	movq	%r14, %rdi
+	call	strcmp@PLT
+	testl	%eax, %eax
+	jne	.L695
+	movb	$1, 35(%rsp)
+	movq	$2, 16(%rsp)
+.L659:
+	cmpl	$0, 24(%rsp)
+	je	.L541
+.L550:
+	movl	$6, %edx
+	movl	$1, %esi
+	movq	%rbx, %rcx
+	leaq	.LC69(%rip), %rdi
+	call	fwrite@PLT
+	movq	48(%r15), %rdx
+	movl	$1, 12(%rsp)
+	movq	48(%rdx), %rsi
+	jmp	.L551
+.L589:
+	movq	24(%rsp), %rdi
+	leaq	.LC75(%rip), %rsi
+	call	strcmp@PLT
+	testl	%eax, %eax
+	jne	.L591
+	cmpq	$1, %r12
+	jne	.L591
+	movq	24(%rsp), %rdi
+	leaq	.LC79(%rip), %rsi
+	movl	$1, %r14d
+	call	strcmp@PLT
+	testl	%eax, %eax
+	jne	.L602
+	cmpl	$0, 56(%rsp)
+	jne	.L600
+	leaq	.LC68(%rip), %rdx
+	movq	24(%rsp), %rdi
+	movq	%rdx, %rsi
+	call	strcmp@PLT
+	testl	%eax, %eax
+	je	.L614
+	xorl	%eax, %eax
+	movl	$1, %r14d
+	movl	%eax, 56(%rsp)
+	jmp	.L608
+	.p2align 4,,10
+	.p2align 3
+.L949:
 	movq	%r12, %rdi
 	call	get_mangled_name
 	leaq	.LC26(%rip), %rsi
 	movq	%rax, %rdx
 	jmp	.L919
-.L955:
-	testq	%r12, %r12
-	je	.L518
-	movq	%r12, %rdi
-	call	get_mangled_name
-	movq	8(%rsp), %rsi
-	movq	%rax, %rdi
-	call	fputs@PLT
-	jmp	.L518
-.L960:
+.L963:
 	testb	%dl, %dl
 	movb	%dl, 72(%rsp)
-	je	.L901
+	je	.L903
 	call	__ctype_b_loc@PLT
 	movzbl	72(%rsp), %edx
 	movq	64(%rsp), %rdi
 	movq	(%rax), %rax
-	jmp	.L571
+	jmp	.L569
 	.p2align 5
 	.p2align 4,,10
 	.p2align 3
-.L573:
+.L571:
 	addq	$1, %rdi
 	movzbl	0(%rbp,%rdi), %edx
 	testb	%dl, %dl
-	je	.L901
-.L571:
+	je	.L903
+.L569:
 	testb	$8, 1(%rax,%rdx,2)
-	jne	.L573
+	jne	.L571
 	movzbl	0(%rbp,%rdi), %edx
 	movq	%rdi, %r13
-	jmp	.L569
-.L662:
-	leaq	.LC104(%rip), %rsi
-	movq	%r14, %rdi
-	call	strcmp@PLT
-	testl	%eax, %eax
-	jne	.L703
-	movb	$1, 39(%rsp)
-	movq	$2, 24(%rsp)
-.L661:
-	testl	%r12d, %r12d
-	je	.L553
-.L663:
-	movq	8(%rsp), %rcx
-	movl	$1, %esi
-	movl	$6, %edx
-	leaq	.LC72(%rip), %rdi
-	call	fwrite@PLT
-	movq	48(%r15), %rax
-	movq	48(%rax), %rsi
-	testl	%ebx, %ebx
-	je	.L682
-	cmpl	$2, (%rax)
-	je	.L660
-	movb	$1, 32(%rsp)
-	movl	$1, %r12d
-	jmp	.L547
-.L545:
-	testl	%r12d, %r12d
-	je	.L961
-.L886:
-	leaq	.LC106(%rip), %rsi
-	movq	%r14, %rdi
-	call	strcmp@PLT
-	testl	%eax, %eax
-	je	.L714
-	leaq	.LC107(%rip), %rsi
-	movq	%r14, %rdi
-	call	strcmp@PLT
-	testl	%eax, %eax
-	je	.L714
-	leaq	.LC105(%rip), %rsi
-	movq	%r14, %rdi
-	movl	$1, %r12d
-	call	strcmp@PLT
-	testl	%eax, %eax
-	jne	.L662
-.L714:
-	movb	$1, 39(%rsp)
-	movq	$1, 24(%rsp)
-	jmp	.L663
-.L907:
-	movb	$0, 64(%rsp)
-	movl	$1, 56(%rsp)
-.L604:
-	leaq	.LC71(%rip), %rcx
-	movq	16(%rsp), %rdi
-	movq	%rcx, %rsi
-	movq	%rcx, 72(%rsp)
-	call	strcmp@PLT
-	leaq	.LC71(%rip), %rcx
-	testl	%eax, %eax
-	jne	.L607
-	movzbl	64(%rsp), %edx
-	movl	56(%rsp), %eax
-	orl	%eax, %edx
-	testl	%ebx, %ebx
-	jne	.L606
-	movq	16(%rsp), %rdi
-	leaq	.LC69(%rip), %rsi
-	movl	%edx, 56(%rsp)
-	call	strcmp@PLT
-	movl	56(%rsp), %edx
-	testl	%eax, %eax
-	jne	.L669
-	cmpb	$0, 64(%rsp)
-	movl	%edx, %ebx
-	jne	.L909
-.L669:
-	cmpq	$1, %r12
-	jne	.L606
-	jmp	.L711
-	.p2align 4,,10
-	.p2align 3
-.L596:
-	movq	16(%rsp), %rdi
-	leaq	.LC80(%rip), %rsi
-	call	strcmp@PLT
-	testl	%eax, %eax
-	jne	.L718
-	cmpq	$2, %r12
-	je	.L597
-.L718:
-	movl	$0, 56(%rsp)
-	jmp	.L592
-.L954:
-	testl	%ebx, %ebx
-	je	.L711
-.L911:
-	movq	%r13, %rcx
+	jmp	.L567
+.L957:
+	movl	56(%rsp), %r10d
+	testl	%r10d, %r10d
+	je	.L611
+	movq	%rbx, %rcx
 	movl	$9, %edx
 	movl	$1, %esi
-	leaq	.LC83(%rip), %rdi
+	leaq	.LC80(%rip), %rdi
 	call	fwrite@PLT
-.L614:
-	movl	$1, %ebx
-	jmp	.L615
-.L916:
-	testl	%ebx, %ebx
-	jne	.L602
-	movq	16(%rsp), %rdi
-	leaq	.LC69(%rip), %rsi
+	movl	$1, 40(%rsp)
+	jmp	.L613
+.L595:
+	movq	24(%rsp), %rdi
+	leaq	.LC79(%rip), %rsi
+	movl	$1, %r14d
 	call	strcmp@PLT
-	testb	$1, %r12b
-	jne	.L721
 	testl	%eax, %eax
-	je	.L616
-.L721:
-	xorl	%ebx, %ebx
-	movl	$1, %edx
-	leaq	.LC71(%rip), %rcx
-	jmp	.L656
-.L536:
-	movq	8(%rsp), %rbx
-	leaq	-1(%r14), %rdx
-	xorl	%eax, %eax
-	xorl	%r12d, %r12d
-	leaq	.LC67(%rip), %rsi
-	leaq	.LC63(%rip), %r13
+	je	.L601
+.L602:
+	leaq	.LC68(%rip), %rdx
+	movq	24(%rsp), %rdi
+	movq	%rdx, %rsi
+	movq	%rdx, 72(%rsp)
+	call	strcmp@PLT
+	leaq	.LC68(%rip), %rdx
+	testl	%eax, %eax
+	jne	.L605
+	movzbl	64(%rsp), %eax
+	orl	%eax, %r14d
+	cmpl	$0, 56(%rsp)
+	jne	.L604
+	movq	24(%rsp), %rdi
+	leaq	.LC66(%rip), %rsi
+	call	strcmp@PLT
+	testl	%eax, %eax
+	jne	.L667
+	cmpb	$0, 64(%rsp)
+	jne	.L611
+.L667:
+	cmpq	$1, %r12
+	jne	.L604
+	jmp	.L611
+	.p2align 4,,10
+	.p2align 3
+.L678:
+	movb	$0, 35(%rsp)
+	movq	$0, 16(%rsp)
+	jmp	.L541
+.L594:
+	movq	24(%rsp), %rdi
+	leaq	.LC77(%rip), %rsi
+	call	strcmp@PLT
+	testl	%eax, %eax
+	jne	.L707
+	cmpq	$2, %r12
+	je	.L595
+.L707:
+	xorl	%r14d, %r14d
+	jmp	.L590
+.L954:
+	movl	expression_id(%rip), %eax
+	leaq	.LC62(%rip), %rsi
 	movq	%rbx, %rdi
+	addl	$1, %eax
+	movl	%eax, %r13d
+	movl	%eax, %edx
+	movl	%eax, 36(%rsp)
+	movl	%eax, expression_id(%rip)
+	xorl	%eax, %eax
 	call	fprintf@PLT
-.L538:
+	movq	%r14, %rsi
+	movq	%rbx, %rdi
+	call	emit_c_string
+	movl	%r13d, %r8d
+	movl	%r13d, %ecx
+	movl	%r13d, %edx
+	leaq	.LC63(%rip), %rsi
+	movq	%rbx, %rdi
+	xorl	%eax, %eax
+	call	fprintf@PLT
+	movl	%r13d, %r8d
+	xorl	%ecx, %ecx
+	movq	%rbp, %rdx
+	movq	%r15, %rsi
+	movq	%rbx, %rdi
+	call	emit_b_call
+	movl	%r13d, %edx
+	xorl	%eax, %eax
+	movq	%rbx, %rdi
+	leaq	.LC64(%rip), %rsi
+	call	fprintf@PLT
+	movq	48(%r15), %r13
+	cmpl	$2, 0(%r13)
+	movq	48(%r13), %rsi
+	je	.L538
+	movb	$0, 34(%rsp)
+	xorl	%r12d, %r12d
+	xorl	%r14d, %r14d
+	movb	$0, 35(%rsp)
+	movq	$0, 16(%rsp)
+	jmp	.L539
+.L705:
+	movb	$1, 35(%rsp)
+	movq	$1, 16(%rsp)
+	jmp	.L550
+.L916:
+	movl	56(%rsp), %eax
+	testl	%eax, %eax
+	jne	.L600
+	movq	24(%rsp), %rdi
+	leaq	.LC66(%rip), %rsi
+	call	strcmp@PLT
+	testl	%eax, %eax
+	jne	.L710
+	testb	$1, %r12b
+	je	.L614
+.L710:
+	xorl	%ecx, %ecx
+	movl	$1, %r14d
+	leaq	.LC68(%rip), %rdx
+	movl	%ecx, 56(%rsp)
+	jmp	.L655
+.L955:
+	movb	$1, 34(%rsp)
+	movq	48(%r13), %rsi
+	xorl	%r12d, %r12d
+	movb	$0, 35(%rsp)
+	movq	$0, 16(%rsp)
+	movl	$0, 36(%rsp)
+	jmp	.L539
+.L695:
+	xorl	%edx, %edx
+	movb	$0, 35(%rsp)
+	movq	%rdx, 16(%rsp)
+	jmp	.L659
+.L532:
+	leaq	-1(%r14), %rdx
+	leaq	.LC60(%rip), %rsi
+	movq	%rbx, %rdi
+	xorl	%eax, %eax
+	call	fprintf@PLT
+	xorl	%r12d, %r12d
+	leaq	.LC61(%rip), %r13
+.L534:
 	movq	%rbx, %rcx
 	movl	$2, %edx
 	movl	$1, %esi
@@ -4526,107 +4518,301 @@ emit_expr:
 	addq	$1, %r12
 	call	emit_expr
 	cmpq	%r12, %r14
-	jne	.L538
-	jmp	.L537
-.L961:
-	movq	8(%rsp), %rcx
+	jne	.L534
+	jmp	.L922
+.L964:
+	movq	%rbx, %rcx
 	movl	$1, %esi
 	movl	$6, %edx
-	leaq	.LC72(%rip), %rdi
 	xorl	%r12d, %r12d
-	movl	$1, %ebx
+	leaq	.LC69(%rip), %rdi
 	call	fwrite@PLT
 	movq	48(%r15), %rax
-	movb	$1, 32(%rsp)
-	movb	$1, 39(%rsp)
-	movq	$0, 24(%rsp)
+	xorl	%ecx, %ecx
+	movb	$1, 35(%rsp)
+	movq	%rcx, 16(%rsp)
+	movl	$1, 12(%rsp)
 	movq	48(%rax), %rsi
-	jmp	.L547
-.L703:
-	movb	$0, 39(%rsp)
-	movq	$0, 24(%rsp)
-	jmp	.L661
-.L666:
-	leaq	.LC69(%rip), %rsi
-	movq	%r14, %rdi
-	call	strcmp@PLT
-	testl	%eax, %eax
-	je	.L715
-	leaq	.LC70(%rip), %rsi
-	movq	%r14, %rdi
-	call	strcmp@PLT
-	testl	%eax, %eax
-	je	.L715
-	leaq	.LC68(%rip), %rsi
-	movq	%r14, %rdi
-	movl	$1, %ebx
-	call	strcmp@PLT
-	orl	$1, %eax
-	movl	%eax, %r12d
-	jmp	.L673
-.L616:
-	movq	%r13, %rcx
+	jmp	.L539
+.L614:
+	movq	%rbx, %rcx
 	movl	$7, %edx
 	movl	$1, %esi
-	leaq	.LC84(%rip), %rdi
+	movl	$1, %r14d
+	leaq	.LC81(%rip), %rdi
 	call	fwrite@PLT
-	jmp	.L614
-.L597:
-	movq	16(%rsp), %rdi
-	leaq	.LC82(%rip), %rsi
-	call	strcmp@PLT
-	testl	%eax, %eax
-	jne	.L907
-	movl	$1, 56(%rsp)
-	jmp	.L603
-.L715:
-	movl	$1, %ebx
-	jmp	.L886
-.L692:
-	movl	56(%rsp), %edx
-	jmp	.L606
-.L945:
-	movl	$1, 56(%rsp)
-	jmp	.L592
-.L710:
-	movl	$1, %edx
-	jmp	.L711
+	jmp	.L613
+.L959:
+	movl	$1, %r14d
+	jmp	.L590
+.L653:
+	movq	%rbx, %rcx
+	movl	$9, %edx
+	movl	$1, %esi
+	xorl	%r14d, %r14d
+	leaq	.LC80(%rip), %rdi
+	call	fwrite@PLT
+	movl	$1, 40(%rsp)
+	jmp	.L613
+.L538:
+	cmpl	$0, g_strict(%rip)
+	je	.L702
+	testq	%rsi, %rsi
+	movb	$0, 35(%rsp)
+	movq	%rsi, %r14
+	setne	34(%rsp)
+	xorl	%edx, %edx
+	movq	%rdx, 16(%rsp)
+	jmp	.L664
+.L702:
+	movq	%rsi, %r14
+	movl	$1, %r12d
+	jmp	.L663
 .L956:
 	xorl	%edi, %edi
-	movb	$1, 32(%rsp)
-	movq	%r14, %rsi
-	xorl	%ebx, %ebx
-	movb	$1, 39(%rsp)
+	movb	$1, 35(%rsp)
+	movq	48(%r13), %rsi
 	xorl	%r12d, %r12d
-	movq	%rdi, 24(%rsp)
-	jmp	.L547
-.L720:
-	xorl	%ebx, %ebx
-	jmp	.L656
-.L682:
-	movb	$1, 32(%rsp)
+	movq	%rdi, 16(%rsp)
+	jmp	.L539
+.L679:
 	xorl	%r12d, %r12d
-	movl	$1, %ebx
-	jmp	.L547
+	jmp	.L539
+.L709:
+	xorl	%esi, %esi
+	movl	%esi, 56(%rsp)
+	jmp	.L655
+.L905:
+	.cfi_def_cfa_offset 8
+	.cfi_restore 3
+	.cfi_restore 6
+	.cfi_restore 12
+	.cfi_restore 13
+	.cfi_restore 14
+	.cfi_restore 15
+	ret
 	.cfi_endproc
-.LFE48:
+.LFE49:
 	.size	emit_expr, .-emit_expr
 	.section	.rodata.str1.1
 .LC108:
-	.string	"word __%s_store[("
+	.string	"({ word __bcc_callee_%u = "
 .LC109:
-	.string	")];\n"
+	.string	"*__bcc_binding_%u"
 .LC110:
-	.string	"word %s = 0;\n"
+	.string	"; word __bcc_args_%u[%zu] = {"
 	.section	.rodata.str1.8
 	.align 8
 .LC111:
+	.string	"}; __bcc_is_source_function(__bcc_callee_%u) ? __bcc_invoke_source(__bcc_callee_%u, %zu, __bcc_args_%u) : ((word (*)())B_FUNCTION_CPTR(__bcc_callee_%u))("
+	.section	.rodata.str1.1
+.LC112:
+	.string	"__bcc_args_%u[%zu]"
+.LC113:
+	.string	"); })"
+	.text
+	.p2align 4
+	.type	emit_b_call, @function
+emit_b_call:
+.LFB48:
+	.cfi_startproc
+	pushq	%r15
+	.cfi_def_cfa_offset 16
+	.cfi_offset 15, -16
+	movq	%rcx, %r15
+	pushq	%r14
+	.cfi_def_cfa_offset 24
+	.cfi_offset 14, -24
+	movq	%rdx, %r14
+	pushq	%r13
+	.cfi_def_cfa_offset 32
+	.cfi_offset 13, -32
+	movq	%rsi, %r13
+	pushq	%r12
+	.cfi_def_cfa_offset 40
+	.cfi_offset 12, -40
+	pushq	%rbp
+	.cfi_def_cfa_offset 48
+	.cfi_offset 6, -48
+	pushq	%rbx
+	.cfi_def_cfa_offset 56
+	.cfi_offset 3, -56
+	movq	%rdi, %rbx
+	subq	$24, %rsp
+	.cfi_def_cfa_offset 80
+	movl	expression_id(%rip), %eax
+	movq	64(%rsi), %rbp
+	leaq	.LC108(%rip), %rsi
+	movl	%r8d, 12(%rsp)
+	leal	1(%rax), %r12d
+	xorl	%eax, %eax
+	movl	%r12d, %edx
+	movl	%r12d, expression_id(%rip)
+	call	fprintf@PLT
+	movl	12(%rsp), %r8d
+	testl	%r8d, %r8d
+	jne	.L976
+	testq	%r15, %r15
+	je	.L968
+	movq	%r15, %rdi
+	call	get_mangled_name
+	movq	%rbx, %rsi
+	movq	%rax, %rdi
+	call	fputs@PLT
+	movq	%rbx, %rcx
+	movl	$3, %edx
+	movl	$1, %esi
+	leaq	.LC27(%rip), %rdi
+	call	fwrite@PLT
+.L967:
+	testq	%rbp, %rbp
+	movl	$1, %ecx
+	movl	%r12d, %edx
+	movq	%rbx, %rdi
+	cmovne	%rbp, %rcx
+	leaq	.LC110(%rip), %rsi
+	xorl	%eax, %eax
+	xorl	%r15d, %r15d
+	call	fprintf@PLT
+	testq	%rbp, %rbp
+	jne	.L969
+	jmp	.L977
+	.p2align 4,,10
+	.p2align 3
+.L978:
+	movq	%rbx, %rcx
+	movl	$2, %edx
+	movl	$1, %esi
+	leaq	.LC61(%rip), %rdi
+	call	fwrite@PLT
+.L969:
+	movq	56(%r13), %rax
+	movq	%r14, %rdx
+	movq	%rbx, %rdi
+	movq	(%rax,%r15,8), %rsi
+	addq	$1, %r15
+	call	emit_expr
+	cmpq	%r15, %rbp
+	jne	.L978
+	subq	$8, %rsp
+	.cfi_def_cfa_offset 88
+	movl	%r12d, %edx
+	movl	%r12d, %r9d
+	movq	%rbp, %r8
+	pushq	%r12
+	.cfi_def_cfa_offset 96
+	movl	%r12d, %ecx
+	leaq	.LC111(%rip), %rsi
+	movq	%rbx, %rdi
+	xorl	%eax, %eax
+	xorl	%r13d, %r13d
+	leaq	.LC112(%rip), %r14
+	leaq	.LC61(%rip), %r15
+	call	fprintf@PLT
+	popq	%rax
+	.cfi_def_cfa_offset 88
+	popq	%rdx
+	.cfi_def_cfa_offset 80
+	jmp	.L972
+	.p2align 4,,10
+	.p2align 3
+.L979:
+	movq	%rbx, %rcx
+	movl	$2, %edx
+	movl	$1, %esi
+	movq	%r15, %rdi
+	call	fwrite@PLT
+.L972:
+	movq	%r13, %rcx
+	movl	%r12d, %edx
+	movq	%r14, %rsi
+	movq	%rbx, %rdi
+	xorl	%eax, %eax
+	addq	$1, %r13
+	call	fprintf@PLT
+	cmpq	%r13, %rbp
+	jne	.L979
+.L970:
+	addq	$24, %rsp
+	.cfi_remember_state
+	.cfi_def_cfa_offset 56
+	movq	%rbx, %rcx
+	movl	$5, %edx
+	movl	$1, %esi
+	popq	%rbx
+	.cfi_def_cfa_offset 48
+	leaq	.LC113(%rip), %rdi
+	popq	%rbp
+	.cfi_def_cfa_offset 40
+	popq	%r12
+	.cfi_def_cfa_offset 32
+	popq	%r13
+	.cfi_def_cfa_offset 24
+	popq	%r14
+	.cfi_def_cfa_offset 16
+	popq	%r15
+	.cfi_def_cfa_offset 8
+	jmp	fwrite@PLT
+	.p2align 4,,10
+	.p2align 3
+.L968:
+	.cfi_restore_state
+	movq	48(%r13), %rsi
+	movq	%r14, %rdx
+	movq	%rbx, %rdi
+	call	emit_expr
+	jmp	.L967
+	.p2align 4,,10
+	.p2align 3
+.L977:
+	movq	%rbx, %rsi
+	movl	$48, %edi
+	call	fputc@PLT
+	subq	$8, %rsp
+	.cfi_def_cfa_offset 88
+	movl	%r12d, %ecx
+	movl	%r12d, %r9d
+	pushq	%r12
+	.cfi_def_cfa_offset 96
+	leaq	.LC111(%rip), %rsi
+	xorl	%r8d, %r8d
+	movl	%r12d, %edx
+	movq	%rbx, %rdi
+	xorl	%eax, %eax
+	call	fprintf@PLT
+	popq	%rcx
+	.cfi_def_cfa_offset 88
+	popq	%rsi
+	.cfi_def_cfa_offset 80
+	jmp	.L970
+	.p2align 4,,10
+	.p2align 3
+.L976:
+	movl	%r8d, %edx
+	leaq	.LC109(%rip), %rsi
+	movq	%rbx, %rdi
+	xorl	%eax, %eax
+	call	fprintf@PLT
+	jmp	.L967
+	.cfi_endproc
+.LFE48:
+	.size	emit_b_call, .-emit_b_call
+	.section	.rodata.str1.1
+.LC114:
+	.string	"word __%s_store[("
+.LC115:
+	.string	")];\n"
+.LC116:
+	.string	"word %s = 0;\n"
+	.section	.rodata.str1.8
+	.align 8
+.LC117:
 	.string	"(void)B_LOCAL_PTR_N(&%s, sizeof(%s));\n"
 	.text
 	.p2align 4
 	.type	emit_auto_storage, @function
 emit_auto_storage:
-.LFB57:
+.LFB58:
 	.cfi_startproc
 	pushq	%r15
 	.cfi_def_cfa_offset 16
@@ -4656,14 +4842,14 @@ emit_auto_storage:
 	call	get_mangled_name
 	cmpq	$0, 8(%rbx)
 	movq	%rax, %r15
-	je	.L963
+	je	.L981
 	testl	%r13d, %r13d
-	jle	.L964
+	jle	.L982
 	xorl	%r12d, %r12d
 	leaq	.LC28(%rip), %r14
 	.p2align 4
 	.p2align 3
-.L965:
+.L983:
 	movq	%rbp, %rcx
 	movl	$2, %edx
 	movl	$1, %esi
@@ -4671,10 +4857,10 @@ emit_auto_storage:
 	call	fwrite@PLT
 	addl	$1, %r12d
 	cmpl	%r12d, %r13d
-	jne	.L965
-.L964:
+	jne	.L983
+.L982:
 	movq	%r15, %rdx
-	leaq	.LC108(%rip), %rsi
+	leaq	.LC114(%rip), %rsi
 	movq	%rbp, %rdi
 	xorl	%eax, %eax
 	call	fprintf@PLT
@@ -4685,16 +4871,16 @@ emit_auto_storage:
 	movq	%rbp, %rcx
 	movl	$4, %edx
 	movl	$1, %esi
-	leaq	.LC109(%rip), %rdi
+	leaq	.LC115(%rip), %rdi
 	call	fwrite@PLT
-.L963:
+.L981:
 	testl	%r13d, %r13d
-	jle	.L966
+	jle	.L984
 	xorl	%ebx, %ebx
 	leaq	.LC28(%rip), %r14
 	.p2align 4
 	.p2align 3
-.L967:
+.L985:
 	movq	%rbp, %rcx
 	movl	$2, %edx
 	movl	$1, %esi
@@ -4703,15 +4889,15 @@ emit_auto_storage:
 	movl	%ebx, %r12d
 	leal	1(%rbx), %ebx
 	cmpl	%ebx, %r13d
-	jne	.L967
+	jne	.L985
 	xorl	%eax, %eax
 	movq	%r15, %rdx
-	leaq	.LC110(%rip), %rsi
+	leaq	.LC116(%rip), %rsi
 	movq	%rbp, %rdi
 	call	fprintf@PLT
 	cmpl	$16, current_word_bits(%rip)
-	je	.L978
-.L962:
+	je	.L996
+.L980:
 	addq	$24, %rsp
 	.cfi_remember_state
 	.cfi_def_cfa_offset 56
@@ -4730,12 +4916,12 @@ emit_auto_storage:
 	ret
 	.p2align 4,,10
 	.p2align 3
-.L978:
+.L996:
 	.cfi_restore_state
 	xorl	%ebx, %ebx
 	.p2align 4
 	.p2align 3
-.L972:
+.L990:
 	movq	%rbp, %rcx
 	movl	$2, %edx
 	movl	$1, %esi
@@ -4744,8 +4930,8 @@ emit_auto_storage:
 	movl	%ebx, %eax
 	addl	$1, %ebx
 	cmpl	%eax, %r12d
-	jne	.L972
-.L969:
+	jne	.L990
+.L987:
 	addq	$24, %rsp
 	.cfi_remember_state
 	.cfi_def_cfa_offset 56
@@ -4754,7 +4940,7 @@ emit_auto_storage:
 	movq	%rbp, %rdi
 	popq	%rbx
 	.cfi_def_cfa_offset 48
-	leaq	.LC111(%rip), %rsi
+	leaq	.LC117(%rip), %rsi
 	popq	%rbp
 	.cfi_def_cfa_offset 40
 	xorl	%eax, %eax
@@ -4769,64 +4955,64 @@ emit_auto_storage:
 	jmp	fprintf@PLT
 	.p2align 4,,10
 	.p2align 3
-.L966:
+.L984:
 	.cfi_restore_state
 	xorl	%eax, %eax
 	movq	%r15, %rdx
-	leaq	.LC110(%rip), %rsi
+	leaq	.LC116(%rip), %rsi
 	movq	%rbp, %rdi
 	call	fprintf@PLT
 	cmpl	$16, current_word_bits(%rip)
-	jne	.L962
-	jmp	.L969
+	jne	.L980
+	jmp	.L987
 	.cfi_endproc
-.LFE57:
+.LFE58:
 	.size	emit_auto_storage, .-emit_auto_storage
 	.p2align 4
 	.globl	emit_ival_expr
 	.type	emit_ival_expr, @function
 emit_ival_expr:
-.LFB49:
+.LFB50:
 	.cfi_startproc
 	cmpl	$2, (%rsi)
-	je	.L981
+	je	.L999
 	jmp	emit_expr
 	.p2align 4,,10
 	.p2align 3
-.L981:
+.L999:
 	jmp	emit_ival_expr.part.0
 	.cfi_endproc
-.LFE49:
+.LFE50:
 	.size	emit_ival_expr, .-emit_ival_expr
 	.p2align 4
 	.globl	init_list_length
 	.type	init_list_length, @function
 init_list_length:
-.LFB50:
+.LFB51:
 	.cfi_startproc
 	xorl	%eax, %eax
 	testq	%rdi, %rdi
-	je	.L982
+	je	.L1000
 	cmpl	$1, (%rdi)
-	je	.L986
-.L982:
+	je	.L1004
+.L1000:
 	ret
 	.p2align 4,,10
 	.p2align 3
-.L986:
+.L1004:
 	movq	24(%rdi), %rax
 	ret
 	.cfi_endproc
-.LFE50:
+.LFE51:
 	.size	init_list_length, .-init_list_length
 	.p2align 4
 	.globl	try_eval_const_expr
 	.type	try_eval_const_expr, @function
 try_eval_const_expr:
-.LFB51:
+.LFB52:
 	.cfi_startproc
 	testq	%rdi, %rdi
-	je	.L1023
+	je	.L1041
 	pushq	%rbp
 	.cfi_def_cfa_offset 16
 	.cfi_offset 6, -16
@@ -4839,28 +5025,28 @@ try_eval_const_expr:
 	.cfi_def_cfa_offset 48
 	movl	(%rdi), %eax
 	cmpl	$7, %eax
-	je	.L989
-	ja	.L990
+	je	.L1007
+	ja	.L1008
 	testl	%eax, %eax
-	je	.L991
+	je	.L1009
 	cmpl	$5, %eax
-	jne	.L999
+	jne	.L1017
 	movq	56(%rdi), %rdi
 	leaq	8(%rsp), %rsi
 	movq	$0, 8(%rsp)
 	call	try_eval_const_expr
 	testl	%eax, %eax
-	je	.L987
+	je	.L1005
 	movl	48(%rbx), %eax
 	cmpl	$31, %eax
-	je	.L995
+	je	.L1013
 	cmpl	$35, %eax
-	je	.L996
+	je	.L1014
 	.p2align 4
 	.p2align 3
-.L999:
+.L1017:
 	xorl	%eax, %eax
-.L987:
+.L1005:
 	addq	$24, %rsp
 	.cfi_remember_state
 	.cfi_def_cfa_offset 24
@@ -4871,23 +5057,23 @@ try_eval_const_expr:
 	ret
 	.p2align 4,,10
 	.p2align 3
-.L990:
+.L1008:
 	.cfi_restore_state
 	cmpl	$10, %eax
-	jne	.L999
+	jne	.L1017
 	movq	48(%rdi), %rdi
 	leaq	8(%rsp), %rsi
 	movq	$0, 8(%rsp)
 	call	try_eval_const_expr
 	testl	%eax, %eax
-	je	.L987
+	je	.L1005
 	movq	56(%rbx), %rdi
 	movq	%rbp, %rsi
 	call	try_eval_const_expr
-	jmp	.L987
+	jmp	.L1005
 	.p2align 4,,10
 	.p2align 3
-.L1023:
+.L1041:
 	.cfi_def_cfa_offset 8
 	.cfi_restore 3
 	.cfi_restore 6
@@ -4895,7 +5081,7 @@ try_eval_const_expr:
 	ret
 	.p2align 4,,10
 	.p2align 3
-.L991:
+.L1009:
 	.cfi_def_cfa_offset 48
 	.cfi_offset 3, -24
 	.cfi_offset 6, -16
@@ -4912,7 +5098,7 @@ try_eval_const_expr:
 	ret
 	.p2align 4,,10
 	.p2align 3
-.L989:
+.L1007:
 	.cfi_restore_state
 	movq	56(%rdi), %rdi
 	movq	%rsp, %rsi
@@ -4920,311 +5106,311 @@ try_eval_const_expr:
 	movq	$0, 8(%rsp)
 	call	try_eval_const_expr
 	testl	%eax, %eax
-	je	.L999
+	je	.L1017
 	movq	64(%rbx), %rdi
 	leaq	8(%rsp), %rsi
 	call	try_eval_const_expr
 	testl	%eax, %eax
-	je	.L999
+	je	.L1017
 	movl	48(%rbx), %eax
 	subl	$22, %eax
 	cmpl	$33, %eax
-	ja	.L999
-	leaq	.L1002(%rip), %rdx
+	ja	.L1017
+	leaq	.L1020(%rip), %rdx
 	movslq	(%rdx,%rax,4), %rax
 	addq	%rdx, %rax
 	jmp	*%rax
 	.section	.rodata
 	.align 4
 	.align 4
-.L1002:
-	.long	.L1015-.L1002
-	.long	.L1014-.L1002
-	.long	.L1013-.L1002
-	.long	.L1012-.L1002
-	.long	.L1011-.L1002
-	.long	.L1010-.L1002
-	.long	.L999-.L1002
-	.long	.L999-.L1002
-	.long	.L1009-.L1002
-	.long	.L1008-.L1002
-	.long	.L1007-.L1002
-	.long	.L1006-.L1002
-	.long	.L1005-.L1002
-	.long	.L999-.L1002
-	.long	.L999-.L1002
-	.long	.L999-.L1002
-	.long	.L999-.L1002
-	.long	.L999-.L1002
-	.long	.L999-.L1002
-	.long	.L999-.L1002
-	.long	.L999-.L1002
-	.long	.L999-.L1002
-	.long	.L999-.L1002
-	.long	.L999-.L1002
-	.long	.L999-.L1002
-	.long	.L999-.L1002
-	.long	.L999-.L1002
-	.long	.L999-.L1002
-	.long	.L999-.L1002
-	.long	.L999-.L1002
-	.long	.L999-.L1002
-	.long	.L1004-.L1002
-	.long	.L1003-.L1002
-	.long	.L1001-.L1002
+.L1020:
+	.long	.L1033-.L1020
+	.long	.L1032-.L1020
+	.long	.L1031-.L1020
+	.long	.L1030-.L1020
+	.long	.L1029-.L1020
+	.long	.L1028-.L1020
+	.long	.L1017-.L1020
+	.long	.L1017-.L1020
+	.long	.L1027-.L1020
+	.long	.L1026-.L1020
+	.long	.L1025-.L1020
+	.long	.L1024-.L1020
+	.long	.L1023-.L1020
+	.long	.L1017-.L1020
+	.long	.L1017-.L1020
+	.long	.L1017-.L1020
+	.long	.L1017-.L1020
+	.long	.L1017-.L1020
+	.long	.L1017-.L1020
+	.long	.L1017-.L1020
+	.long	.L1017-.L1020
+	.long	.L1017-.L1020
+	.long	.L1017-.L1020
+	.long	.L1017-.L1020
+	.long	.L1017-.L1020
+	.long	.L1017-.L1020
+	.long	.L1017-.L1020
+	.long	.L1017-.L1020
+	.long	.L1017-.L1020
+	.long	.L1017-.L1020
+	.long	.L1017-.L1020
+	.long	.L1022-.L1020
+	.long	.L1021-.L1020
+	.long	.L1019-.L1020
 	.text
 	.p2align 4,,10
 	.p2align 3
-.L996:
+.L1014:
 	xorl	%eax, %eax
 	cmpq	$0, 8(%rsp)
 	sete	%al
 	movq	%rax, 0(%rbp)
-.L1017:
+.L1035:
 	movl	$1, %eax
-	jmp	.L987
-.L1001:
+	jmp	.L1005
+.L1019:
 	movq	(%rsp), %rax
 	orq	8(%rsp), %rax
 	setne	%al
 	movzbl	%al, %eax
 	movq	%rax, 0(%rbp)
-	jmp	.L1017
-.L1003:
+	jmp	.L1035
+.L1021:
 	movq	(%rsp), %rax
 	orq	8(%rsp), %rax
 	movq	%rax, 0(%rbp)
-	jmp	.L1017
-.L1004:
+	jmp	.L1035
+.L1022:
 	movq	(%rsp), %rax
 	andq	8(%rsp), %rax
 	movq	%rax, 0(%rbp)
-	jmp	.L1017
-.L1005:
+	jmp	.L1035
+.L1023:
 	movq	8(%rsp), %rcx
 	testq	%rcx, %rcx
-	je	.L999
+	je	.L1017
 	movq	(%rsp), %rax
 	cmpq	$-1, %rcx
-	jne	.L1027
+	jne	.L1045
 	movabsq	$-9223372036854775808, %rdx
 	cmpq	%rdx, %rax
-	je	.L1025
-.L1027:
+	je	.L1043
+.L1045:
 	cqto
 	idivq	%rcx
-.L1020:
+.L1038:
 	movq	%rdx, 0(%rbp)
-	jmp	.L1017
-.L1006:
+	jmp	.L1035
+.L1024:
 	movq	8(%rsp), %rcx
 	testq	%rcx, %rcx
-	je	.L999
+	je	.L1017
 	movq	(%rsp), %rdx
 	cmpq	$-1, %rcx
-	jne	.L1026
+	jne	.L1044
 	movabsq	$-9223372036854775808, %rax
 	cmpq	%rax, %rdx
-	je	.L1048
-.L1026:
+	je	.L1066
+.L1044:
 	movq	%rdx, %rax
 	cqto
 	idivq	%rcx
-.L1048:
+.L1066:
 	movq	%rax, 0(%rbp)
-	jmp	.L1017
-.L1007:
+	jmp	.L1035
+.L1025:
 	movq	(%rsp), %rax
 	imulq	8(%rsp), %rax
 	movq	%rax, 0(%rbp)
-	jmp	.L1017
-.L1008:
+	jmp	.L1035
+.L1026:
 	movq	(%rsp), %rax
 	subq	8(%rsp), %rax
-	jmp	.L1048
-.L1009:
+	jmp	.L1066
+.L1027:
 	movq	8(%rsp), %rax
 	addq	(%rsp), %rax
 	movq	%rax, 0(%rbp)
-	jmp	.L1017
-.L1010:
+	jmp	.L1035
+.L1028:
 	movq	8(%rsp), %rax
 	cmpq	%rax, (%rsp)
 	setge	%al
 	movzbl	%al, %eax
 	movq	%rax, 0(%rbp)
-	jmp	.L1017
-.L1011:
+	jmp	.L1035
+.L1029:
 	movq	8(%rsp), %rax
 	cmpq	%rax, (%rsp)
 	setg	%al
 	movzbl	%al, %eax
 	movq	%rax, 0(%rbp)
-	jmp	.L1017
-.L1012:
+	jmp	.L1035
+.L1030:
 	movq	8(%rsp), %rax
 	cmpq	%rax, (%rsp)
 	setle	%al
 	movzbl	%al, %eax
 	movq	%rax, 0(%rbp)
-	jmp	.L1017
-.L1013:
+	jmp	.L1035
+.L1031:
 	movq	8(%rsp), %rax
 	cmpq	%rax, (%rsp)
 	setl	%al
 	movzbl	%al, %eax
 	movq	%rax, 0(%rbp)
-	jmp	.L1017
-.L1014:
+	jmp	.L1035
+.L1032:
 	movq	8(%rsp), %rax
 	cmpq	%rax, (%rsp)
 	setne	%al
 	movzbl	%al, %eax
 	movq	%rax, 0(%rbp)
-	jmp	.L1017
-.L1015:
+	jmp	.L1035
+.L1033:
 	movq	8(%rsp), %rax
 	cmpq	%rax, (%rsp)
 	sete	%al
 	movzbl	%al, %eax
 	movq	%rax, 0(%rbp)
-	jmp	.L1017
+	jmp	.L1035
 	.p2align 4,,10
 	.p2align 3
-.L995:
+.L1013:
 	movq	8(%rsp), %rax
 	negq	%rax
 	movq	%rax, 0(%rbp)
-	jmp	.L1017
-.L1025:
+	jmp	.L1035
+.L1043:
 	xorl	%edx, %edx
-	jmp	.L1020
+	jmp	.L1038
 	.cfi_endproc
-.LFE51:
+.LFE52:
 	.size	try_eval_const_expr, .-try_eval_const_expr
 	.p2align 4
 	.globl	nested_base_len
 	.type	nested_base_len, @function
 nested_base_len:
-.LFB52:
+.LFB53:
 	.cfi_startproc
 	xorl	%eax, %eax
 	testq	%rdi, %rdi
-	je	.L1051
+	je	.L1069
 	cmpl	$1, (%rdi)
-	je	.L1055
-.L1051:
+	je	.L1073
+.L1069:
 	ret
 	.p2align 4,,10
 	.p2align 3
-.L1055:
+.L1073:
 	movq	24(%rdi), %rax
 	movl	$1, %edx
 	testq	%rax, %rax
 	cmove	%rdx, %rax
 	ret
 	.cfi_endproc
-.LFE52:
+.LFE53:
 	.size	nested_base_len, .-nested_base_len
 	.p2align 4
 	.globl	edge_words_total
 	.type	edge_words_total, @function
 edge_words_total:
-.LFB53:
+.LFB54:
 	.cfi_startproc
 	testq	%rdi, %rdi
-	je	.L1056
+	je	.L1074
 	cmpl	$1, (%rdi)
-	je	.L1061
-.L1056:
+	je	.L1079
+.L1074:
 	xorl	%eax, %eax
 	ret
 	.p2align 4,,10
 	.p2align 3
-.L1061:
+.L1079:
 	movq	24(%rdi), %rsi
 	movq	16(%rdi), %rdi
 	jmp	edge_words_total.part.0.isra.0
 	.cfi_endproc
-.LFE53:
+.LFE54:
 	.size	edge_words_total, .-edge_words_total
 	.p2align 4
 	.globl	edge_tail_words_top
 	.type	edge_tail_words_top, @function
 edge_tail_words_top:
-.LFB54:
+.LFB55:
 	.cfi_startproc
 	xorl	%r9d, %r9d
 	testq	%rdi, %rdi
-	je	.L1074
+	je	.L1092
 	cmpl	$1, (%rdi)
-	jne	.L1074
+	jne	.L1092
 	movq	24(%rdi), %rcx
 	movq	16(%rdi), %r8
 	testq	%rcx, %rcx
-	je	.L1074
+	je	.L1092
 	xorl	%edx, %edx
-	jmp	.L1075
+	jmp	.L1093
 	.p2align 5
 	.p2align 4,,10
 	.p2align 3
-.L1077:
+.L1095:
 	addq	$1, %rdx
 	cmpq	%rdx, %rcx
-	je	.L1074
-.L1075:
+	je	.L1092
+.L1093:
 	movq	(%r8,%rdx,8), %rax
 	testq	%rax, %rax
-	je	.L1077
+	je	.L1095
 	cmpl	$1, (%rax)
-	jne	.L1077
+	jne	.L1095
 	subq	$8, %rsp
 	.cfi_def_cfa_offset 16
-.L1078:
+.L1096:
 	movq	24(%rax), %rsi
 	movq	16(%rax), %rdi
 	call	edge_words_total.part.0.isra.0
 	addq	%rax, %r9
-.L1064:
+.L1082:
 	addq	$1, %rdx
 	cmpq	%rdx, %rcx
-	je	.L1081
+	je	.L1099
 	movq	(%r8,%rdx,8), %rax
 	testq	%rax, %rax
-	je	.L1064
+	je	.L1082
 	cmpl	$1, (%rax)
-	jne	.L1064
-	jmp	.L1078
+	jne	.L1082
+	jmp	.L1096
 	.p2align 4,,10
 	.p2align 3
-.L1074:
+.L1092:
 	.cfi_def_cfa_offset 8
 	movq	%r9, %rax
 	ret
 	.p2align 4,,10
 	.p2align 3
-.L1081:
+.L1099:
 	.cfi_def_cfa_offset 16
 	movq	%r9, %rax
 	addq	$8, %rsp
 	.cfi_def_cfa_offset 8
 	ret
 	.cfi_endproc
-.LFE54:
+.LFE55:
 	.size	edge_tail_words_top, .-edge_tail_words_top
 	.section	.rodata.str1.1
-.LC112:
+.LC118:
 	.string	"%s[%zu] = "
-.LC113:
+.LC119:
 	.string	";\n"
-.LC114:
+.LC120:
 	.string	"%s[%zu] = B_ADDR(%s[%zu]);\n"
 	.text
 	.p2align 4
 	.globl	emit_edge_list_init
 	.type	emit_edge_list_init, @function
 emit_edge_list_init:
-.LFB55:
+.LFB56:
 	.cfi_startproc
 	pushq	%r15
 	.cfi_def_cfa_offset 16
@@ -5249,34 +5435,34 @@ emit_edge_list_init:
 	subq	$40, %rsp
 	.cfi_def_cfa_offset 96
 	testq	%rcx, %rcx
-	je	.L1083
+	je	.L1101
 	cmpl	$1, (%rcx)
 	movq	%rcx, %r15
-	jne	.L1083
+	jne	.L1101
 	cmpq	$0, 24(%rcx)
-	je	.L1083
+	je	.L1101
 	movq	%rsi, (%rsp)
 	movq	%rdi, %rbx
 	movl	%r9d, %ebp
 	xorl	%r13d, %r13d
 	movq	%r8, 8(%rsp)
-.L1096:
+.L1114:
 	movq	16(%r15), %rax
 	movq	(%rax,%r13,8), %r10
 	testq	%r10, %r10
-	je	.L1091
+	je	.L1109
 	movl	(%r10), %eax
 	testl	%eax, %eax
-	je	.L1115
+	je	.L1133
 	cmpl	$1, %eax
-	je	.L1116
-.L1091:
+	je	.L1134
+.L1109:
 	addq	$1, %r13
 	addq	$1, %r12
 	cmpq	24(%r15), %r13
-	jb	.L1096
+	jb	.L1114
 	movq	8(%rsp), %rdx
-.L1083:
+.L1101:
 	addq	$40, %rsp
 	.cfi_remember_state
 	.cfi_def_cfa_offset 56
@@ -5296,17 +5482,17 @@ emit_edge_list_init:
 	ret
 	.p2align 4,,10
 	.p2align 3
-.L1115:
+.L1133:
 	.cfi_restore_state
 	xorl	%r14d, %r14d
 	testl	%ebp, %ebp
-	jle	.L1089
+	jle	.L1107
 	movq	%r12, 16(%rsp)
 	movl	%r14d, %r12d
 	movq	%r10, %r14
 	.p2align 4
 	.p2align 3
-.L1086:
+.L1104:
 	movq	%rbx, %rcx
 	movl	$2, %edx
 	movl	$1, %esi
@@ -5314,12 +5500,12 @@ emit_edge_list_init:
 	leaq	.LC28(%rip), %rdi
 	call	fwrite@PLT
 	cmpl	%r12d, %ebp
-	jne	.L1086
+	jne	.L1104
 	movq	16(%rsp), %r12
 	movq	%r14, %r10
-.L1089:
+.L1107:
 	movq	(%rsp), %rdx
-	leaq	.LC112(%rip), %rsi
+	leaq	.LC118(%rip), %rsi
 	xorl	%eax, %eax
 	movq	%r12, %rcx
 	movq	%rbx, %rdi
@@ -5328,20 +5514,20 @@ emit_edge_list_init:
 	movq	16(%rsp), %r10
 	movq	16(%r10), %rsi
 	cmpl	$2, (%rsi)
-	je	.L1117
+	je	.L1135
 	movq	96(%rsp), %rdx
 	movq	%rbx, %rdi
 	call	emit_expr
-.L1090:
+.L1108:
 	movq	%rbx, %rcx
 	movl	$2, %edx
 	movl	$1, %esi
-	leaq	.LC113(%rip), %rdi
+	leaq	.LC119(%rip), %rdi
 	call	fwrite@PLT
-	jmp	.L1091
+	jmp	.L1109
 	.p2align 4,,10
 	.p2align 3
-.L1116:
+.L1134:
 	movq	24(%r10), %rax
 	movl	$1, %edx
 	testq	%rax, %rax
@@ -5349,13 +5535,13 @@ emit_edge_list_init:
 	xorl	%r14d, %r14d
 	movq	%rdx, 16(%rsp)
 	testl	%ebp, %ebp
-	jle	.L1095
+	jle	.L1113
 	movq	%r12, 24(%rsp)
 	movl	%r14d, %r12d
 	movq	%r10, %r14
 	.p2align 4
 	.p2align 3
-.L1092:
+.L1110:
 	movq	%rbx, %rcx
 	movl	$2, %edx
 	movl	$1, %esi
@@ -5363,15 +5549,15 @@ emit_edge_list_init:
 	leaq	.LC28(%rip), %rdi
 	call	fwrite@PLT
 	cmpl	%r12d, %ebp
-	jne	.L1092
+	jne	.L1110
 	movq	24(%rsp), %r12
 	movq	%r14, %r10
-.L1095:
+.L1113:
 	movq	8(%rsp), %r14
 	movq	(%rsp), %r8
 	movq	%r12, %rcx
 	movq	%rbx, %rdi
-	leaq	.LC114(%rip), %rsi
+	leaq	.LC120(%rip), %rsi
 	xorl	%eax, %eax
 	movq	%r10, 24(%rsp)
 	movq	%r8, %rdx
@@ -5398,84 +5584,95 @@ emit_edge_list_init:
 	.cfi_def_cfa_offset 96
 	movq	16(%rsp), %r10
 	cmpl	$1, (%r10)
-	jne	.L1093
+	jne	.L1111
 	movq	24(%r10), %rsi
 	movq	16(%r10), %rdi
 	call	edge_words_total.part.0.isra.0
 	addq	%rax, 8(%rsp)
-.L1093:
+.L1111:
 	movq	8(%rsp), %rax
 	cmpq	%rdx, %rax
 	cmovnb	%rax, %rdx
 	movq	%rdx, 8(%rsp)
-	jmp	.L1091
+	jmp	.L1109
 	.p2align 4,,10
 	.p2align 3
-.L1117:
+.L1135:
 	movq	%rbx, %rdi
 	call	emit_ival_expr.part.0
-	jmp	.L1090
+	jmp	.L1108
 	.cfi_endproc
-.LFE55:
+.LFE56:
 	.size	emit_edge_list_init, .-emit_edge_list_init
 	.section	.rodata.str1.8
 	.align 8
-.LC115:
+.LC121:
 	.string	"static void __attribute__((constructor(101))) __b_register_globals(void) {\n"
-	.align 8
-.LC116:
-	.string	"    (void)B_PTR_N(%s, sizeof(%s));\n"
-	.align 8
-.LC117:
-	.string	"    (void)B_PTR_N(__%s_store, sizeof(__%s_store));\n"
 	.section	.rodata.str1.1
-.LC118:
+.LC122:
 	.string	"}\n"
 	.section	.rodata.str1.8
 	.align 8
-.LC119:
+.LC123:
+	.string	"    (void)B_PTR_N(%s, sizeof(%s));\n"
+	.align 8
+.LC124:
+	.string	"    (void)B_PTR_N(__%s_store, sizeof(__%s_store));\n"
+	.align 8
+.LC125:
 	.string	"static void __attribute__((constructor(102))) __bcc_bind_functions(void) {\n"
+	.align 8
+.LC126:
+	.string	"static void __b_initialize_globals(void) {\n"
 	.section	.rodata.str1.1
-.LC120:
+.LC127:
 	.string	"    "
-.LC121:
+.LC128:
 	.string	" = B_FUNCTION("
 	.section	.rodata.str1.8
 	.align 8
-.LC122:
+.LC129:
 	.string	"    static struct __bcc_source_function __bcc_function_%zu = {(void*)"
 	.align 8
-.LC123:
+.LC130:
 	.string	", 0, 0};\n    __bcc_register_function(&__bcc_function_%zu);\n"
 	.align 8
-.LC124:
-	.string	"static void __b_initialize_globals(void) {\n"
+.LC131:
+	.string	"    static struct __bcc_library_binding __bcc_binding_%zu = {"
 	.align 8
-.LC125:
+.LC132:
+	.string	", 0, 0};\n    __bcc_register_binding(&__bcc_binding_%zu);\n"
+	.align 8
+.LC133:
+	.string	"    static struct __bcc_library_binding __bcc_data_%zu = {"
+	.align 8
+.LC134:
+	.string	", 0, 0};\n    __bcc_register_binding(&__bcc_data_%zu);\n"
+	.align 8
+.LC135:
+	.string	"}\nstatic struct __bcc_initializer __bcc_module = {__b_initialize_globals, 0, 0};\nstatic void __attribute__((constructor(102))) __bcc_register_module(void) {\n    __bcc_register_initializer(&__bcc_module);\n}\n\n"
+	.align 8
+.LC136:
 	.string	"    %s[0] = B_PTR_N(__%s_store, sizeof(__%s_store));\n"
 	.section	.rodata.str1.1
-.LC126:
+.LC137:
 	.string	"__%s_store"
-.LC127:
+.LC138:
 	.string	"    %s[0] = "
-	.section	.rodata.str1.8
-	.align 8
-.LC128:
-	.string	"}\nstatic struct __bcc_initializer __bcc_module = {__b_initialize_globals, 0, 0};\nstatic void __attribute__((constructor(102))) __bcc_register_module(void) {\n    __bcc_register_initializer(&__bcc_module);\n}\n\n"
 	.text
 	.p2align 4
 	.type	emit_global_initializers, @function
 emit_global_initializers:
-.LFB64:
+.LFB65:
 	.cfi_startproc
 	pushq	%r15
 	.cfi_def_cfa_offset 16
 	.cfi_offset 15, -16
-	leaq	.LC118(%rip), %rax
-	movq	%rsi, %r15
+	leaq	.LC122(%rip), %rax
 	pushq	%r14
 	.cfi_def_cfa_offset 24
 	.cfi_offset 14, -24
+	movq	%rsi, %r14
 	pushq	%r13
 	.cfi_def_cfa_offset 32
 	.cfi_offset 13, -32
@@ -5494,32 +5691,33 @@ emit_global_initializers:
 	cmpl	$16, current_word_bits(%rip)
 	movq	%rdx, 8(%rsp)
 	movq	%rax, (%rsp)
-	je	.L1163
-.L1119:
+	je	.L1201
+.L1137:
 	movq	%rbx, %rcx
 	movl	$75, %edx
 	movl	$1, %esi
-	leaq	.LC119(%rip), %rdi
-	call	fwrite@PLT
-	cmpq	$0, 8(%r15)
-	je	.L1126
 	xorl	%ebp, %ebp
-	leaq	.LC120(%rip), %r14
-	leaq	.LC27(%rip), %r13
-	jmp	.L1129
+	leaq	.LC125(%rip), %rdi
+	leaq	.LC127(%rip), %r15
+	call	fwrite@PLT
+	cmpq	$0, 8(%r14)
+	leaq	.LC128(%rip), %r13
+	jne	.L1144
+	jmp	.L1150
 	.p2align 5
 	.p2align 4,,10
 	.p2align 3
-.L1127:
+.L1147:
+	movq	8(%r14), %rax
 	addq	$1, %rbp
-	cmpq	8(%r15), %rbp
-	jnb	.L1126
-.L1129:
-	movq	(%r15), %rax
+	cmpq	%rax, %rbp
+	jnb	.L1202
+.L1144:
+	movq	(%r14), %rax
 	movq	(%rax,%rbp,8), %r12
 	cmpl	$1, (%r12)
-	jne	.L1127
-	movq	%r14, %rdi
+	jne	.L1147
+	movq	%r15, %rdi
 	movq	%rbx, %rcx
 	movl	$4, %edx
 	movl	$1, %esi
@@ -5527,21 +5725,21 @@ emit_global_initializers:
 	movq	8(%r12), %rax
 	movq	(%rax), %rdi
 	testq	%rdi, %rdi
-	je	.L1128
+	je	.L1148
 	call	get_mangled_name
 	movq	%rbx, %rsi
 	movq	%rax, %rdi
 	call	fputs@PLT
-.L1128:
+.L1148:
 	movq	%rbx, %rcx
 	movl	$3, %edx
 	movl	$1, %esi
-	movq	%r13, %rdi
+	leaq	.LC27(%rip), %rdi
 	call	fwrite@PLT
 	movq	%rbx, %rcx
 	movl	$14, %edx
+	movq	%r13, %rdi
 	movl	$1, %esi
-	leaq	.LC121(%rip), %rdi
 	call	fwrite@PLT
 	movq	8(%r12), %rax
 	movq	%rbx, %rdi
@@ -5555,7 +5753,7 @@ emit_global_initializers:
 	movq	%rbp, %rdx
 	movq	%rbx, %rdi
 	xorl	%eax, %eax
-	leaq	.LC122(%rip), %rsi
+	leaq	.LC129(%rip), %rsi
 	call	fprintf@PLT
 	movq	8(%r12), %rax
 	movq	%rbx, %rdi
@@ -5564,72 +5762,149 @@ emit_global_initializers:
 	movq	%rbp, %rdx
 	movq	%rbx, %rdi
 	xorl	%eax, %eax
-	leaq	.LC123(%rip), %rsi
-	addq	$1, %rbp
+	leaq	.LC130(%rip), %rsi
 	call	fprintf@PLT
-	cmpq	8(%r15), %rbp
-	jb	.L1129
-.L1126:
+	movq	%rbp, %rdx
+	movq	%rbx, %rdi
+	xorl	%eax, %eax
+	leaq	.LC131(%rip), %rsi
+	call	fprintf@PLT
+	movq	8(%r12), %rax
+	movq	%rbx, %rdi
+	movq	(%rax), %rsi
+	call	emit_c_string
+	leaq	.LC61(%rip), %rdi
+	movq	%rbx, %rcx
+	movl	$2, %edx
+	movl	$1, %esi
+	call	fwrite@PLT
+	movq	8(%r12), %rax
+	movq	(%rax), %rdi
+	testq	%rdi, %rdi
+	je	.L1149
+	call	get_mangled_name
+	movq	%rbx, %rsi
+	movq	%rax, %rdi
+	call	fputs@PLT
+.L1149:
+	movq	%rbp, %rdx
+	leaq	.LC132(%rip), %rsi
+	movq	%rbx, %rdi
+	xorl	%eax, %eax
+	call	fprintf@PLT
+	movq	8(%r14), %rax
+	addq	$1, %rbp
+	cmpq	%rax, %rbp
+	jb	.L1144
+.L1202:
+	testq	%rax, %rax
+	je	.L1150
+	xorl	%r15d, %r15d
+	leaq	.LC61(%rip), %r13
+	leaq	.LC134(%rip), %r12
+	.p2align 4
+	.p2align 3
+.L1153:
+	movq	(%r14), %rax
+	movq	(%rax,%r15,8), %rax
+	cmpl	$2, (%rax)
+	jne	.L1151
+	movq	8(%rax), %rax
+	movl	4(%rax), %edi
+	testl	%edi, %edi
+	jne	.L1151
+	movq	16(%rax), %rbp
+	movq	%r15, %rdx
+	leaq	.LC133(%rip), %rsi
+	movq	%rbx, %rdi
+	xorl	%eax, %eax
+	call	fprintf@PLT
+	movq	%rbp, %rsi
+	movq	%rbx, %rdi
+	call	emit_c_string
+	movq	%rbx, %rcx
+	movl	$2, %edx
+	movq	%r13, %rdi
+	movl	$1, %esi
+	call	fwrite@PLT
+	testq	%rbp, %rbp
+	je	.L1152
+	movq	%rbp, %rdi
+	call	get_mangled_name
+	movq	%rbx, %rsi
+	movq	%rax, %rdi
+	call	fputs@PLT
+.L1152:
+	movq	%r15, %rdx
+	movq	%r12, %rsi
+	movq	%rbx, %rdi
+	xorl	%eax, %eax
+	call	fprintf@PLT
+.L1151:
+	addq	$1, %r15
+	cmpq	8(%r14), %r15
+	jb	.L1153
+.L1150:
 	movq	(%rsp), %rdi
 	movq	%rbx, %rcx
 	movl	$2, %edx
+	xorl	%ebp, %ebp
 	movl	$1, %esi
 	call	fwrite@PLT
 	movq	%rbx, %rcx
 	movl	$43, %edx
 	movl	$1, %esi
-	leaq	.LC124(%rip), %rdi
+	leaq	.LC126(%rip), %rdi
 	call	fwrite@PLT
-	cmpq	$0, 8(%r15)
-	je	.L1130
-	xorl	%ebp, %ebp
-	jmp	.L1141
+	cmpq	$0, 8(%r14)
+	jne	.L1145
+	jmp	.L1146
 	.p2align 5
 	.p2align 4,,10
 	.p2align 3
-.L1132:
+.L1155:
 	addq	$1, %rbp
-	cmpq	8(%r15), %rbp
-	jnb	.L1130
-.L1141:
-	movq	(%r15), %rax
+	cmpq	8(%r14), %rbp
+	jnb	.L1146
+.L1145:
+	movq	(%r14), %rax
 	movq	(%rax,%rbp,8), %rax
 	cmpl	$2, (%rax)
-	jne	.L1132
+	jne	.L1155
 	movq	8(%rax), %r12
 	movq	16(%r12), %rdi
 	call	get_mangled_name
 	cmpl	$2, 24(%r12)
 	movq	56(%r12), %r13
-	movq	%rax, %r14
-	je	.L1164
+	movq	%rax, %r15
+	je	.L1203
 	testq	%r13, %r13
-	je	.L1132
+	je	.L1155
 	movl	0(%r13), %eax
 	cmpl	$1, %eax
-	je	.L1165
+	je	.L1204
 	testl	%eax, %eax
-	jne	.L1132
-	leaq	.LC127(%rip), %rsi
-	movq	%r14, %rdx
+	jne	.L1155
+	leaq	.LC138(%rip), %rsi
+	movq	%r15, %rdx
 	movq	%rbx, %rdi
 	call	fprintf@PLT
 	movq	16(%r13), %rsi
 	cmpl	$2, (%rsi)
-	je	.L1166
+	je	.L1205
 	movq	8(%rsp), %rdx
 	movq	%rbx, %rdi
 	call	emit_expr
-.L1140:
+.L1163:
 	movq	%rbx, %rcx
 	movl	$2, %edx
 	movl	$1, %esi
 	addq	$1, %rbp
-	leaq	.LC113(%rip), %rdi
+	leaq	.LC119(%rip), %rdi
 	call	fwrite@PLT
-	cmpq	8(%r15), %rbp
-	jb	.L1141
-.L1130:
+	cmpq	8(%r14), %rbp
+	jb	.L1145
+.L1146:
 	addq	$24, %rsp
 	.cfi_remember_state
 	.cfi_def_cfa_offset 56
@@ -5638,7 +5913,7 @@ emit_global_initializers:
 	movl	$1, %esi
 	popq	%rbx
 	.cfi_def_cfa_offset 48
-	leaq	.LC128(%rip), %rdi
+	leaq	.LC135(%rip), %rdi
 	popq	%rbp
 	.cfi_def_cfa_offset 40
 	popq	%r12
@@ -5652,40 +5927,40 @@ emit_global_initializers:
 	jmp	fwrite@PLT
 	.p2align 4,,10
 	.p2align 3
-.L1164:
+.L1203:
 	.cfi_restore_state
 	movq	%rax, %r8
 	movq	%rax, %rcx
 	movq	%rax, %rdx
 	movq	%rbx, %rdi
 	xorl	%eax, %eax
-	leaq	.LC125(%rip), %rsi
+	leaq	.LC136(%rip), %rsi
 	call	fprintf@PLT
 	testq	%r13, %r13
-	je	.L1132
+	je	.L1155
 	cmpl	$1, 0(%r13)
-	jne	.L1132
-	movq	%r14, %rsi
-	leaq	.LC126(%rip), %rdi
+	jne	.L1155
+	movq	%r15, %rsi
+	leaq	.LC137(%rip), %rdi
 	xorl	%eax, %eax
 	call	fmt@PLT
 	xorl	%r8d, %r8d
 	movq	%rax, %rsi
 	movq	56(%r12), %rax
 	testq	%rax, %rax
-	je	.L1135
+	je	.L1158
 	cmpl	$1, (%rax)
-	je	.L1167
-.L1135:
+	je	.L1206
+.L1158:
 	cmpq	$0, 32(%r12)
-	je	.L1136
+	je	.L1159
 	movq	48(%r12), %rax
 	movq	%r8, %rdx
 	cmpq	%rax, %r8
 	cmovb	%rax, %r8
 	testq	%rax, %rax
 	cmovle	%rdx, %r8
-.L1136:
+.L1159:
 	subq	$8, %rsp
 	.cfi_def_cfa_offset 88
 	movq	%r13, %rcx
@@ -5699,10 +5974,10 @@ emit_global_initializers:
 	.cfi_def_cfa_offset 88
 	popq	%rsi
 	.cfi_def_cfa_offset 80
-	jmp	.L1132
+	jmp	.L1155
 	.p2align 4,,10
 	.p2align 3
-.L1165:
+.L1204:
 	subq	$8, %rsp
 	.cfi_def_cfa_offset 88
 	movq	24(%r13), %r8
@@ -5711,43 +5986,42 @@ emit_global_initializers:
 	pushq	16(%rsp)
 	.cfi_def_cfa_offset 96
 	movq	%r13, %rcx
-	movq	%r14, %rsi
+	movq	%r15, %rsi
 	movq	%rbx, %rdi
 	call	emit_edge_list_init
 	popq	%rax
 	.cfi_def_cfa_offset 88
 	popq	%rdx
 	.cfi_def_cfa_offset 80
-	jmp	.L1132
+	jmp	.L1155
 	.p2align 4,,10
 	.p2align 3
-.L1163:
+.L1201:
 	movq	%rdi, %rcx
 	movl	$75, %edx
 	movl	$1, %esi
-	leaq	.LC115(%rip), %rdi
-	call	fwrite@PLT
-	cmpq	$0, 8(%r15)
-	je	.L1120
 	xorl	%ebp, %ebp
-	leaq	.LC116(%rip), %r12
-	jmp	.L1125
+	leaq	.LC121(%rip), %rdi
+	leaq	.LC123(%rip), %r12
+	call	fwrite@PLT
+	cmpq	$0, 8(%r14)
+	jne	.L1138
+	.p2align 4
+	.p2align 3
+.L1143:
+	leaq	.LC122(%rip), %rax
+	movq	%rbx, %rcx
+	movl	$2, %edx
+	movl	$1, %esi
+	movq	%rax, %rdi
+	movq	%rax, (%rsp)
+	call	fwrite@PLT
+	jmp	.L1137
 	.p2align 4,,10
 	.p2align 3
-.L1122:
-	addq	$1, %rbp
-	cmpq	8(%r15), %rbp
-	jnb	.L1120
-.L1125:
-	movq	(%r15), %rax
-	movq	(%rax,%rbp,8), %rdx
-	movl	(%rdx), %eax
-	cmpl	$1, %eax
-	je	.L1168
-	cmpl	$2, %eax
-	jne	.L1122
-	movq	8(%rdx), %r14
-	movq	16(%r14), %rdi
+.L1209:
+	movq	8(%rdx), %r15
+	movq	16(%r15), %rdi
 	call	get_mangled_name
 	movq	%r12, %rsi
 	movq	%rbx, %rdi
@@ -5756,31 +6030,34 @@ emit_global_initializers:
 	movq	%rax, %r13
 	xorl	%eax, %eax
 	call	fprintf@PLT
-	cmpl	$2, 24(%r14)
-	jne	.L1122
-	movq	%r13, %rcx
-	movq	%r13, %rdx
-	leaq	.LC117(%rip), %rsi
-	movq	%rbx, %rdi
-	xorl	%eax, %eax
+	cmpl	$2, 24(%r15)
+	je	.L1207
+.L1140:
 	addq	$1, %rbp
-	call	fprintf@PLT
-	cmpq	8(%r15), %rbp
-	jb	.L1125
-	.p2align 4
-	.p2align 3
-.L1120:
-	leaq	.LC118(%rip), %rax
-	movq	%rbx, %rcx
-	movl	$2, %edx
-	movl	$1, %esi
-	movq	%rax, %rdi
-	movq	%rax, (%rsp)
-	call	fwrite@PLT
-	jmp	.L1119
+	cmpq	8(%r14), %rbp
+	jnb	.L1143
+.L1138:
+	movq	(%r14), %rax
+	movq	(%rax,%rbp,8), %rdx
+	movl	(%rdx), %eax
+	cmpl	$1, %eax
+	je	.L1208
+	cmpl	$2, %eax
+	jne	.L1140
+	jmp	.L1209
 	.p2align 4,,10
 	.p2align 3
-.L1168:
+.L1207:
+	movq	%r13, %rcx
+	movq	%r13, %rdx
+	leaq	.LC124(%rip), %rsi
+	movq	%rbx, %rdi
+	xorl	%eax, %eax
+	call	fprintf@PLT
+	jmp	.L1140
+	.p2align 4,,10
+	.p2align 3
+.L1208:
 	movq	8(%rdx), %rax
 	movq	(%rax), %rdi
 	call	get_mangled_name
@@ -5790,100 +6067,100 @@ emit_global_initializers:
 	movq	%rax, %rcx
 	xorl	%eax, %eax
 	call	fprintf@PLT
-	jmp	.L1122
-.L1166:
+	jmp	.L1140
+.L1205:
 	movq	%rbx, %rdi
 	call	emit_ival_expr.part.0
-	jmp	.L1140
-.L1167:
+	jmp	.L1163
+.L1206:
 	movq	24(%rax), %r8
-	jmp	.L1135
+	jmp	.L1158
 	.cfi_endproc
-.LFE64:
+.LFE65:
 	.size	emit_global_initializers, .-emit_global_initializers
 	.section	.rodata.str1.1
-.LC129:
-	.string	"<"
-.LC130:
-	.string	"<="
-.LC131:
-	.string	">"
-.LC132:
-	.string	">="
-.LC133:
-	.string	"??"
-.LC134:
-	.string	"while ("
-.LC135:
-	.string	")\n"
-.LC136:
-	.string	"if ("
-.LC137:
-	.string	"switch ("
-.LC138:
-	.string	") {\n"
 .LC139:
-	.string	"continue;\n"
+	.string	"<"
 .LC140:
-	.string	"break;\n"
+	.string	"<="
 .LC141:
-	.string	"return"
+	.string	">"
 .LC142:
-	.string	"{\n"
+	.string	">="
 .LC143:
+	.string	"??"
+.LC144:
+	.string	"while ("
+.LC145:
+	.string	")\n"
+.LC146:
+	.string	"if ("
+.LC147:
+	.string	"switch ("
+.LC148:
+	.string	") {\n"
+.LC149:
+	.string	"continue;\n"
+.LC150:
+	.string	"break;\n"
+.LC151:
+	.string	"return"
+.LC152:
+	.string	"{\n"
+.LC153:
 	.string	"return "
 	.section	.rodata.str1.8
 	.align 8
-.LC144:
+.LC154:
 	.string	"%s = B_LOCAL_PTR_N(__%s_store, sizeof(__%s_store));\n"
 	.section	.rodata.str1.1
-.LC145:
+.LC155:
 	.string	"else\n"
-.LC146:
+.LC156:
 	.string	" 0"
 	.section	.rodata.str1.8
 	.align 8
-.LC147:
+.LC157:
 	.string	"case %zu: goto __b_label_%zu;\n"
 	.align 8
-.LC148:
+.LC158:
 	.string	"default: fputs(\"bcc: invalid label value\\n\", stderr); abort();\n"
 	.section	.rodata.str1.1
-.LC149:
+.LC159:
 	.string	"__bsw%d_case%zu"
-.LC150:
+.LC160:
 	.string	"for(;;) {\n"
-.LC151:
+.LC161:
 	.string	"word __sw = "
-.LC152:
+.LC162:
 	.string	"__bsw%d_end"
-.LC153:
+.LC163:
 	.string	"goto __bsw%d_dispatch;\n"
-.LC154:
+.LC164:
 	.string	"goto __bsw%d_end;\n"
-.LC155:
+.LC165:
 	.string	"__sw %s (word)%ld"
 	.section	.rodata.str1.8
 	.align 8
-.LC156:
+.LC166:
 	.string	"(__sw >= (word)%ld && __sw <= (word)%ld)"
 	.section	.rodata.str1.1
-.LC157:
+.LC167:
 	.string	"__sw == (word)%ld"
-.LC158:
+.LC168:
 	.string	") goto "
-.LC159:
+.LC169:
 	.string	"__bsw%d_end:\n"
-.LC160:
+.LC170:
 	.string	"__b_label_%d:\n"
-.LC161:
+.LC171:
 	.string	"__bsw%d_dispatch:\n"
 	.text
 	.p2align 4
 	.globl	emit_stmt
 	.type	emit_stmt, @function
 emit_stmt:
-.LFB58:
+.LFB59:
 	.cfi_startproc
 	pushq	%r15
 	.cfi_def_cfa_offset 16
@@ -5912,55 +6189,55 @@ emit_stmt:
 	testq	%r8, %r8
 	movq	%r8, 16(%rsp)
 	setne	24(%rsp)
-.L1170:
+.L1211:
 	movl	g_no_line(%rip), %r10d
 	testl	%r10d, %r10d
-	jne	.L1171
+	jne	.L1212
 	cmpb	$0, 24(%rsp)
-	jne	.L1455
-.L1171:
+	jne	.L1496
+.L1212:
 	cmpl	$12, (%rbx)
-	ja	.L1169
+	ja	.L1210
 	movl	(%rbx), %eax
-	leaq	.L1174(%rip), %rcx
+	leaq	.L1215(%rip), %rcx
 	movslq	(%rcx,%rax,4), %rax
 	addq	%rcx, %rax
 	jmp	*%rax
 	.section	.rodata
 	.align 4
 	.align 4
-.L1174:
-	.long	.L1185-.L1174
-	.long	.L1184-.L1174
-	.long	.L1183-.L1174
-	.long	.L1182-.L1174
-	.long	.L1181-.L1174
-	.long	.L1180-.L1174
-	.long	.L1179-.L1174
-	.long	.L1169-.L1174
-	.long	.L1178-.L1174
-	.long	.L1177-.L1174
-	.long	.L1176-.L1174
-	.long	.L1175-.L1174
-	.long	.L1173-.L1174
+.L1215:
+	.long	.L1226-.L1215
+	.long	.L1225-.L1215
+	.long	.L1224-.L1215
+	.long	.L1223-.L1215
+	.long	.L1222-.L1215
+	.long	.L1221-.L1215
+	.long	.L1220-.L1215
+	.long	.L1210-.L1215
+	.long	.L1219-.L1215
+	.long	.L1218-.L1215
+	.long	.L1217-.L1215
+	.long	.L1216-.L1215
+	.long	.L1214-.L1215
 	.text
 	.p2align 4,,10
 	.p2align 3
-.L1455:
+.L1496:
 	movl	4(%rbx), %edx
 	movq	16(%rsp), %rcx
 	movq	%r14, %rdi
 	xorl	%eax, %eax
 	leaq	.LC29(%rip), %rsi
 	call	fprintf@PLT
-	jmp	.L1171
+	jmp	.L1212
 	.p2align 4,,10
 	.p2align 3
-.L1173:
+.L1214:
 	movl	g_switch_id(%rip), %eax
 	movl	%r12d, 8(%rsp)
 	xorl	%ebp, %ebp
-	leaq	.LC149(%rip), %r12
+	leaq	.LC159(%rip), %r12
 	addl	$1, %eax
 	movl	%eax, 32(%rsp)
 	movl	%eax, g_switch_id(%rip)
@@ -5976,7 +6253,7 @@ emit_stmt:
 	leaq	112(%rsp), %rax
 	cmpq	$0, 8(%r15)
 	movq	%rax, 24(%rsp)
-	je	.L1255
+	je	.L1296
 	movq	%rbx, 56(%rsp)
 	movq	24(%rsp), %r13
 	movq	%r14, 48(%rsp)
@@ -5984,7 +6261,7 @@ emit_stmt:
 	movq	40(%rsp), %rbp
 	.p2align 4
 	.p2align 3
-.L1252:
+.L1293:
 	movl	$16, %edi
 	call	xmalloc@PLT
 	movl	32(%rsp), %ecx
@@ -6011,19 +6288,19 @@ emit_stmt:
 	movq	%rax, 8(%rbx)
 	call	vec_push@PLT
 	cmpq	8(%r15), %r14
-	jb	.L1252
+	jb	.L1293
 	movq	48(%rsp), %r14
 	movq	56(%rsp), %rbx
-.L1255:
+.L1296:
 	movl	8(%rsp), %edx
 	movl	8(%rsp), %r12d
 	xorl	%ebp, %ebp
 	leaq	.LC28(%rip), %r13
 	testl	%edx, %edx
-	jle	.L1456
+	jle	.L1497
 	.p2align 4
 	.p2align 3
-.L1253:
+.L1294:
 	movq	%r14, %rcx
 	movl	$2, %edx
 	movl	$1, %esi
@@ -6031,22 +6308,22 @@ emit_stmt:
 	call	fwrite@PLT
 	addl	$1, %ebp
 	cmpl	%ebp, %r12d
-	jne	.L1253
+	jne	.L1294
 	movq	%r14, %rcx
 	movl	$10, %edx
 	movl	$1, %esi
-	leaq	.LC150(%rip), %rdi
+	leaq	.LC160(%rip), %rdi
 	call	fwrite@PLT
 	movl	8(%rsp), %eax
 	leal	1(%rax), %r12d
-.L1256:
+.L1297:
 	xorl	%r8d, %r8d
 	movl	8(%rsp), %ebp
 	movq	%rbx, 48(%rsp)
 	movl	%r8d, %ebx
 	.p2align 4
 	.p2align 3
-.L1259:
+.L1300:
 	movq	%r14, %rcx
 	movl	$2, %edx
 	movl	$1, %esi
@@ -6055,18 +6332,18 @@ emit_stmt:
 	movl	%ebx, %eax
 	addl	$1, %ebx
 	cmpl	%eax, %ebp
-	jne	.L1259
+	jne	.L1300
 	movq	48(%rsp), %rbx
 	movq	%r14, %rcx
 	movl	$12, %edx
 	movl	$1, %esi
-	leaq	.LC151(%rip), %rdi
+	leaq	.LC161(%rip), %rdi
 	call	fwrite@PLT
 	movq	16(%rbx), %rsi
 	movq	16(%rsp), %rdx
 	movq	%r14, %rdi
 	call	emit_expr
-	leaq	.LC113(%rip), %rax
+	leaq	.LC119(%rip), %rax
 	movq	%r14, %rcx
 	movl	$2, %edx
 	movl	$1, %esi
@@ -6076,7 +6353,7 @@ emit_stmt:
 	movl	32(%rsp), %ecx
 	movq	24(%rsp), %rdi
 	xorl	%eax, %eax
-	leaq	.LC152(%rip), %rdx
+	leaq	.LC162(%rip), %rdx
 	movl	$64, %esi
 	call	snprintf@PLT
 	xorl	%r8d, %r8d
@@ -6085,7 +6362,7 @@ emit_stmt:
 	movl	%r8d, %ebx
 	.p2align 4
 	.p2align 3
-.L1260:
+.L1301:
 	movq	%r14, %rcx
 	movl	$2, %edx
 	movl	$1, %esi
@@ -6094,9 +6371,9 @@ emit_stmt:
 	movl	%ebx, %eax
 	addl	$1, %ebx
 	cmpl	%eax, %ebp
-	jne	.L1260
+	jne	.L1301
 	movl	32(%rsp), %edx
-	leaq	.LC153(%rip), %rsi
+	leaq	.LC163(%rip), %rsi
 	movq	%r14, %rdi
 	xorl	%eax, %eax
 	movq	56(%rsp), %rbx
@@ -6120,7 +6397,7 @@ emit_stmt:
 	movq	%rax, g_ctrl(%rip)
 	.p2align 4
 	.p2align 3
-.L1261:
+.L1302:
 	movq	%r14, %rcx
 	movl	$2, %edx
 	movl	$1, %esi
@@ -6129,8 +6406,8 @@ emit_stmt:
 	movl	%ebx, %eax
 	addl	$1, %ebx
 	cmpl	%eax, %ebp
-	jne	.L1261
-	leaq	.LC154(%rip), %rax
+	jne	.L1302
+	leaq	.LC164(%rip), %rax
 	movl	32(%rsp), %edx
 	movq	%r14, %rdi
 	xorl	%ebx, %ebx
@@ -6141,7 +6418,7 @@ emit_stmt:
 	movl	8(%rsp), %ebp
 	.p2align 4
 	.p2align 3
-.L1262:
+.L1303:
 	movq	%r14, %rcx
 	movl	$2, %edx
 	movl	$1, %esi
@@ -6150,18 +6427,18 @@ emit_stmt:
 	movl	%ebx, %eax
 	addl	$1, %ebx
 	cmpl	%eax, %ebp
-	jne	.L1262
+	jne	.L1303
 	movl	32(%rsp), %edx
 	xorl	%eax, %eax
-	leaq	.LC161(%rip), %rsi
+	leaq	.LC171(%rip), %rsi
 	movq	%r14, %rdi
 	call	fprintf@PLT
 	movl	8(%rsp), %eax
 	cmpq	$0, 8(%r15)
 	leal	2(%rax), %ebx
-	je	.L1264
-.L1301:
-	leaq	.LC136(%rip), %rax
+	je	.L1305
+.L1342:
+	leaq	.LC146(%rip), %rax
 	movq	%r15, 16(%rsp)
 	xorl	%edi, %edi
 	leaq	.LC28(%rip), %rbp
@@ -6170,7 +6447,7 @@ emit_stmt:
 	movq	%rdi, %r12
 	.p2align 4
 	.p2align 3
-.L1278:
+.L1319:
 	movq	16(%rsp), %rax
 	movq	(%rax), %rax
 	movq	(%rax,%r12,8), %r13
@@ -6178,29 +6455,29 @@ emit_stmt:
 	movq	8(%rax), %rcx
 	movq	(%rax), %rsi
 	testq	%rcx, %rcx
-	je	.L1327
+	je	.L1368
 	xorl	%eax, %eax
-	jmp	.L1269
+	jmp	.L1310
 	.p2align 5
 	.p2align 4,,10
 	.p2align 3
-.L1268:
+.L1309:
 	addq	$1, %rax
 	cmpq	%rax, %rcx
-	je	.L1327
-.L1269:
+	je	.L1368
+.L1310:
 	movq	(%rsi,%rax,8), %rdx
 	cmpq	(%rdx), %r13
-	jne	.L1268
+	jne	.L1309
 	movq	8(%rdx), %rax
 	movq	%rax, 24(%rsp)
-.L1267:
+.L1308:
 	xorl	%r15d, %r15d
 	testl	%ebx, %ebx
-	jle	.L1273
+	jle	.L1314
 	.p2align 4
 	.p2align 3
-.L1270:
+.L1311:
 	movq	%r14, %rcx
 	movl	$2, %edx
 	movl	$1, %esi
@@ -6208,8 +6485,8 @@ emit_stmt:
 	call	fwrite@PLT
 	addl	$1, %r15d
 	cmpl	%ebx, %r15d
-	jne	.L1270
-.L1273:
+	jne	.L1311
+.L1314:
 	movq	56(%rsp), %rdi
 	movl	$1, %esi
 	movq	%r14, %rcx
@@ -6218,30 +6495,30 @@ emit_stmt:
 	movl	20(%r13), %eax
 	movq	24(%r13), %rsi
 	testl	%eax, %eax
-	je	.L1457
-	leaq	.LC131(%rip), %rdx
+	je	.L1498
+	leaq	.LC141(%rip), %rdx
 	cmpl	$26, %eax
-	je	.L1274
-	ja	.L1275
-	leaq	.LC129(%rip), %rdx
+	je	.L1315
+	ja	.L1316
+	leaq	.LC139(%rip), %rdx
 	cmpl	$24, %eax
-	je	.L1274
+	je	.L1315
 	cmpl	$25, %eax
-	leaq	.LC133(%rip), %rdx
-	leaq	.LC130(%rip), %rax
+	leaq	.LC143(%rip), %rdx
+	leaq	.LC140(%rip), %rax
 	cmove	%rax, %rdx
-.L1274:
+.L1315:
 	movq	%rsi, %rcx
 	movq	%r14, %rdi
 	xorl	%eax, %eax
-	leaq	.LC155(%rip), %rsi
+	leaq	.LC165(%rip), %rsi
 	call	fprintf@PLT
-.L1276:
+.L1317:
 	movq	%r14, %rcx
 	movl	$7, %edx
 	movl	$1, %esi
 	addq	$1, %r12
-	leaq	.LC158(%rip), %rdi
+	leaq	.LC168(%rip), %rdi
 	call	fwrite@PLT
 	movq	24(%rsp), %rdi
 	movq	%r14, %rsi
@@ -6253,16 +6530,16 @@ emit_stmt:
 	call	fwrite@PLT
 	movq	16(%rsp), %rax
 	cmpq	8(%rax), %r12
-	jb	.L1278
+	jb	.L1319
 	movl	76(%rsp), %r12d
 	leaq	.LC28(%rip), %r13
 	testl	%ebx, %ebx
-	jle	.L1458
-.L1264:
+	jle	.L1499
+.L1305:
 	xorl	%ebp, %ebp
 	.p2align 4
 	.p2align 3
-.L1280:
+.L1321:
 	movq	%r14, %rcx
 	movl	$2, %edx
 	movl	$1, %esi
@@ -6270,7 +6547,7 @@ emit_stmt:
 	call	fwrite@PLT
 	addl	$1, %ebp
 	cmpl	%ebx, %ebp
-	jne	.L1280
+	jne	.L1321
 	movl	32(%rsp), %edx
 	movq	64(%rsp), %rsi
 	movq	%r14, %rdi
@@ -6278,11 +6555,11 @@ emit_stmt:
 	xorl	%ebp, %ebp
 	call	fprintf@PLT
 	testl	%r12d, %r12d
-	jle	.L1431
+	jle	.L1472
 	movl	8(%rsp), %r12d
 	.p2align 4
 	.p2align 3
-.L1281:
+.L1322:
 	movq	%r14, %rcx
 	movl	$2, %edx
 	movl	$1, %esi
@@ -6291,17 +6568,17 @@ emit_stmt:
 	movl	%ebp, %eax
 	addl	$1, %ebp
 	cmpl	%eax, %r12d
-	jg	.L1281
-.L1431:
+	jg	.L1322
+.L1472:
 	movl	32(%rsp), %edx
-	leaq	.LC159(%rip), %rsi
+	leaq	.LC169(%rip), %rsi
 	movq	%r14, %rdi
 	xorl	%eax, %eax
 	xorl	%ebp, %ebp
 	call	fprintf@PLT
 	.p2align 4
 	.p2align 3
-.L1285:
+.L1326:
 	movq	%r14, %rcx
 	movl	$2, %edx
 	movl	$1, %esi
@@ -6309,19 +6586,19 @@ emit_stmt:
 	call	fwrite@PLT
 	addl	$1, %ebp
 	cmpl	%ebx, %ebp
-	jne	.L1285
+	jne	.L1326
 	movq	%r14, %rcx
 	movl	$7, %edx
 	movl	$1, %esi
 	xorl	%ebx, %ebx
-	leaq	.LC140(%rip), %rdi
+	leaq	.LC150(%rip), %rdi
 	call	fwrite@PLT
 	movl	8(%rsp), %ebp
 	testl	%ebp, %ebp
-	jle	.L1287
+	jle	.L1328
 	.p2align 4
 	.p2align 3
-.L1288:
+.L1329:
 	movq	%r14, %rcx
 	movl	$2, %edx
 	movl	$1, %esi
@@ -6329,14 +6606,14 @@ emit_stmt:
 	call	fwrite@PLT
 	addl	$1, %ebx
 	cmpl	%ebx, %ebp
-	jne	.L1288
-.L1287:
+	jne	.L1329
+.L1328:
 	movq	%r14, %rcx
 	movl	$2, %edx
 	movl	$1, %esi
-	leaq	.LC118(%rip), %rdi
+	leaq	.LC122(%rip), %rdi
 	call	fwrite@PLT
-.L1169:
+.L1210:
 	addq	$248, %rsp
 	.cfi_remember_state
 	.cfi_def_cfa_offset 56
@@ -6355,16 +6632,16 @@ emit_stmt:
 	ret
 	.p2align 4,,10
 	.p2align 3
-.L1185:
+.L1226:
 	.cfi_restore_state
 	movl	%r12d, %ebp
 	xorl	%ebx, %ebx
 	leaq	.LC28(%rip), %r13
 	testl	%r12d, %r12d
-	jle	.L1454
+	jle	.L1495
 	.p2align 4
 	.p2align 3
-.L1209:
+.L1250:
 	movq	%r14, %rcx
 	movl	$2, %edx
 	movl	$1, %esi
@@ -6372,13 +6649,13 @@ emit_stmt:
 	call	fwrite@PLT
 	addl	$1, %ebx
 	cmpl	%ebx, %ebp
-	jne	.L1209
-.L1454:
+	jne	.L1250
+.L1495:
 	movq	%r14, %rcx
 	movl	$2, %edx
 	movl	$1, %esi
-	leaq	.LC113(%rip), %rdi
-.L1453:
+	leaq	.LC119(%rip), %rdi
+.L1494:
 	addq	$248, %rsp
 	.cfi_remember_state
 	.cfi_def_cfa_offset 56
@@ -6397,7 +6674,7 @@ emit_stmt:
 	jmp	fwrite@PLT
 	.p2align 4,,10
 	.p2align 3
-.L1184:
+.L1225:
 	.cfi_restore_state
 	movl	%r12d, %eax
 	movl	%r12d, 8(%rsp)
@@ -6405,10 +6682,10 @@ emit_stmt:
 	movl	8(%rsp), %r15d
 	leaq	.LC28(%rip), %r13
 	testl	%eax, %eax
-	jle	.L1459
+	jle	.L1500
 	.p2align 4
 	.p2align 3
-.L1207:
+.L1248:
 	movq	%r14, %rcx
 	movl	$2, %edx
 	movl	$1, %esi
@@ -6416,50 +6693,50 @@ emit_stmt:
 	call	fwrite@PLT
 	addl	$1, %r12d
 	cmpl	%r12d, %r15d
-	jne	.L1207
+	jne	.L1248
 	movq	%r14, %rcx
 	movl	$2, %edx
 	movl	$1, %esi
-	leaq	.LC142(%rip), %rdi
+	leaq	.LC152(%rip), %rdi
 	call	fwrite@PLT
 	movq	24(%rbx), %rax
 	testq	%rax, %rax
-	je	.L1213
-.L1212:
+	je	.L1254
+.L1253:
 	movl	8(%rsp), %edi
 	xorl	%r13d, %r13d
 	addl	$1, %edi
 	movl	%edi, 40(%rsp)
-.L1220:
+.L1261:
 	movq	16(%rbx), %rdx
 	movq	(%rdx,%r13,8), %r12
 	testl	%ebp, %ebp
-	je	.L1316
+	je	.L1357
 	subq	$1, %rax
 	xorl	%ecx, %ecx
 	cmpq	%r13, %rax
-	je	.L1460
-.L1215:
+	je	.L1501
+.L1256:
 	movq	16(%rsp), %r8
 	movl	40(%rsp), %edx
 	movq	%r12, %rsi
 	movq	%r14, %rdi
 	call	emit_stmt
-.L1218:
+.L1259:
 	movq	24(%rbx), %rax
 	addq	$1, %r13
 	cmpq	%rax, %r13
-	jb	.L1220
+	jb	.L1261
 	movl	8(%rsp), %r9d
 	leaq	.LC28(%rip), %r13
 	testl	%r9d, %r9d
-	jle	.L1222
-.L1213:
+	jle	.L1263
+.L1254:
 	movl	8(%rsp), %ebp
 	xorl	%ebx, %ebx
 	.p2align 4
 	.p2align 3
-.L1223:
+.L1264:
 	movq	%r14, %rcx
 	movl	$2, %edx
 	movl	$1, %esi
@@ -6467,25 +6744,25 @@ emit_stmt:
 	call	fwrite@PLT
 	addl	$1, %ebx
 	cmpl	%ebx, %ebp
-	jne	.L1223
-.L1222:
+	jne	.L1264
+.L1263:
 	movq	%r14, %rcx
 	movl	$2, %edx
 	movl	$1, %esi
-	leaq	.LC118(%rip), %rdi
-	jmp	.L1453
+	leaq	.LC122(%rip), %rdi
+	jmp	.L1494
 	.p2align 4,,10
 	.p2align 3
-.L1183:
+.L1224:
 	xorl	%r13d, %r13d
 	cmpq	$0, 24(%rbx)
 	movl	%r12d, 8(%rsp)
 	leaq	.LC28(%rip), %rbp
 	movl	8(%rsp), %r12d
-	je	.L1169
+	je	.L1210
 	.p2align 4
 	.p2align 3
-.L1206:
+.L1247:
 	movq	16(%rbx), %rax
 	movq	(%rax,%r13,8), %r15
 	movq	(%r15), %rdi
@@ -6493,16 +6770,16 @@ emit_stmt:
 	movl	g_strict(%rip), %esi
 	movq	%rax, 8(%rsp)
 	testl	%esi, %esi
-	je	.L1461
+	je	.L1502
 	cmpq	$0, 8(%r15)
-	je	.L1298
-.L1297:
+	je	.L1339
+.L1338:
 	xorl	%r15d, %r15d
 	testl	%r12d, %r12d
-	jle	.L1228
+	jle	.L1269
 	.p2align 4
 	.p2align 3
-.L1226:
+.L1267:
 	movq	%r14, %rcx
 	movl	$2, %edx
 	movl	$1, %esi
@@ -6510,30 +6787,30 @@ emit_stmt:
 	call	fwrite@PLT
 	addl	$1, %r15d
 	cmpl	%r15d, %r12d
-	jne	.L1226
-.L1228:
+	jne	.L1267
+.L1269:
 	movq	8(%rsp), %rcx
-	leaq	.LC144(%rip), %rsi
+	leaq	.LC154(%rip), %rsi
 	movq	%r14, %rdi
 	xorl	%eax, %eax
 	movq	%rcx, %r8
 	movq	%rcx, %rdx
 	call	fprintf@PLT
-.L1227:
+.L1268:
 	addq	$1, %r13
 	cmpq	24(%rbx), %r13
-	jb	.L1206
-	jmp	.L1169
+	jb	.L1247
+	jmp	.L1210
 	.p2align 4,,10
 	.p2align 3
-.L1182:
+.L1223:
 	xorl	%r15d, %r15d
 	leaq	.LC28(%rip), %r13
 	testl	%r12d, %r12d
-	jle	.L1232
+	jle	.L1273
 	.p2align 4
 	.p2align 3
-.L1192:
+.L1233:
 	movq	%r14, %rcx
 	movl	$2, %edx
 	movl	$1, %esi
@@ -6541,12 +6818,12 @@ emit_stmt:
 	call	fwrite@PLT
 	addl	$1, %r15d
 	cmpl	%r15d, %r12d
-	jne	.L1192
-.L1232:
+	jne	.L1233
+.L1273:
 	movq	%r14, %rcx
 	movl	$4, %edx
 	movl	$1, %esi
-	leaq	.LC136(%rip), %rdi
+	leaq	.LC146(%rip), %rdi
 	call	fwrite@PLT
 	movq	16(%rbx), %rsi
 	movq	16(%rsp), %rdx
@@ -6555,33 +6832,33 @@ emit_stmt:
 	movq	%r14, %rcx
 	movl	$2, %edx
 	movl	$1, %esi
-	leaq	.LC135(%rip), %rdi
+	leaq	.LC145(%rip), %rdi
 	call	fwrite@PLT
 	testl	%ebp, %ebp
-	jne	.L1193
-.L1194:
+	jne	.L1234
+.L1235:
 	movq	24(%rbx), %rsi
 	testq	%rsi, %rsi
-	je	.L1233
+	je	.L1274
 	cmpl	$1, (%rsi)
 	movl	%r12d, %edx
-	je	.L1234
-.L1233:
+	je	.L1275
+.L1274:
 	leal	1(%r12), %edx
-.L1234:
+.L1275:
 	movq	16(%rsp), %r8
 	movl	%ebp, %ecx
 	movq	%r14, %rdi
 	call	emit_stmt
 	cmpq	$0, 32(%rbx)
-	je	.L1169
+	je	.L1210
 	xorl	%ebp, %ebp
 	leaq	.LC28(%rip), %r13
 	testl	%r12d, %r12d
-	jle	.L1238
+	jle	.L1279
 	.p2align 4
 	.p2align 3
-.L1235:
+.L1276:
 	movq	%r14, %rcx
 	movl	$2, %edx
 	movl	$1, %esi
@@ -6589,27 +6866,27 @@ emit_stmt:
 	call	fwrite@PLT
 	addl	$1, %ebp
 	cmpl	%ebp, %r12d
-	jne	.L1235
-.L1238:
+	jne	.L1276
+.L1279:
 	movq	%r14, %rcx
 	movl	$5, %edx
 	movl	$1, %esi
-	leaq	.LC145(%rip), %rdi
+	leaq	.LC155(%rip), %rdi
 	call	fwrite@PLT
 	movq	32(%rbx), %rbx
 	testq	%rbx, %rbx
-	jne	.L1190
-	jmp	.L1191
+	jne	.L1231
+	jmp	.L1232
 	.p2align 4,,10
 	.p2align 3
-.L1181:
+.L1222:
 	xorl	%ebp, %ebp
 	leaq	.LC28(%rip), %r13
 	testl	%r12d, %r12d
-	jle	.L1240
+	jle	.L1281
 	.p2align 4
 	.p2align 3
-.L1189:
+.L1230:
 	movq	%r14, %rcx
 	movl	$2, %edx
 	movl	$1, %esi
@@ -6617,12 +6894,12 @@ emit_stmt:
 	call	fwrite@PLT
 	addl	$1, %ebp
 	cmpl	%ebp, %r12d
-	jne	.L1189
-.L1240:
+	jne	.L1230
+.L1281:
 	movq	%r14, %rcx
 	movl	$7, %edx
 	movl	$1, %esi
-	leaq	.LC134(%rip), %rdi
+	leaq	.LC144(%rip), %rdi
 	call	fwrite@PLT
 	movq	16(%rbx), %rsi
 	movq	16(%rsp), %rdx
@@ -6631,32 +6908,32 @@ emit_stmt:
 	movq	%r14, %rcx
 	movl	$2, %edx
 	movl	$1, %esi
-	leaq	.LC135(%rip), %rdi
+	leaq	.LC145(%rip), %rdi
 	call	fwrite@PLT
 	movq	24(%rbx), %rbx
 	testq	%rbx, %rbx
-	je	.L1191
-.L1190:
+	je	.L1232
+.L1231:
 	cmpl	$1, (%rbx)
-	je	.L1239
-.L1191:
+	je	.L1280
+.L1232:
 	addl	$1, %r12d
-.L1239:
+.L1280:
 	xorl	%ebp, %ebp
-	jmp	.L1170
+	jmp	.L1211
 	.p2align 4,,10
 	.p2align 3
-.L1180:
+.L1221:
 	movl	%r12d, %eax
 	movl	%r12d, 8(%rsp)
 	xorl	%ebp, %ebp
 	movl	8(%rsp), %r12d
 	leaq	.LC28(%rip), %r13
 	testl	%eax, %eax
-	jle	.L1241
+	jle	.L1282
 	.p2align 4
 	.p2align 3
-.L1203:
+.L1244:
 	movq	%r14, %rcx
 	movl	$2, %edx
 	movl	$1, %esi
@@ -6664,15 +6941,15 @@ emit_stmt:
 	call	fwrite@PLT
 	addl	$1, %ebp
 	cmpl	%ebp, %r12d
-	jne	.L1203
-.L1241:
+	jne	.L1244
+.L1282:
 	movq	%r14, %rcx
 	movl	$6, %edx
 	movl	$1, %esi
-	leaq	.LC141(%rip), %rdi
+	leaq	.LC151(%rip), %rdi
 	call	fwrite@PLT
 	cmpq	$0, 16(%rbx)
-	je	.L1462
+	je	.L1503
 	movq	%r14, %rsi
 	movl	$32, %edi
 	call	fputc@PLT
@@ -6680,19 +6957,19 @@ emit_stmt:
 	movq	16(%rsp), %rdx
 	movq	%r14, %rdi
 	call	emit_expr
-	jmp	.L1454
+	jmp	.L1495
 	.p2align 4,,10
 	.p2align 3
-.L1178:
+.L1219:
 	movl	%r12d, 8(%rsp)
 	xorl	%ebx, %ebx
 	movl	8(%rsp), %ebp
 	leaq	.LC28(%rip), %r13
 	testl	%r12d, %r12d
-	jle	.L1243
+	jle	.L1284
 	.p2align 4
 	.p2align 3
-.L1199:
+.L1240:
 	movq	%r14, %rcx
 	movl	$2, %edx
 	movl	$1, %esi
@@ -6700,26 +6977,26 @@ emit_stmt:
 	call	fwrite@PLT
 	addl	$1, %ebx
 	cmpl	%ebx, %ebp
-	jne	.L1199
-.L1243:
+	jne	.L1240
+.L1284:
 	movq	%r14, %rcx
 	movl	$7, %edx
 	movl	$1, %esi
-	leaq	.LC140(%rip), %rdi
-	jmp	.L1453
+	leaq	.LC150(%rip), %rdi
+	jmp	.L1494
 	.p2align 4,,10
 	.p2align 3
-.L1179:
+.L1220:
 	movl	%r12d, %eax
 	movl	%r12d, 8(%rsp)
 	xorl	%r12d, %r12d
 	movl	8(%rsp), %r15d
 	leaq	.LC28(%rip), %r13
 	testl	%eax, %eax
-	jle	.L1242
+	jle	.L1283
 	.p2align 4
 	.p2align 3
-.L1200:
+.L1241:
 	movq	%r14, %rcx
 	movl	$2, %edx
 	movl	$1, %esi
@@ -6727,29 +7004,29 @@ emit_stmt:
 	call	fwrite@PLT
 	addl	$1, %r12d
 	cmpl	%r12d, %r15d
-	jne	.L1200
-.L1242:
+	jne	.L1241
+.L1283:
 	testl	%ebp, %ebp
-	jne	.L1463
-.L1202:
+	jne	.L1504
+.L1243:
 	movq	16(%rbx), %rsi
 	movq	16(%rsp), %rdx
 	movq	%r14, %rdi
 	call	emit_expr
-	jmp	.L1454
+	jmp	.L1495
 	.p2align 4,,10
 	.p2align 3
-.L1176:
+.L1217:
 	movl	%r12d, %eax
 	movl	%r12d, 8(%rsp)
 	xorl	%ebp, %ebp
 	movl	8(%rsp), %r12d
 	leaq	.LC28(%rip), %r13
 	testl	%eax, %eax
-	jle	.L1245
+	jle	.L1286
 	.p2align 4
 	.p2align 3
-.L1195:
+.L1236:
 	movq	%r14, %rcx
 	movl	$2, %edx
 	movl	$1, %esi
@@ -6757,14 +7034,14 @@ emit_stmt:
 	call	fwrite@PLT
 	addl	$1, %ebp
 	cmpl	%ebp, %r12d
-	jne	.L1195
-.L1245:
+	jne	.L1236
+.L1286:
 	movq	%r14, %rcx
 	movl	$8, %edx
 	movl	$1, %esi
 	xorl	%r12d, %r12d
-	leaq	.LC137(%rip), %rdi
-	leaq	.LC147(%rip), %r13
+	leaq	.LC147(%rip), %rdi
+	leaq	.LC157(%rip), %r13
 	call	fwrite@PLT
 	movq	16(%rbx), %rsi
 	movq	%r14, %rdi
@@ -6774,20 +7051,20 @@ emit_stmt:
 	movq	%r14, %rcx
 	movl	$4, %edx
 	movl	$1, %esi
-	leaq	.LC138(%rip), %rdi
+	leaq	.LC148(%rip), %rdi
 	call	fwrite@PLT
 	cmpq	$0, 8+function_labels(%rip)
 	movl	8(%rsp), %r15d
-	je	.L1197
+	je	.L1238
 	.p2align 4
 	.p2align 3
-.L1196:
+.L1237:
 	xorl	%ebx, %ebx
 	testl	%r15d, %r15d
-	js	.L1247
+	js	.L1288
 	.p2align 4
 	.p2align 3
-.L1246:
+.L1287:
 	movq	%r14, %rcx
 	movl	$2, %edx
 	movl	$1, %esi
@@ -6795,8 +7072,8 @@ emit_stmt:
 	call	fwrite@PLT
 	addl	$1, %ebx
 	cmpl	%ebx, %r15d
-	jge	.L1246
-.L1247:
+	jge	.L1287
+.L1288:
 	addq	$1, %r12
 	xorl	%eax, %eax
 	movq	%r13, %rsi
@@ -6805,16 +7082,16 @@ emit_stmt:
 	movq	%r12, %rdx
 	call	fprintf@PLT
 	cmpq	8+function_labels(%rip), %r12
-	jb	.L1196
-.L1197:
+	jb	.L1237
+.L1238:
 	movl	8(%rsp), %ebp
 	testl	%ebp, %ebp
-	js	.L1248
+	js	.L1289
 	xorl	%ebx, %ebx
 	leaq	.LC28(%rip), %r13
 	.p2align 4
 	.p2align 3
-.L1249:
+.L1290:
 	movq	%r14, %rcx
 	movl	$2, %edx
 	movl	$1, %esi
@@ -6822,19 +7099,19 @@ emit_stmt:
 	call	fwrite@PLT
 	addl	$1, %ebx
 	cmpl	%ebx, %ebp
-	jge	.L1249
+	jge	.L1290
 	movq	%r14, %rcx
 	movl	$63, %edx
 	movl	$1, %esi
-	leaq	.LC148(%rip), %rdi
+	leaq	.LC158(%rip), %rdi
 	call	fwrite@PLT
 	movl	8(%rsp), %ebp
 	testl	%ebp, %ebp
-	je	.L1222
+	je	.L1263
 	xorl	%ebx, %ebx
 	.p2align 4
 	.p2align 3
-.L1251:
+.L1292:
 	movq	%r14, %rcx
 	movl	$2, %edx
 	movl	$1, %esi
@@ -6842,20 +7119,20 @@ emit_stmt:
 	call	fwrite@PLT
 	addl	$1, %ebx
 	cmpl	%ebx, %ebp
-	jne	.L1251
-	jmp	.L1222
+	jne	.L1292
+	jmp	.L1263
 	.p2align 4,,10
 	.p2align 3
-.L1177:
+.L1218:
 	movl	%r12d, 8(%rsp)
 	xorl	%ebx, %ebx
 	movl	8(%rsp), %ebp
 	leaq	.LC28(%rip), %r13
 	testl	%r12d, %r12d
-	jle	.L1244
+	jle	.L1285
 	.p2align 4
 	.p2align 3
-.L1198:
+.L1239:
 	movq	%r14, %rcx
 	movl	$2, %edx
 	movl	$1, %esi
@@ -6863,23 +7140,23 @@ emit_stmt:
 	call	fwrite@PLT
 	addl	$1, %ebx
 	cmpl	%ebx, %ebp
-	jne	.L1198
-.L1244:
+	jne	.L1239
+.L1285:
 	movq	%r14, %rcx
 	movl	$10, %edx
 	movl	$1, %esi
-	leaq	.LC139(%rip), %rdi
-	jmp	.L1453
+	leaq	.LC149(%rip), %rdi
+	jmp	.L1494
 	.p2align 4,,10
 	.p2align 3
-.L1175:
+.L1216:
 	xorl	%ebp, %ebp
 	leaq	.LC28(%rip), %r13
 	testl	%r12d, %r12d
-	jle	.L1464
+	jle	.L1505
 	.p2align 4
 	.p2align 3
-.L1186:
+.L1227:
 	movq	%r14, %rcx
 	movl	$2, %edx
 	movl	$1, %esi
@@ -6887,43 +7164,43 @@ emit_stmt:
 	call	fwrite@PLT
 	addl	$1, %ebp
 	cmpl	%ebp, %r12d
-	jne	.L1186
+	jne	.L1227
 	movq	16(%rbx), %rax
 	movq	8+function_labels(%rip), %rbp
 	movq	%rax, 8(%rsp)
 	testq	%rbp, %rbp
-	je	.L1465
-.L1187:
+	je	.L1506
+.L1228:
 	movq	function_labels(%rip), %r15
 	xorl	%r13d, %r13d
-	jmp	.L1293
+	jmp	.L1334
 	.p2align 4,,10
 	.p2align 3
-.L1291:
+.L1332:
 	addq	$1, %r13
 	cmpq	%rbp, %r13
-	je	.L1188
-.L1293:
+	je	.L1229
+.L1334:
 	movq	(%r15,%r13,8), %rsi
 	movq	8(%rsp), %rdi
 	call	strcmp@PLT
 	testl	%eax, %eax
-	jne	.L1291
+	jne	.L1332
 	leal	1(%r13), %edx
-.L1292:
-	leaq	.LC160(%rip), %rsi
+.L1333:
+	leaq	.LC170(%rip), %rsi
 	movq	%r14, %rdi
 	leal	1(%r12), %r15d
 	xorl	%eax, %eax
 	call	fprintf@PLT
 	leaq	.LC28(%rip), %r13
 	testl	%r15d, %r15d
-	jle	.L1296
-.L1294:
+	jle	.L1337
+.L1335:
 	xorl	%ebp, %ebp
 	.p2align 4
 	.p2align 3
-.L1295:
+.L1336:
 	movq	%r14, %rcx
 	movl	$2, %edx
 	movl	$1, %esi
@@ -6932,57 +7209,57 @@ emit_stmt:
 	movl	%ebp, %eax
 	addl	$1, %ebp
 	cmpl	%eax, %r12d
-	jne	.L1295
-.L1296:
+	jne	.L1336
+.L1337:
 	movq	%r14, %rcx
 	movl	$2, %edx
 	movl	$1, %esi
 	movl	%r15d, %r12d
-	leaq	.LC113(%rip), %rdi
+	leaq	.LC119(%rip), %rdi
 	xorl	%ebp, %ebp
 	call	fwrite@PLT
 	movq	24(%rbx), %rbx
-	jmp	.L1170
+	jmp	.L1211
 	.p2align 4,,10
 	.p2align 3
-.L1327:
+.L1368:
 	movq	$0, 24(%rsp)
-	jmp	.L1267
+	jmp	.L1308
 	.p2align 4,,10
 	.p2align 3
-.L1457:
+.L1498:
 	movl	16(%r13), %eax
 	testl	%eax, %eax
-	je	.L1277
+	je	.L1318
 	movq	32(%r13), %rcx
 	movq	%rsi, %rdx
 	movq	%r14, %rdi
 	xorl	%eax, %eax
-	leaq	.LC156(%rip), %rsi
+	leaq	.LC166(%rip), %rsi
 	call	fprintf@PLT
-	jmp	.L1276
+	jmp	.L1317
 	.p2align 4,,10
 	.p2align 3
-.L1461:
+.L1502:
 	movq	16(%rsp), %rcx
 	movl	%r12d, %edx
 	movq	%r15, %rsi
 	movq	%r14, %rdi
 	call	emit_auto_storage
 	cmpq	$0, 8(%r15)
-	jne	.L1297
+	jne	.L1338
 	movl	g_strict(%rip), %ecx
 	testl	%ecx, %ecx
-	je	.L1227
+	je	.L1268
 	.p2align 4
 	.p2align 3
-.L1298:
+.L1339:
 	xorl	%r15d, %r15d
 	testl	%r12d, %r12d
-	jle	.L1230
+	jle	.L1271
 	.p2align 4
 	.p2align 3
-.L1229:
+.L1270:
 	movq	%r14, %rcx
 	movl	$2, %edx
 	movl	$1, %esi
@@ -6990,39 +7267,39 @@ emit_stmt:
 	call	fwrite@PLT
 	addl	$1, %r15d
 	cmpl	%r15d, %r12d
-	jne	.L1229
-.L1230:
+	jne	.L1270
+.L1271:
 	movq	%r14, %rcx
 	movl	$2, %edx
 	movl	$1, %esi
-	leaq	.LC113(%rip), %rdi
+	leaq	.LC119(%rip), %rdi
 	call	fwrite@PLT
-	jmp	.L1227
-.L1460:
+	jmp	.L1268
+.L1501:
 	cmpl	$6, (%r12)
 	movl	%ebp, %ecx
-	jne	.L1215
+	jne	.L1256
 	movl	g_no_line(%rip), %r8d
 	testl	%r8d, %r8d
-	jne	.L1216
+	jne	.L1257
 	cmpb	$0, 24(%rsp)
-	je	.L1216
+	je	.L1257
 	movl	4(%r12), %edx
 	movq	16(%rsp), %rcx
 	movq	%r14, %rdi
 	xorl	%eax, %eax
 	leaq	.LC29(%rip), %rsi
 	call	fprintf@PLT
-.L1216:
+.L1257:
 	movl	8(%rsp), %edi
 	leaq	.LC28(%rip), %rax
 	xorl	%r15d, %r15d
 	movq	%rax, 32(%rsp)
 	testl	%edi, %edi
-	js	.L1219
+	js	.L1260
 	.p2align 4
 	.p2align 3
-.L1217:
+.L1258:
 	movq	32(%rsp), %rdi
 	movq	%r14, %rcx
 	movl	$2, %edx
@@ -7030,12 +7307,12 @@ emit_stmt:
 	addl	$1, %r15d
 	call	fwrite@PLT
 	cmpl	%r15d, 8(%rsp)
-	jge	.L1217
-.L1219:
+	jge	.L1258
+.L1260:
 	movq	%r14, %rcx
 	movl	$7, %edx
 	movl	$1, %esi
-	leaq	.LC143(%rip), %rdi
+	leaq	.LC153(%rip), %rdi
 	call	fwrite@PLT
 	movq	16(%r12), %rsi
 	movq	16(%rsp), %rdx
@@ -7044,121 +7321,121 @@ emit_stmt:
 	movq	%r14, %rcx
 	movl	$2, %edx
 	movl	$1, %esi
-	leaq	.LC113(%rip), %rdi
+	leaq	.LC119(%rip), %rdi
 	call	fwrite@PLT
-	jmp	.L1218
+	jmp	.L1259
 	.p2align 4,,10
 	.p2align 3
-.L1277:
+.L1318:
 	movq	%rsi, %rdx
 	movq	%r14, %rdi
-	leaq	.LC157(%rip), %rsi
+	leaq	.LC167(%rip), %rsi
 	xorl	%eax, %eax
 	call	fprintf@PLT
-	jmp	.L1276
+	jmp	.L1317
+	.p2align 4,,10
+	.p2align 3
+.L1357:
+	xorl	%ecx, %ecx
+	jmp	.L1256
 	.p2align 4,,10
 	.p2align 3
 .L1316:
-	xorl	%ecx, %ecx
-	jmp	.L1215
-	.p2align 4,,10
-	.p2align 3
-.L1275:
 	cmpl	$27, %eax
-	leaq	.LC133(%rip), %rdx
-	leaq	.LC132(%rip), %rax
+	leaq	.LC143(%rip), %rdx
+	leaq	.LC142(%rip), %rax
 	cmove	%rax, %rdx
-	jmp	.L1274
-.L1193:
+	jmp	.L1315
+.L1234:
 	xorl	%ebp, %ebp
 	cmpq	$0, 32(%rbx)
 	sete	%bpl
-	jmp	.L1194
-.L1458:
+	jmp	.L1235
+.L1499:
 	movl	32(%rsp), %edx
 	movq	64(%rsp), %rsi
 	xorl	%eax, %eax
 	movq	%r14, %rdi
 	call	fprintf@PLT
 	testl	%r12d, %r12d
-	jle	.L1452
+	jle	.L1493
 	movq	%r14, %rcx
 	movl	$2, %edx
 	movl	$1, %esi
 	movq	%r13, %rdi
 	call	fwrite@PLT
-.L1452:
+.L1493:
 	movl	32(%rsp), %edx
 	movq	%r14, %rdi
-	leaq	.LC159(%rip), %rsi
+	leaq	.LC169(%rip), %rsi
 	xorl	%eax, %eax
 	call	fprintf@PLT
 	movq	%r14, %rcx
 	movl	$7, %edx
 	movl	$1, %esi
-	leaq	.LC140(%rip), %rdi
+	leaq	.LC150(%rip), %rdi
 	call	fwrite@PLT
-	jmp	.L1287
-.L1464:
+	jmp	.L1328
+.L1505:
 	movq	16(%rbx), %rax
 	movq	8+function_labels(%rip), %rbp
 	movq	%rax, 8(%rsp)
 	testq	%rbp, %rbp
-	jne	.L1187
-.L1188:
+	jne	.L1228
+.L1229:
 	xorl	%edx, %edx
-	jmp	.L1292
-.L1463:
+	jmp	.L1333
+.L1504:
 	movq	%r14, %rcx
 	movl	$7, %edx
 	movl	$1, %esi
-	leaq	.LC143(%rip), %rdi
+	leaq	.LC153(%rip), %rdi
 	call	fwrite@PLT
-	jmp	.L1202
-.L1462:
+	jmp	.L1243
+.L1503:
 	movq	%r14, %rcx
 	movl	$2, %edx
 	movl	$1, %esi
-	leaq	.LC146(%rip), %rdi
+	leaq	.LC156(%rip), %rdi
 	call	fwrite@PLT
-	jmp	.L1454
-.L1248:
+	jmp	.L1495
+.L1289:
 	movq	%r14, %rcx
 	movl	$63, %edx
 	movl	$1, %esi
-	leaq	.LC148(%rip), %rdi
+	leaq	.LC158(%rip), %rdi
 	call	fwrite@PLT
-	jmp	.L1222
-.L1459:
+	jmp	.L1263
+.L1500:
 	movq	%r14, %rcx
 	movl	$2, %edx
 	movl	$1, %esi
-	leaq	.LC142(%rip), %rdi
+	leaq	.LC152(%rip), %rdi
 	call	fwrite@PLT
 	movq	24(%rbx), %rax
 	testq	%rax, %rax
-	jne	.L1212
-	jmp	.L1222
-.L1456:
+	jne	.L1253
+	jmp	.L1263
+.L1497:
 	movq	%r14, %rcx
 	movl	$10, %edx
 	movl	$1, %esi
-	leaq	.LC150(%rip), %rdi
+	leaq	.LC160(%rip), %rdi
 	call	fwrite@PLT
 	movl	8(%rsp), %eax
 	leal	1(%rax), %r12d
 	testl	%eax, %eax
-	je	.L1256
+	je	.L1297
 	movq	%r14, %rcx
 	movl	$12, %edx
 	movl	$1, %esi
-	leaq	.LC151(%rip), %rdi
+	leaq	.LC161(%rip), %rdi
 	call	fwrite@PLT
 	movq	16(%rbx), %rsi
 	movq	16(%rsp), %rdx
 	movq	%r14, %rdi
 	call	emit_expr
-	leaq	.LC113(%rip), %rax
+	leaq	.LC119(%rip), %rax
 	movq	%r14, %rcx
 	movl	$2, %edx
 	movl	$1, %esi
@@ -7168,12 +7445,12 @@ emit_stmt:
 	movl	32(%rsp), %ebp
 	movq	24(%rsp), %rdi
 	xorl	%eax, %eax
-	leaq	.LC152(%rip), %rdx
+	leaq	.LC162(%rip), %rdx
 	movl	$64, %esi
 	movl	%ebp, %ecx
 	call	snprintf@PLT
 	movl	%ebp, %edx
-	leaq	.LC153(%rip), %rsi
+	leaq	.LC163(%rip), %rsi
 	xorl	%eax, %eax
 	movq	%r14, %rdi
 	call	fprintf@PLT
@@ -7194,43 +7471,43 @@ emit_stmt:
 	movl	%ebp, %edx
 	movq	%r14, %rdi
 	movq	%rax, g_ctrl(%rip)
-	leaq	.LC154(%rip), %rax
+	leaq	.LC164(%rip), %rax
 	movq	%rax, %rsi
 	movq	%rax, 64(%rsp)
 	xorl	%eax, %eax
 	call	fprintf@PLT
 	xorl	%eax, %eax
 	movl	%ebp, %edx
-	leaq	.LC161(%rip), %rsi
+	leaq	.LC171(%rip), %rsi
 	movq	%r14, %rdi
 	call	fprintf@PLT
 	movl	8(%rsp), %eax
 	cmpq	$0, 8(%r15)
 	leal	2(%rax), %ebx
-	jne	.L1301
+	jne	.L1342
 	cmpl	$1, %ebx
-	je	.L1264
+	je	.L1305
 	movl	32(%rsp), %edx
 	movq	64(%rsp), %rsi
 	movq	%r14, %rdi
 	xorl	%eax, %eax
 	call	fprintf@PLT
-	jmp	.L1452
+	jmp	.L1493
 	.p2align 4,,10
 	.p2align 3
-.L1465:
+.L1506:
 	xorl	%edx, %edx
-	leaq	.LC160(%rip), %rsi
+	leaq	.LC170(%rip), %rsi
 	movq	%r14, %rdi
 	xorl	%eax, %eax
 	call	fprintf@PLT
 	leal	1(%r12), %r15d
-	jmp	.L1294
+	jmp	.L1335
 	.cfi_endproc
-.LFE58:
+.LFE59:
 	.size	emit_stmt, .-emit_stmt
 	.section	.rodata.str1.1
-.LC162:
+.LC172:
 	.string	"%s:\n"
 	.text
 	.p2align 4
@@ -7241,7 +7518,7 @@ emit_stmt_switchctx:
 	pushq	%r15
 	.cfi_def_cfa_offset 16
 	.cfi_offset 15, -16
-	leaq	.L1471(%rip), %r15
+	leaq	.L1512(%rip), %r15
 	pushq	%r14
 	.cfi_def_cfa_offset 24
 	.cfi_offset 14, -24
@@ -7265,10 +7542,10 @@ emit_stmt_switchctx:
 	movq	%rcx, 8(%rsp)
 	movq	%r8, (%rsp)
 	testq	%rsi, %rsi
-	je	.L1466
-.L1467:
+	je	.L1507
+.L1508:
 	cmpl	$13, 0(%r13)
-	ja	.L1469
+	ja	.L1510
 	movl	0(%r13), %eax
 	movslq	(%r15,%rax,4), %rax
 	addq	%r15, %rax
@@ -7276,25 +7553,25 @@ emit_stmt_switchctx:
 	.section	.rodata
 	.align 4
 	.align 4
-.L1471:
-	.long	.L1469-.L1471
-	.long	.L1475-.L1471
-	.long	.L1469-.L1471
-	.long	.L1474-.L1471
-	.long	.L1473-.L1471
-	.long	.L1469-.L1471
-	.long	.L1469-.L1471
-	.long	.L1469-.L1471
-	.long	.L1469-.L1471
-	.long	.L1469-.L1471
-	.long	.L1469-.L1471
-	.long	.L1472-.L1471
-	.long	.L1469-.L1471
-	.long	.L1470-.L1471
+.L1512:
+	.long	.L1510-.L1512
+	.long	.L1516-.L1512
+	.long	.L1510-.L1512
+	.long	.L1515-.L1512
+	.long	.L1514-.L1512
+	.long	.L1510-.L1512
+	.long	.L1510-.L1512
+	.long	.L1510-.L1512
+	.long	.L1510-.L1512
+	.long	.L1510-.L1512
+	.long	.L1510-.L1512
+	.long	.L1513-.L1512
+	.long	.L1510-.L1512
+	.long	.L1511-.L1512
 	.text
 	.p2align 4,,10
 	.p2align 3
-.L1469:
+.L1510:
 	movq	(%rsp), %r8
 	addq	$40, %rsp
 	.cfi_remember_state
@@ -7318,35 +7595,35 @@ emit_stmt_switchctx:
 	jmp	emit_stmt
 	.p2align 4,,10
 	.p2align 3
-.L1470:
+.L1511:
 	.cfi_restore_state
 	movq	8(%rsp), %rax
 	movq	8(%rax), %rcx
 	movq	(%rax), %rsi
 	testq	%rcx, %rcx
-	je	.L1519
+	je	.L1560
 	xorl	%eax, %eax
-	jmp	.L1489
+	jmp	.L1530
 	.p2align 5
 	.p2align 4,,10
 	.p2align 3
-.L1488:
+.L1529:
 	addq	$1, %rax
 	cmpq	%rax, %rcx
-	je	.L1519
-.L1489:
+	je	.L1560
+.L1530:
 	movq	(%rsi,%rax,8), %rdx
 	cmpq	%r13, (%rdx)
-	jne	.L1488
+	jne	.L1529
 	movq	8(%rdx), %r14
-.L1487:
+.L1528:
 	xorl	%r13d, %r13d
 	leaq	.LC28(%rip), %r12
 	testl	%ebp, %ebp
-	jle	.L1553
+	jle	.L1594
 	.p2align 4
 	.p2align 3
-.L1490:
+.L1531:
 	movq	%rbx, %rcx
 	movl	$2, %edx
 	movl	$1, %esi
@@ -7354,16 +7631,16 @@ emit_stmt_switchctx:
 	call	fwrite@PLT
 	addl	$1, %r13d
 	cmpl	%ebp, %r13d
-	jne	.L1490
+	jne	.L1531
 	movq	%r14, %rdx
-	leaq	.LC162(%rip), %rsi
+	leaq	.LC172(%rip), %rsi
 	movq	%rbx, %rdi
 	xorl	%eax, %eax
 	call	fprintf@PLT
 	xorl	%r13d, %r13d
 	.p2align 4
 	.p2align 3
-.L1493:
+.L1534:
 	movq	%rbx, %rcx
 	movl	$2, %edx
 	movl	$1, %esi
@@ -7371,23 +7648,23 @@ emit_stmt_switchctx:
 	call	fwrite@PLT
 	addl	$1, %r13d
 	cmpl	%ebp, %r13d
-	jle	.L1493
-.L1492:
+	jle	.L1534
+.L1533:
 	movq	%rbx, %rcx
 	movl	$2, %edx
 	movl	$1, %esi
-	leaq	.LC113(%rip), %rdi
-	jmp	.L1552
+	leaq	.LC119(%rip), %rdi
+	jmp	.L1593
 	.p2align 4,,10
 	.p2align 3
-.L1472:
+.L1513:
 	xorl	%r14d, %r14d
 	leaq	.LC28(%rip), %r12
 	testl	%ebp, %ebp
-	jle	.L1554
+	jle	.L1595
 	.p2align 4
 	.p2align 3
-.L1476:
+.L1517:
 	movq	%rbx, %rcx
 	movl	$2, %edx
 	movl	$1, %esi
@@ -7395,32 +7672,32 @@ emit_stmt_switchctx:
 	call	fwrite@PLT
 	addl	$1, %r14d
 	cmpl	%ebp, %r14d
-	jne	.L1476
+	jne	.L1517
 	movq	16(%r13), %rax
 	movq	%rax, 16(%rsp)
 	movq	8+function_labels(%rip), %rax
 	movq	%rax, 24(%rsp)
 	testq	%rax, %rax
-	je	.L1555
-.L1477:
+	je	.L1596
+.L1518:
 	movq	function_labels(%rip), %r14
 	xorl	%r12d, %r12d
-	jmp	.L1497
+	jmp	.L1538
 	.p2align 4,,10
 	.p2align 3
-.L1495:
+.L1536:
 	addq	$1, %r12
 	cmpq	%r12, 24(%rsp)
-	je	.L1478
-.L1497:
+	je	.L1519
+.L1538:
 	movq	(%r14,%r12,8), %rsi
 	movq	16(%rsp), %rdi
 	call	strcmp@PLT
 	testl	%eax, %eax
-	jne	.L1495
+	jne	.L1536
 	leal	1(%r12), %edx
-.L1496:
-	leaq	.LC160(%rip), %rsi
+.L1537:
+	leaq	.LC170(%rip), %rsi
 	movq	%rbx, %rdi
 	xorl	%eax, %eax
 	call	fprintf@PLT
@@ -7428,12 +7705,12 @@ emit_stmt_switchctx:
 	leaq	.LC28(%rip), %r12
 	movl	%eax, 16(%rsp)
 	testl	%eax, %eax
-	jle	.L1556
-.L1498:
+	jle	.L1597
+.L1539:
 	xorl	%r14d, %r14d
 	.p2align 4
 	.p2align 3
-.L1500:
+.L1541:
 	movq	%rbx, %rcx
 	movl	$2, %edx
 	movl	$1, %esi
@@ -7442,28 +7719,28 @@ emit_stmt_switchctx:
 	movl	%r14d, %eax
 	addl	$1, %r14d
 	cmpl	%eax, %ebp
-	jne	.L1500
+	jne	.L1541
 	movl	16(%rsp), %ebp
-.L1501:
+.L1542:
 	movq	%rbx, %rcx
 	movl	$2, %edx
 	movl	$1, %esi
-	leaq	.LC113(%rip), %rdi
+	leaq	.LC119(%rip), %rdi
 	call	fwrite@PLT
 	movq	24(%r13), %r13
 	testq	%r13, %r13
-	jne	.L1467
-	jmp	.L1466
+	jne	.L1508
+	jmp	.L1507
 	.p2align 4,,10
 	.p2align 3
-.L1473:
+.L1514:
 	xorl	%r14d, %r14d
 	leaq	.LC28(%rip), %r12
 	testl	%ebp, %ebp
-	jle	.L1513
+	jle	.L1554
 	.p2align 4
 	.p2align 3
-.L1479:
+.L1520:
 	movq	%rbx, %rcx
 	movl	$2, %edx
 	movl	$1, %esi
@@ -7471,12 +7748,12 @@ emit_stmt_switchctx:
 	call	fwrite@PLT
 	addl	$1, %r14d
 	cmpl	%ebp, %r14d
-	jne	.L1479
-.L1513:
+	jne	.L1520
+.L1554:
 	movq	%rbx, %rcx
 	movl	$7, %edx
 	movl	$1, %esi
-	leaq	.LC134(%rip), %rdi
+	leaq	.LC144(%rip), %rdi
 	call	fwrite@PLT
 	movq	16(%r13), %rsi
 	movq	(%rsp), %rdx
@@ -7485,27 +7762,27 @@ emit_stmt_switchctx:
 	movq	%rbx, %rcx
 	movl	$2, %edx
 	movl	$1, %esi
-	leaq	.LC135(%rip), %rdi
+	leaq	.LC145(%rip), %rdi
 	call	fwrite@PLT
 	movq	24(%r13), %r13
 	testq	%r13, %r13
-	je	.L1466
-.L1480:
+	je	.L1507
+.L1521:
 	xorl	%eax, %eax
 	cmpl	$1, 0(%r13)
 	setne	%al
 	addl	%eax, %ebp
-	jmp	.L1467
+	jmp	.L1508
 	.p2align 4,,10
 	.p2align 3
-.L1474:
+.L1515:
 	xorl	%r14d, %r14d
 	leaq	.LC28(%rip), %r12
 	testl	%ebp, %ebp
-	jle	.L1508
+	jle	.L1549
 	.p2align 4
 	.p2align 3
-.L1482:
+.L1523:
 	movq	%rbx, %rcx
 	movl	$2, %edx
 	movl	$1, %esi
@@ -7513,12 +7790,12 @@ emit_stmt_switchctx:
 	call	fwrite@PLT
 	addl	$1, %r14d
 	cmpl	%ebp, %r14d
-	jne	.L1482
-.L1508:
+	jne	.L1523
+.L1549:
 	movq	%rbx, %rcx
 	movl	$4, %edx
 	movl	$1, %esi
-	leaq	.LC136(%rip), %rdi
+	leaq	.LC146(%rip), %rdi
 	call	fwrite@PLT
 	movq	16(%r13), %rsi
 	movq	(%rsp), %rdx
@@ -7527,30 +7804,30 @@ emit_stmt_switchctx:
 	movl	$1, %esi
 	movq	%rbx, %rcx
 	movl	$2, %edx
-	leaq	.LC135(%rip), %rdi
+	leaq	.LC145(%rip), %rdi
 	call	fwrite@PLT
 	movq	24(%r13), %rsi
 	testq	%rsi, %rsi
-	je	.L1484
+	je	.L1525
 	cmpl	$1, (%rsi)
 	movl	%ebp, %edx
-	je	.L1509
-.L1484:
+	je	.L1550
+.L1525:
 	leal	1(%rbp), %edx
-.L1509:
+.L1550:
 	movq	(%rsp), %r8
 	movq	8(%rsp), %rcx
 	movq	%rbx, %rdi
 	call	emit_stmt_switchctx
 	cmpq	$0, 32(%r13)
-	je	.L1466
+	je	.L1507
 	xorl	%r14d, %r14d
 	leaq	.LC28(%rip), %r12
 	testl	%ebp, %ebp
-	jle	.L1512
+	jle	.L1553
 	.p2align 4
 	.p2align 3
-.L1510:
+.L1551:
 	movq	%rbx, %rcx
 	movl	$2, %edx
 	movl	$1, %esi
@@ -7558,17 +7835,17 @@ emit_stmt_switchctx:
 	call	fwrite@PLT
 	addl	$1, %r14d
 	cmpl	%ebp, %r14d
-	jne	.L1510
-.L1512:
+	jne	.L1551
+.L1553:
 	movq	%rbx, %rcx
 	movl	$5, %edx
 	movl	$1, %esi
-	leaq	.LC145(%rip), %rdi
+	leaq	.LC155(%rip), %rdi
 	call	fwrite@PLT
 	movq	32(%r13), %r13
 	testq	%r13, %r13
-	jne	.L1480
-.L1466:
+	jne	.L1521
+.L1507:
 	addq	$40, %rsp
 	.cfi_remember_state
 	.cfi_def_cfa_offset 56
@@ -7587,15 +7864,15 @@ emit_stmt_switchctx:
 	ret
 	.p2align 4,,10
 	.p2align 3
-.L1475:
+.L1516:
 	.cfi_restore_state
 	xorl	%r15d, %r15d
 	leaq	.LC28(%rip), %r12
 	testl	%ebp, %ebp
-	jle	.L1557
+	jle	.L1598
 	.p2align 4
 	.p2align 3
-.L1485:
+.L1526:
 	movq	%rbx, %rcx
 	movl	$2, %edx
 	movl	$1, %esi
@@ -7603,18 +7880,18 @@ emit_stmt_switchctx:
 	call	fwrite@PLT
 	addl	$1, %r15d
 	cmpl	%ebp, %r15d
-	jne	.L1485
+	jne	.L1526
 	movq	%rbx, %rcx
 	movl	$2, %edx
 	movl	$1, %esi
-	leaq	.LC142(%rip), %rdi
+	leaq	.LC152(%rip), %rdi
 	call	fwrite@PLT
 	cmpq	$0, 24(%r13)
-	je	.L1503
-.L1502:
+	je	.L1544
+.L1543:
 	leal	1(%rbp), %r12d
 	xorl	%r15d, %r15d
-.L1505:
+.L1546:
 	movq	16(%r13), %rax
 	movq	(%rsp), %r8
 	movl	%r12d, %edx
@@ -7624,15 +7901,15 @@ emit_stmt_switchctx:
 	addq	$1, %r15
 	call	emit_stmt_switchctx
 	cmpq	24(%r13), %r15
-	jb	.L1505
+	jb	.L1546
 	leaq	.LC28(%rip), %r12
 	testl	%ebp, %ebp
-	jle	.L1504
-.L1503:
+	jle	.L1545
+.L1544:
 	xorl	%r13d, %r13d
 	.p2align 4
 	.p2align 3
-.L1507:
+.L1548:
 	movq	%rbx, %rcx
 	movl	$2, %edx
 	movl	$1, %esi
@@ -7640,13 +7917,13 @@ emit_stmt_switchctx:
 	call	fwrite@PLT
 	addl	$1, %r13d
 	cmpl	%ebp, %r13d
-	jne	.L1507
-.L1504:
+	jne	.L1548
+.L1545:
 	movq	%rbx, %rcx
 	movl	$2, %edx
 	movl	$1, %esi
-	leaq	.LC118(%rip), %rdi
-.L1552:
+	leaq	.LC122(%rip), %rdi
+.L1593:
 	addq	$40, %rsp
 	.cfi_remember_state
 	.cfi_def_cfa_offset 56
@@ -7665,89 +7942,89 @@ emit_stmt_switchctx:
 	jmp	fwrite@PLT
 	.p2align 4,,10
 	.p2align 3
-.L1519:
+.L1560:
 	.cfi_restore_state
 	xorl	%r14d, %r14d
-	jmp	.L1487
+	jmp	.L1528
 	.p2align 4,,10
 	.p2align 3
-.L1554:
+.L1595:
 	movq	16(%r13), %rax
 	movq	%rax, 16(%rsp)
 	movq	8+function_labels(%rip), %rax
 	movq	%rax, 24(%rsp)
 	testq	%rax, %rax
-	jne	.L1477
+	jne	.L1518
 	.p2align 4
 	.p2align 3
-.L1478:
+.L1519:
 	xorl	%edx, %edx
-	jmp	.L1496
-.L1555:
+	jmp	.L1537
+.L1596:
 	xorl	%edx, %edx
-	leaq	.LC160(%rip), %rsi
+	leaq	.LC170(%rip), %rsi
 	movq	%rbx, %rdi
 	xorl	%eax, %eax
 	call	fprintf@PLT
 	leal	1(%rbp), %eax
 	movl	%eax, 16(%rsp)
-	jmp	.L1498
+	jmp	.L1539
 	.p2align 4,,10
 	.p2align 3
-.L1553:
+.L1594:
 	xorl	%eax, %eax
 	movq	%r14, %rdx
-	leaq	.LC162(%rip), %rsi
+	leaq	.LC172(%rip), %rsi
 	movq	%rbx, %rdi
 	call	fprintf@PLT
 	testl	%ebp, %ebp
-	jne	.L1492
+	jne	.L1533
 	movq	%rbx, %rcx
 	movl	$2, %edx
 	movl	$1, %esi
 	movq	%r12, %rdi
 	call	fwrite@PLT
-	jmp	.L1492
+	jmp	.L1533
 	.p2align 4,,10
 	.p2align 3
-.L1556:
+.L1597:
 	movl	%eax, %ebp
-	jmp	.L1501
+	jmp	.L1542
 	.p2align 4,,10
 	.p2align 3
-.L1557:
+.L1598:
 	movq	%rbx, %rcx
 	movl	$2, %edx
 	movl	$1, %esi
-	leaq	.LC142(%rip), %rdi
+	leaq	.LC152(%rip), %rdi
 	call	fwrite@PLT
 	cmpq	$0, 24(%r13)
-	jne	.L1502
-	jmp	.L1504
+	jne	.L1543
+	jmp	.L1545
 	.cfi_endproc
 .LFE46:
 	.size	emit_stmt_switchctx, .-emit_stmt_switchctx
 	.section	.rodata.str1.1
-.LC163:
+.LC173:
 	.string	"static "
-.LC164:
+.LC174:
 	.string	""
 	.section	.rodata.str1.8
 	.align 8
-.LC165:
+.LC175:
 	.string	"#ifndef %s\nextern word %s[];\n#define __b_external_%s (%s[0])\n#else\n#define __b_external_%s (%s)\n#endif\n"
 	.section	.rodata.str1.1
-.LC166:
+.LC176:
 	.string	"extern word %s[];\n"
-.LC167:
+.LC177:
 	.string	"%sword %s[%zu];\n"
-.LC168:
+.LC178:
 	.string	"static word __%s_store[%zu];\n"
 	.text
 	.p2align 4
 	.type	emit_global_declarations, @function
 emit_global_declarations:
-.LFB63:
+.LFB64:
 	.cfi_startproc
 	pushq	%r15
 	.cfi_def_cfa_offset 16
@@ -7771,80 +8048,80 @@ emit_global_declarations:
 	.cfi_def_cfa_offset 80
 	cmpq	$0, 8(%rsi)
 	movq	%rdx, (%rsp)
-	je	.L1558
+	je	.L1599
 	movq	%rdi, %rbp
 	movq	%rsi, %r12
 	xorl	%ebx, %ebx
-	jmp	.L1572
+	jmp	.L1613
 	.p2align 4,,10
 	.p2align 3
-.L1561:
+.L1602:
 	addq	$1, %rbx
 	cmpq	8(%r12), %rbx
-	jnb	.L1558
-.L1572:
+	jnb	.L1599
+.L1613:
 	movq	(%r12), %rax
 	movq	(%rax,%rbx,8), %r14
 	movl	(%r14), %eax
 	testl	%eax, %eax
-	je	.L1590
+	je	.L1631
 	subl	$2, %eax
 	cmpl	$1, %eax
-	ja	.L1561
+	ja	.L1602
 	movq	8(%r14), %r13
 	movq	16(%r13), %rdi
 	call	get_mangled_name
 	cmpl	$3, (%r14)
 	movq	%rax, %r15
-	je	.L1591
+	je	.L1632
 	cmpl	$1, 24(%r13)
 	movl	$1, %r8d
-	jne	.L1566
+	jne	.L1607
 	movq	56(%r13), %rdi
 	movl	$1, %r11d
 	testq	%rdi, %rdi
-	je	.L1567
+	je	.L1608
 	cmpl	$1, (%rdi)
-	je	.L1592
-.L1567:
+	je	.L1633
+.L1608:
 	call	edge_tail_words_top
 	leaq	(%rax,%r11), %r8
 	movl	$1, %eax
 	testq	%r8, %r8
 	cmove	%rax, %r8
-.L1566:
+.L1607:
 	movl	4(%r13), %eax
-	leaq	.LC164(%rip), %rdx
+	leaq	.LC174(%rip), %rdx
 	testl	%eax, %eax
-	je	.L1568
-	leaq	.LC163(%rip), %rdx
-.L1568:
+	je	.L1609
+	leaq	.LC173(%rip), %rdx
+.L1609:
 	xorl	%eax, %eax
 	movq	%r15, %rcx
-	leaq	.LC167(%rip), %rsi
+	leaq	.LC177(%rip), %rsi
 	movq	%rbp, %rdi
 	call	fprintf@PLT
 	cmpl	$2, 24(%r13)
-	jne	.L1561
+	jne	.L1602
 	movq	56(%r13), %rdi
 	xorl	%r11d, %r11d
 	testq	%rdi, %rdi
-	je	.L1569
+	je	.L1610
 	cmpl	$1, (%rdi)
-	je	.L1593
-.L1569:
+	je	.L1634
+.L1610:
 	cmpq	$0, 32(%r13)
-	je	.L1570
+	je	.L1611
 	movq	48(%r13), %rax
 	movq	%r11, %rdx
 	cmpq	%rax, %r11
 	cmovb	%rax, %r11
 	testq	%rax, %rax
 	cmovle	%rdx, %r11
-.L1570:
+.L1611:
 	call	edge_tail_words_top
 	movq	%r15, %rdx
-	leaq	.LC168(%rip), %rsi
+	leaq	.LC178(%rip), %rsi
 	movq	%rbp, %rdi
 	leaq	(%rax,%r11), %rcx
 	movl	$1, %eax
@@ -7854,8 +8131,8 @@ emit_global_declarations:
 	addq	$1, %rbx
 	call	fprintf@PLT
 	cmpq	8(%r12), %rbx
-	jb	.L1572
-.L1558:
+	jb	.L1613
+.L1599:
 	addq	$24, %rsp
 	.cfi_remember_state
 	.cfi_def_cfa_offset 56
@@ -7874,7 +8151,7 @@ emit_global_declarations:
 	ret
 	.p2align 4,,10
 	.p2align 3
-.L1590:
+.L1631:
 	.cfi_restore_state
 	movq	8(%r14), %rsi
 	movq	(%rsp), %r8
@@ -7882,24 +8159,24 @@ emit_global_declarations:
 	xorl	%edx, %edx
 	movq	%rbp, %rdi
 	call	emit_stmt
-	jmp	.L1561
+	jmp	.L1602
 	.p2align 4,,10
 	.p2align 3
-.L1591:
+.L1632:
 	movq	16(%r13), %rdx
 	movq	%rdx, %rdi
 	movq	%rdx, 8(%rsp)
 	call	global_data_kind
 	testl	%eax, %eax
-	je	.L1561
+	je	.L1602
 	movl	8(%r13), %esi
 	testl	%esi, %esi
-	je	.L1565
+	je	.L1606
 	movq	8(%rsp), %rdx
 	movq	%r15, %rcx
 	movq	%r15, %r9
 	movq	%r15, %r8
-	leaq	.LC165(%rip), %rsi
+	leaq	.LC175(%rip), %rsi
 	movq	%rbp, %rdi
 	xorl	%eax, %eax
 	pushq	%rdx
@@ -7911,54 +8188,54 @@ emit_global_declarations:
 	.cfi_def_cfa_offset 88
 	popq	%rcx
 	.cfi_def_cfa_offset 80
-	jmp	.L1561
+	jmp	.L1602
 	.p2align 4,,10
 	.p2align 3
-.L1592:
+.L1633:
 	movq	24(%rdi), %r11
-	jmp	.L1567
+	jmp	.L1608
 	.p2align 4,,10
 	.p2align 3
-.L1565:
+.L1606:
 	movq	%r15, %rdx
-	leaq	.LC166(%rip), %rsi
+	leaq	.LC176(%rip), %rsi
 	movq	%rbp, %rdi
 	xorl	%eax, %eax
 	call	fprintf@PLT
-	jmp	.L1561
-.L1593:
+	jmp	.L1602
+.L1634:
 	movq	24(%rdi), %r11
-	jmp	.L1569
+	jmp	.L1610
 	.cfi_endproc
-.LFE63:
+.LFE64:
 	.size	emit_global_declarations, .-emit_global_declarations
 	.section	.rodata.str1.1
-.LC169:
+.LC179:
 	.string	"{\n    B_FRAME;\n"
 	.section	.rodata.str1.8
 	.align 8
-.LC170:
+.LC180:
 	.string	"    size_t __bcc_count = __bcc_current_call ? __bcc_current_call->count : 0;\n"
 	.align 8
-.LC171:
+.LC181:
 	.string	"    if (__bcc_count < %zu) __bcc_count = %zu;\n"
 	.align 8
-.LC172:
+.LC182:
 	.string	"    word __bcc_parameters[__bcc_count];\n    for (size_t __bcc_i = 0; __bcc_i < __bcc_count; ++__bcc_i)\n        __bcc_parameters[__bcc_i] = __bcc_current_call && __bcc_i < __bcc_current_call->count\n            ? __bcc_current_call->arguments[__bcc_i] : 0;\n"
 	.align 8
-.LC173:
+.LC183:
 	.string	"    (void)B_LOCAL_PTR_N(__bcc_parameters, sizeof(__bcc_parameters));\n"
 	.align 8
-.LC174:
+.LC184:
 	.string	"    static word __b_label_value_%zu = %zu;\n"
 	.section	.rodata.str1.1
-.LC175:
+.LC185:
 	.string	"    return 0;\n}\n"
 	.text
 	.p2align 4
 	.type	emit_function_body, @function
 emit_function_body:
-.LFB59:
+.LFB60:
 	.cfi_startproc
 	pushq	%r14
 	.cfi_def_cfa_offset 16
@@ -7986,22 +8263,22 @@ emit_function_body:
 	movq	%rbp, %rcx
 	movl	$15, %edx
 	movl	$1, %esi
-	leaq	.LC169(%rip), %rdi
+	leaq	.LC179(%rip), %rdi
 	call	fwrite@PLT
 	cmpq	$0, 16(%r14)
-	jne	.L1607
-.L1596:
+	jne	.L1648
+.L1637:
 	movl	g_strict(%rip), %eax
 	testl	%eax, %eax
-	jne	.L1608
-.L1598:
+	jne	.L1649
+.L1639:
 	cmpq	$0, 8+function_labels(%rip)
-	je	.L1602
+	je	.L1643
 	xorl	%ebx, %ebx
-	leaq	.LC174(%rip), %r12
+	leaq	.LC184(%rip), %r12
 	.p2align 4
 	.p2align 3
-.L1603:
+.L1644:
 	addq	$1, %rbx
 	xorl	%eax, %eax
 	movq	%r12, %rsi
@@ -8010,8 +8287,8 @@ emit_function_body:
 	movq	%rbx, %rdx
 	call	fprintf@PLT
 	cmpq	8+function_labels(%rip), %rbx
-	jb	.L1603
-.L1602:
+	jb	.L1644
+.L1643:
 	movq	32(%r14), %rsi
 	movq	%r13, %r8
 	movq	%rbp, %rdi
@@ -8021,7 +8298,7 @@ emit_function_body:
 	movq	%rbp, %rcx
 	movl	$16, %edx
 	movl	$1, %esi
-	leaq	.LC175(%rip), %rdi
+	leaq	.LC185(%rip), %rdi
 	call	fwrite@PLT
 	movq	$0, 8+function_labels(%rip)
 	addq	$32, %rsp
@@ -8040,35 +8317,35 @@ emit_function_body:
 	ret
 	.p2align 4,,10
 	.p2align 3
-.L1607:
+.L1648:
 	.cfi_restore_state
 	movq	%rbp, %rcx
 	movl	$77, %edx
 	movl	$1, %esi
-	leaq	.LC170(%rip), %rdi
+	leaq	.LC180(%rip), %rdi
 	call	fwrite@PLT
 	movq	16(%r14), %rdx
 	movq	%rbp, %rdi
 	xorl	%eax, %eax
-	leaq	.LC171(%rip), %rsi
+	leaq	.LC181(%rip), %rsi
 	movq	%rdx, %rcx
 	call	fprintf@PLT
 	movq	%rbp, %rcx
 	movl	$255, %edx
 	movl	$1, %esi
-	leaq	.LC172(%rip), %rdi
+	leaq	.LC182(%rip), %rdi
 	call	fwrite@PLT
 	cmpl	$16, current_word_bits(%rip)
-	jne	.L1596
+	jne	.L1637
 	movq	%rbp, %rcx
 	movl	$69, %edx
 	movl	$1, %esi
-	leaq	.LC173(%rip), %rdi
+	leaq	.LC183(%rip), %rdi
 	call	fwrite@PLT
-	jmp	.L1596
+	jmp	.L1637
 	.p2align 4,,10
 	.p2align 3
-.L1608:
+.L1649:
 	movq	32(%r14), %rdi
 	pxor	%xmm0, %xmm0
 	movq	%rsp, %rsi
@@ -8076,11 +8353,11 @@ emit_function_body:
 	movaps	%xmm0, (%rsp)
 	call	collect_function_autos
 	cmpq	$0, 8(%rsp)
-	je	.L1599
+	je	.L1640
 	xorl	%ebx, %ebx
 	.p2align 4
 	.p2align 3
-.L1600:
+.L1641:
 	movq	(%rsp), %rax
 	movq	%r13, %rcx
 	movl	$1, %edx
@@ -8089,22 +8366,22 @@ emit_function_body:
 	addq	$1, %rbx
 	call	emit_auto_storage
 	cmpq	8(%rsp), %rbx
-	jb	.L1600
-.L1599:
+	jb	.L1641
+.L1640:
 	cmpq	$0, g_compilation_arena(%rip)
-	jne	.L1598
+	jne	.L1639
 	movq	(%rsp), %rdi
 	call	free@PLT
-	jmp	.L1598
+	jmp	.L1639
 	.cfi_endproc
-.LFE59:
+.LFE60:
 	.size	emit_function_body, .-emit_function_body
 	.section	.rodata.str1.1
-.LC176:
+.LC186:
 	.string	"#define BCC_USE_CURSES 1\n"
 	.section	.rodata.str1.8
 	.align 8
-.LC177:
+.LC187:
 	.ascii	"#define _DEFAULT_SOURCE 1\n#define _XOPEN_SOURCE 700\n#defin"
 	.ascii	"e _POSIX_C_SOURCE 200809L\n#include <stdio.h>\n#include <std"
 	.ascii	"lib.h>\n#include <stdint.h>\n#include <inttypes.h>\n#include"
@@ -8129,16 +8406,16 @@ emit_function_body:
 	.ascii	"NDIAN__\n  #if !B_BYTEPTR\n    #warning \"B_BYTEPTR=0 mode u"
 	.string	"ses little-endian byte packing; results may differ on big-endian hosts\"\n  #endif\n#endif\n\n/*\n  Pointer model:\n    B_BYTEPTR=1  -> pointers are byte addresses; subscripts still index words\n    B_BYTEPTR=0  -> pointers are word addresses: E1[E2]==*(E1+E2)\n*/\n"
 	.align 8
-.LC178:
+.LC188:
 	.string	"#define __bcc_strict_runtime %d\n"
 	.section	.rodata.str1.1
-.LC179:
+.LC189:
 	.string	"#define B_BYTEPTR %d\n"
-.LC180:
+.LC190:
 	.string	"#define WORD_BITS %d\n"
 	.section	.rodata.str1.8
 	.align 8
-.LC181:
+.LC191:
 	.ascii	"/*\n  Word size emulation:\n    WORD_BITS=0   -> wrap at the"
 	.ascii	" host pointer width\n    WORD_BITS=16  -> wrap arithmetic li"
 	.ascii	"ke PDP-11 16-bit words\n    WORD_BITS=32  -> wrap arithmetic"
@@ -8161,32 +8438,32 @@ emit_function_body:
 	.ascii	"),(b))\n#defi"
 	.string	"ne WSHL(a,n) __b_word_shl((a),(n))\n#define WSHR(a,n) __b_word_shr((a),(n))\n#define WAND(a,b) WVAL((uword)(a) & (uword)(b))\n#define WOR(a,b)  WVAL((uword)(a) | (uword)(b))\n#define WXOR(a,b) WVAL((uword)(a) ^ (uword)(b))\n#define WNEG(a)   WVAL(-(uword)(a))\n\n"
 	.section	.rodata.str1.1
-.LC182:
+.LC192:
 	.string	"%s/btarget.h"
 	.section	.rodata.str1.8
 	.align 8
-.LC183:
+.LC193:
 	.string	"#define B_TARGET_DEFINE\n#define B_TARGET_STORAGE __attribute__((common))\n"
 	.section	.rodata.str1.1
-.LC184:
+.LC194:
 	.string	"%s/binit.h"
 	.section	.rodata.str1.8
 	.align 8
-.LC185:
+.LC195:
 	.string	"#define B_INIT_DEFINE\n#define B_INIT_STORAGE __attribute__((common))\n"
 	.section	.rodata.str1.1
-.LC186:
+.LC196:
 	.string	"%s/bcall.h"
 	.section	.rodata.str1.8
 	.align 8
-.LC187:
+.LC197:
 	.string	"#define B_CALL_DEFINE\n#define B_CALL_STORAGE __attribute__((common))\n"
 	.section	.rodata.str1.1
-.LC188:
+.LC198:
 	.string	"%s/bunix.h"
 	.section	.rodata.str1.8
 	.align 8
-.LC189:
+.LC199:
 	.ascii	"static void __b_init(void) {\n    if (!__bcc_runtime_initial"
 	.ascii	"ized) {\n        setvbuf(stdout, NULL, _IONBF, 0);\n        "
 	.ascii	"__bcc_runtime_initialized = 1;\n    }\n    __bcc_run_initial"
@@ -8370,28 +8647,26 @@ emit_function_body:
 	.ascii	"chr(word w) {\n    __b_sync_wr();\n    unsigned char c = (un"
 	.ascii	"signed char)(w & 0xFF);\n    (void)write(wr_fd, &c, 1);\n   "
 	.ascii	" return w;\n}\nstatic word b_putstr(word s) {\n    __b_sync_"
-	.ascii	"wr();\n    word i = 0;\n    for (;;) {\n        word ch = b_"
-	.ascii	"char(s, i++);\n        if (ch == 004 || (!__bcc_strict_runti"
-	.ascii	"me && ch == 0)) break;\n        b_putchar(ch);\n    }\n    r"
-	.ascii	"eturn s;\n}\nstatic word b_getstr(word buf) {\n    __b_sync_"
-	.ascii	"rd();\n    size_t i = 0;\n    unsigned char c;\n    for (;;)"
-	.ascii	" {\n        ssize_t n = read(rd_fd, &c, 1);\n        if (n ="
-	.ascii	"= 1 && c != '\\n' && c != '\\r') {\n            b_lchar(buf,"
-	.ascii	" (word)i, (word)c);\n            i++;\n            continue;"
-	.ascii	"\n        }\n        if (n == 1) break; /* newline */\n     "
-	.ascii	"   if (rd_fd != 0) {\n            close(rd_fd);\n           "
-	.ascii	" rd_fd = 0;\n            rd_unit = -1;\n            continue"
-	.ascii	"; /* retry on terminal */\n        }\n  "
-	.string	"      break; /* EOF */\n    }\n    b_lchar(buf, (word)i, (word)004);\n    return buf;\n}\nstatic word b_flush(void){\n    __b_sync_wr();\n    if (wr_fd == 1) {\n        fflush(stdout);\n    } else {\n        fsync(wr_fd);\n    }\n    return 0;\n}\n\n#include <stdarg.h>\n\n"
+	.ascii	"wr();\n    word i = 0;\n    for (;;) {\n        word ch = __"
+	.ascii	"bcc_library_call2(\"char\", b_char, s, i++);\n        if (ch"
+	.ascii	" == 004 || (!__bcc_strict_runtime && ch == 0)) break;\n     "
+	.ascii	"   __bcc_library_call1(\"putchar\", b_putchar, ch);\n    }\n"
+	.ascii	"    return s;\n}\nstatic word b_getstr(word buf) {\n    word"
+	.ascii	" i = 0;\n    for (;;) {\n        word c = __bcc_library_call"
+	.ascii	"0(\"getchar\", b_getchar);\n        if (c == 004 || c == '\\"
+	.ascii	"n' || (!__bcc_strict_runtime && c == '\\r')) break;\n       "
+	.ascii	" __bcc_library_call3(\"lchar\", b_lchar, buf, i++, c);\n    "
+	.ascii	"}\n    __bcc_librar"
+	.string	"y_call3(\"lchar\", b_lchar, buf, i, 004);\n    return __bcc_strict_runtime ? i : buf;\n}\nstatic word b_flush(void){\n    __b_sync_wr();\n    if (wr_fd == 1) {\n        fflush(stdout);\n    } else {\n        fsync(wr_fd);\n    }\n    return 0;\n}\n\n#include <stdarg.h>\n\n"
 	.section	.rodata.str1.1
-.LC190:
+.LC200:
 	.string	"%s/bformat.h"
 	.section	.rodata.str1.8
 	.align 8
-.LC191:
+.LC201:
 	.string	"#define __bcc_format_linkage static\n"
 	.align 8
-.LC192:
+.LC202:
 	.ascii	"/* File I/O functions - with actual implementations */\n#inc"
 	.ascii	"lude <fcntl.h>\nstatic word b_open(word name, word mode){\n "
 	.ascii	"   const char *p = __b_cstr(name);\n    int flags = ((int)mo"
@@ -8601,51 +8876,52 @@ emit_function_body:
 	.ascii	"str(path);\n    return (word)mkdir(p, __bcc_unix_mode(mode, "
 	.ascii	"1));\n}\n\nstatic word b_mkdir(word path, word mode) { retur"
 	.ascii	"n b_makdir(path, mode); }\nstatic word b_putnum(word n) {\n "
-	.ascii	"   b_printn(n, (word)10);\n    ret"
-	.ascii	"urn n;\n}\nstatic volatile sig_atomic_t __b_got_intr = 0;\n\n"
-	.ascii	"static void __b_sigint(int sig){ (void)sig; __b_got_intr = 1"
-	.ascii	"; }\n\nstatic word b_gtty(word fd, word ttstat){\n    struct"
-	.ascii	" termios t;\n    if (tcgetattr((int)fd, &t) < 0) return -1;\n"
-	.ascii	"\n    word *vec = (word*)B_CPTR(ttstat);\n    vec[0] = (word"
-	.ascii	")t.c_iflag;\n    vec[1] = (word)t.c_oflag;\n    vec[2] = (wo"
-	.ascii	"rd)t.c_lflag;\n    return 0;\n}\n\nstatic word b_stty(word f"
-	.ascii	"d, word ttstat){\n    struct termios t;\n    if (tcgetattr(("
-	.ascii	"int)fd, &t) < 0) return -1;\n\n    word *vec = (word*)B_CPTR"
-	.ascii	"(ttstat);\n    t.c_iflag = (tcflag_t)vec[0];\n    t.c_oflag "
-	.ascii	"= (tcflag_t)vec[1];\n    t.c_lflag = (tcflag_t)vec[2];\n    "
-	.ascii	"return (word)tcsetattr((int)fd, TCSANOW, &t);\n}\nstatic wor"
-	.ascii	"d b_intr(word on) {\n    /* Set up interrupt handling */\n  "
-	.ascii	"  /* on != 0: catch interrupts, on =="
+	.ascii	"   __bcc_library_call2(\"printn\", "
+	.ascii	"b_printn, n, (word)10);\n    return n;\n}\nstatic volatile s"
+	.ascii	"ig_atomic_t __b_got_intr = 0;\n\nstatic void __b_sigint(int "
+	.ascii	"sig){ (void)sig; __b_got_intr = 1; }\n\nstatic word b_gtty(w"
+	.ascii	"ord fd, word ttstat){\n    struct termios t;\n    if (tcgeta"
+	.ascii	"ttr((int)fd, &t) < 0) return -1;\n\n    word *vec = (word*)B"
+	.ascii	"_CPTR(ttstat);\n    vec[0] = (word)t.c_iflag;\n    vec[1] = "
+	.ascii	"(word)t.c_oflag;\n    vec[2] = (word)t.c_lflag;\n    return "
+	.ascii	"0;\n}\n\nstatic word b_stty(word fd, word ttstat){\n    stru"
+	.ascii	"ct termios t;\n    if (tcgetattr((int)fd, &t) < 0) return -1"
+	.ascii	";\n\n    word *vec = (word*)B_CPTR(ttstat);\n    t.c_iflag ="
+	.ascii	" (tcflag_t)vec[0];\n    t.c_oflag = (tcflag_t)vec[1];\n    t"
+	.ascii	".c_lflag = (tcflag_t)vec[2];\n    return (word)tcsetattr((in"
+	.ascii	"t)fd, TCSANOW, &t);\n}\nstatic word b_intr(word on) {\n    /"
+	.ascii	"* Set up interrupt handling */\n    /* on != 0: catch interr"
+	.ascii	"upts, on =="
 	.string	" 0: restore default */\n    if (on) {\n        __b_got_intr = 0;\n        if (signal(SIGINT, __b_sigint) == SIG_ERR) return -1;\n    } else {\n        if (signal(SIGINT, SIG_DFL) == SIG_ERR) return -1;\n    }\n    return 0;\n}\n\n/* Builtin aliases for B source */\n\n"
 	.section	.rodata.str1.1
-.LC193:
+.LC203:
 	.string	"word __b_user_main("
-.LC194:
+.LC204:
 	.string	"void)\n"
 	.section	.rodata.str1.8
 	.align 8
-.LC195:
+.LC205:
 	.string	"int main(int argc, char **argv){\n"
 	.section	.rodata.str1.1
-.LC196:
+.LC206:
 	.string	"    __b_setargs(argc, argv);\n"
-.LC197:
+.LC207:
 	.string	"    __b_init();\n"
 	.section	.rodata.str1.8
 	.align 8
-.LC198:
+.LC208:
 	.string	"    return (int)__bcc_call%zu("
 	.section	.rodata.str1.1
-.LC199:
+.LC209:
 	.string	", (word)argc"
-.LC200:
+.LC210:
 	.string	", __b_argvalues()"
 	.text
 	.p2align 4
 	.globl	emit_program_c
 	.type	emit_program_c, @function
 emit_program_c:
-.LFB65:
+.LFB66:
 	.cfi_startproc
 	pushq	%r15
 	.cfi_def_cfa_offset 16
@@ -8686,17 +8962,17 @@ emit_program_c:
 	call	collect_strings_program
 	movl	g_use_curses(%rip), %edx
 	testl	%edx, %edx
-	jne	.L1631
-.L1610:
+	jne	.L1672
+.L1651:
 	movq	%rbx, %rcx
 	movl	$1529, %edx
 	movl	$1, %esi
-	leaq	.LC177(%rip), %rdi
+	leaq	.LC187(%rip), %rdi
 	call	fwrite@PLT
 	movl	g_strict(%rip), %eax
 	xorl	%edx, %edx
 	movq	%rbx, %rdi
-	leaq	.LC178(%rip), %rsi
+	leaq	.LC188(%rip), %rsi
 	testl	%eax, %eax
 	setne	%dl
 	xorl	%eax, %eax
@@ -8705,22 +8981,22 @@ emit_program_c:
 	testl	%r13d, %r13d
 	movq	%rbx, %rdi
 	setne	%dl
-	leaq	.LC179(%rip), %rsi
+	leaq	.LC189(%rip), %rsi
 	xorl	%eax, %eax
 	call	fprintf@PLT
 	movl	%r12d, %edx
 	movq	%rbx, %rdi
 	xorl	%eax, %eax
-	leaq	.LC180(%rip), %rsi
+	leaq	.LC190(%rip), %rsi
 	leaq	24(%rsp), %r12
 	call	fprintf@PLT
 	movq	%rbx, %rcx
 	movl	$1378, %edx
 	movl	$1, %esi
-	leaq	.LC181(%rip), %rdi
+	leaq	.LC191(%rip), %rdi
 	call	fwrite@PLT
 	movq	g_libb_path(%rip), %rsi
-	leaq	.LC182(%rip), %rdi
+	leaq	.LC192(%rip), %rdi
 	xorl	%eax, %eax
 	call	fmt@PLT
 	movq	%r12, %rsi
@@ -8729,7 +9005,7 @@ emit_program_c:
 	movq	%rbx, %rcx
 	movl	$73, %edx
 	movl	$1, %esi
-	leaq	.LC183(%rip), %rdi
+	leaq	.LC193(%rip), %rdi
 	movq	%rax, %r13
 	call	fwrite@PLT
 	movq	24(%rsp), %rdx
@@ -8743,7 +9019,7 @@ emit_program_c:
 	movq	%r13, %rdi
 	call	free@PLT
 	movq	g_libb_path(%rip), %rsi
-	leaq	.LC184(%rip), %rdi
+	leaq	.LC194(%rip), %rdi
 	xorl	%eax, %eax
 	call	fmt@PLT
 	movq	%r12, %rsi
@@ -8752,7 +9028,7 @@ emit_program_c:
 	movq	%rbx, %rcx
 	movl	$69, %edx
 	movl	$1, %esi
-	leaq	.LC185(%rip), %rdi
+	leaq	.LC195(%rip), %rdi
 	movq	%rax, %r13
 	call	fwrite@PLT
 	movq	24(%rsp), %rdx
@@ -8766,7 +9042,7 @@ emit_program_c:
 	movq	%r13, %rdi
 	call	free@PLT
 	movq	g_libb_path(%rip), %rsi
-	leaq	.LC186(%rip), %rdi
+	leaq	.LC196(%rip), %rdi
 	xorl	%eax, %eax
 	call	fmt@PLT
 	movq	%r12, %rsi
@@ -8776,7 +9052,7 @@ emit_program_c:
 	movq	%rbx, %rcx
 	movl	$69, %edx
 	movl	$1, %esi
-	leaq	.LC187(%rip), %rdi
+	leaq	.LC197(%rip), %rdi
 	movq	%rax, %r13
 	call	fwrite@PLT
 	movq	24(%rsp), %rdx
@@ -8790,10 +9066,10 @@ emit_program_c:
 	movq	%r13, %rdi
 	call	free@PLT
 	cmpq	$0, g_compilation_arena(%rip)
-	je	.L1632
-.L1611:
+	je	.L1673
+.L1652:
 	movq	g_libb_path(%rip), %rsi
-	leaq	.LC188(%rip), %rdi
+	leaq	.LC198(%rip), %rdi
 	xorl	%eax, %eax
 	call	fmt@PLT
 	movq	%r12, %rsi
@@ -8811,12 +9087,12 @@ emit_program_c:
 	movq	%r13, %rdi
 	call	free@PLT
 	movq	%rbx, %rcx
-	movl	$11388, %edx
+	movl	$11250, %edx
 	movl	$1, %esi
-	leaq	.LC189(%rip), %rdi
+	leaq	.LC199(%rip), %rdi
 	call	fwrite@PLT
 	movq	g_libb_path(%rip), %rsi
-	leaq	.LC190(%rip), %rdi
+	leaq	.LC200(%rip), %rdi
 	xorl	%eax, %eax
 	call	fmt@PLT
 	movq	%r12, %rsi
@@ -8825,7 +9101,7 @@ emit_program_c:
 	movq	%rbx, %rcx
 	movl	$36, %edx
 	movl	$1, %esi
-	leaq	.LC191(%rip), %rdi
+	leaq	.LC201(%rip), %rdi
 	movq	%rax, %r12
 	call	fwrite@PLT
 	movq	24(%rsp), %rdx
@@ -8839,13 +9115,13 @@ emit_program_c:
 	movq	%r12, %rdi
 	call	free@PLT
 	movq	%rbx, %rcx
-	movl	$13046, %edx
+	movl	$13077, %edx
 	movl	$1, %esi
-	leaq	.LC192(%rip), %rdi
+	leaq	.LC202(%rip), %rdi
 	call	fwrite@PLT
 	cmpq	$0, 8+string_pool(%rip)
-	jne	.L1633
-.L1612:
+	jne	.L1674
+.L1653:
 	movq	%rbp, %rsi
 	movq	%rbx, %rdi
 	call	emit_function_prototypes
@@ -8859,42 +9135,42 @@ emit_program_c:
 	movq	%rbx, %rdi
 	call	emit_global_initializers
 	cmpq	$0, 8(%rbp)
-	je	.L1609
+	je	.L1650
 	xorl	%r15d, %r15d
 	xorl	%r13d, %r13d
 	xorl	%r14d, %r14d
-	jmp	.L1617
+	jmp	.L1658
 	.p2align 5
 	.p2align 4,,10
 	.p2align 3
-.L1614:
+.L1655:
 	addq	$1, %r15
 	cmpq	8(%rbp), %r15
-	jnb	.L1634
-.L1617:
+	jnb	.L1675
+.L1658:
 	movq	0(%rbp), %rax
 	movq	(%rax,%r15,8), %rax
 	cmpl	$1, (%rax)
-	jne	.L1614
+	jne	.L1655
 	movq	8(%rax), %r12
 	leaq	.LC12(%rip), %rsi
 	movq	(%r12), %rdi
 	call	strcmp@PLT
 	testl	%eax, %eax
-	jne	.L1615
+	jne	.L1656
 	movq	%rbx, %rcx
 	movl	$19, %edx
 	movl	$1, %esi
 	movq	16(%r12), %r13
-	leaq	.LC193(%rip), %rdi
+	leaq	.LC203(%rip), %rdi
 	movl	$1, %r14d
 	call	fwrite@PLT
-.L1616:
+.L1657:
 	movq	%rbx, %rcx
 	movl	$6, %edx
 	movl	$1, %esi
 	addq	$1, %r15
-	leaq	.LC194(%rip), %rdi
+	leaq	.LC204(%rip), %rdi
 	call	fwrite@PLT
 	movq	8(%rsp), %rdx
 	movq	%r12, %rsi
@@ -8904,11 +9180,11 @@ emit_program_c:
 	movl	$10, %edi
 	call	fputc@PLT
 	cmpq	8(%rbp), %r15
-	jb	.L1617
-.L1634:
+	jb	.L1658
+.L1675:
 	testl	%r14d, %r14d
-	jne	.L1635
-.L1609:
+	jne	.L1676
+.L1650:
 	addq	$40, %rsp
 	.cfi_remember_state
 	.cfi_def_cfa_offset 56
@@ -8927,7 +9203,7 @@ emit_program_c:
 	ret
 	.p2align 4,,10
 	.p2align 3
-.L1615:
+.L1656:
 	.cfi_restore_state
 	movq	%rbx, %rcx
 	movl	$12, %edx
@@ -8940,36 +9216,36 @@ emit_program_c:
 	movq	%rbx, %rsi
 	movl	$40, %edi
 	call	fputc@PLT
-	jmp	.L1616
+	jmp	.L1657
 	.p2align 4,,10
 	.p2align 3
-.L1631:
+.L1672:
 	movq	%rbx, %rcx
 	movl	$25, %edx
 	movl	$1, %esi
-	leaq	.LC176(%rip), %rdi
+	leaq	.LC186(%rip), %rdi
 	call	fwrite@PLT
-	jmp	.L1610
+	jmp	.L1651
 	.p2align 4,,10
 	.p2align 3
-.L1635:
+.L1676:
 	movq	%rbx, %rcx
 	movl	$33, %edx
 	movl	$1, %esi
-	leaq	.LC195(%rip), %rdi
+	leaq	.LC205(%rip), %rdi
 	call	fwrite@PLT
 	movq	%rbx, %rcx
 	movl	$29, %edx
 	movl	$1, %esi
-	leaq	.LC196(%rip), %rdi
+	leaq	.LC206(%rip), %rdi
 	call	fwrite@PLT
 	movq	%rbx, %rcx
 	movl	$16, %edx
 	movl	$1, %esi
-	leaq	.LC197(%rip), %rdi
+	leaq	.LC207(%rip), %rdi
 	call	fwrite@PLT
 	movl	$2, %edx
-	leaq	.LC198(%rip), %rsi
+	leaq	.LC208(%rip), %rsi
 	movq	%rbx, %rdi
 	cmpq	%rdx, %r13
 	cmovbe	%r13, %rdx
@@ -8986,8 +9262,8 @@ emit_program_c:
 	leaq	.LC27(%rip), %rdi
 	call	fwrite@PLT
 	testq	%r13, %r13
-	jne	.L1636
-.L1621:
+	jne	.L1677
+.L1662:
 	movq	%rbx, %rcx
 	movl	$3, %edx
 	movl	$1, %esi
@@ -9001,7 +9277,7 @@ emit_program_c:
 	popq	%rbx
 	.cfi_def_cfa_offset 48
 	movl	$1, %esi
-	leaq	.LC118(%rip), %rdi
+	leaq	.LC122(%rip), %rdi
 	popq	%rbp
 	.cfi_def_cfa_offset 40
 	popq	%r12
@@ -9015,56 +9291,56 @@ emit_program_c:
 	jmp	fwrite@PLT
 	.p2align 4,,10
 	.p2align 3
-.L1633:
+.L1674:
 	.cfi_restore_state
 	movq	%rbx, %rdi
 	call	emit_string_pool
 	movq	%rbx, %rsi
 	movl	$10, %edi
 	call	fputc@PLT
-	jmp	.L1612
+	jmp	.L1653
 	.p2align 4,,10
 	.p2align 3
-.L1632:
+.L1673:
 	movq	%r14, %rdi
 	call	free@PLT
-	jmp	.L1611
+	jmp	.L1652
 	.p2align 4,,10
 	.p2align 3
-.L1636:
+.L1677:
 	movq	%rbx, %rcx
 	movl	$12, %edx
 	movl	$1, %esi
-	leaq	.LC199(%rip), %rdi
+	leaq	.LC209(%rip), %rdi
 	call	fwrite@PLT
 	cmpq	$1, %r13
-	je	.L1621
+	je	.L1662
 	movq	%rbx, %rcx
 	movl	$17, %edx
 	movl	$1, %esi
-	leaq	.LC200(%rip), %rdi
+	leaq	.LC210(%rip), %rdi
 	call	fwrite@PLT
-	jmp	.L1621
+	jmp	.L1662
 	.cfi_endproc
-.LFE65:
+.LFE66:
 	.size	emit_program_c, .-emit_program_c
 	.section	.rodata.str1.8
 	.align 8
-.LC201:
+.LC211:
 	.string	"/* Generated by BCC - B Compiler */\n"
 	.section	.rodata.str1.1
-.LC202:
+.LC212:
 	.string	"#include \"libb.h\"\n\n"
 	.section	.rodata.str1.8
 	.align 8
-.LC203:
+.LC213:
 	.string	"#include <ncurses.h>\n#include <panel.h>\n\n"
 	.text
 	.p2align 4
 	.globl	emit_program_c_ext
 	.type	emit_program_c_ext, @function
 emit_program_c_ext:
-.LFB66:
+.LFB67:
 	.cfi_startproc
 	pushq	%r15
 	.cfi_def_cfa_offset 16
@@ -9093,7 +9369,7 @@ emit_program_c_ext:
 	.cfi_def_cfa_offset 80
 	movl	80(%rsp), %edi
 	testl	%edi, %edi
-	je	.L1659
+	je	.L1700
 	pxor	%xmm0, %xmm0
 	movq	%rsi, %rdi
 	movl	%r9d, current_word_bits(%rip)
@@ -9109,12 +9385,12 @@ emit_program_c_ext:
 	movq	%rbx, %rcx
 	movl	$36, %edx
 	movl	$1, %esi
-	leaq	.LC201(%rip), %rdi
+	leaq	.LC211(%rip), %rdi
 	call	fwrite@PLT
 	movl	g_strict(%rip), %ecx
 	xorl	%edx, %edx
 	movq	%rbx, %rdi
-	leaq	.LC178(%rip), %rsi
+	leaq	.LC188(%rip), %rsi
 	testl	%ecx, %ecx
 	setne	%dl
 	xorl	%eax, %eax
@@ -9123,25 +9399,25 @@ emit_program_c_ext:
 	testl	%r13d, %r13d
 	movq	%rbx, %rdi
 	setne	%dl
-	leaq	.LC179(%rip), %rsi
+	leaq	.LC189(%rip), %rsi
 	xorl	%eax, %eax
 	call	fprintf@PLT
 	movl	%r12d, %edx
 	movq	%rbx, %rdi
 	xorl	%eax, %eax
-	leaq	.LC180(%rip), %rsi
+	leaq	.LC190(%rip), %rsi
 	call	fprintf@PLT
 	movl	$1, %esi
 	movq	%rbx, %rcx
 	movl	$19, %edx
-	leaq	.LC202(%rip), %rdi
+	leaq	.LC212(%rip), %rdi
 	call	fwrite@PLT
 	movl	g_use_curses(%rip), %esi
 	testl	%esi, %esi
-	jne	.L1660
+	jne	.L1701
 	cmpq	$0, 8+string_pool(%rip)
-	jne	.L1661
-.L1640:
+	jne	.L1702
+.L1681:
 	movq	%r14, %rsi
 	movq	%rbx, %rdi
 	call	emit_function_prototypes
@@ -9154,42 +9430,42 @@ emit_program_c_ext:
 	movq	%rbx, %rdi
 	call	emit_global_initializers
 	cmpq	$0, 8(%r14)
-	je	.L1637
+	je	.L1678
 	movl	$0, 12(%rsp)
 	xorl	%r15d, %r15d
 	xorl	%r13d, %r13d
-	jmp	.L1645
+	jmp	.L1686
 	.p2align 5
 	.p2align 4,,10
 	.p2align 3
-.L1642:
+.L1683:
 	addq	$1, %r15
 	cmpq	8(%r14), %r15
-	jnb	.L1662
-.L1645:
+	jnb	.L1703
+.L1686:
 	movq	(%r14), %rax
 	movq	(%rax,%r15,8), %rax
 	cmpl	$1, (%rax)
-	jne	.L1642
+	jne	.L1683
 	movq	8(%rax), %r12
 	leaq	.LC12(%rip), %rsi
 	movq	(%r12), %rdi
 	call	strcmp@PLT
 	testl	%eax, %eax
-	jne	.L1643
+	jne	.L1684
 	movq	%rbx, %rcx
 	movl	$19, %edx
 	movl	$1, %esi
 	movq	16(%r12), %r13
-	leaq	.LC193(%rip), %rdi
+	leaq	.LC203(%rip), %rdi
 	call	fwrite@PLT
 	movl	$1, 12(%rsp)
-.L1644:
+.L1685:
 	movq	%rbx, %rcx
 	movl	$6, %edx
 	movl	$1, %esi
 	addq	$1, %r15
-	leaq	.LC194(%rip), %rdi
+	leaq	.LC204(%rip), %rdi
 	call	fwrite@PLT
 	movq	%rbp, %rdx
 	movq	%r12, %rsi
@@ -9199,12 +9475,12 @@ emit_program_c_ext:
 	movl	$10, %edi
 	call	fputc@PLT
 	cmpq	8(%r14), %r15
-	jb	.L1645
-.L1662:
+	jb	.L1686
+.L1703:
 	movl	12(%rsp), %eax
 	testl	%eax, %eax
-	jne	.L1663
-.L1637:
+	jne	.L1704
+.L1678:
 	addq	$24, %rsp
 	.cfi_remember_state
 	.cfi_def_cfa_offset 56
@@ -9223,7 +9499,7 @@ emit_program_c_ext:
 	ret
 	.p2align 4,,10
 	.p2align 3
-.L1643:
+.L1684:
 	.cfi_restore_state
 	movq	%rbx, %rcx
 	movl	$12, %edx
@@ -9236,47 +9512,47 @@ emit_program_c_ext:
 	movq	%rbx, %rsi
 	movl	$40, %edi
 	call	fputc@PLT
-	jmp	.L1644
+	jmp	.L1685
 	.p2align 4,,10
 	.p2align 3
-.L1661:
+.L1702:
 	movq	%rbx, %rdi
 	call	emit_string_pool
 	movq	%rbx, %rsi
 	movl	$10, %edi
 	call	fputc@PLT
-	jmp	.L1640
+	jmp	.L1681
 	.p2align 4,,10
 	.p2align 3
-.L1660:
+.L1701:
 	movq	%rbx, %rcx
 	movl	$41, %edx
 	movl	$1, %esi
-	leaq	.LC203(%rip), %rdi
+	leaq	.LC213(%rip), %rdi
 	call	fwrite@PLT
 	cmpq	$0, 8+string_pool(%rip)
-	je	.L1640
-	jmp	.L1661
+	je	.L1681
+	jmp	.L1702
 	.p2align 4,,10
 	.p2align 3
-.L1663:
+.L1704:
 	movq	%rbx, %rcx
 	movl	$33, %edx
 	movl	$1, %esi
-	leaq	.LC195(%rip), %rdi
+	leaq	.LC205(%rip), %rdi
 	call	fwrite@PLT
 	movq	%rbx, %rcx
 	movl	$29, %edx
 	movl	$1, %esi
-	leaq	.LC196(%rip), %rdi
+	leaq	.LC206(%rip), %rdi
 	call	fwrite@PLT
 	movq	%rbx, %rcx
 	movl	$16, %edx
 	movl	$1, %esi
-	leaq	.LC197(%rip), %rdi
+	leaq	.LC207(%rip), %rdi
 	call	fwrite@PLT
 	movl	$2, %edx
-	leaq	.LC198(%rip), %rsi
+	leaq	.LC208(%rip), %rsi
 	movq	%rbx, %rdi
 	cmpq	%rdx, %r13
 	cmovbe	%r13, %rdx
@@ -9293,8 +9569,8 @@ emit_program_c_ext:
 	leaq	.LC27(%rip), %rdi
 	call	fwrite@PLT
 	testq	%r13, %r13
-	jne	.L1664
-.L1649:
+	jne	.L1705
+.L1690:
 	movq	%rbx, %rcx
 	movl	$3, %edx
 	movl	$1, %esi
@@ -9308,7 +9584,7 @@ emit_program_c_ext:
 	popq	%rbx
 	.cfi_def_cfa_offset 48
 	movl	$1, %esi
-	leaq	.LC118(%rip), %rdi
+	leaq	.LC122(%rip), %rdi
 	popq	%rbp
 	.cfi_def_cfa_offset 40
 	popq	%r12
@@ -9322,7 +9598,7 @@ emit_program_c_ext:
 	jmp	fwrite@PLT
 	.p2align 4,,10
 	.p2align 3
-.L1659:
+.L1700:
 	.cfi_restore_state
 	addq	$24, %rsp
 	.cfi_remember_state
@@ -9343,29 +9619,29 @@ emit_program_c_ext:
 	jmp	emit_program_c
 	.p2align 4,,10
 	.p2align 3
-.L1664:
+.L1705:
 	.cfi_restore_state
 	movq	%rbx, %rcx
 	movl	$12, %edx
 	movl	$1, %esi
-	leaq	.LC199(%rip), %rdi
+	leaq	.LC209(%rip), %rdi
 	call	fwrite@PLT
 	cmpq	$1, %r13
-	je	.L1649
+	je	.L1690
 	movq	%rbx, %rcx
 	movl	$17, %edx
 	movl	$1, %esi
-	leaq	.LC200(%rip), %rdi
+	leaq	.LC210(%rip), %rdi
 	call	fwrite@PLT
-	jmp	.L1649
+	jmp	.L1690
 	.cfi_endproc
-.LFE66:
+.LFE67:
 	.size	emit_program_c_ext, .-emit_program_c_ext
 	.section	.rodata
 	.align 16
-	.type	CSWTCH.181, @object
-	.size	CSWTCH.181, 24
-CSWTCH.181:
+	.type	CSWTCH.183, @object
+	.size	CSWTCH.183, 24
+CSWTCH.183:
 	.long	24
 	.long	25
 	.long	26
@@ -9373,97 +9649,97 @@ CSWTCH.181:
 	.long	22
 	.long	23
 	.section	.rodata.str1.1
-.LC204:
-	.string	"lchar"
-.LC205:
-	.string	"getchar"
-.LC206:
-	.string	"getchr"
-.LC207:
-	.string	"putchr"
-.LC208:
-	.string	"getstr"
-.LC209:
-	.string	"putstr"
-.LC210:
-	.string	"flush"
-.LC211:
-	.string	"reread"
-.LC212:
-	.string	"printn"
-.LC213:
-	.string	"putnum"
 .LC214:
-	.string	"print"
+	.string	"lchar"
 .LC215:
-	.string	"putchar"
+	.string	"getchar"
 .LC216:
-	.string	"abort"
+	.string	"getchr"
 .LC217:
-	.string	"free"
+	.string	"putchr"
 .LC218:
-	.string	"alloc"
+	.string	"getstr"
 .LC219:
-	.string	"open"
+	.string	"putstr"
 .LC220:
-	.string	"close"
+	.string	"flush"
 .LC221:
-	.string	"read"
+	.string	"reread"
 .LC222:
-	.string	"write"
+	.string	"printn"
 .LC223:
-	.string	"creat"
+	.string	"putnum"
 .LC224:
-	.string	"seek"
+	.string	"print"
 .LC225:
-	.string	"openr"
+	.string	"putchar"
 .LC226:
-	.string	"openw"
+	.string	"abort"
 .LC227:
-	.string	"fork"
+	.string	"free"
 .LC228:
-	.string	"wait"
+	.string	"alloc"
 .LC229:
-	.string	"execl"
+	.string	"open"
 .LC230:
-	.string	"execv"
+	.string	"close"
 .LC231:
-	.string	"chdir"
+	.string	"read"
 .LC232:
-	.string	"chmod"
+	.string	"write"
 .LC233:
-	.string	"chown"
+	.string	"creat"
 .LC234:
-	.string	"link"
+	.string	"seek"
 .LC235:
-	.string	"unlink"
+	.string	"openr"
 .LC236:
-	.string	"stat"
+	.string	"openw"
 .LC237:
-	.string	"fstat"
+	.string	"fork"
 .LC238:
-	.string	"time"
+	.string	"wait"
 .LC239:
-	.string	"ctime"
+	.string	"execl"
 .LC240:
-	.string	"getuid"
+	.string	"execv"
 .LC241:
-	.string	"setuid"
+	.string	"chdir"
 .LC242:
-	.string	"makdir"
+	.string	"chmod"
 .LC243:
-	.string	"mkdir"
+	.string	"chown"
 .LC244:
-	.string	"intr"
+	.string	"link"
 .LC245:
-	.string	"gtty"
+	.string	"unlink"
 .LC246:
-	.string	"stty"
+	.string	"stat"
 .LC247:
-	.string	"system"
+	.string	"fstat"
 .LC248:
-	.string	"usleep"
+	.string	"time"
 .LC249:
+	.string	"ctime"
+.LC250:
+	.string	"getuid"
+.LC251:
+	.string	"setuid"
+.LC252:
+	.string	"makdir"
+.LC253:
+	.string	"mkdir"
+.LC254:
+	.string	"intr"
+.LC255:
+	.string	"gtty"
+.LC256:
+	.string	"stty"
+.LC257:
+	.string	"system"
+.LC258:
+	.string	"usleep"
+.LC259:
 	.string	"argc"
 	.section	.data.rel.ro.local,"aw"
 	.align 32
@@ -9471,30 +9747,20 @@ CSWTCH.181:
 	.size	names.0, 416
 names.0:
 	.quad	.LC3
-	.quad	.LC204
-	.quad	.LC205
-	.quad	.LC206
-	.quad	.LC207
-	.quad	.LC208
-	.quad	.LC209
-	.quad	.LC210
-	.quad	.LC211
-	.quad	.LC68
-	.quad	.LC212
-	.quad	.LC213
 	.quad	.LC214
 	.quad	.LC215
-	.quad	.LC74
 	.quad	.LC216
 	.quad	.LC217
 	.quad	.LC218
 	.quad	.LC219
 	.quad	.LC220
 	.quad	.LC221
+	.quad	.LC65
 	.quad	.LC222
 	.quad	.LC223
 	.quad	.LC224
 	.quad	.LC225
+	.quad	.LC71
 	.quad	.LC226
 	.quad	.LC227
 	.quad	.LC228
@@ -9518,8 +9784,18 @@ names.0:
 	.quad	.LC246
 	.quad	.LC247
 	.quad	.LC248
-	.quad	.LC66
 	.quad	.LC249
+	.quad	.LC250
+	.quad	.LC251
+	.quad	.LC252
+	.quad	.LC253
+	.quad	.LC254
+	.quad	.LC255
+	.quad	.LC256
+	.quad	.LC257
+	.quad	.LC258
+	.quad	.LC59
+	.quad	.LC259
 	.quad	.LC24
 	.quad	0
 	.globl	g_libb_path
@@ -9542,101 +9818,101 @@ g_libb_path:
 	.local	current_program
 	.comm	current_program,8,8
 	.section	.rodata.str1.1
-.LC250:
-	.string	"break"
-.LC251:
-	.string	"case"
-.LC252:
-	.string	"const"
-.LC253:
-	.string	"continue"
-.LC254:
-	.string	"default"
-.LC255:
-	.string	"do"
-.LC256:
-	.string	"double"
-.LC257:
-	.string	"else"
-.LC258:
-	.string	"enum"
-.LC259:
-	.string	"extern"
 .LC260:
-	.string	"float"
+	.string	"break"
 .LC261:
-	.string	"for"
+	.string	"case"
 .LC262:
-	.string	"goto"
+	.string	"const"
 .LC263:
-	.string	"if"
+	.string	"continue"
 .LC264:
-	.string	"inline"
+	.string	"default"
 .LC265:
-	.string	"int"
+	.string	"do"
 .LC266:
-	.string	"long"
+	.string	"double"
 .LC267:
-	.string	"register"
+	.string	"else"
 .LC268:
-	.string	"restrict"
+	.string	"enum"
 .LC269:
-	.string	"short"
+	.string	"extern"
 .LC270:
-	.string	"signed"
+	.string	"float"
 .LC271:
-	.string	"sizeof"
+	.string	"for"
 .LC272:
-	.string	"static"
+	.string	"goto"
 .LC273:
-	.string	"struct"
+	.string	"if"
 .LC274:
-	.string	"switch"
+	.string	"inline"
 .LC275:
-	.string	"typedef"
+	.string	"int"
 .LC276:
-	.string	"union"
+	.string	"long"
 .LC277:
-	.string	"unsigned"
+	.string	"register"
 .LC278:
-	.string	"volatile"
+	.string	"restrict"
 .LC279:
-	.string	"while"
+	.string	"short"
 .LC280:
-	.string	"_Bool"
+	.string	"signed"
 .LC281:
-	.string	"_Complex"
+	.string	"sizeof"
 .LC282:
-	.string	"_Imaginary"
+	.string	"static"
 .LC283:
-	.string	"_Alignas"
+	.string	"struct"
 .LC284:
-	.string	"_Alignof"
+	.string	"switch"
 .LC285:
-	.string	"_Atomic"
+	.string	"typedef"
 .LC286:
-	.string	"_Generic"
+	.string	"union"
 .LC287:
-	.string	"_Noreturn"
+	.string	"unsigned"
 .LC288:
-	.string	"_Static_assert"
+	.string	"volatile"
 .LC289:
-	.string	"_Thread_local"
+	.string	"while"
 .LC290:
-	.string	"NULL"
+	.string	"_Bool"
 .LC291:
-	.string	"true"
+	.string	"_Complex"
 .LC292:
-	.string	"false"
+	.string	"_Imaginary"
 .LC293:
-	.string	"bool"
+	.string	"_Alignas"
 .LC294:
-	.string	"word"
+	.string	"_Alignof"
 .LC295:
-	.string	"B_PTR"
+	.string	"_Atomic"
 .LC296:
-	.string	"B_ADDR"
+	.string	"_Generic"
 .LC297:
+	.string	"_Noreturn"
+.LC298:
+	.string	"_Static_assert"
+.LC299:
+	.string	"_Thread_local"
+.LC300:
+	.string	"NULL"
+.LC301:
+	.string	"true"
+.LC302:
+	.string	"false"
+.LC303:
+	.string	"bool"
+.LC304:
+	.string	"word"
+.LC305:
+	.string	"B_PTR"
+.LC306:
+	.string	"B_ADDR"
+.LC307:
 	.string	"B_DEREF"
 	.section	.data.rel.ro.local
 	.align 32
@@ -9644,19 +9920,9 @@ g_libb_path:
 	.size	c_keywords, 424
 c_keywords:
 	.quad	.LC4
-	.quad	.LC250
-	.quad	.LC251
-	.quad	.LC3
-	.quad	.LC252
-	.quad	.LC253
-	.quad	.LC254
-	.quad	.LC255
-	.quad	.LC256
-	.quad	.LC257
-	.quad	.LC258
-	.quad	.LC259
 	.quad	.LC260
 	.quad	.LC261
+	.quad	.LC3
 	.quad	.LC262
 	.quad	.LC263
 	.quad	.LC264
@@ -9664,7 +9930,6 @@ c_keywords:
 	.quad	.LC266
 	.quad	.LC267
 	.quad	.LC268
-	.quad	.LC141
 	.quad	.LC269
 	.quad	.LC270
 	.quad	.LC271
@@ -9674,8 +9939,8 @@ c_keywords:
 	.quad	.LC275
 	.quad	.LC276
 	.quad	.LC277
-	.quad	.LC21
 	.quad	.LC278
+	.quad	.LC151
 	.quad	.LC279
 	.quad	.LC280
 	.quad	.LC281
@@ -9685,6 +9950,7 @@ c_keywords:
 	.quad	.LC285
 	.quad	.LC286
 	.quad	.LC287
+	.quad	.LC21
 	.quad	.LC288
 	.quad	.LC289
 	.quad	.LC290
@@ -9695,6 +9961,16 @@ c_keywords:
 	.quad	.LC295
 	.quad	.LC296
 	.quad	.LC297
+	.quad	.LC298
+	.quad	.LC299
+	.quad	.LC300
+	.quad	.LC301
+	.quad	.LC302
+	.quad	.LC303
+	.quad	.LC304
+	.quad	.LC305
+	.quad	.LC306
+	.quad	.LC307
 	.quad	0
 	.local	name_map
 	.comm	name_map,24,16

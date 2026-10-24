@@ -77,6 +77,8 @@ def main():
                           '--compiler', str(compiler)], 'exec runtime') and ok
         ok = checked_run([sys.executable, str(root / 'tests/test_time_runtime.py'),
                           '--compiler', str(compiler)], 'time runtime') and ok
+        ok = checked_run([sys.executable, str(root / 'tests/test_library_bindings.py'),
+                          '--compiler', str(compiler)], 'library binding callbacks') and ok
         ok = checked_run([sys.executable, str(root / 'tests/test_library_names.py'),
                           '--compiler', str(compiler)], 'library names') and ok
         ok = checked_run([sys.executable, str(root / 'tests/test_putchar_runtime.py'),

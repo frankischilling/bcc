@@ -218,3 +218,15 @@ through argument addresses, recursion, nested calls, separately compiled source
 files, captured callees, and calls through both source and runtime function
 values. The native tests and counted-argument example cover supplied arguments;
 zero-filling missing arguments is tested only as a host/bootstrap extension.
+
+Library-binding tests replace functions and data cells, change callbacks during
+formatting, and link library-name providers as separate objects. They check
+negative-number delegation and the host line-input return contracts. Native
+coverage exercises the same supplied callbacks and verifies the B-written library
+through its full-system rebuild.
+
+An old-layout C object guards the three-field call registry against accidental
+layout expansion. Its adjacent data must not be interpreted as a named binding.
+Both linked and inline runtime tests exercise that object. This is a regression
+check for the previous call-frame layout, not a promise of general object-ABI
+compatibility across compiler versions.

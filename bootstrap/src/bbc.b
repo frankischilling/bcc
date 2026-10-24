@@ -797,6 +797,11 @@ function_name(name) {
     return(scat("__bbc_function_",name));
 }
 
+binding_name(name) {
+    if(streq(name,"__bbc_id_char"))return("char");
+    return(name);
+}
+
 call_name(name) {
     if (has_local(name)) return(name);
     if (streq(name, "main")) return("__b_user_main");
@@ -976,9 +981,10 @@ primary() {
         } else if ((TOK != 30) & !has_local(name) & has_function(name)) {
             buf_str(b, global_name(name)); buf_str(b, "[0]");
         } else if ((TOK != 30) & !has_local(name) & !has_global(name) & !streq(call_name(name), name)) {
-            buf_str(b, "B_FUNCTION(");
+            buf_str(b, "__bcc_library_value(*"");c_escape_to(b,binding_name(name));
+            buf_str(b, "*",B_FUNCTION(");
             buf_str(b, call_name(name));
-            buf_ch(b, ')');
+            buf_str(b, "))");
         } else if (has_local(name)) {
             buf_ch(b, '('); buf_str(b, local_name(name)); buf_ch(b, ')');
         } else buf_str(b, name);
@@ -1015,8 +1021,19 @@ source_call(target, arguments, count) {
     return(buf_take(b));
 }
 
+library_call(name, arguments, count, fallback) {
+    auto b;
+    b=buf_new(256);
+    buf_str(b,"({word **__binding=__bcc_source_binding(*"");
+    c_escape_to(b,binding_name(name));
+    buf_str(b,"*" );__binding?");
+    buf_str(b,source_call("**__binding",arguments,count));
+    buf_ch(b,':');buf_str(b,fallback);buf_str(b,";})");
+    return(buf_take(b));
+}
+
 postfix() {
-    auto lhs, b, first, name, cname, idx, arg, narg, fmt, wcstr, target;
+    auto lhs, b, first, name, cname, idx, arg, narg, fmt, wcstr, target, raw, library;
     lhs = primary();
     while (1) {
         if (TOK == 30) {
@@ -1035,6 +1052,10 @@ postfix() {
                 lhs=source_call(target,buf_take(b),narg);
                 continue;
             }
+            library=0;
+            if(!streq(cname,name)) if(slen(cname)>2)
+                if((char(cname,0)=='b') & (char(cname,1)=='_')) library=1;
+            raw=0;if(library)raw=buf_new(256);
             b = buf_new(256);
             if (wrap_malloc(name)) buf_str(b, "B_PTR(");
             if (has_function(name)) {
@@ -1054,6 +1075,7 @@ postfix() {
                 if (!first) buf_str(b, ", ");
                 if (!has_function(name) & streq(name, "fprintf") & (narg == 1) & (TOK == 3)) fmt = TTEXT;
                 arg = expr(2);
+                if(raw){if(narg)buf_ch(raw,',');buf_str(raw,arg);}
                 wcstr = wrap_arg_cstr(name, narg);
                 if (!has_function(name) & streq(name, "fprintf") & (narg == 1)) wcstr = 1;
                 if (!has_function(name) & streq(name, "fprintf") & (narg >= 2) & fmt_arg_is_s(fmt, narg - 2)) wcstr = 1;
@@ -1074,6 +1096,7 @@ postfix() {
             buf_ch(b, ')');
             if (wrap_malloc(name)) buf_ch(b, ')');
             lhs = buf_take(b);
+            if(library)lhs=library_call(name,buf_take(raw),narg,lhs);
         } else if (TOK == 34) {
             next();
             idx = expr(1);
@@ -1547,6 +1570,10 @@ emit_global_storage(name, size, values, count, vector) {
     emit("word "); emit(global_name(name)); emit("[");
     if (vector | !count) emit("1"); else emit(itoa(count));
     emitln("];");
+    emit("static struct __bcc_library_binding __bbc_data_");emit(name);emit("={*"");
+    c_escape_to(OUT,binding_name(name));emit("*",");emit(global_name(name));emitln(",0,0};");
+    emit("static void __attribute__((constructor(101))) __bbc_bind_");emit(name);
+    emit("(void){__bcc_register_binding(&__bbc_data_");emit(name);emitln(");}");
     if (!vector & !count) return(0);
     emit("static void __attribute__((constructor(102))) __bbc_init_");
     emit(name); emitln("(void) {");
@@ -1643,8 +1670,11 @@ global_or_func() {
         emit("[1] = {B_FUNCTION("); emit(function_name(name)); emitln(")};");
         emit("static struct __bcc_source_function __bbc_node_");emit(name);
         emit("={(void**)");emit(function_name(name));emitln(",0,0};");
+        emit("static struct __bcc_library_binding __bbc_binding_");emit(name);emit("={*"");
+        c_escape_to(OUT,binding_name(name));emit("*",");emit(global_name(name));emitln(",0,0};");
         emit("static void __attribute__((constructor(101))) __bbc_register_");emit(name);
-        emit("(void){__bcc_register_function(&__bbc_node_");emit(name);emitln(");}");
+        emit("(void){__bcc_register_function(&__bbc_node_");emit(name);emit(");");
+        emit("__bcc_register_binding(&__bbc_binding_");emit(name);emitln(");}");
         emit("word ");
         emit(function_name(name));
         emit("(");

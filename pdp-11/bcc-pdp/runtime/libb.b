@@ -48,14 +48,14 @@ getstr(s) {
 	}
 }
 
-/* printf(fmt, x1..x9) - kbman §9.3.  Format directives:
+/* printf walks supplied arguments from x1, as in kbman §9.3. Directives:
  *   %d decimal, %o octal, %c character, %s B-terminated string.
  * Calling convention: cgcll reverses the pushed args so leftmost ends up
  * at TOS.  Arg layout in callee (r5 frame):  fmt at r5+4, x1 at r5+6,
  * x2 at r5+8, ...  Walking adx=&x1 by +1 advances to next user arg.
  * B pointers count words; each physical PDP-11 word is two bytes.
  */
-printf(fmt, x1, x2, x3, x4, x5, x6, x7, x8, x9) {
+printf(fmt, x1) {
 	extrn printn, char, putchar;
 	auto adx, x, c, i, j;
 
@@ -75,12 +75,16 @@ loop:
 	c = char(fmt, i);
 	i = i + 1;
 
-	if (c == 'd') {
-		printn(x, 10);
-		goto loop;
-	}
-	if (c == 'o') {
-		printn(x, 8);
+	if ((c == 'd') | (c == 'o')) {
+        /* Supply the magnitude to replacement printn functions. The minimum
+         * word retains the negative-number extension: its magnitude cannot
+         * be represented as a positive word. */
+        if (x < 0) if (-x >= 0) {
+            putchar('-');
+            x = -x;
+        }
+        if (c == 'd') printn(x, 10);
+        else printn(x, 8);
 		goto loop;
 	}
 	if (c == 'c') {
