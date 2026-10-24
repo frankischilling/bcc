@@ -208,3 +208,7 @@ on the compiler, then instruments generated arithmetic programs. Inline-runtime
 cases instrument their runtime too; the cached shared runtime is built separately
 and is not instrumented by the extra compiler flag. Leak detection is disabled
 for these runs.
+
+Command-replay tests include empty arguments, long argument lists, fallback to
+standard input, and repeated replacement of unread input under a small descriptor
+limit. They run against linked and inline runtimes and all bootstrap stages.

@@ -60,6 +60,8 @@ test: stage3
 
 	@set -e; for stage in 1 2 3; do python3 ../tests/test_word_arithmetic.py --bootstrap --compiler build/stage$$stage/bbc; done
 
+	@set -e; for stage in 1 2 3; do python3 ../tests/test_reread_runtime.py --bootstrap --compiler build/stage$$stage/bbc; done
+
 clean:
 	rm -rf $(BUILD)
 	rm -f src/*.b.c

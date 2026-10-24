@@ -361,48 +361,35 @@ word b_argv(word i) {
 }
 
 word b_reread(void) {
-    if (__b_argc <= 1) {
-        return 0;
-    }
+    if (__b_argc <= 1) return 0;
 
-    size_t total = 1;
-    for (int i = 0; i < __b_argc; i++) {
-        total += strlen(__b_argv[i]);
-        if (i + 1 < __b_argc) total += 1;
-    }
-    
-    char *buf = (char*)malloc(total + 1);
-    if (!buf) {
-        fprintf(stderr, "reread: out of memory\n");
+    /* A pipe can block before its reader starts. Stage the replay in an
+       anonymous seekable file instead, preserving empty argument fields. */
+    FILE *stream = tmpfile();
+    if (!stream) {
+        fprintf(stderr, "reread: cannot create replay file\n");
         exit(1);
     }
-    
-    size_t pos = 0;
-    for (int i = 0; i < __b_argc; i++) {
-        size_t len = strlen(__b_argv[i]);
-        memcpy(buf + pos, __b_argv[i], len);
-        pos += len;
-        if (i + 1 < __b_argc) buf[pos++] = ' ';
+    for (int i = 0; i < __b_argc; ++i) {
+        size_t length = strlen(__b_argv[i]);
+        if (fwrite(__b_argv[i], 1, length, stream) != length ||
+            fputc(i + 1 < __b_argc ? ' ' : '\n', stream) == EOF)
+            goto failed;
     }
-    buf[pos++] = '\n';
-    buf[pos] = '\0';
-    
-    int p[2];
-    if (pipe(p) != 0) {
-        free(buf);
-        fprintf(stderr, "reread: pipe failed\n");
-        exit(1);
-    }
-    ssize_t wn = write(p[1], buf, pos);
-    (void)wn;
-    close(p[1]);
-    free(buf);
-    
-    if (b_rd_fd != 0 && b_rd_fd != p[0]) close(b_rd_fd);
-    b_rd_fd = p[0];
-    b_rd_unit = (word)0;
+    if (fflush(stream) != 0 || fseek(stream, 0, SEEK_SET) != 0) goto failed;
+    int descriptor = dup(fileno(stream));
+    if (descriptor < 0) goto failed;
+    fclose(stream);
     __b_sync_rd();
+    if (b_rd_fd != 0) close(b_rd_fd);
+    b_rd_fd = descriptor;
+    b_rd_unit = (word)descriptor;
     return 0;
+
+failed:
+    fclose(stream);
+    fprintf(stderr, "reread: cannot stage command line\n");
+    exit(1);
 }
 
 /* File I/O */

@@ -30,6 +30,19 @@ implements every host helper. The host ABI declarations are in
 [`libb.h`](../lib/libb.h), and source-name binding is in
 [`src/emitter.c`](../src/emitter.c).
 
+## Host command-line replay
+
+`reread()` makes subsequent character input replay the program name and
+arguments, joined with spaces and followed by a newline. After that input
+ends, reading resumes from standard input. Empty arguments preserve their
+space-separated positions; shell quoting is not reconstructed. With no
+arguments after the program name, the helper leaves input unchanged.
+
+Calling it again replaces any unread replay. It uses an anonymous seekable
+file, so long argument lists do not depend on pipe capacity and repeated calls
+do not accumulate open descriptors. This is a host helper, not a B72 library
+entry.
+
 ## Library names vary by date
 
 The [November 1971 library list](https://www.nokia.com/bell-labs/about/dennis-m-ritchie/man71.pdf#page=15)
