@@ -85,6 +85,7 @@ jobs:
           python3 pdp-11/bcc-pdp/tests/golden.py
           python3 pdp-11/bcc-pdp/tests/runtime_selection.py
           python3 pdp-11/bcc-pdp/tests/library_elision.py
+          python3 pdp-11/bcc-pdp/tests/exec_selection.py
           python3 pdp-11/bcc-pdp/tests/build_lock.py
           python3 tests/test_docs_examples.py --native
           python3 tests/test_identifier_bytes.py --native
@@ -116,6 +117,7 @@ jobs:
           make -C pdp-11/bcc-pdp v1-run B=tests/run/t99_open_modes.b
           make -C pdp-11/bcc-pdp v1-run B=tests/run/t34_fork.b
           make -C pdp-11/bcc-pdp v1-run B=tests/run/t35_execv.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t111_exec_override.b
           make -C pdp-11/bcc-pdp v1-run B=tests/v1/tty.b
           make -C pdp-11/bcc-pdp v1-run B=tests/v1/argv_many.b
           make -C pdp-11/bcc-pdp v1-run B=tests/v1/console_prompt.b

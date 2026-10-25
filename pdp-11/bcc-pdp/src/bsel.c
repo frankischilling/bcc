@@ -11,6 +11,7 @@ sellen 0;
 seltail 0;
 selpart 0;
 uselib 0;
+usexec 0;
 
 selclr() {
     extern selpos, sellen, seltail, selpart;
@@ -76,18 +77,23 @@ selstr(s, i, word) char s[], word[]; {
     return(!selchr(s[i]));
 }
 
-selref(s) char s[]; {
+selref(s, which) char s[]; {
     extern seltail, selpart;
-    int seltail, selpart, i, prev;
+    int seltail, selpart, i, prev, which;
     /* A split line is ambiguous; retaining the library is always safe. */
     if (seltail | selpart) return(1);
     i = 0; prev = 0;
     while (s[i]) {
         if (s[i] == '_') if (!selchr(prev)) {
-            if (selstr(s, i, "_printn")) return(1);
-            if (selstr(s, i, "_printf")) return(1);
-            if (selstr(s, i, "_getstr")) return(1);
-            if (selstr(s, i, "_ctime")) return(1);
+            if (which) {
+                if (selstr(s, i, "_execv")) return(1);
+                if (selstr(s, i, "_execl")) return(1);
+            } else {
+                if (selstr(s, i, "_printn")) return(1);
+                if (selstr(s, i, "_printf")) return(1);
+                if (selstr(s, i, "_getstr")) return(1);
+                if (selstr(s, i, "_ctime")) return(1);
+            }
         }
         prev = s[i++];
     }
@@ -95,15 +101,16 @@ selref(s) char s[]; {
 }
 
 selfns(path) char path[]; {
-    extern sellin, selnam, selnum, uselib;
+    extern sellin, selnam, selnum, uselib, usexec;
     char sellin[], selnam[], name[10];
-    int selnum, uselib, fd, j;
-    selnum = 0; uselib = 0;
+    int selnum, uselib, usexec, fd, j;
+    selnum = 0; uselib = 0; usexec = 0;
     fd = open(path, 0);
     if (fd < 0) failmsg("b: no program assembly\n");
     selclr();
     while (selget(fd)) {
-        if (selref(sellin)) uselib = 1;
+        if (selref(sellin, 0)) uselib = 1;
+        if (selref(sellin, 1)) usexec = 1;
         if (sellab(sellin, name)) {
             if (selnum >= 200) failmsg("b: too many external definitions\n");
             j = 0;
@@ -113,6 +120,26 @@ selfns(path) char path[]; {
         }
     }
     close(fd);
+}
+
+/* Library calls can need exec even when the program does not name it. */
+selfex(path) char path[]; {
+    extern sellin, usexec;
+    char sellin[];
+    int usexec, fd;
+    fd = open(path, 0);
+    if (fd < 0) failmsg("b: missing runtime assembly\n");
+    selclr();
+    while (selget(fd)) if (selref(sellin, 1)) usexec = 1;
+    close(fd);
+}
+
+selmark(s, name) char s[], name[]; {
+    int i;
+    i = 0;
+    while (name[i]) { if (s[i] != name[i]) return(0); i++; }
+    while (s[i] == ' ' | s[i] == '\t' | s[i] == '\r' | s[i] == '\n') i++;
+    return(s[i] == 0);
 }
 
 selhas() {
@@ -133,26 +160,37 @@ selhas() {
 }
 
 /* Return zero when the original file can be used without making a copy. */
-selfil(path, dest) char path[], dest[]; {
+selfil(path, dest, omit) char path[], dest[]; {
     extern sellin;
     char sellin[];
-    int fd, out, n, found;
+    int fd, out, n, found, omit, drop;
     fd = open(path, 0);
     if (fd < 0) failmsg("b: missing runtime assembly\n");
-    found = 0;
+    found = omit;
     selclr();
-    while (selget(fd)) if (selhas()) { found = 1; break; }
+    if (!found) while (selget(fd)) if (selhas()) { found = 1; break; }
     if (!found) { close(fd); return(0); }
     if (seek(fd, 0, 0) < 0) failmsg("b: cannot rewind runtime\n");
     out = creat(dest, 016);
     if (out < 0) failmsg("b: cannot create selected runtime\n");
-    selclr();
+    selclr(); drop = 0;
     while (n = selget(fd)) {
-        if (!selhas()) if (write(out, sellin, n) != n) {
+        if (omit) {
+            if (selmark(sellin, "/ bcc-exec-begin")) {
+                if (drop) { unlink(dest); badout("b: nested exec runtime group\n"); }
+                drop = 1; continue;
+            }
+            if (selmark(sellin, "/ bcc-exec-end")) {
+                if (!drop) { unlink(dest); badout("b: unmatched exec runtime end\n"); }
+                drop = 0; continue;
+            }
+        }
+        if (!drop) if (!selhas()) if (write(out, sellin, n) != n) {
             close(fd); close(out); unlink(dest);
             failmsg("b: runtime write failed\n");
         }
     }
+    if (drop) { unlink(dest); badout("b: unterminated exec runtime group\n"); }
     close(fd);
     if (close(out)) { unlink(dest); badout("b: runtime close failed\n"); }
     return(1);

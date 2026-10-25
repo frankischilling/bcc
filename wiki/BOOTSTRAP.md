@@ -96,7 +96,7 @@ where it is no longer used must be recorded.
 
 [`pdp-11/bcc-pdp/bootstrap`](../pdp-11/bcc-pdp/bootstrap/README.md) contains
 an experimental B-written resolver. Its output, diagnostics, and success or
-failure agree with the native C resolver in 363 host-side comparisons across
+failure agree with the native C resolver in 366 host-side comparisons across
 the 16-bit, 32-bit, and host-word models. The frontend rejects another 23
 fixtures before they reach the resolver; those are reported separately.
 
@@ -114,8 +114,8 @@ An eight-operation B-written paging experiment now runs inside Unix V1.
 It counts to 1,000 and fetches an instruction operand across a 512-byte code
 page boundary. It reserves 3,072 data cells and checks the last cell after the loop.
 Its complete test image, including its fixture writer and primitive
-runtime, occupies 12,332 bytes. Omitting the unused B-written library saves
-4,396 bytes; linking it would exceed the process limit. Calls, local frames, the remaining
+runtime, occupies 11,528 bytes. The unused B-written library and exec helpers add 4,396 and 804 bytes
+respectively; linking both would exceed the process limit. Calls, local frames, the remaining
 operators, and the instruction encoder still need implementation. This
 makes paged compact code a candidate for further work, not an established
 compiler bootstrap.

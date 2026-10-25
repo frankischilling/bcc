@@ -12,7 +12,7 @@ import struct
 import sys
 import tempfile
 from apout_image import native_image, test_image
-from runtime_selection import select_runtime, needs_b_library
+from runtime_selection import select_runtime, needs_b_library, select_primitive_runtime
 
 
 @contextlib.contextmanager
@@ -72,7 +72,11 @@ def main():
         program = (work/'program.s').read_bytes()
         for name in ('bmain.s', 'brt.s', 'libb.s'):
             runtime = runtimes[name]
-            if name != 'bmain.s': runtime = select_runtime(program, runtime)
+            if name == 'brt.s':
+                library = runtimes['libb.s'] if needs_b_library(program) else b''
+                runtime = select_primitive_runtime(program, runtime, library)
+            elif name == 'libb.s':
+                runtime = select_runtime(program, runtime)
             (work/name).write_bytes(runtime)
         assembly = ['bmain.s', 'brt.s']
         if needs_b_library(program):

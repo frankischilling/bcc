@@ -222,8 +222,9 @@ Both the host runner and the native driver select matching public labels.
 When the program references none of `printn`, `printf`, `getstr`, or `ctime`,
 the driver and fast runner omit the whole B-written library. References,
 address constants, and source definitions of those names all retain it;
-ambiguous long assembly lines retain it too. The primitive runtime remains
-linked. This is not general archive loading or per-function dead-code
+ambiguous long assembly lines retain it too. Primitive exec routines and their private buffers are also omitted when
+neither the program nor the retained library names them. Shared pathname
+helpers remain linked. This is not general archive loading or per-function dead-code
 removal: retained library bodies keep their layout.
 
 ## Direct reads

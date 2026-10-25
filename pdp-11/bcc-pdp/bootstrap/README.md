@@ -67,9 +67,9 @@ compiles and runs it inside Unix V1 and requires `OK` as its exact output.
 
 The test reserves 3,072 data cells, checks that the last cell survives the
 loop, and uses a separate 512-byte code cache. The complete test image,
-including its fixture writer and primitive runtime, occupies 12,332 bytes
-with the current seed. The compiler omits the unused B-written library;
-linking that library would add 4,396 bytes and put this test over the limit.
+including its fixture writer and primitive runtime, occupies 11,528 bytes
+with the current seed. The compiler omits the unused B-written library (4,396 bytes) and exec
+helpers (804 bytes). Linking both would put this test over the limit.
 Calls, local frames, the remaining operators, and a B-written instruction
 encoder are not implemented by this experiment. This is not a size estimate
 for a complete B interpreter.

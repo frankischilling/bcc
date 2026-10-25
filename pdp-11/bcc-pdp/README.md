@@ -248,3 +248,10 @@ This saves 4,396 bytes for a primitives-only program with the current seed.
 It does not change the language's table or stack limits, and it is not a
 general-purpose linker. Long assembly lines that the native scanner cannot
 classify in one piece conservatively retain the library.
+
+The driver also omits the `execv`/`execl` routines and their private argument
+buffers when neither the program nor the retained B library references them.
+References through saved addresses and source-defined cells keep the group.
+The shared pathname conversion routines remain available to other calls.
+This saves another 804 bytes without changing the limits of programs that
+use exec. Matching checks cover both selectors and the library dependency.

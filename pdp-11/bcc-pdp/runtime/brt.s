@@ -57,8 +57,6 @@ sfstat  = 28.
 .globl	_time
 .globl	_stty
 .globl	_gtty
-.globl	_execl
-.globl	_execv
 .globl	_mkdir
 .globl	_makdir
 
@@ -570,6 +568,9 @@ _time:
 	clr	r0
 	rts	pc
 
+/ bcc-exec-begin
+.globl	_execv
+.globl	_execl
 / B72 execv takes a counted vector, not a zero-terminated B vector.
 _execv:
 	.+2
@@ -635,6 +636,8 @@ _execl:
 	mov	$-1, r0
 	rts	pc
 
+/ bcc-exec-end
+
 / Convert a B byte string to NUL-terminated syscall storage.
 / R0 is a B word address, R1 a byte destination, R2 remaining bytes; R4 and R5 are preserved.
 .path1:
@@ -667,10 +670,12 @@ _execl:
 	sec
 	rts	pc
 .even
+/ bcc-exec-begin
 .ecnt: 0
 .evp: 0
 .earg: .=.+130.
 .estr: .=.+512.
+/ bcc-exec-end
 .bp1: .=.+256.
 .bp2: .=.+256.
 

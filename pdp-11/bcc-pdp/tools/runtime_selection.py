@@ -24,3 +24,38 @@ def needs_b_library(program):
     lines = program.split(b"\n")
     split_line = any(len(line) >= 1039 for line in lines[:-1]) or len(lines[-1]) > 1039
     return split_line or B_LIBRARY_REFERENCE.search(program) is not None
+
+
+EXEC_REFERENCE = re.compile(rb'(?<![A-Za-z0-9_])_(?:execl|execv)(?![A-Za-z0-9_])')
+
+
+def needs_exec_runtime(program, library=b''):
+    for text in (program, library):
+        lines = text.split(b"\n")
+        split_line = any(len(line) >= 1039 for line in lines[:-1]) or len(lines[-1]) > 1039
+        if split_line or EXEC_REFERENCE.search(text) is not None:
+            return True
+    return False
+
+
+def select_primitive_runtime(program, runtime, library=b''):
+    selected = select_runtime(program, runtime)
+    if needs_exec_runtime(program, library):
+        return selected
+    output = []
+    dropping = False
+    for line in selected.splitlines(keepends=True):
+        marker = line.rstrip(b" \t\r\n")
+        if marker == b"/ bcc-exec-begin":
+            if dropping:
+                raise ValueError('nested exec runtime group')
+            dropping = True
+        elif marker == b"/ bcc-exec-end":
+            if not dropping:
+                raise ValueError('unmatched exec runtime end')
+            dropping = False
+        elif not dropping:
+            output.append(line)
+    if dropping:
+        raise ValueError('unterminated exec runtime group')
+    return b''.join(output)
