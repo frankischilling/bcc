@@ -342,3 +342,32 @@ boot check the executable independently. Further guest cases close descriptor
 Allow more than half an hour for the combined guest build. Failure images
 and the original error are saved under
 `pdp-11/bcc-pdp/build/toolchain-v1-failures`.
+
+
+For the full source rebuild inside Unix V1, run:
+
+```sh
+python3 pdp-11/bcc-pdp/bootstrap/test_toolchain_v1.py --self-test
+```
+
+This replaces the small-program check with rebuilding all seven instruction
+images and the native driver and execution engine from their B sources. It
+also regenerates the two runtime templates and the B library assembly. Each
+of these twelve outputs is compared with the seed inside the guest and again
+from the disk image on the host. Candidate files are removed before the run;
+the check cannot pass by finding an old copy. A successful stage prints
+`BCC_STAGE name` in the captured guest transcript.
+
+Allow many hours. The default execution deadline is 86,400 seconds; use
+`--run-timeout SECONDS` to change it. The test holds the native build lock
+while the guest is running, so use a separate checkout if other native tests
+must run at the same time. Failures retain the runner source, expected
+transcript, seed manifest, and disk images in the failure directory above.
+The short harness checks run with `test_rebuild_harness.py`; they verify the
+comparison routine and test plan, not the full guest rebuild.
+
+The seed and the success-only test entry still use the existing C toolchain.
+The rebuild itself goes through the B driver and its B-maintained components.
+A matching result proves that this source snapshot reproduces its seed; it
+does not establish compiler correctness, remove the host toolchain's separate
+C dependency, or install the experimental driver as `/bin/b`.

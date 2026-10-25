@@ -218,3 +218,12 @@ regenerating them with the B driver. It then compiles and runs a program,
 checks output modes, and tests failed passes and protected paths. The isolated
 application root contains no C compiler or assembler. Seed creation and
 independent byte references still use the existing tools outside that root.
+
+
+The in-system version is `test_toolchain_v1.py`. Its optional `--self-test`
+mode rebuilds every toolchain component from B inside Unix V1, with exact
+comparisons in the guest and from the resulting disk image. This can take
+many hours and holds the native build lock. See the
+[testing guide](../../../docs/testing.md#b-driven-toolchain-checks) for the
+timeout, retained failure files, and distinction between the seed and the
+rebuild.

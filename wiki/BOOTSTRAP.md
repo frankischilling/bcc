@@ -201,6 +201,14 @@ compares the runtime and executable bytes from disk, and executes the result.
 That verifies the construction path, not a complete in-guest rebuild of every
 toolchain source or the trustworthiness of the original seed.
 
+The optional `test_toolchain_v1.py --self-test` check rebuilds all seven
+instruction images and both native executables from B inside Unix V1. It
+also regenerates the two runtime templates and library assembly. All twelve
+outputs must match in guest-side comparisons and independent disk-file reads.
+This is a many-hour verification command, not an assertion that the full
+rebuild has passed. The [testing guide](../docs/testing.md#b-driven-toolchain-checks)
+describes its deadline and retained failure evidence.
+
 The driver expects a caller-owned working directory and short guest paths.
 It is experimental, not the installed `/bin/b`. The host compiler and bccasm
 still need a native-output backend and B-maintained runtime work before they

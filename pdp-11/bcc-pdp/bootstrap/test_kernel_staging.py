@@ -18,7 +18,7 @@ class GuestFailure(RuntimeError):
     pass
 
 
-def check_staging(filename, populated):
+def check_staging(filename, populated, self_test=False):
     spec = importlib.util.spec_from_file_location('kernel_case', ROOT / filename)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -31,7 +31,7 @@ def check_staging(filename, populated):
         saved = {}
         if populated:
             target.mkdir(parents=True)
-            for name in ('code.vm', 'heap.vm', 'input.b', 'raw.ic', 'code.ic', 'input.ic', 'out.vm', 'out.s', 'input.s', 'out', 'engine', 'front.vm', 'resolve', 'codegen', 'select', 'runtime', 'image', 'encoder', 'libb.b', 'bmain.s', 'brt.s', 'libb.s', 'prog.s', 'selrt.s', 'sellib.s', 'done', 'longout'):
+            for name in ('code.vm', 'heap.vm', 'input.b', 'raw.ic', 'code.ic', 'input.ic', 'out.vm', 'out.s', 'input.s', 'out', 'engine', 'front.vm', 'resolve', 'codegen', 'select', 'runtime', 'image', 'encoder', 'libb.b', 'bmain.s', 'brt.s', 'libb.s', 'prog.s', 'selrt.s', 'sellib.s', 'done', 'longout', 'driver', 'bf.b', 'br.b', 'bg.b', 'bs.b', 'rt.b', 'bi.b', 'be.b', 'vm.b', 'bdrv.b', 'rstart', 'rprim', 'rlib', 'fron.new', 'reso.new', 'code.new', 'sele.new', 'runt.new', 'imag.new', 'enco.new', 'drv.new', 'eng.new'):
                 path = target / name
                 path.write_bytes(('original ' + name).encode())
                 path.chmod(0o640)
@@ -44,6 +44,13 @@ def check_staging(filename, populated):
                 if filename == 'test_toolchain_v1.py':
                     assert (target / 'engine').is_file()
                     assert not (target / 'heap.vm').exists()
+                    if self_test:
+                        for name in ('fron.new', 'reso.new', 'code.new', 'sele.new', 'runt.new', 'imag.new', 'enco.new', 'drv.new', 'eng.new'):
+                            assert not (target / name).exists()
+                        assert '--run-timeout=86400' in command
+                        assert kwargs['timeout'] == 86700
+                        assert (target / 'bf.b').is_file()
+                        assert (target / 'rstart').is_file()
                 else:
                     assert (target / 'code.vm').is_file()
                     assert (target / 'heap.vm').read_bytes() == bytes(16384)
@@ -67,7 +74,7 @@ def check_staging(filename, populated):
                 def seed_build(path):
                     path.mkdir()
                     (path / 'bdrv.b').write_text('main(){return(0);}')
-                    for name in ('engine', 'front.vm', 'resolve', 'codegen', 'select', 'runtime', 'image', 'encoder', 'libb.b', 'bmain.s', 'brt.s', 'libb.s'):
+                    for name in ('engine', 'front.vm', 'resolve', 'codegen', 'select', 'runtime', 'image', 'encoder', 'libb.b', 'bmain.s', 'brt.s', 'libb.s', 'driver', 'bf.b', 'br.b', 'bg.b', 'bs.b', 'rt.b', 'bi.b', 'be.b', 'vm.b'):
                         (path / name).write_bytes(b'reference')
                 stack.enter_context(patch.object(module, 'build', seed_build))
             if hasattr(module, 'engine_source'):
@@ -81,6 +88,8 @@ def check_staging(filename, populated):
             if hasattr(module, 'encode'):
                 stack.enter_context(patch.object(module, 'encode', lambda source: (b'image', 0, 0)))
             arguments = [filename]
+            if self_test:
+                arguments.append('--self-test')
             if filename == 'test_passes_v1.py':
                 arguments += ['--case', 'calls', '--failure-dir', str(base / 'failures')]
             stack.enter_context(patch.object(sys, 'argv', arguments))
@@ -110,6 +119,8 @@ def main():
     for filename in ('test_passes_v1.py', 'test_codegen_v1.py', 'test_vm_v1.py', 'test_vm_v1_limits.py', 'test_image_v1.py', 'test_toolchain_v1.py'):
         for populated in (False, True):
             check_staging(filename, populated)
+    for populated in (False, True):
+        check_staging('test_toolchain_v1.py', populated, self_test=True)
     workflow = (PROJECT / '.github/workflows/conformance.yml').read_text()
     count = 0
     for line in workflow.splitlines():
@@ -122,7 +133,7 @@ def main():
             count += 1
     assert count
     print(f'PASS: workflow rejection expectations ({count} fixtures)')
-    print('Results: 13 passed, 0 failed')
+    print('Results: 15 passed, 0 failed')
     return 0
 
 

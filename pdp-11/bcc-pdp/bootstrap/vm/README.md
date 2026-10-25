@@ -9,8 +9,9 @@ B instruction format.
 The existing C-written native compiler builds the engine. A
 [B-written encoder](../encoder/README.md) translates resolved compiler records
 into its instruction file; an independent Python encoder supplies seed images
-and comparison results. The complete runtime and independent executable-writing components still
-need a B-only build path.
+and comparison results. The [B build driver](../driver/README.md) uses B-maintained image and runtime
+components after the seed. The complete in-guest source rebuild has a separate
+long-running check; individual engine tests do not establish that result.
 
 ## Files
 

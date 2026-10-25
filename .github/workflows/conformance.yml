@@ -149,6 +149,8 @@ jobs:
         run: |
           make
           make -C pdp-11/bcc-pdp
+      - name: Check full guest rebuild comparisons
+        run: python3 pdp-11/bcc-pdp/bootstrap/test_rebuild_harness.py
       - name: Check B-written runtime selection and templates
         run: |
           python3 pdp-11/bcc-pdp/bootstrap/test_selector.py --vm
