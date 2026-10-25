@@ -356,7 +356,8 @@ also regenerates the two runtime templates and the B library assembly. Each
 of these twelve outputs is compared with the seed inside the guest and again
 from the disk image on the host. Candidate files are removed before the run;
 the check cannot pass by finding an old copy. A successful stage prints
-`BCC_STAGE name` in the captured guest transcript.
+`BCC_STAGE name` in the captured guest transcript; the console harness also
+reports these lines immediately, without waiting for the full run to finish.
 
 Allow many hours. The default execution deadline is 86,400 seconds; use
 `--run-timeout SECONDS` to change it. The test holds the native build lock

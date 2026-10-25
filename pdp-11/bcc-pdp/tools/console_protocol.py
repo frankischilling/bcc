@@ -40,3 +40,27 @@ def positive_seconds(value):
     if not math.isfinite(seconds) or seconds <= 0:
         raise ValueError('timeout must be a positive finite number of seconds')
     return seconds
+
+
+class StageProgress:
+    """Recognize short, complete test-stage lines without forwarding console controls."""
+
+    def __init__(self):
+        self.line = bytearray()
+        self.overflow = False
+
+    def feed(self, data):
+        stages = []
+        for byte in data:
+            if byte in (10, 13):
+                if not self.overflow:
+                    match = re.fullmatch(rb'BCC_STAGE ([a-z]{1,32})', self.line)
+                    if match:
+                        stages.append(match[1].decode('ascii'))
+                self.line.clear()
+                self.overflow = False
+            elif len(self.line) < 64:
+                self.line.append(byte)
+            else:
+                self.overflow = True
+        return stages

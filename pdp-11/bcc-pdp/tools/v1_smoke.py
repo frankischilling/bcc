@@ -24,7 +24,7 @@ import pexpect
 from v1_image import inspect
 from v1_files import verify_files
 from compile_native import validate_progress, validate_image
-from console_protocol import command_line, completion_pattern, program_output, compile_failure, positive_seconds
+from console_protocol import command_line, completion_pattern, program_output, compile_failure, positive_seconds, StageProgress
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 V1 = os.path.normpath(os.path.join(HERE, "..", "..", "unix-v1"))
@@ -92,13 +92,14 @@ def drain(sock: socket.socket, idle: float = 0.5) -> bytes:
         buf.extend(strip_iac(chunk))
 
 
-def run_until_done(sock: socket.socket, simh: pexpect.spawn, timeout: float, marker: str) -> bytes:
+def run_until_done(sock: socket.socket, simh: pexpect.spawn, timeout: float, marker: str, report_stages: bool = False) -> bytes:
     """Collect output until the shell prints a fresh completion marker."""
     global STOPPED
     buf = bytearray()
     deadline = time.time() + timeout
     sock.setblocking(False)
     complete = completion_pattern(marker)
+    progress = StageProgress() if report_stages else None
 
     while time.time() < deadline:
         try:
@@ -108,7 +109,11 @@ def run_until_done(sock: socket.socket, simh: pexpect.spawn, timeout: float, mar
         except socket.timeout:
             chunk = b""
         if chunk:
-            buf.extend(strip_iac(chunk))
+            clean = strip_iac(chunk)
+            buf.extend(clean)
+            if progress is not None:
+                for stage in progress.feed(clean):
+                    print('Guest verified: ' + stage, file=sys.stderr, flush=True)
             if complete.search(buf):
                 return bytes(buf)
 
@@ -139,6 +144,7 @@ def main() -> int:
     parser.add_argument("--workdir", choices=("/", "/usr/tmp"), default="/", help="guest output directory; /usr/tmp uses the larger RK disk")
     parser.add_argument("--run-timeout", type=positive_seconds, default=60, help="guest execution deadline in seconds (default: 60)")
     parser.add_argument("--timings", action="store_true", help="report host wall time for guest compilation and execution")
+    parser.add_argument("--report-stages", action="store_true", help="show complete BCC_STAGE test lines as the program runs")
     parser.add_argument("--trace-stages", action="store_true", help="run each compiler pass directly before checking the driver")
     outcome.add_argument("--selfhost", action="store_true", help="rebuild and compare the four compiler binaries inside V1")
     args = parser.parse_args()
@@ -294,7 +300,7 @@ def main() -> int:
         line = command_line(run_command, marker)
         run_start = time.monotonic()
         sock.sendall((line + "\n").encode("ascii"))
-        out = run_until_done(sock, simh, timeout=args.run_timeout, marker=marker)
+        out = run_until_done(sock, simh, timeout=args.run_timeout, marker=marker, report_stages=args.report_stages)
         if args.timings:
             sys.stderr.write(f"Guest run wall seconds: {time.monotonic() - run_start:.3f}\n")
     except Exception:

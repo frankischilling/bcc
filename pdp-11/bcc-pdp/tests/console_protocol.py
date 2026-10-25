@@ -76,6 +76,39 @@ class ConsoleProtocol(unittest.TestCase):
         self.assertFalse(protocol.compile_failure(b'echo b: program exceeds 16 KB\n', False))
         self.assertFalse(protocol.compile_failure(b'b: program exceeds 16 KB extra\n', False))
 
+    def test_stage_chunks(self):
+        raw = b'command echo\r\nBCC_STAGE templates\r\nBCC_STAGE library\n'
+        for split in range(len(raw) + 1):
+            progress = protocol.StageProgress()
+            stages = progress.feed(raw[:split]) + progress.feed(raw[split:])
+            self.assertEqual(stages, ['templates', 'library'])
+        progress = protocol.StageProgress()
+        stages = []
+        for byte in raw:
+            stages += progress.feed(bytes([byte]))
+        self.assertEqual(stages, ['templates', 'library'])
+
+    def test_stage_partial_line(self):
+        progress = protocol.StageProgress()
+        self.assertEqual(progress.feed(b'BCC_STAGE engine'), [])
+        self.assertEqual(progress.feed(b'\r'), ['engine'])
+        self.assertEqual(progress.feed(b'\n'), [])
+
+    def test_stage_rejects_controls_and_prefixes(self):
+        progress = protocol.StageProgress()
+        for raw in (b'# BCC_STAGE engine\n', b'BCC_STAGE engine\x1b[2J\n',
+                    b'BCC_STAGE \n', b'BCC_STAGE a\0b\n', b'BCC_STAGE \xff\n',
+                    b'BCC_STAGE ' + b'a' * 33 + b'\n'):
+            self.assertEqual(progress.feed(raw), [])
+        self.assertEqual(progress.feed(b'BCC_STAGE engine\n'), ['engine'])
+
+    def test_stage_discards_long_lines(self):
+        progress = protocol.StageProgress()
+        self.assertEqual(progress.feed(b'x' * 10000), [])
+        self.assertLessEqual(len(progress.line), 64)
+        self.assertEqual(progress.feed(b'BCC_STAGE engine\n'), [])
+        self.assertEqual(progress.feed(b'BCC_STAGE engine\n'), ['engine'])
+
     def test_execution_timeout(self):
         for value, expected in [('1', 1), ('0.5', 0.5), ('1800', 1800)]:
             self.assertEqual(protocol.positive_seconds(value), expected)

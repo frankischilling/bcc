@@ -188,7 +188,8 @@ def main():
                         path.write_bytes(data)
                         path.chmod(0o755 if path.name in ('engine', 'driver') else 0o644)
                 subprocess.run(['bash', str(NATIVE / 'tools/v1-run.sh'), str(work / 'runner.b'),
-                                '--workdir', '/usr/tmp', '--timings', f'--run-timeout={timeout}'],
+                                '--workdir', '/usr/tmp', '--timings', f'--run-timeout={timeout}',
+                                *(['--report-stages'] if args.self_test else [])],
                                env=dict(os.environ, _BCC_NATIVE_LOCKED='1'), check=True, timeout=timeout + 300)
                 fs = FileSystem((V1 / 'images/rk0.dsk').read_bytes())
                 verify_outputs(fs, references)
