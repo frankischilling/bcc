@@ -1,5 +1,5 @@
 {
-  "compiler": "gcc (Debian 14.2.0-19) 14.2.0",
+  "compiler": "cc (Debian 14.2.0-19) 14.2.0",
   "flags": [
     "-std=c99",
     "-O2",
@@ -13,7 +13,7 @@
     "src/parser.c": "6e01d5c22c6ba705fb4b25dce55b59058db402e5f9145311c803d73856b8affe",
     "src/sem.c": "81dbd4d210d0bb23dc1849629de49ef41f4b94ca35101b07f15bb33c15c577d9",
     "src/arena.c": "d1a7a80e10ff280099623fda246ea1af316d0a1e76607db40820a48ca3799a76",
-    "src/emitter.c": "7e790bb89bf9d602a9f37ee4db475a52e49880afb1bb321aab1ff7085323443d",
+    "src/emitter.c": "7f964c69d021b00958dbd8fc8230e7700c1d03a6384a860b2e2bad1825cb3998",
     "src/main.c": "4c91e73677b0319b0777b182b7db01405530f8e701eef34858a874b111ddd225"
   },
   "assembly": {
@@ -22,7 +22,7 @@
     "parser.s": "ee58032982baebd48261073d023eccd2989002122c94c783385ace491a241091",
     "sem.s": "8f0be33cce39f9cca7e55d8aef5e7a3cd03512aaa924f639fca4e99eedf93b63",
     "arena.s": "01ec3c3805064581f6daea98a1607b24ae2fc14900d058761f516f272c129665",
-    "emitter.s": "a9a98228b7a75037ae76f728348684677051194b9c6e30956a5f9c233c11b9a9",
+    "emitter.s": "99426af72a77057283a1637a85825f3bb492d0fcb9b660e067bcb900384bcf4a",
     "main.s": "2436c0467b4021ee361117a1caf937b85195650c23ca92f78ebd44e1678bfd87"
   }
 }

@@ -31,7 +31,7 @@ def main():
     parser.add_argument('--bootstrap', action='store_true')
     args = parser.parse_args()
     passed = failed = 0
-    modes = [('host', False)] if args.bootstrap else [(mode, inline) for mode in ('host', '16') for inline in (False, True)]
+    modes = [('host', False)] if args.bootstrap else [(mode, inline) for mode in ('host', '16', '32') for inline in (False, True)]
     with tempfile.TemporaryDirectory(prefix='bcc-argv-') as directory:
         root = Path(directory)
         for mode, inline in modes:

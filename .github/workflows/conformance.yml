@@ -51,6 +51,8 @@ jobs:
           printf '#!/bin/sh\nexec "%s/bcc" -X -fsanitize=address,undefined "$@"\n' "$PWD" > "$RUNNER_TEMP/bcc-instrumented"
           chmod +x "$RUNNER_TEMP/bcc-instrumented"
           python3 tests/test_word_arithmetic.py --compiler "$RUNNER_TEMP/bcc-instrumented"
+          python3 tests/test_char_storage.py --compiler "$RUNNER_TEMP/bcc-instrumented"
+          python3 tests/test_argv_runtime.py --compiler "$RUNNER_TEMP/bcc-instrumented"
           python3 tests/test_call_frames.py --compiler "$RUNNER_TEMP/bcc-instrumented"
           python3 tests/test_library_bindings.py --compiler "$RUNNER_TEMP/bcc-instrumented"
           python3 tests/test_identifier_bytes.py --compiler "$RUNNER_TEMP/bcc-instrumented"
@@ -85,6 +87,10 @@ jobs:
           python3 pdp-11/bcc-pdp/tests/build_lock.py
           python3 tests/test_docs_examples.py --native
           python3 tests/test_identifier_bytes.py --native
+      - name: Compare the B-written resolver
+        run: |
+          make
+          python3 pdp-11/bcc-pdp/bootstrap/test_resolver.py
 
   unix-v1:
     runs-on: ubuntu-24.04
@@ -168,3 +174,6 @@ jobs:
           bash pdp-11/bcc-pdp/tools/v1-run.sh pdp-11/bcc-pdp/tests/run/t68_global_literal_pool.b --expect-compile-error
           bash pdp-11/bcc-pdp/tools/v1-run.sh pdp-11/bcc-pdp/tests/run/t78_duplicate_local.b --expect-compile-error
           bash pdp-11/bcc-pdp/tools/v1-run.sh pdp-11/bcc-pdp/tests/run/t31_program_size.b --expect-compile-error
+
+      - name: Run the B-written record reader in Unix V1
+        run: bash pdp-11/bcc-pdp/bootstrap/test_v1.sh

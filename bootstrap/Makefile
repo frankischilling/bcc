@@ -40,6 +40,7 @@ test: stage3
 	@set -e; for stage in 1 2 3; do python3 ../tests/test_external_scope.py --bootstrap --compiler build/stage$$stage/bbc; done
 	@set -e; for stage in 1 2 3; do python3 ../tests/test_putchar_runtime.py --bootstrap --compiler build/stage$$stage/bbc; done
 	@set -e; for stage in 1 2 3; do python3 ../tests/test_vector_extent.py --bootstrap --compiler build/stage$$stage/bbc; done
+	@set -e; for stage in 1 2 3; do python3 ../tests/test_char_storage.py --bootstrap --compiler build/stage$$stage/bbc; done
 	@set -e; for stage in 1 2 3; do python3 ../tests/test_argv_runtime.py --bootstrap --compiler build/stage$$stage/bbc; done
 	@set -e; for stage in 1 2 3; do python3 ../tests/test_global_storage.py --bootstrap --compiler build/stage$$stage/bbc; done
 	@for stage in 1 2 3; do python3 ../tests/test_declarations.py --bootstrap --compiler build/stage$$stage/bbc || exit 1; done

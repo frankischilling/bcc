@@ -89,6 +89,32 @@ a permanent C or handwritten assembly implementation is not the intended
 endpoint. The seed may contain those languages, but its role and the point
 where it is no longer used must be recorded.
 
+## B resolver experiment
+
+[`pdp-11/bcc-pdp/bootstrap`](../pdp-11/bcc-pdp/bootstrap/README.md) contains
+an experimental B-written resolver. Its output, diagnostics, and success or
+failure agree with the native C resolver in 363 host-side comparisons across
+the 16-bit, 32-bit, and host-word models. The frontend rejects another 23
+fixtures before they reach the resolver; those are reported separately.
+
+The shared B-written record reader and I/O helpers also compile and run
+inside Unix V1. Their kernel test checks file creation, record parsing,
+`-32768`, EOF, and exact output. This establishes that those components run
+on the target, not that the complete resolver fits there.
+
+Memory is still the blocker for the complete pass. One reduced-runtime
+assembly experiment occupied 24,808 bytes before allowing for its stack,
+above the 16,384-byte process limit. That experiment is not the installed
+compiler. The direct native backend needs either much smaller passes or a
+more compact execution representation before this port can replace `b01`.
+An eight-operation B-written paging experiment now runs inside Unix V1.
+It counts to 1,000 and fetches an instruction operand across a 512-byte code
+page boundary. Its complete test image, including its fixture writer and
+linked runtime, occupies 10,786 bytes. Calls, local frames, the remaining
+operators, and the instruction encoder still need implementation. This
+makes paged compact code a candidate for further work, not an established
+compiler bootstrap.
+
 ## Completion checks
 
 A completed path needs more than a successful stage-1 build:

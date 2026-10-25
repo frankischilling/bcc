@@ -82,3 +82,11 @@ bcc program.b -X -O3 -X -I/path/to/headers -l example -o program
 When reporting a failure, include the source, complete command, word and
 pointer modes, compiler revision, and whether the shared or inline runtime
 was used. Keep generated C with `--keep-c` when the failure occurs in GCC.
+
+### Packed bytes in 32-bit mode
+
+The 32-bit mode wraps arithmetic at 32 bits but retains host-sized storage
+cells. `char` and `lchar` use all bytes in those cells. A byte write preserves
+its neighboring bytes, including bytes above bit 31; this also matters when
+the runtime packs command-line arguments. This is not a fix for the separate
+native-pointer arithmetic limitation of that mode.

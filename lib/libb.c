@@ -201,7 +201,12 @@ word b_lchar(word s, word i, word c) {
     uword mask = (uword)0xFF << (bi * 8);
     w = (w & ~mask) | (((uword)c & 0xFF) << (bi * 8));
 
+#if WORD_BITS == 32
+    /* Arithmetic wraps at 32 bits; byte writes must retain the whole host cell. */
+    B_DEREF(addr) = (word)w;
+#else
     b_store(addr, (word)w);
+#endif
     return c;
 #endif
 }

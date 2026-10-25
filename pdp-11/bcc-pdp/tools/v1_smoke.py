@@ -136,6 +136,7 @@ def main() -> int:
     outcome = parser.add_mutually_exclusive_group()
     outcome.add_argument("--expect-compile-error", action="store_true")
     parser.add_argument("--expect-diagnostic", help="required compiler message with --expect-compile-error")
+    parser.add_argument("--timings", action="store_true", help="report host wall time for guest compilation and execution")
     parser.add_argument("--trace-stages", action="store_true", help="run each compiler pass directly before checking the driver")
     outcome.add_argument("--selfhost", action="store_true", help="rebuild and compare the four compiler binaries inside V1")
     args = parser.parse_args()
@@ -258,8 +259,12 @@ def main() -> int:
 
         sys.stderr.write(f"Guest: compiling {PROG}\n")
         verbose = "-v " if args.trace_stages else ""
+        compile_start = time.monotonic()
         sock.sendall(f"b {verbose}./{PROG}\n".encode())
         compile_out = recv_until(sock, rb"# ", timeout=90 if args.trace_stages else 600)
+
+        if args.timings:
+            sys.stderr.write(f"Guest compile wall seconds: {time.monotonic() - compile_start:.3f}\n")
 
         sock.sendall(b"ls a.out\n")
         ls_out = recv_until(sock, rb"# ", timeout=30)
@@ -280,8 +285,11 @@ def main() -> int:
         sys.stderr.write("Guest: running a.out\n")
         marker = "bccdone_" + secrets.token_hex(8)
         line = command_line(run_command, marker)
+        run_start = time.monotonic()
         sock.sendall((line + "\n").encode("ascii"))
         out = run_until_done(sock, simh, timeout=60, marker=marker)
+        if args.timings:
+            sys.stderr.write(f"Guest run wall seconds: {time.monotonic() - run_start:.3f}\n")
     except Exception:
         if not STOPPED:
             simh.sendcontrol("e")
