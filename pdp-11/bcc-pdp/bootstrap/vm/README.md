@@ -94,7 +94,7 @@ without the original seed tools.
 ## Paging cost
 
 Instruction and heap caches each occupy 512 bytes. The native engine's
-loaded image occupies 15,728 bytes with the current seed, leaving 656 bytes
+loaded image occupies 15,788 bytes with the current seed, leaving 596 bytes
 for its native stack and arguments. Virtual program frames live in the
 separate heap file.
 
