@@ -35,6 +35,7 @@ def main():
         (work / 'runner.out').write_bytes(b'')
         with (NATIVE / '.native-build.lock').open('a') as lock:
             fcntl.flock(lock, fcntl.LOCK_EX)
+            (V1 / 'fs/usr/tmp').mkdir(parents=True, exist_ok=True)
             files = {'code.vm': image, 'heap.vm': bytes(16384),
                      'input.ic': (work / 'input.ic').read_bytes(), 'out.s': None}
             targets = {V1 / 'fs/usr/tmp' / name: data for name, data in files.items()}

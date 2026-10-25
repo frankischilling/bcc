@@ -45,6 +45,7 @@ def main():
         with (NATIVE / '.native-build.lock').open('a') as lock:
             fcntl.flock(lock, fcntl.LOCK_EX)
             target = V1 / 'fs/usr/tmp'
+            target.mkdir(parents=True, exist_ok=True)
             paths = [target / name for name in ('code.vm', 'heap.vm', 'input.b', 'raw.ic', 'code.ic', 'out.vm')]
             saved = {p: (p.read_bytes(), p.stat().st_mode & 0o777) if p.exists() else None for p in paths}
             try:
@@ -81,13 +82,19 @@ def main():
                         if stage == 'encoder' and data != reference:
                             raise AssertionError((name, 'instruction image differs from reference'))
                         print(f'PASS: Unix-V1 B-pipeline/{name}/{stage}', flush=True)
-            except BaseException:
+            except BaseException as error:
                 if args.failure_dir:
                     failure = args.failure_dir / str(time.time_ns())
-                    failure.mkdir(parents=True)
-                    for disk in ('rk0.dsk', 'rf0.dsk'):
-                        shutil.copy2(V1 / 'images' / disk, failure / disk)
-                    print('Failure disk images:', failure, flush=True)
+                    try:
+                        failure.mkdir(parents=True)
+                        (failure / 'failure.txt').write_text(str(error) + '\n')
+                        for disk in ('rk0.dsk', 'rf0.dsk'):
+                            source = V1 / 'images' / disk
+                            if source.is_file():
+                                shutil.copy2(source, failure / disk)
+                        print('Failure details:', failure, flush=True)
+                    except OSError as save_error:
+                        print('Could not preserve failure details:', save_error, file=sys.stderr)
                 raise
             finally:
                 for path, previous in saved.items():

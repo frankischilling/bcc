@@ -26,6 +26,7 @@ def main():
         (work / 'runner.out').write_bytes(b'OK\n')
         with (NATIVE / '.native-build.lock').open('a') as lock:
             fcntl.flock(lock, fcntl.LOCK_EX)
+            (V1 / 'fs/usr/tmp').mkdir(parents=True, exist_ok=True)
             paths = [V1 / 'fs/usr/tmp' / name for name in ('code.vm', 'heap.vm')]
             saved = {p: (p.read_bytes(), p.stat().st_mode & 0o777) if p.exists() else None for p in paths}
             try:

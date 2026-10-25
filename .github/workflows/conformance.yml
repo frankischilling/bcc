@@ -206,7 +206,7 @@ jobs:
           bash pdp-11/bcc-pdp/tools/v1-run.sh pdp-11/bcc-pdp/tests/run/t44_missing_label.b --expect-compile-error
           bash pdp-11/bcc-pdp/tools/v1-run.sh pdp-11/bcc-pdp/tests/run/t49_empty_char.b --expect-compile-error
           bash pdp-11/bcc-pdp/tools/v1-run.sh pdp-11/bcc-pdp/tests/run/t60_large_frame.b --expect-compile-error
-          bash pdp-11/bcc-pdp/tools/v1-run.sh pdp-11/bcc-pdp/tests/run/t68_global_literal_pool.b --expect-compile-error
+          bash pdp-11/bcc-pdp/tools/v1-run.sh pdp-11/bcc-pdp/tests/run/t68_global_literal_pool.b
           bash pdp-11/bcc-pdp/tools/v1-run.sh pdp-11/bcc-pdp/tests/run/t78_duplicate_local.b --expect-compile-error
           bash pdp-11/bcc-pdp/tools/v1-run.sh pdp-11/bcc-pdp/tests/run/t31_program_size.b --expect-compile-error
 
@@ -227,6 +227,8 @@ jobs:
           python-version: '3.12'
       - name: Install console test dependency
         run: python3 -m pip install pexpect==4.9.0
+      - name: Check clean kernel-test staging
+        run: python3 pdp-11/bcc-pdp/bootstrap/test_kernel_staging.py
       - name: Build the historical seed
         run: make -C pdp-11/bcc-pdp
       - name: Run the B-written pipeline inside Unix V1
