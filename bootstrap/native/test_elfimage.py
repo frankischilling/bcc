@@ -141,7 +141,7 @@ def main():
                                     capture_output=True, timeout=30)
             assert result.returncode and not result.stdout
             passed += 1
-    print(f'Results: {passed} passed, 0 failed, {skipped} execution checks skipped')
+    print(f'Results: {passed} passed, 0 failed, {skipped} skipped')
     return 0
 
 
