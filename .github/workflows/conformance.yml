@@ -117,6 +117,9 @@ jobs:
           python3 pdp-11/bcc-pdp/bootstrap/test_vm_reentry.py
           python3 pdp-11/bcc-pdp/bootstrap/test_vm_encoder.py
           python3 pdp-11/bcc-pdp/bootstrap/test_vm_resolver.py
+          python3 pdp-11/bcc-pdp/bootstrap/test_passes.py --vm
+          python3 pdp-11/bcc-pdp/bootstrap/test_codegen.py --vm
+          python3 pdp-11/bcc-pdp/bootstrap/test_native_rebuild.py
 
   unix-v1:
     runs-on: ubuntu-24.04
@@ -144,6 +147,8 @@ jobs:
           make -C pdp-11/bcc-pdp v1-run B=tests/run/t112_seek_offsets.b
           make -C pdp-11/bcc-pdp v1-run B=tests/run/t113_lchar_result.b
           make -C pdp-11/bcc-pdp v1-run B=tests/run/t114_dialect_names.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t115_literal_backslash.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t116_many_literals.b
           make -C pdp-11/bcc-pdp v1-run B=tests/v1/tty.b
           make -C pdp-11/bcc-pdp v1-run B=tests/v1/argv_many.b
           make -C pdp-11/bcc-pdp v1-run B=tests/v1/console_prompt.b
@@ -209,3 +214,30 @@ jobs:
         run: bash pdp-11/bcc-pdp/bootstrap/test_v1.sh
       - name: Run the B-written resolver inside Unix V1
         run: python3 pdp-11/bcc-pdp/bootstrap/test_vm_v1.py
+
+  b-passes-v1:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install console test dependency
+        run: python3 -m pip install pexpect==4.9.0
+      - name: Build the historical seed
+        run: make -C pdp-11/bcc-pdp
+      - name: Run the B-written pipeline inside Unix V1
+        run: python3 pdp-11/bcc-pdp/bootstrap/test_passes_v1.py --failure-dir .cache/b-passes-v1
+      - name: Check B-written native assembly generation
+        run: python3 pdp-11/bcc-pdp/bootstrap/test_codegen_v1.py
+      - name: Check large instruction offsets inside Unix V1
+        run: python3 pdp-11/bcc-pdp/bootstrap/test_vm_v1_limits.py
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: b-passes-v1-failures
+          path: .cache/b-passes-v1
+          if-no-files-found: ignore

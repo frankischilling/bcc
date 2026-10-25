@@ -1,16 +1,16 @@
 # B-written native passes
 
-This directory contains an experimental B version of the `b01` resolver.
-It is not installed in place of the native C pass. The source matches the
-reference resolver in host-side comparisons, but its directly generated
-native program does not fit the PDP-11's 16 KB process limit. A separate
-[paged execution engine](vm/README.md) can run the B-written resolver
-inside Unix V1 from a compact instruction file.
+This directory contains experimental B implementations of the frontend,
+resolver, paged instruction encoder, and PDP-11 assembly generator. They are
+not installed in place of the native C passes. The B versions run through a
+separate [paged execution engine](vm/README.md), which keeps most of their
+code and data in files to fit the PDP-11 process limit.
 
-The host compiler still builds these tests through C and uses its C runtime.
-The native frontend, code generator, and driver also remain C-written. This
-is one component of the [B bootstrap work](../../../wiki/BOOTSTRAP.md), not
-a completed self-hosting toolchain.
+The host comparison builds still use C and the host runtime. The native seed
+compiler builds the execution engine, and native executable construction
+still uses the historical assembler and runtime assembly. These are
+[bootstrap components](../../../wiki/BOOTSTRAP.md), not a completed
+independent toolchain.
 
 ## Source layout
 
@@ -90,5 +90,80 @@ scratch filesystem, not the 16 KB process-memory limit.
 
 The newer `vm/` experiment adds call frames, operators, paged data, primitive
 I/O, and argument startup. It has separate tests; the eight-operation
-example above remains a small independent check. Its encoder is still
-Python, and the native C-written compiler still builds the engine.
+example above remains a small independent check. A B-written encoder now accompanies the independent Python seed encoder.
+The native C-written compiler still builds the engine.
+
+
+## Frontend and code generators
+
+The [frontend](frontend/README.md) emits unresolved compiler records. The
+[encoder](encoder/README.md) converts resolved records into VM images. The [native assembly generator](codegen/README.md) provides a separate
+output path for PDP-11 instructions. None replaces an installed native pass yet. Their B sources can be built as host
+comparison programs or encoded for the paged engine:
+
+```sh
+python3 pdp-11/bcc-pdp/bootstrap/tools/build_passes.py frontend frontend.vm
+python3 pdp-11/bcc-pdp/bootstrap/tools/build_passes.py resolver resolver.vm
+python3 pdp-11/bcc-pdp/bootstrap/tools/build_passes.py encoder encoder.vm
+python3 pdp-11/bcc-pdp/bootstrap/tools/build_passes.py codegen codegen.vm
+python3 pdp-11/bcc-pdp/bootstrap/test_passes.py --vm
+```
+
+The test compares the frontend with the C seed on the native source corpus
+and compiler sources, then compares encoder images byte-for-byte across all
+three host word models. `--vm` also runs the B frontend, B resolver, and B
+encoder in sequence under both VM builds, then executes each generated image
+and checks its output and status. Each stage receives a freshly initialized
+heap file. Python launches the tests and checks results; it does not replace
+any of the three B passes in that pipeline.
+
+`--self-test` additionally runs those three B passes on each pass's own B
+source and compares the rebuilt instruction images with the seed images.
+It is a slow source-level fixed-point check for VM images, not a native
+executable bootstrap. The engine and its primitive runtime still come from
+the native C-written seed toolchain. The test driver is also external.
+
+These passes still have limits: the B frontend does not yet duplicate the native
+C stack-exhaustion diagnostics, and the B encoder is not a complete validator
+for hostile record files. Neither experimental pass should be advertised as
+a hardened replacement for the installed compiler.
+
+
+The separate kernel pipeline check runs each B pass inside Unix V1, carries
+its output bytes to the next stage, and runs the resulting program there:
+
+```sh
+python3 pdp-11/bcc-pdp/bootstrap/test_passes_v1.py
+```
+
+Use `--case calls`, `--case names`, or `--case conditional` for one case.
+`--failure-dir PATH` preserves the generated disk images if a check fails.
+The harness restarts the guest between stages; it is not a resident B-written
+compiler driver or an independent build of the execution engine.
+
+
+Native assembly comparisons have their own checks:
+
+```sh
+python3 pdp-11/bcc-pdp/bootstrap/test_codegen.py --vm
+python3 pdp-11/bcc-pdp/bootstrap/test_codegen_v1.py
+```
+
+The host checks compare complete assembly bytes and diagnostics across three
+word models. The VM checks also use output files and completion markers, so
+they exercise the B close-result convention. The kernel check compares a
+program with globals, a call, and a computed goto against the native C pass.
+It does not claim that every native code-generation case has run in the guest.
+
+
+To check native engine reconstruction under the application emulator:
+
+```sh
+python3 pdp-11/bcc-pdp/bootstrap/test_native_rebuild.py
+```
+
+This compares every frontend record, resolver record, assembly byte, and
+final native engine byte with the C-seeded reference. It deliberately retains
+the historical assembler, runtime-selection helper, image converter, and
+runtime assembly. Those dependencies are visible in the test; a matching
+engine does not remove them.

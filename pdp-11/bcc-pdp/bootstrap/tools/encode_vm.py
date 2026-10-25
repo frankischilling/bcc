@@ -115,12 +115,16 @@ def encode(text):
     c.label(('boot','ready'))
     n(('fn','main'));c.emit(8);load(2);c.emit(8);load(1);c.emit(4,1);c.emit(8);c.emit(10,2);c.emit(0)
     c.label(('boot','fail'));n(1);c.emit(0)
-    function=None;enter_at=None;retlabel=None
+    function=None;enter_at=None;retlabel=None;skip_next=False
     def lab(value):return ('L',int(value))
     def boolean(false,end):
         c.emit(7,lab(false));n(1);c.emit(6,lab(end));c.label(lab(false));n(0);c.label(lab(end))
     for index,row in enumerate(rows):
+        if skip_next:skip_next=False;continue
         tag,*f=row
+        # Only adjacent records may fuse: labels remain branch boundaries.
+        if tag=='ex' and index+1<len(rows) and rows[index+1]==['dr']:
+            c.emit(2,symbols[f[0]]);skip_next=True;continue
         if tag=='pr':
             if function:raise ValueError('nested function')
             function=f[0];retlabel=int(f[2]);c.label(('fn',function))
@@ -179,7 +183,7 @@ def encode(text):
         if ('fn',name) in c.labels:data[at]=c.labels['fn',name]
     for lid,at in label_cells.items():data[at]=c.labels['L',lid]
     c.words[payload:payload+len(data)-16]=data[16:]
-    if len(c.words)>16384:raise ValueError(f'code exceeds VM range: {len(c.words)} words')
+    if len(c.words)>32700:raise ValueError(f'code exceeds VM range: {len(c.words)} words')
     return struct.pack('<'+'H'*len(c.words),*(word&65535 for word in c.words)),len(data),len(c.words)
 
 if __name__=='__main__':

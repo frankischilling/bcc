@@ -43,7 +43,7 @@ for op in (43,45,42,47,37,38,124,94,60,62,100,101,102,103,104,105):
 for name,code,status in [('pop-empty',[24],19),('peek-empty',[23],19),('read-null',[1,0,15],16),
     ('read-end',[1,8192,15],16),('store-null',[3,0],16),('call-null',[1,0,8,10,0],24),
     ('return-empty',[12],25),('negative-frame',[11,-1],18),('truncated',[1],14),
-    ('bad-opcode',[-1],17),('negative-jump',[6,-1],11),('far-jump',[6,16384],11)]:
+    ('bad-opcode',[-1],17),('negative-jump',[6,-1],11),('far-jump',[6,32700],11)]:
     cases.append((name,code,None,status))
 # Recursive call fixture: one argument, one local frame, and explicit return.
 rec=[1, 9, 8, 1, 5, 8, 10, 1, 0, 11, 1, 14, 0, 15, 8, 1, 0, 9, 100, 7, 24, 1, 0, 12, 1, 9, 8, 14, 0, 15, 8, 1, 1, 9, 45, 8, 10, 1, 8, 1, 1, 9, 43, 12]
@@ -171,6 +171,13 @@ p.label('done');p.emit(1,42);p.emit(0)
 while len(p.code)<256:p.code.append(0)
 p.label('far');p.emit(2,16);p.emit(4,-1);p.emit(3,16);p.emit(6,'near')
 cases.append(('instruction-cache-conflict',p.finish(),42,0))
+# Instruction offsets cross the signed 16-bit byte-offset boundary.
+for at in (16382,16383,16384,16385,24576,32697):
+    code=[6,at]+[0]*(at-2)+[1,42,0]
+    cases.append(('high-code/'+str(at),code,42,0))
+cases.append(('last-opcode',[6,32699]+[0]*(32699-2)+[0],0,0))
+cases.append(('operand-past-limit',[6,32699]+[0]*(32699-2)+[1,42],None,11))
+
 passed=failed=0
 with tempfile.TemporaryDirectory(prefix='bcc-vm-core-') as d:
     work=Path(d)

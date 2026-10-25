@@ -1191,3 +1191,21 @@ whereas the early C library used to seed the compiler reports close failure
 with a positive result. A B port of a C compiler pass must adapt that check:
 `close(fd)<0`, not `close(fd)!=0`. Exact assembly-output comparisons alone
 would miss this if they exercised only stdout and never closed an output file.
+
+
+### The assembler boundary in a B-only rebuild
+
+The [first-edition assembler entry](../pdp-11/unix-v1-docs/unix-commands-p1.md#asi)
+describes differences from PAL-11R, not GNU assembler syntax. Indirection uses
+`*`, immediate operands use `$`, and semicolons separate statements. Expressions
+use square brackets for grouping. The `^` operator copies the right operand's
+relocation type; it is not XOR. Numeric labels can repeat, with `nf` and `nb`
+selecting the next and previous occurrence.
+
+Those rules matter when replacing the historical assembler. The native
+code generator emits address expressions, forward frame-size definitions,
+byte strings, and directional local labels. A replacement must preserve
+those bytes and their relocation meaning, not parse the expressions as B
+or C. The current engine-rebuild check still uses the pinned assembler and
+an explicit converter from its output to the six-word V1 executable header.
+A B-written assembler or direct image writer remains to be implemented.

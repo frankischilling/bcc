@@ -8,7 +8,7 @@ engine must change together.
 
 Files contain little-endian 16-bit words. Instruction addresses are word
 offsets from the start of the instruction file; the first instruction is at
-zero. The current code limit is 16,384 words. Heap addresses also count
+zero. The current code limit is 32,700 words. Heap addresses also count
 words, but address a separate 8,192-word file. Heap address zero is invalid.
 
 The accumulator holds one B word. The operand stack grows down from heap
@@ -22,7 +22,7 @@ file. All other operands come from the accumulator or stack.
 
 | Opcode | Following words | Effect |
 | --- | --- | --- |
-| 0 | none | Flush both heap pages and return the accumulator. |
+| 0 | none | Flush all dirty heap pages and return the accumulator. |
 | 1 | value | Load a constant. |
 | 2 | address | Load a heap word. |
 | 3 | address | Store the accumulator without changing it. |

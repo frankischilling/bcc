@@ -123,16 +123,43 @@ the resulting file bytes against the C-written pass. The engine uses eight
 64-byte pages for each of its instruction and heap caches. Its 8,192-word virtual
 heap holds globals and frames in a caller-supplied backing file.
 
-The resolver image contains 9,536 instruction-file words, including startup
+The resolver image contains 9,128 instruction-file words, including startup
 and static-data loading, with 3,386 words reserved for its initial data.
 These are virtual storage counts, not resident PDP-11 process sizes. The
 native engine still has to fit the kernel's separate 16 KB process limit.
 
-This path still uses the C-written seed to build the engine and resolve the
-B source. A Python encoder creates the instruction file. File-descriptor
-virtualization, temporary-file ownership, a complete runtime, and the
-remaining compiler passes are unfinished. Running one compiler pass in B
-is useful evidence for the design, not a completed self-host.
+The seed path still uses the C-written compiler to build the engine and
+resolve the B source. An independent Python encoder creates seed instruction
+files. A B-written frontend and instruction encoder now accompany the
+resolver. The test pipeline runs all three B passes in sequence and checks
+the resulting images and program behavior in both execution models.
+
+The optional source-rebuild check runs that pipeline on each pass's B source
+and compares the resulting instruction image with the seed image. This is
+not a native executable rebuild: the engine, primitive runtime, and test
+driver still have external dependencies. File-descriptor virtualization,
+temporary-file ownership, a complete runtime, host native instruction
+generation, and independent executable construction remain unfinished.
+
+The frontend image contains 15,119 instruction-file words and 1,404 initial
+data words. The encoder image contains 17,305 instruction-file words and
+7,802 initial data words. Those numbers include the current startup code;
+they are not native executable sizes. The instruction limit is 32,700 words, below the reserved primitive-call
+addresses. The encoder's initial data leaves 390 heap words for arguments
+and frames, so changes still need explicit memory checks.
+
+A [B-written native code generator](../pdp-11/bcc-pdp/bootstrap/codegen/README.md)
+also emits the native pass's assembly. The B frontend, resolver, and this
+code generator have reproduced the execution engine's native bytes through
+the historical assembler and image converter. That check used the native
+application emulator. A separate Unix V1 check compares this generator's
+assembly for a smaller program with globals, a call, and a computed goto.
+Neither check removes the assembler or runtime-assembly dependency.
+
+The B frontend does not reproduce the C seed's physical-stack exhaustion
+diagnostic. The encoder expects resolved compiler records and is not a
+complete arbitrary-input validator. These experimental components are not
+installed in place of the native C passes.
 
 ## Completion checks
 

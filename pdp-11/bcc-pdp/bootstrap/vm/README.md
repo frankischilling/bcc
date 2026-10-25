@@ -6,11 +6,11 @@ can use more storage than its native code and data would fit in one process.
 It is a bootstrap experiment, not the installed compiler or a historical
 B instruction format.
 
-The existing C-written native compiler builds the engine. The experimental
-Python encoder translates resolved compiler records into its instruction
-file. Neither step is self-hosted. The final bootstrap still needs a B-written
-encoder and the remaining compiler, runtime, assembler, and image-writing
-components.
+The existing C-written native compiler builds the engine. A
+[B-written encoder](../encoder/README.md) translates resolved compiler records
+into its instruction file; an independent Python encoder supplies seed images
+and comparison results. The complete runtime and independent executable-writing components still
+need a B-only build path.
 
 ## Files
 
@@ -41,6 +41,11 @@ python3 pdp-11/bcc-pdp/bootstrap/test_vm_reentry.py
 python3 pdp-11/bcc-pdp/bootstrap/test_vm_encoder.py
 python3 pdp-11/bcc-pdp/bootstrap/test_vm_resolver.py
 python3 pdp-11/bcc-pdp/bootstrap/test_vm_v1.py
+python3 pdp-11/bcc-pdp/bootstrap/test_passes.py --vm
+python3 pdp-11/bcc-pdp/bootstrap/test_passes_v1.py
+python3 pdp-11/bcc-pdp/bootstrap/test_codegen.py --vm
+python3 pdp-11/bcc-pdp/bootstrap/test_codegen_v1.py
+python3 pdp-11/bcc-pdp/bootstrap/test_vm_v1_limits.py
 ```
 
 The instruction tests compare arithmetic, recursion, frame limits, page
@@ -57,7 +62,7 @@ image inputs. It does not preserve the generated emulator disk images.
 
 ## Current limits
 
-The instruction file holds at most 16,384 words. The virtual heap holds
+The instruction file holds at most 32,700 words. The virtual heap holds
 8,192 words, with address zero reserved. Globals and a downward-growing
 stack share that heap. Heap files must already contain 16,384 zero bytes
 before a fresh run. The current driver does not create unique temporary

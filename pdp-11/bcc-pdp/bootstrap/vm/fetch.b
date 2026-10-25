@@ -4,7 +4,7 @@ pc 0; codefd 0;
 fetch() {
     extrn cache,ctag,cbytes,cbase,pc,codefd,seek,read,exit;
     auto p,i,s,q;
-    if(pc<0 | pc>=16384) exit(11);
+    if(pc<0 | pc>=32700) exit(11);
     p=pc>>5;s=p&7;
     if(ctag[s]==p) goto found;
     q=cache+cbase[s];
