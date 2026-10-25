@@ -1,15 +1,16 @@
 /* Execute experimental bytecode with frames in the paged heap. */
 vmrun(fd,hr,hw) {
-    extrn codefd,pc,page,exit,sp,fp,floor;
+    extrn codefd,pc,ctag,exit,sp,fp,floor;
     extrn hread,hwrite,htag,hdirty,hnext;
     auto a,op,at,v,i,t,r;
-    hread=hr;hwrite=hw;htag[0]= -1;htag[1]= -1;
-    hdirty[0]=0;hdirty[1]=0;hnext=0;
-    codefd=fd;pc=0;page= -1;a=0;sp=8192;fp=0;floor=128;
+    hread=hr;hwrite=hw;i=0;
+    while(i<8) {htag[i]= -1;hdirty[i]=0;ctag[i]= -1;i++;}
+    hnext=0;
+    codefd=fd;pc=0;a=0;sp=8192;fp=0;floor=128;
  next:
     op=fetch();
     switch op {
-    case 0:hflush(0);hflush(1);return(a);
+    case 0:hflushes();return(a);
     case 1:a=fetch();goto next;
     case 2:at=fetch();a=hget(at);goto next;
     case 3:at=fetch();hset(at,a);goto next;

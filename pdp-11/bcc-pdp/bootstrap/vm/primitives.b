@@ -73,7 +73,7 @@ vcall(op,args,n) {
         if(op==6) return(hbyte(p));
         if(n<3) exit(27);
         return(hput(p,z));
-    case 8:hflush(0);hflush(1);goto call;
+    case 8:hflushes();goto call;
     case 9:x=vstr(x);goto call;
     case 10:
         if(n<3) exit(27);

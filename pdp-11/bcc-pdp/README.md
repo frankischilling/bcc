@@ -273,3 +273,8 @@ The source is still staged as `/v1.b`. Outputs and relative file operations
 use `/usr/tmp`. The default remains `/` for existing tests. This avoids
 filling the smaller RF root disk with assembler scratch/output files; it
 does not enlarge the process address space.
+
+Guest execution normally has a 60-second deadline. Longer compiler
+experiments can pass `--run-timeout 1800` to `v1-run.sh`; the value must be a
+positive, finite number of seconds. `--timings` reports elapsed host time,
+not a PDP-11 hardware benchmark.

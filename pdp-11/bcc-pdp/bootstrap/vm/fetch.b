@@ -1,19 +1,19 @@
-/* Read little-endian instruction words through a 128-byte cache. */
-cache[64]; pc 0; page -1; nbyte 0; codefd 0;
+/* Cache 16-bit instruction words in eight direct-mapped 64-byte lines. */
+cache[256]; ctag[8] -1,-1,-1,-1,-1,-1,-1,-1; cbytes[8]; cbase[8] 0,32,64,96,128,160,192,224;
+pc 0; codefd 0;
 fetch() {
-    extrn cache,pc,page,nbyte,codefd,seek,read,char,exit;
-    auto p,i,w,hi;
+    extrn cache,ctag,cbytes,cbase,pc,codefd,seek,read,exit;
+    auto p,i,s,q;
     if(pc<0 | pc>=16384) exit(11);
-    p=pc/64;
-    if(p!=page) {
-        if(seek(codefd,p*128,0)<0) exit(12);
-        nbyte=read(codefd,cache,128);
-        if(nbyte<0) exit(13);
-        page=p;
-    }
-    i=(pc%64)*2;
-    if(i+1>=nbyte) exit(14);
-    w=char(cache,i);hi=char(cache,i+1);
-    if(hi>=128) hi=hi-256;
-    pc++;return(w+hi*256);
+    p=pc>>5;s=p&7;
+    if(ctag[s]==p) goto found;
+    q=cache+cbase[s];
+    if(seek(codefd,p*64,0)<0) exit(12);
+    cbytes[s]=read(codefd,q,64);
+    if(cbytes[s]<0) exit(13);
+    ctag[s]=p;
+ found:
+    i=pc&31;
+    if(i*2+1>=cbytes[s]) exit(14);
+    q=cache+cbase[s];pc++;return(q[i]);
 }

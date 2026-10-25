@@ -119,8 +119,8 @@ reserved data cell. It does not implement the full instruction set.
 The newer [B-written execution engine](../pdp-11/bcc-pdp/bootstrap/vm/README.md)
 adds call frames, operators, paged data, primitive I/O, and argument startup.
 It runs the B-written resolver inside Unix V1, with the harness comparing
-the resulting file bytes against the C-written pass. The engine uses two
-512-byte heap pages and a 128-byte instruction cache. Its 8,192-word virtual
+the resulting file bytes against the C-written pass. The engine uses eight
+64-byte pages for each of its instruction and heap caches. Its 8,192-word virtual
 heap holds globals and frames in a caller-supplied backing file.
 
 The resolver image contains 9,536 instruction-file words, including startup

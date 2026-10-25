@@ -24,7 +24,7 @@ import pexpect
 from v1_image import inspect
 from v1_files import verify_files
 from compile_native import validate_progress, validate_image
-from console_protocol import command_line, completion_pattern, program_output, compile_failure
+from console_protocol import command_line, completion_pattern, program_output, compile_failure, positive_seconds
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 V1 = os.path.normpath(os.path.join(HERE, "..", "..", "unix-v1"))
@@ -137,6 +137,7 @@ def main() -> int:
     outcome.add_argument("--expect-compile-error", action="store_true")
     parser.add_argument("--expect-diagnostic", help="required compiler message with --expect-compile-error")
     parser.add_argument("--workdir", choices=("/", "/usr/tmp"), default="/", help="guest output directory; /usr/tmp uses the larger RK disk")
+    parser.add_argument("--run-timeout", type=positive_seconds, default=60, help="guest execution deadline in seconds (default: 60)")
     parser.add_argument("--timings", action="store_true", help="report host wall time for guest compilation and execution")
     parser.add_argument("--trace-stages", action="store_true", help="run each compiler pass directly before checking the driver")
     outcome.add_argument("--selfhost", action="store_true", help="rebuild and compare the four compiler binaries inside V1")
@@ -293,7 +294,7 @@ def main() -> int:
         line = command_line(run_command, marker)
         run_start = time.monotonic()
         sock.sendall((line + "\n").encode("ascii"))
-        out = run_until_done(sock, simh, timeout=60, marker=marker)
+        out = run_until_done(sock, simh, timeout=args.run_timeout, marker=marker)
         if args.timings:
             sys.stderr.write(f"Guest run wall seconds: {time.monotonic() - run_start:.3f}\n")
     except Exception:

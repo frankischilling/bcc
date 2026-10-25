@@ -156,6 +156,8 @@ for name,op,args,expected in [
     p=Program();call(p,op,*args);p.emit(0);cases.append((name,p.finish(),expected,0))
 p=Program();p.emit(26,512);call(p,15,10);call(p,15,3);p.emit(0)
 cases.append(('allocate-sequence',p.finish(),522,0))
+cases.append(('operand-cross-32',[6,31]+[0]*29+[1,42,0],42,0))
+cases.append(('odd-code-tail',bytes([1,0,42]),None,14))
 passed=failed=0
 with tempfile.TemporaryDirectory(prefix='bcc-vm-core-') as d:
     work=Path(d)
@@ -165,7 +167,7 @@ with tempfile.TemporaryDirectory(prefix='bcc-vm-core-') as d:
         env=dict(os.environ,APOUT_ROOT=str(NATIVE/'build/aroot'),APOUT_UNIX_VERSION='V2')
         for name,code,expected,status in cases:
             (work/'heap.vm').write_bytes(bytes(16384))
-            (work/'code.vm').write_bytes(struct.pack('<'+'H'*len(code),*(x&65535 for x in code)))
+            (work/'code.vm').write_bytes((code if isinstance(code,bytes) else struct.pack('<'+'H'*len(code),*(x&65535 for x in code))))
             extra=['code.vm','alpha','beta'] if name.startswith('native-argv/') else []
             r=subprocess.run([*cmd,*extra],cwd=work,env=env,capture_output=True,timeout=5)
             output=(f'{expected&65535:04x}\n'.encode() if status==0 else b'')

@@ -76,6 +76,13 @@ class ConsoleProtocol(unittest.TestCase):
         self.assertFalse(protocol.compile_failure(b'echo b: program exceeds 16 KB\n', False))
         self.assertFalse(protocol.compile_failure(b'b: program exceeds 16 KB extra\n', False))
 
+    def test_execution_timeout(self):
+        for value, expected in [('1', 1), ('0.5', 0.5), ('1800', 1800)]:
+            self.assertEqual(protocol.positive_seconds(value), expected)
+        for value in ('0', '-1', 'nan', 'inf', '-inf', '1e999', 'bad'):
+            with self.assertRaises(ValueError):
+                protocol.positive_seconds(value)
+
     def test_reject_marker_metacharacters(self):
         for marker in ('', 'a;b', 'a b', 'a\nb', '$x', "'x'"):
             with self.assertRaises(ValueError):

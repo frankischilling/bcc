@@ -29,11 +29,20 @@ CASES = [
     ('argc', 'main(n,v){return(n);}', 2, b'', ['alpha']),
     ('argv', 'main(n,v){extrn char;return(char(v[1],0));}', 97, b'', ['alpha']),
     ('counted-argv', 'main(){extrn argv,char;return(char(argv[2],0));}', 97, b'', ['alpha']),
+    ('ternary-true', 'main(){auto x;x=0;return(1 ? ++x : 100);}', 1, b'', []),
+    ('ternary-false', 'main(){auto x;x=0;return(0 ? 100 : ++x);}', 1, b'', []),
+    ('ternary-nested', 'main(){return(0 ? 1 : 1 ? 7 : 9);}', 7, b'', []),
+    ('ternary-side-effect', 'main(){auto x,y;x=0;y=1 ? 7 : ++x;return(x+y);}', 7, b'', []),
 ]
 
 for number in (103, 104, 105, 106, 109):
     fixture = next((NATIVE / 'tests/run').glob(f't{number}_*.b'))
     CASES.append((fixture.stem, fixture.read_text(), 0, fixture.with_suffix('.out').read_bytes(), []))
+
+RECORDS = []
+for is_and, left, expected in ((0, 7, 7), (0, 0, 9), (1, 0, 0), (1, 7, 9)):
+    records = f'pr main 0 30000\nn {left}\nao {is_and} 1\nn 9\naoe 1\nrt\nep 0\n'
+    RECORDS.append((f'record/short-circuit/{is_and}/{left}', records, expected, b'', []))
 
 
 def main():
@@ -44,12 +53,15 @@ def main():
         build(work / 'native')
         build(work / 'host', host=NATIVE.parents[1] / 'bcc')
         env = dict(os.environ, APOUT_ROOT=str(work), APOUT_UNIX_VERSION='V2')
-        for name, source, status, output, args in CASES:
-            (work / 'input.b').write_text(source + '\n')
-            for binary, flags in [('b00', ['-o', 'raw.ic', 'input.b']),
-                                  ('b01', ['-i', 'raw.ic', '-o', 'code.ic'])]:
-                subprocess.run([str(work / 'apout'), str(work / binary), *flags], cwd=work,
-                               env=env, check=True, timeout=30)
+        for name, source, status, output, args in CASES + RECORDS:
+            if name.startswith('record/'):
+                (work / 'code.ic').write_text(source)
+            else:
+                (work / 'input.b').write_text(source + '\n')
+                for binary, flags in [('b00', ['-o', 'raw.ic', 'input.b']),
+                                      ('b01', ['-i', 'raw.ic', '-o', 'code.ic'])]:
+                    subprocess.run([str(work / 'apout'), str(work / binary), *flags], cwd=work,
+                                   env=env, check=True, timeout=30)
             image, _, _ = encode((work / 'code.ic').read_text())
             (work / 'code.vm').write_bytes(image)
             for model, command in [('native', [str(work / 'apout'), str(work / 'native')]),

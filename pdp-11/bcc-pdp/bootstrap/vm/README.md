@@ -14,9 +14,9 @@ components.
 
 ## Files
 
-- `fetch.b` reads little-endian instruction words through a 128-byte cache.
+- `fetch.b` reads 16-bit instruction words through eight 64-byte cache lines.
 - `arithmetic.b` implements 16-bit operations.
-- `heap.b` keeps two 512-byte heap pages in memory and writes dirty pages back.
+- `heap.b` keeps eight 64-byte heap pages in memory and writes dirty pages back.
 - `primitives.b` translates virtual pointers for I/O and character operations.
 - `execute.b` runs instructions and stores call frames in the paged heap.
 - `main.b` opens the instruction file and an existing `heap.vm` file.
@@ -37,6 +37,7 @@ From the repository root, after building both compilers:
 make
 make -C pdp-11/bcc-pdp
 python3 pdp-11/bcc-pdp/bootstrap/test_vm.py
+python3 pdp-11/bcc-pdp/bootstrap/test_vm_reentry.py
 python3 pdp-11/bcc-pdp/bootstrap/test_vm_encoder.py
 python3 pdp-11/bcc-pdp/bootstrap/test_vm_resolver.py
 python3 pdp-11/bcc-pdp/bootstrap/test_vm_v1.py
@@ -83,3 +84,17 @@ words and little-endian bytes.
 A successful resolver run is one compiler-pass milestone. It does not prove
 a complete compiler rebuild, a stable instruction ABI, or a bootstrap
 without the original seed tools.
+
+## Paging cost
+
+Instruction and heap caches each occupy 512 bytes. The native engine's
+loaded image occupies 15,728 bytes with the current seed, leaving 656 bytes
+for its native stack and arguments. Virtual program frames live in the
+separate heap file.
+
+In a recorded Unix V1 check, encoding a small resolved program took 6.3
+seconds with these caches, compared with 24.1 seconds using the earlier
+one-line instruction cache and two larger heap pages. Those are host wall
+times for one emulator workload, not physical PDP-11 timings or a general
+speed guarantee. This small encoding check does not establish a full encoder rebuild; that
+requires a separate end-to-end image comparison.

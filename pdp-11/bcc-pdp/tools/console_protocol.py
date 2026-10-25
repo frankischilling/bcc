@@ -1,4 +1,5 @@
 """Frame one guest command without confusing its output with the shell prompt."""
+import math
 import re
 
 
@@ -31,3 +32,11 @@ def compile_failure(output, produced, diagnostic=None):
         output) is not None
     requested = diagnostic is None or diagnostic.encode('utf-8') in output
     return not produced and failed and requested
+
+
+def positive_seconds(value):
+    """Parse a finite deadline interval without accepting zero or NaN."""
+    seconds = float(value)
+    if not math.isfinite(seconds) or seconds <= 0:
+        raise ValueError('timeout must be a positive finite number of seconds')
+    return seconds

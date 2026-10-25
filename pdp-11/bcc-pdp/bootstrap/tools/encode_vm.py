@@ -155,6 +155,13 @@ def encode(text):
         elif tag=='cac':c.emit(21,int(f[0]));boolean(f[1],f[2])
         elif tag=='la':n(label_cells[int(f[0])])
         elif tag=='gor':c.emit(17)
+        elif tag=='tq':c.emit(7,lab(f[0]))
+        elif tag=='tc':c.emit(6,lab(f[1]));c.label(lab(f[0]))
+        elif tag=='te':c.label(lab(f[0]))
+        elif tag=='ao':
+            if int(f[0]):c.emit(7,lab(f[1]))
+            else:c.emit(7,len(c.words)+4);c.emit(6,lab(f[1]))
+        elif tag=='aoe':c.label(lab(f[0]))
         elif tag=='swb':c.emit(8);c.emit(6,lab(f[0]))
         elif tag=='swc':
             dispatch,next_case,value,body=f
