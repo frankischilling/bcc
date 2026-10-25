@@ -31,7 +31,7 @@ def check_staging(filename, populated, self_test=False):
         saved = {}
         if populated:
             target.mkdir(parents=True)
-            for name in ('code.vm', 'heap.vm', 'input.b', 'raw.ic', 'code.ic', 'input.ic', 'out.vm', 'out.s', 'input.s', 'out', 'engine', 'front.vm', 'resolve', 'codegen', 'select', 'runtime', 'image', 'encoder', 'libb.b', 'bmain.s', 'brt.s', 'libb.s', 'prog.s', 'selrt.s', 'sellib.s', 'done', 'longout', 'driver', 'bf.b', 'br.b', 'bg.b', 'bs.b', 'rt.b', 'bi.b', 'be.b', 'vm.b', 'bdrv.b', 'rstart', 'rprim', 'rlib', 'fron.new', 'reso.new', 'code.new', 'sele.new', 'runt.new', 'imag.new', 'enco.new', 'drv.new', 'eng.new'):
+            for name in ('code.vm', 'heap.vm', 'out.ic', 'input.b', 'raw.ic', 'code.ic', 'input.ic', 'out.vm', 'out.s', 'input.s', 'out', 'engine', 'front.vm', 'resolve', 'codegen', 'select', 'runtime', 'image', 'encoder', 'libb.b', 'bmain.s', 'brt.s', 'libb.s', 'prog.s', 'selrt.s', 'sellib.s', 'done', 'longout', 'driver', 'bf.b', 'br.b', 'bg.b', 'bs.b', 'rt.b', 'bi.b', 'be.b', 'vm.b', 'bdrv.b', 'rstart', 'rprim', 'rlib', 'fron.new', 'reso.new', 'code.new', 'sele.new', 'runt.new', 'imag.new', 'enco.new', 'drv.new', 'eng.new'):
                 path = target / name
                 path.write_bytes(('original ' + name).encode())
                 path.chmod(0o640)
@@ -41,6 +41,8 @@ def check_staging(filename, populated, self_test=False):
         def subprocess_run(command, **kwargs):
             if command[0] == 'bash':
                 assert target.is_dir()
+                if filename == 'test_vm_v1.py':
+                    assert not (target / 'out.ic').exists(), 'stale resolver output was staged'
                 if filename == 'test_toolchain_v1.py':
                     assert (target / 'engine').is_file()
                     assert not (target / 'heap.vm').exists()

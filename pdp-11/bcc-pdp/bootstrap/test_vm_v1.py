@@ -31,7 +31,7 @@ def main():
         with (NATIVE / '.native-build.lock').open('a') as lock:
             fcntl.flock(lock, fcntl.LOCK_EX)
             (V1 / 'fs/usr/tmp').mkdir(parents=True, exist_ok=True)
-            targets = [V1 / 'fs/usr/tmp' / name for name in ('code.vm', 'heap.vm', 'raw.ic')]
+            targets = [V1 / 'fs/usr/tmp' / name for name in ('code.vm', 'heap.vm', 'raw.ic', 'out.ic')]
             saved = {p: (p.read_bytes(), p.stat().st_mode & 0o777) if p.exists() else None for p in targets}
             try:
                 for name, source in CASES.items():
@@ -43,6 +43,7 @@ def main():
                         raise RuntimeError(reference.stderr)
                     for target, data in zip(targets, (image, bytes(16384), source.encode())):
                         target.write_bytes(data)
+                    targets[-1].unlink(missing_ok=True)
                     command = ['bash', str(NATIVE / 'tools/v1-run.sh'), str(work / 'runner.b'),
                                '--workdir', '/usr/tmp', '--timings', '--argument=code.vm',
                                '--argument=-i', '--argument=raw.ic', '--argument=-o', '--argument=out.ic']
