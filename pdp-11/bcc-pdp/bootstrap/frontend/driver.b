@@ -28,7 +28,8 @@ main() {
     if (extflg) bouts("Acompat*n");
     gettok();prog();
     oflush();
-    if (fdout!=1) if (close(fdout)<0) return(1);
+    /* A named output can reuse descriptor 1; the path records ownership. */
+    if (out) if (close(fdout)<0) return(1);
     if (done) markok(done);
     return(0);
 }

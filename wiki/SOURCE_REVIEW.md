@@ -1262,3 +1262,13 @@ resolved records, and instruction image against the 65,535-byte file limit.
 This check applies to the guest rebuild path, not to the B language in general.
 Native assembly for the engine and driver is a separate construction path;
 large compiler components are rebuilt as paged instruction images instead.
+
+
+### A descriptor number does not establish ownership
+
+A named output can be allocated descriptor 1 when standard streams are closed.
+The C and B passes previously skipped the close check for that number, even
+when they had opened the file themselves. They now use the output-path option
+to decide ownership: explicitly opened files are closed and checked; inherited
+stdout is not closed by the pass. Regression checks cover both normal and
+closed standard streams, including a delayed failure on the reused descriptor.

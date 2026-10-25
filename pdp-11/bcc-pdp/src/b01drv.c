@@ -100,7 +100,8 @@ main(argc, argv) int argv[]; {
 	icini(ifd);
 	outinit(ofd);
 	rewrt();
-	if (ofd != 1) if (close(ofd)) exit(1);
+	/* A named output can reuse descriptor 1; the path records ownership. */
+	if (out) if (close(ofd)) exit(1);
 	if (done) markok(done);
 	exit(0);
 }

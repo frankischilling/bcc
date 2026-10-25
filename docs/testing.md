@@ -70,6 +70,11 @@ to avoid the emulator's checksum/size-based guesses. A nonzero-result fixture en
 active. It is not an independent V1 kernel oracle; tty calls, in particular,
 are stubs in apout.
 
+Output-close checks also run the passes with descriptors 0 and 1 closed.
+Named files can reuse those numbers, so the passes must track whether an
+output was opened explicitly rather than assuming descriptor 1 is stdout.
+Injected close failures must still prevent a completion marker.
+
 The driver tests cover successful compilation, invalid/missing input,
 unresolved symbols, oversized output, stale completion records, and an
 assembler that returns success without doing its work. Internal-record tests

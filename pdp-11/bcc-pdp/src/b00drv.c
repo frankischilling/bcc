@@ -76,7 +76,8 @@ main(argc, argv) int argv[]; {
 
 	gettok();
 	prog();
-	if (fdout != 1) if (close(fdout)) exit(1);
+	/* A named output can reuse descriptor 1; the path records ownership. */
+	if (out) if (close(fdout)) exit(1);
 	if (done) markok(done);
 	exit(0);
 }

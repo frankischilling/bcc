@@ -14,6 +14,12 @@ sys.path.insert(0, str(ROOT / 'tools'))
 from run_apout import build_snapshot_lock
 
 
+def close_standard_streams():
+    """Let named input and output files reuse descriptors 0 and 1."""
+    os.close(0)
+    os.close(1)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--bcc', type=Path, help='also test the B-written resolver with this host compiler')
@@ -82,24 +88,26 @@ def main():
                     pass_arguments[name] = arguments
         for name, command in commands.items():
             (work / 'input').write_text(sources[name])
-            for target in ('none', 'result.ic', 'done'):
-                for filename in ('result.ic', 'done', 'seen', 'unused'):
-                    (work / filename).unlink(missing_ok=True)
-                arguments = ['-o', 'result.ic', '-s', 'done']
-                arguments += ['input'] if name == 'b00' else ['-i', 'input']
-                arguments = pass_arguments.get(name, arguments)
-                result = subprocess.run([*command, *arguments], cwd=work,
-                                        env=dict(env, BCC_CLOSE_TARGET=target), capture_output=True, timeout=30)
-                seen = (work / 'seen').exists()
-                marker = (work / 'done').exists()
-                ok = (result.returncode == 0 and not seen and marker
-                      and (work / 'done').read_bytes() == b'ok') if target == 'none' else (
-                          result.returncode != 0 and seen and not marker)
-                print(f'{"PASS" if ok else "FAIL"}: output-close/{name}/{target}', flush=True)
-                if not ok:
-                    print(result.returncode, seen, marker, repr(result.stdout), repr(result.stderr))
-                passed += ok
-                failed += not ok
+            for standard in ('open', 'closed'):
+                for target in ('none', 'result.ic', 'done'):
+                    for filename in ('result.ic', 'done', 'seen', 'unused'):
+                        (work / filename).unlink(missing_ok=True)
+                    arguments = ['-o', 'result.ic', '-s', 'done']
+                    arguments += ['input'] if name == 'b00' else ['-i', 'input']
+                    arguments = pass_arguments.get(name, arguments)
+                    result = subprocess.run([*command, *arguments], cwd=work,
+                                            env=dict(env, BCC_CLOSE_TARGET=target), capture_output=True, timeout=30,
+                                            preexec_fn=close_standard_streams if standard == 'closed' else None)
+                    seen = (work / 'seen').exists()
+                    marker = (work / 'done').exists()
+                    ok = (result.returncode == 0 and not seen and marker
+                          and (work / 'done').read_bytes() == b'ok') if target == 'none' else (
+                              result.returncode != 0 and seen and not marker)
+                    print(f'{"PASS" if ok else "FAIL"}: output-close/{name}/{standard}/{target}', flush=True)
+                    if not ok:
+                        print(result.returncode, seen, marker, repr(result.stdout), repr(result.stderr))
+                    passed += ok
+                    failed += not ok
         for target, source, diagnostic in (
             ('.b.aout', 'main(){return(0);}', b'output close failed'),
             ('b.br', 'putchar(c){return(c);}main(){return(0);}', b'runtime close failed'),

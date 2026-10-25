@@ -90,7 +90,8 @@ main(argc, argv) int argv[]; {
 	outinit(ofd);
 	dispat();
     if (!libmod) outs("\n.globl .bend\n.bend:\n");
-	if (ofd != 1) if (close(ofd)) exit(1);
+	/* A named output can reuse descriptor 1; the path records ownership. */
+	if (out) if (close(ofd)) exit(1);
 	if (done) markok(done);
 	exit(0);
 }

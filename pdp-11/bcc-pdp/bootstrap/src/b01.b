@@ -57,7 +57,8 @@ main() {
     if(out) {ofd=creat(out,016);if(ofd<0) fatal("b01: creat");}
     icini(ifd);outinit(ofd);rewrt();
     oflush();
-    if(ofd!=1) if(close(ofd)<0) fatal("cannot close output");
+    /* A named output can reuse descriptor 1; the path records ownership. */
+    if(out) if(close(ofd)<0) fatal("cannot close output");
     if(done) markok(done);
     exit(0);
 }
