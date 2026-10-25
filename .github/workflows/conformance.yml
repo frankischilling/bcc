@@ -120,8 +120,21 @@ jobs:
           python3 pdp-11/bcc-pdp/bootstrap/test_vm_resolver.py
           python3 pdp-11/bcc-pdp/bootstrap/test_passes.py --vm
           python3 pdp-11/bcc-pdp/bootstrap/test_codegen.py --vm
-          python3 pdp-11/bcc-pdp/bootstrap/test_image.py --vm
           python3 pdp-11/bcc-pdp/bootstrap/test_native_rebuild.py
+
+  b-image:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Build the seed compilers
+        run: |
+          make
+          make -C pdp-11/bcc-pdp
+      - name: Compare B-written native executable images
+        run: python3 pdp-11/bcc-pdp/bootstrap/test_image.py --vm
 
   unix-v1:
     runs-on: ubuntu-24.04
