@@ -221,3 +221,15 @@ from retained library routines, and use library names for external data.
 Both the host runner and the native driver select matching public labels.
 This fixes duplicate-symbol failures without claiming byte-for-byte archive
 loading: retained library bodies are not discarded.
+
+## Direct reads
+
+The emitter combines adjacent local, parameter, or external address records
+and dereferences into a single PDP-11 `mov`. Address values still use B word
+units. A label, another record, or end of input flushes a pending address;
+the emitter does not move a memory read across those boundaries. Saved
+function values are still read before their arguments are evaluated.
+
+The focused checks cover direct reads, saved addresses, overwritten values,
+consecutive addresses, and double indirection. The native execution suite
+and the in-system compiler rebuild also check the resulting code.

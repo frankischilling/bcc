@@ -6,60 +6,42 @@ _main:
 	mov	r5, -(sp)
 	mov	sp, r5
 	sub	$L30000f, sp
-	mov	$_putchar, r0
-	asr	r0
-	asl	r0
-	mov	(r0), r0
+	mov	_putchar, r0
 	mov	r0, -(sp)
 	mov	$104., r0
 	mov	r0, -(sp)
 	mov	2.(sp), r0
 	jsr	pc, (r0)
 	add	$4., sp
-	mov	$_putchar, r0
-	asr	r0
-	asl	r0
-	mov	(r0), r0
+	mov	_putchar, r0
 	mov	r0, -(sp)
 	mov	$101., r0
 	mov	r0, -(sp)
 	mov	2.(sp), r0
 	jsr	pc, (r0)
 	add	$4., sp
-	mov	$_putchar, r0
-	asr	r0
-	asl	r0
-	mov	(r0), r0
+	mov	_putchar, r0
 	mov	r0, -(sp)
 	mov	$108., r0
 	mov	r0, -(sp)
 	mov	2.(sp), r0
 	jsr	pc, (r0)
 	add	$4., sp
-	mov	$_putchar, r0
-	asr	r0
-	asl	r0
-	mov	(r0), r0
+	mov	_putchar, r0
 	mov	r0, -(sp)
 	mov	$108., r0
 	mov	r0, -(sp)
 	mov	2.(sp), r0
 	jsr	pc, (r0)
 	add	$4., sp
-	mov	$_putchar, r0
-	asr	r0
-	asl	r0
-	mov	(r0), r0
+	mov	_putchar, r0
 	mov	r0, -(sp)
 	mov	$111., r0
 	mov	r0, -(sp)
 	mov	2.(sp), r0
 	jsr	pc, (r0)
 	add	$4., sp
-	mov	$_putchar, r0
-	asr	r0
-	asl	r0
-	mov	(r0), r0
+	mov	_putchar, r0
 	mov	r0, -(sp)
 	mov	$10., r0
 	mov	r0, -(sp)

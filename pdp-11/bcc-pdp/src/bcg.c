@@ -219,6 +219,18 @@ cgara(off) {
     cgword();
 }
 
+/* Adjacent address/load records need no B-pointer round trip. */
+cglod(kind, off, name) char name[]; {
+    outs("\tmov\t");
+    if (kind == 3) cgsym(name);
+    else {
+        if (kind == 1) off = -2 * (off + 1);
+        else off = 2 * (off + 2);
+        outd(off); outs(".(r5)");
+    }
+    outs(", r0\n");
+}
+
 cgword() { eop("asr\tr0"); }
 cgbyte() { eop("asl\tr0"); }
 

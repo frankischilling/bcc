@@ -13,6 +13,20 @@ dbuf[520]; /* 1040 bytes: enough for 256 decimal literal bytes. */
 dtag[5];
 dnm[5];
 dsb[130]; /* 260 literal bytes. */
+adkind 0;
+adoff 0;
+
+/* dnm remains intact until the next record is dispatched. */
+adflsh() {
+    extern adkind, adoff, dnm;
+    int adkind, adoff;
+    char dnm[];
+    if (adkind == 1) cglca(adoff);
+    if (adkind == 2) cgara(adoff);
+    if (adkind == 3) cgext(dnm);
+    adkind = 0;
+}
+
 
 usage() {
 	errinit();
@@ -82,6 +96,8 @@ main(argc, argv) int argv[]; {
 }
 
 disp1() {
+    extern adkind, adoff;
+    int adkind, adoff;
 	extern dbuf, dtag, dnm, dsb;
 	char dbuf[], dtag[], dnm[], dsb[];
 	int a, b, c;
@@ -93,14 +109,14 @@ disp1() {
 	if (tageq(dtag, "pr"))  { nxtnam(dbuf, dnm); a = nxti(dbuf); b = nxti(dbuf); cgpro(dnm, a, b); return (1); }
 	if (tageq(dtag, "ep"))  { a = nxti(dbuf); cgepi(a); return (1); }
 	if (tageq(dtag, "rt"))  { cgret(); return (1); }
-	if (tageq(dtag, "lc"))  { a = nxti(dbuf); cglca(a); return (1); }
-	if (tageq(dtag, "ar"))  { a = nxti(dbuf); cgara(a); return (1); }
+	if (tageq(dtag, "lc"))  { adoff = nxti(dbuf); adkind = 1; return (1); }
+	if (tageq(dtag, "ar"))  { adoff = nxti(dbuf); adkind = 2; return (1); }
 	if (tageq(dtag, "dr"))  { cgdrf(); return (1); }
 	if (tageq(dtag, "as"))  { cgasn(); return (1); }
 	if (tageq(dtag, "bf"))  { a = nxti(dbuf); cgbrf(a); return (1); }
 	if (tageq(dtag, "jm"))  { a = nxti(dbuf); cgjmp(a); return (1); }
 	if (tageq(dtag, "lb"))  { a = nxti(dbuf); cglab(a); return (1); }
-	if (tageq(dtag, "ex"))  { nxtnam(dbuf, dnm); cgext(dnm); return (1); }
+	if (tageq(dtag, "ex"))  { nxtnam(dbuf, dnm); adkind = 3; return (1); }
 	return (0);
 }
 
@@ -173,12 +189,23 @@ disp3() {
 
 /* Read one IC line, dispatch to the matching cg primitive. */
 dispat() {
+    extern adkind, adoff, dnm;
+    int adkind, adoff;
+    char dnm[];
 	extern dbuf, dtag;
 	char dbuf[], dtag[];
 	while (1) {
-		if (!getln(dbuf, 1040)) return;
+		if (!getln(dbuf, 1040)) { adflsh(); return; }
 		icrst();
 		nxtnam(dbuf, dtag);
+        if (adkind) {
+            if (tageq(dtag, "dr")) {
+                cglod(adkind, adoff, dnm);
+                adkind = 0;
+                continue;
+            }
+            adflsh();
+        }
 		if (disp1()) continue;
 		if (disp2()) continue;
 		if (disp3()) continue;
