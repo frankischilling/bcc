@@ -86,3 +86,11 @@ preserve saved callable values, including across input files. Runtime-owned
 library functions use the same writable-cell interface. Compatibility
 block-scope resolution still needs work.
 These limits are separate from the generated-C fixed-point check.
+
+
+## Host-native backend work
+
+The experimental [ELF image writer](native/README.md) is written in B. It
+packages existing x86-64 instruction bytes and data without calling an
+assembler or linker. It does not yet turn B source into native instructions;
+the bootstrap compiler above still emits C.

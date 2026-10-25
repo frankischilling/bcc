@@ -55,6 +55,13 @@ A self-contained host path needs:
    is a generated assembly form of the B compiler, assembled by the B-written
    toolchain. It remains a design to implement and test, not an existing path.
 
+A [B-written ELF image writer](../bootstrap/native/README.md) now packages
+already-generated x86-64 instruction and data bytes without invoking an
+assembler or linker. Tests check its headers and execute its output on Linux
+x86-64. It is not an instruction selector, and building the writer still uses
+the C-output toolchain. The native frontend, runtime, and source-to-instruction
+path listed above remain necessary.
+
 The existing C and assembly-source builds remain useful seeds and comparison
 implementations during this work. A native-output prototype that cannot yet
 compile its own source is not a completed bootstrap.

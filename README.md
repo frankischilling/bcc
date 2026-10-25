@@ -89,7 +89,9 @@ image converter. An experimental [B build driver](pdp-11/bcc-pdp/bootstrap/drive
 now runs the passes and regenerates the target runtime files from B-maintained
 sources after its seed. It is not installed as the normal compiler. Complete
 in-guest source bootstrapping and a host native-output backend remain separate
-work; the existing host builds still depend on C.
+work; the existing host builds still depend on C. An experimental
+[B-written ELF image writer](bootstrap/native/README.md) can package existing
+x86-64 instruction bytes, but it is not yet a B-to-native compiler.
 
 ## Dialect and word modes
 

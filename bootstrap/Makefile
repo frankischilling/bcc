@@ -6,7 +6,7 @@ STAGE2 := $(BUILD)/stage2/bbc
 STAGE3 := $(BUILD)/stage3/bbc
 
 .SUFFIXES:
-.PHONY: all stage1 stage2 stage3 test clean
+.PHONY: all stage1 stage2 stage3 test native-test clean
 
 all: stage3
 
@@ -76,6 +76,10 @@ test: stage3
 
 	@set -e; for stage in 1 2 3; do python3 ../tests/test_library_bindings.py --bootstrap --compiler build/stage$$stage/bbc; done
 	@set -e; for stage in 1 2 3; do python3 ../tests/test_identifier_bytes.py --bootstrap --compiler build/stage$$stage/bbc; done
+
+native-test: stage3
+	python3 native/test_elfimage.py --compiler $(STAGE0)
+	@set -e; for stage in 1 2 3; do python3 native/test_elfimage.py --bootstrap --compiler build/stage$$stage/bbc; done
 
 clean:
 	rm -rf $(BUILD)

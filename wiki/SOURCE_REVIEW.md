@@ -1272,3 +1272,26 @@ when they had opened the file themselves. They now use the output-path option
 to decide ownership: explicitly opened files are closed and checked; inherited
 stdout is not closed by the pass. Regression checks cover both normal and
 closed standard streams, including a delayed failure on the reused descriptor.
+
+
+## Modern host executable layout
+
+The ELF specification separates the executable header from the program headers
+that describe loadable segments. ELF64 puts the segment flags immediately after
+the segment type, unlike ELF32. Load segments must be ordered by virtual address;
+their file offset and virtual address must agree modulo the page alignment.
+Bytes between a segment's file size and memory size are zero-filled. These rules
+come from the [ELF header](https://gabi.xinuos.com/elf/02-eheader.html) and
+[program-loading specification](https://gabi.xinuos.com/elf/07-pheader.html), not
+from the historical B manuals.
+
+The [B-written host image writer](../bootstrap/native/README.md) applies those
+rules to fixed-address Linux x86-64 images with separate executable and writable
+segments. The [Linux ELF interface](https://github.com/torvalds/linux/blob/master/include/uapi/linux/elf.h)
+defines the target machine identifier and non-executable-stack header used here.
+The tests construct simple syscall fixtures using the
+[Linux x86-64 syscall table](https://github.com/torvalds/linux/blob/master/arch/x86/entry/syscalls/syscall_64.tbl).
+
+This establishes an executable container for a future native backend. It does
+not generate instructions from B, remove the writer's seed/runtime dependency,
+or turn the existing host compiler into a self-hosted native compiler.

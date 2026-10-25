@@ -24,6 +24,11 @@ jobs:
         run: make test-install
       - name: Check the B-written bootstrap
         run: make -C bootstrap test
+      - name: Check B-written host-native image packaging
+        run: |
+          make -C bootstrap native-test
+          python3 bootstrap/native/test_elfimage.py --close-faults
+          python3 bootstrap/native/test_elfimage.py --compiler asm/bccasm --close-faults
       - name: Reject delayed compiler output failures
         run: |
           python3 tests/test_output_errors.py --compiler ./bcc --close-faults
