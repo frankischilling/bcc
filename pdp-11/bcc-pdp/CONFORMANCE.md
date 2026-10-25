@@ -251,8 +251,10 @@ closes successfully. If the marker's own close fails, the pass removes it.
 The driver also rejects a failed close of the converted executable instead
 of installing it as `a.out`.
 
-The early C library returns 0 or 1 from `close`; the B runtime returns 0 or
--1. The callers check the appropriate convention. Fault-injection tests
+The early C library reports a failed `close` with 1; the B runtime uses -1.
+A successful B close is non-negative, not necessarily zero: the native
+wrapper can leave the closed descriptor in the return register. B callers
+therefore test `<0`, rather than copying the C pass's nonzero-error check. Fault-injection tests
 cover the three C passes, the host-built B resolver in three word models,
 the driver's selected runtime files, and its final image. These checks complement the kernel rebuild;
 the kernel test does not simulate storage failures.

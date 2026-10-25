@@ -1180,3 +1180,14 @@ these literal backslashes while trying to disable C-style escapes. Disabling
 an extension must not reject an otherwise ordinary character. Regression
 checks distinguish strict literals from compatibility-mode C escapes,
 including a literal backslash immediately before the closing quote.
+
+
+### Close results at the C/B boundary
+
+The [B library reference](https://www.nokia.com/bell-labs/about/dennis-m-ritchie/kbman.html)
+specifies a negative result for a failed close. It does not require zero on
+success. The native B wrapper preserves a non-negative syscall result,
+whereas the early C library used to seed the compiler reports close failure
+with a positive result. A B port of a C compiler pass must adapt that check:
+`close(fd)<0`, not `close(fd)!=0`. Exact assembly-output comparisons alone
+would miss this if they exercised only stdout and never closed an output file.

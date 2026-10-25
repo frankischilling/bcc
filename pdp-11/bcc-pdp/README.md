@@ -179,8 +179,10 @@ in the body cannot overwrite the caller's frame.
 - Character constants require one or two characters; empty, oversized,
   and unfinished constants are rejected.
 - Source strings, including external initializers, are limited to 255 bytes
-  plus the B terminator. One source file can contain up to 256 literal
-  occurrences; each external definition accepts up to 128 initializers.
+  plus the B terminator. Literal occurrences stream to assembly rather than
+  occupying a 256-entry pool. Their signed label counter is bounded at
+  32,767; file and process limits can be reached sooner. Each external
+  definition accepts up to 128 initializers.
   Oversized or unterminated literals and oversized intermediate records are
   rejected. The resolver delays at most 2,047 bytes of short global records
   while streaming literal bytes before the contiguous data cells.
