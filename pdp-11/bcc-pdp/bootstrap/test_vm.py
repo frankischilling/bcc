@@ -158,6 +158,19 @@ p=Program();p.emit(26,512);call(p,15,10);call(p,15,3);p.emit(0)
 cases.append(('allocate-sequence',p.finish(),522,0))
 cases.append(('operand-cross-32',[6,31]+[0]*29+[1,42,0],42,0))
 cases.append(('odd-code-tail',bytes([1,0,42]),None,14))
+many_pages=[(16+64*i,[-32768,-1][i] if i<2 else i+1) for i in range(16)]
+p=Program()
+for address,value in many_pages:put(p,address,value)
+p.emit(2,many_pages[0][0])
+for address,_ in many_pages[1:]:p.emit(8);p.emit(2,address);p.emit(9,43)
+p.emit(0)
+cases.append(('many-page-eviction',p.finish(),w(sum(value for _,value in many_pages)),0))
+p=Program();p.emit(1,3);p.emit(3,16);p.emit(6,'far')
+p.label('near');p.emit(2,16);p.emit(7,'done');p.emit(6,'far')
+p.label('done');p.emit(1,42);p.emit(0)
+while len(p.code)<256:p.code.append(0)
+p.label('far');p.emit(2,16);p.emit(4,-1);p.emit(3,16);p.emit(6,'near')
+cases.append(('instruction-cache-conflict',p.finish(),42,0))
 passed=failed=0
 with tempfile.TemporaryDirectory(prefix='bcc-vm-core-') as d:
     work=Path(d)
@@ -175,6 +188,9 @@ with tempfile.TemporaryDirectory(prefix='bcc-vm-core-') as d:
             if ok and name=='heap-eviction':
                 data=(work/'heap.vm').read_bytes()
                 ok=all(struct.unpack_from('<h',data,at*2)[0]==value for at,value in [(16,42),(300,99),(600,-1),(900,4660)])
+            if ok and name=='many-page-eviction':
+                data=(work/'heap.vm').read_bytes()
+                ok=all(struct.unpack_from('<h',data,address*2)[0]==value for address,value in many_pages)
             if ok and name in ('file-roundtrip','file-page-crossing'):
                 ok=(work/'out').read_bytes()==b'ABC'
             print(('PASS' if ok else 'FAIL')+': '+model+'/'+name,flush=True)
