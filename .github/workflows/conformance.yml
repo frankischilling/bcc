@@ -83,6 +83,7 @@ jobs:
           python3 tests/test_external_scope.py --native
           python3 tests/test_switch_runtime.py --native
           python3 pdp-11/bcc-pdp/tests/image_tools.py
+          python3 pdp-11/bcc-pdp/tests/emit_image.py
           python3 pdp-11/bcc-pdp/tests/file_verification.py
           python3 pdp-11/bcc-pdp/tests/console_protocol.py
           python3 pdp-11/bcc-pdp/tests/golden.py
@@ -97,6 +98,23 @@ jobs:
           make
           python3 pdp-11/bcc-pdp/bootstrap/test_resolver.py
           python3 pdp-11/bcc-pdp/tests/output_close.py --bcc ./bcc
+
+  b-vm:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Build the seed compilers
+        run: |
+          make
+          make -C pdp-11/bcc-pdp
+      - name: Check experimental B execution and resolver
+        run: |
+          python3 pdp-11/bcc-pdp/bootstrap/test_vm.py
+          python3 pdp-11/bcc-pdp/bootstrap/test_vm_encoder.py
+          python3 pdp-11/bcc-pdp/bootstrap/test_vm_resolver.py
 
   unix-v1:
     runs-on: ubuntu-24.04
@@ -186,3 +204,5 @@ jobs:
 
       - name: Run the B-written record reader in Unix V1
         run: bash pdp-11/bcc-pdp/bootstrap/test_v1.sh
+      - name: Run the B-written resolver inside Unix V1
+        run: python3 pdp-11/bcc-pdp/bootstrap/test_vm_v1.py

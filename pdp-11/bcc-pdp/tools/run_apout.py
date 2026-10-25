@@ -31,10 +31,15 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--timeout', type=float, default=None)
     parser.add_argument('--raw-v1', action='store_true', help="use the emulator's uninstrumented 0405 mode")
+    parser.add_argument('--emit-image', type=Path, help='save the validated image without running it')
     parser.add_argument('source', type=Path)
     parser.add_argument('arguments', nargs=argparse.REMAINDER)
     args = parser.parse_args()
     source = args.source.resolve(strict=True)
+    if args.emit_image and args.arguments:
+        parser.error('--emit-image does not accept program arguments')
+    if args.emit_image and args.emit_image.resolve() == source:
+        parser.error('image destination must differ from source')
     apout = v1 / 'tools/apout/apout'
     caller = Path.cwd()
     with tempfile.TemporaryDirectory(prefix='bcc-v1-run-') as directory:
@@ -102,6 +107,9 @@ def main():
             executable = work / 'test.out'
             executable.write_bytes(test_image((work / 'a.out').read_bytes()))
             env['APOUT_UNIX_VERSION'] = 'V2'
+        if args.emit_image:
+            args.emit_image.write_bytes(executable.read_bytes())
+            return 0
         result = subprocess.run([str(apout), str(executable), *args.arguments],
                                 cwd=caller, env=env, timeout=args.timeout)
         return result.returncode if result.returncode >= 0 else 128 - result.returncode

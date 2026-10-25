@@ -24,8 +24,11 @@ def main():
     with tempfile.TemporaryDirectory(prefix='bcc-native-close-') as directory:
         work = Path(directory)
         with build_snapshot_lock(ROOT):
-            shutil.copytree(ROOT / 'build/aroot', work, dirs_exist_ok=True)
-            (work / 'usr/lib/bcc').mkdir(parents=True, exist_ok=True)
+            # Do not inherit scratch files or compiler installations from a local VM run.
+            shutil.copytree(ROOT / 'build/aroot', work, dirs_exist_ok=True,
+                            ignore=shutil.ignore_patterns('tmp', 'bcc'))
+            for directory in ('usr/lib/bcc', 'usr/tmp', 'tmp'):
+                (work / directory).mkdir(parents=True, exist_ok=True)
             shutil.copy2(ROOT.parent / 'unix-v1/tools/apout/apout', work / 'apout')
             for name in ('b00', 'b01', 'b1'):
                 shutil.copyfile(ROOT / 'build' / name, work / name)

@@ -79,7 +79,10 @@ is not the same as the B-written bootstrap's fixed-point test.
 The [long-term bootstrap goal](wiki/BOOTSTRAP.md) is a B-maintained compiler,
 runtime, and executable-building toolchain on both the host and PDP-11,
 without an external C compiler or assembler after the seed stage. The
-current build paths still have those dependencies.
+current build paths still have those dependencies. An experimental
+[B-written execution engine](pdp-11/bcc-pdp/bootstrap/vm/README.md) now runs
+the B-written resolver inside Unix V1 with exact output checks. Its encoder
+is still Python, and it does not yet rebuild the whole compiler.
 
 ## Dialect and word modes
 

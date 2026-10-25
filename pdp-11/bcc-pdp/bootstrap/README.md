@@ -2,8 +2,10 @@
 
 This directory contains an experimental B version of the `b01` resolver.
 It is not installed in place of the native C pass. The source matches the
-reference resolver in host-side comparisons, but the current generated
-native program does not fit the PDP-11's 16 KB process limit.
+reference resolver in host-side comparisons, but its directly generated
+native program does not fit the PDP-11's 16 KB process limit. A separate
+[paged execution engine](vm/README.md) can run the B-written resolver
+inside Unix V1 from a compact instruction file.
 
 The host compiler still builds these tests through C and uses its C runtime.
 The native frontend, code generator, and driver also remain C-written. This
@@ -85,3 +87,8 @@ The kernel checks build in `/usr/tmp` on the RK disk. The smaller RF root
 filesystem also holds swap and kernel storage; a large assembler output
 and its converted copy can exhaust its free space. This choice changes the
 scratch filesystem, not the 16 KB process-memory limit.
+
+The newer `vm/` experiment adds call frames, operators, paged data, primitive
+I/O, and argument startup. It has separate tests; the eight-operation
+example above remains a small independent check. Its encoder is still
+Python, and the native C-written compiler still builds the engine.

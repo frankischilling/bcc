@@ -108,21 +108,31 @@ inside Unix V1. Their kernel test checks file creation, record parsing,
 `-32768`, EOF, and exact output. This establishes that those components run
 on the target, not that the complete resolver fits there.
 
-Memory is still the blocker for the complete pass. One reduced-runtime
+Direct native code still exceeds the memory budget. One reduced-runtime
 assembly experiment occupied 24,808 bytes before allowing for its stack,
-above the 16,384-byte process limit. That experiment is not the installed
-compiler. The direct native backend needs either much smaller passes or a
-more compact execution representation before this port can replace `b01`.
-An eight-operation B-written paging experiment now runs inside Unix V1.
-It counts to 1,000 and fetches an instruction operand across a 512-byte code
-page boundary. It reserves 3,072 data cells and checks the last cell after the loop.
-Its complete test image, including its fixture writer and primitive
-runtime, occupies 10,872 bytes. The unused B-written library, exec helpers, and process/metadata helpers
-add 4,396, 804, and 658 bytes respectively; linking all three would exceed
-the process limit. Calls, local frames, the remaining
-operators, and the instruction encoder still need implementation. This
-makes paged compact code a candidate for further work, not an established
-compiler bootstrap.
+above the 16,384-byte process limit. That is not the installed compiler.
+
+The small eight-operation paging example remains an independent kernel
+check. It counts to 1,000, crosses a code-page boundary, and checks its last
+reserved data cell. It does not implement the full instruction set.
+
+The newer [B-written execution engine](../pdp-11/bcc-pdp/bootstrap/vm/README.md)
+adds call frames, operators, paged data, primitive I/O, and argument startup.
+It runs the B-written resolver inside Unix V1, with the harness comparing
+the resulting file bytes against the C-written pass. The engine uses two
+512-byte heap pages and a 128-byte instruction cache. Its 8,192-word virtual
+heap holds globals and frames in a caller-supplied backing file.
+
+The resolver image contains 9,536 instruction-file words, including startup
+and static-data loading, with 3,386 words reserved for its initial data.
+These are virtual storage counts, not resident PDP-11 process sizes. The
+native engine still has to fit the kernel's separate 16 KB process limit.
+
+This path still uses the C-written seed to build the engine and resolve the
+B source. A Python encoder creates the instruction file. File-descriptor
+virtualization, temporary-file ownership, a complete runtime, and the
+remaining compiler passes are unfinished. Running one compiler pass in B
+is useful evidence for the design, not a completed self-host.
 
 ## Completion checks
 
