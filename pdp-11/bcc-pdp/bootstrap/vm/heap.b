@@ -23,6 +23,8 @@ hpage(at) {
     auto pg,p,i;
     valid(at);
     pg=at>>5;
+    /* Stack and byte accesses often reuse the last selected page. */
+    if(htag[hcur]==pg) goto found;
     i=0;
     while(i<8) {if(htag[i]==pg) {hcur=i;goto found;}i++;}
     hcur=hnext;hnext=(hnext+1)&7;

@@ -165,6 +165,10 @@ p.emit(2,many_pages[0][0])
 for address,_ in many_pages[1:]:p.emit(8);p.emit(2,address);p.emit(9,43)
 p.emit(0)
 cases.append(('many-page-eviction',p.finish(),w(sum(value for _,value in many_pages)),0))
+p=Program()
+for i in range(8):put(p,16+64*i,i+1)
+p.emit(2,464);p.emit(4,1);p.emit(3,465);p.emit(2,465);p.emit(0)
+cases.append(('last-page-dirty-hit',p.finish(),9,0))
 p=Program();p.emit(1,3);p.emit(3,16);p.emit(6,'far')
 p.label('near');p.emit(2,16);p.emit(7,'done');p.emit(6,'far')
 p.label('done');p.emit(1,42);p.emit(0)
@@ -198,6 +202,9 @@ with tempfile.TemporaryDirectory(prefix='bcc-vm-core-') as d:
             if ok and name=='many-page-eviction':
                 data=(work/'heap.vm').read_bytes()
                 ok=all(struct.unpack_from('<h',data,address*2)[0]==value for address,value in many_pages)
+            if ok and name=='last-page-dirty-hit':
+                data=(work/'heap.vm').read_bytes()
+                ok=struct.unpack_from('<hh',data,464*2)==(8,9)
             if ok and name in ('file-roundtrip','file-page-crossing'):
                 ok=(work/'out').read_bytes()==b'ABC'
             print(('PASS' if ok else 'FAIL')+': '+model+'/'+name,flush=True)
