@@ -16,6 +16,9 @@ MODULES = {
     'resolver': ('src/io.b', 'src/ic.b', 'src/symbols.b', 'src/b01.b'),
     'codegen': ('src/io.b', 'src/ic.b', 'codegen/bcg.b', 'codegen/bcgnew.b',
                 'codegen/blit.b', 'codegen/b1drv.b', 'codegen/driver.b'),
+    'image': ('src/io.b',) + tuple('image/' + name + '.b' for name in
+                                  ('symbols', 'lexer', 'expression', 'output',
+                                   'operand', 'opcodes', 'parser', 'main')),
     'encoder': tuple('encoder/' + name + '.b' for name in
                      ('io', 'ic', 'symbols', 'tables', 'layout', 'emit', 'code', 'main')),
 }

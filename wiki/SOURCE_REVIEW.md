@@ -1208,4 +1208,18 @@ byte strings, and directional local labels. A replacement must preserve
 those bytes and their relocation meaning, not parse the expressions as B
 or C. The current engine-rebuild check still uses the pinned assembler and
 an explicit converter from its output to the six-word V1 executable header.
-A B-written assembler or direct image writer remains to be implemented.
+The experimental B-written image writer now provides a separate construction
+path for the backend's fixed-origin assembly subset. It writes the native
+header directly, while tests retain the historical assembler and converter
+as independent references. It does not yet provide relocatable linking or
+replace the compiler driver and primitive runtime.
+
+The pinned reconstruction's
+[predefined symbol table](https://github.com/jserv/unix-v1/blob/7bce7b1e3f8cc08582ffcfd01d4e25273dc6646a/src/cmd/as19.s)
+assigns `ac` and `mq` to octal `177302` and `177304`. These are KE11 hardware
+addresses, not ordinary CPU registers. BCC's time wrapper uses them, so an
+image writer that only recognizes `r0` through `r5`, `sp`, and `pc` can pass
+simple programs but fail valid runtime assembly. The corpus comparison
+covers this distinction. The reconstruction also contains later assembler
+features; its entire predefined table is not evidence that every feature
+belonged to the first-edition assembler.

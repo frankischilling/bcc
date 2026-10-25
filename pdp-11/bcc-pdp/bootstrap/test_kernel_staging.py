@@ -31,7 +31,7 @@ def check_staging(filename, populated):
         saved = {}
         if populated:
             target.mkdir(parents=True)
-            for name in ('code.vm', 'heap.vm', 'input.b', 'raw.ic', 'code.ic', 'input.ic', 'out.vm', 'out.s'):
+            for name in ('code.vm', 'heap.vm', 'input.b', 'raw.ic', 'code.ic', 'input.ic', 'out.vm', 'out.s', 'input.s', 'out'):
                 path = target / name
                 path.write_bytes(('original ' + name).encode())
                 path.chmod(0o640)
@@ -54,7 +54,9 @@ def check_staging(filename, populated):
             stack.enter_context(patch.object(module, 'NATIVE', native))
             stack.enter_context(patch.object(module, 'V1', v1))
             stack.enter_context(patch.object(module.subprocess, 'run', subprocess_run))
-            stack.enter_context(patch.object(module, 'source_text', lambda: 'main(){return(0);}'))
+            stack.enter_context(patch.object(module, 'source_text', lambda *args: 'main(){return(0);}'))
+            if hasattr(module, 'engine_source'):
+                stack.enter_context(patch.object(module, 'engine_source', lambda: 'main(){return(0);}'))
             if hasattr(module, 'snapshot'):
                 stack.enter_context(patch.object(module, 'snapshot', lambda work: None))
             if hasattr(module, 'seed_image'):
@@ -82,11 +84,14 @@ def check_staging(filename, populated):
         if filename == 'test_passes_v1.py':
             reports = list((base / 'failures').glob('*/failure.txt'))
             assert len(reports) == 1 and 'forced guest failure' in reports[0].read_text()
+        if filename == 'test_image_v1.py':
+            reports = list((native / 'build/image-v1-failures').glob('*/failure.txt'))
+            assert len(reports) == 1 and 'forced guest failure' in reports[0].read_text()
         print(f'PASS: kernel staging/{filename}/{"existing" if populated else "clean"}')
 
 
 def main():
-    for filename in ('test_passes_v1.py', 'test_codegen_v1.py', 'test_vm_v1.py', 'test_vm_v1_limits.py'):
+    for filename in ('test_passes_v1.py', 'test_codegen_v1.py', 'test_vm_v1.py', 'test_vm_v1_limits.py', 'test_image_v1.py'):
         for populated in (False, True):
             check_staging(filename, populated)
     workflow = (PROJECT / '.github/workflows/conformance.yml').read_text()
@@ -101,7 +106,7 @@ def main():
             count += 1
     assert count
     print(f'PASS: workflow rejection expectations ({count} fixtures)')
-    print('Results: 9 passed, 0 failed')
+    print('Results: 11 passed, 0 failed')
     return 0
 
 

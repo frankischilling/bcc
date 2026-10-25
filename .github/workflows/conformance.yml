@@ -120,6 +120,7 @@ jobs:
           python3 pdp-11/bcc-pdp/bootstrap/test_vm_resolver.py
           python3 pdp-11/bcc-pdp/bootstrap/test_passes.py --vm
           python3 pdp-11/bcc-pdp/bootstrap/test_codegen.py --vm
+          python3 pdp-11/bcc-pdp/bootstrap/test_image.py --vm
           python3 pdp-11/bcc-pdp/bootstrap/test_native_rebuild.py
 
   unix-v1:
@@ -238,11 +239,15 @@ jobs:
         run: python3 pdp-11/bcc-pdp/bootstrap/test_passes_v1.py --failure-dir .cache/b-passes-v1
       - name: Check B-written native assembly generation
         run: python3 pdp-11/bcc-pdp/bootstrap/test_codegen_v1.py
+      - name: B-written native image construction and execution
+        run: python3 pdp-11/bcc-pdp/bootstrap/test_image_v1.py
       - name: Check large instruction offsets inside Unix V1
         run: python3 pdp-11/bcc-pdp/bootstrap/test_vm_v1_limits.py
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: b-passes-v1-failures
-          path: .cache/b-passes-v1
+          path: |
+            .cache/b-passes-v1
+            pdp-11/bcc-pdp/build/image-v1-failures
           if-no-files-found: ignore

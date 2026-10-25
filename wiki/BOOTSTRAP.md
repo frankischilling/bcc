@@ -139,7 +139,7 @@ and compares the resulting instruction image with the seed image. This is
 not a native executable rebuild: the engine, primitive runtime, and test
 driver still have external dependencies. File-descriptor virtualization,
 temporary-file ownership, a complete runtime, host native instruction
-generation, and independent executable construction remain unfinished.
+generation, and a complete independent build driver remain unfinished.
 
 The frontend image contains 15,119 instruction-file words and 1,404 initial
 data words. The encoder image contains 17,305 instruction-file words and
@@ -154,7 +154,22 @@ code generator have reproduced the execution engine's native bytes through
 the historical assembler and image converter. That check used the native
 application emulator. A separate Unix V1 check compares this generator's
 assembly for a smaller program with globals, a call, and a computed goto.
-Neither check removes the assembler or runtime-assembly dependency.
+Those checks retain the assembler and runtime assembly.
+
+A [B-written native image writer](../pdp-11/bcc-pdp/bootstrap/image/README.md)
+now accepts the backend's selected assembly files and writes a fixed-origin
+Unix V1 executable directly. Its output path does not call an assembler,
+linker, or Python image converter. Comparison tests keep the historical
+assembler as an independent reference, rather than using it to construct
+the B writer's output.
+
+A kernel component check runs the writer inside Unix V1, checks its output
+bytes and native execute permission, then runs the saved executable in a
+second boot. Runtime selection and the verification launcher still use
+external helpers. The writer is not a general relocatable assembler, and
+it is not installed in place of the existing compiler driver. This removes
+one construction dependency for supported inputs, not all bootstrap
+dependencies.
 
 The B frontend does not reproduce the C seed's physical-stack exhaustion
 diagnostic. The encoder expects resolved compiler records and is not a

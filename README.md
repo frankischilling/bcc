@@ -83,8 +83,10 @@ current build paths still have those dependencies. An experimental
 [B-written execution engine](pdp-11/bcc-pdp/bootstrap/vm/README.md) now runs
 the B-written resolver inside Unix V1 with exact output checks. Experimental
 [B compiler passes](pdp-11/bcc-pdp/bootstrap/README.md#frontend-and-code-generators)
-also run through that engine. The complete native compiler, runtime, and
-executable-writing path do not yet rebuild from B alone.
+also run through that engine. A [B-written native image writer](pdp-11/bcc-pdp/bootstrap/image/README.md)
+can construct supported PDP-11 executables without an external assembler or
+image converter. The complete compiler driver and runtime still do not
+rebuild from B alone.
 
 ## Dialect and word modes
 

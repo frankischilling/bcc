@@ -1,14 +1,17 @@
 # B-written native passes
 
 This directory contains experimental B implementations of the frontend,
-resolver, paged instruction encoder, and PDP-11 assembly generator. They are
+resolver, paged instruction encoder, PDP-11 assembly generator, and native
+image writer. They are
 not installed in place of the native C passes. The B versions run through a
 separate [paged execution engine](vm/README.md), which keeps most of their
 code and data in files to fit the PDP-11 process limit.
 
 The host comparison builds still use C and the host runtime. The native seed
-compiler builds the execution engine, and native executable construction
-still uses the historical assembler and runtime assembly. These are
+compiler builds the execution engine. The installed build still uses the
+historical assembler; an experimental B image writer can replace that
+construction step for supported inputs. Runtime assembly and external test
+drivers remain. These are
 [bootstrap components](../../../wiki/BOOTSTRAP.md), not a completed
 independent toolchain.
 
@@ -167,3 +170,28 @@ final native engine byte with the C-seeded reference. It deliberately retains
 the historical assembler, runtime-selection helper, image converter, and
 runtime assembly. Those dependencies are visible in the test; a matching
 engine does not remove them.
+
+
+## B-written executable construction
+
+The [native image writer](image/README.md) reads the backend's selected
+assembly files and writes a fixed-origin `0405` executable directly. It does
+not invoke the historical assembler or the Python image converter. Its tests
+still use both as independent byte references:
+
+```sh
+python3 pdp-11/bcc-pdp/bootstrap/test_image.py --vm
+python3 pdp-11/bcc-pdp/bootstrap/test_image_v1.py
+```
+
+The first check compares assembly fixtures, valid native corpus programs,
+and the execution engine across three host word models. It tests malformed
+and over-limit inputs separately. Rejected B fixtures do not reach the image
+writer and are counted separately. The VM option checks selected programs
+under both execution models.
+
+The kernel check runs the B writer in Unix V1, reads its executable bytes
+and execute permission from the disk image, then boots again and runs the
+saved executable. The second boot uses a C-seeded verification launcher;
+it is not part of executable construction. This is a component check, not
+a complete B-written compiler driver or an independent runtime rebuild.

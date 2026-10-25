@@ -48,6 +48,7 @@ python3 pdp-11/bcc-pdp/tests/read_errors.py
 python3 pdp-11/bcc-pdp/tests/compiler_stack.py
 python3 pdp-11/bcc-pdp/tests/native_build.py
 python3 pdp-11/bcc-pdp/tests/image_tools.py
+python3 pdp-11/bcc-pdp/tests/assembler_diagnostics.py
 python3 pdp-11/bcc-pdp/tests/file_verification.py
 python3 pdp-11/bcc-pdp/tests/console_protocol.py
 python3 pdp-11/bcc-pdp/tests/runtime_selection.py
@@ -280,3 +281,29 @@ requires that compiler message. It must be combined with
 `--expect-compile-error`; an unrelated failure does not satisfy the check.
 The deep-parenthesis, unary-chain, and block fixtures require the stack
 exhaustion diagnostic rather than accepting any failed compilation.
+
+
+## Experimental B native image writer
+
+```sh
+python3 pdp-11/bcc-pdp/bootstrap/test_image.py --vm
+python3 pdp-11/bcc-pdp/bootstrap/test_image_v1.py
+```
+
+The first test compares complete native files against the pinned assembler
+and image converter across three host word models. Inputs include instruction
+and expression fixtures, accepted native corpus programs, and the B execution
+engine. Separate cases check rejected syntax and resource limits. The VM
+option runs selected images under both execution models; it is slower than
+the host comparison builds.
+
+The kernel test runs the B writer inside Unix V1 and checks both bytes and
+native execute permission. A second boot executes the saved output and
+requires `OK` with a newline. Failed kernel runs preserve available disk
+images under `pdp-11/bcc-pdp/build/image-v1-failures`. Staging tests check clean
+and existing scratch files and preserve the original failure if a guest
+never produces an image.
+
+These tests do not establish a complete B-only build. The image writer's
+construction step is B-written, but runtime selection, seed tools, and test
+launchers remain separate dependencies.
