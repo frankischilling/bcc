@@ -7,7 +7,7 @@ _fib:
 	mov	sp, r5
 	sub	$L30000f, sp
 	mov	4.(r5), r0
-	mov	r0, -(sp)
+	10046
 	mov	$2., r0
 	cmp	(sp)+, r0
 	bge	L0
@@ -24,27 +24,27 @@ L1:
 	jmp	L30000
 L2:
 	mov	_fib, r0
-	mov	r0, -(sp)
+	10046
 	mov	4.(r5), r0
-	mov	r0, -(sp)
+	10046
 	mov	$1., r0
 	mov	(sp)+, r1
 	sub	r0, r1
 	mov	r1, r0
-	mov	r0, -(sp)
+	10046
 	mov	2.(sp), r0
 	jsr	pc, (r0)
 	add	$4., sp
-	mov	r0, -(sp)
+	10046
 	mov	_fib, r0
-	mov	r0, -(sp)
+	10046
 	mov	4.(r5), r0
-	mov	r0, -(sp)
+	10046
 	mov	$2., r0
 	mov	(sp)+, r1
 	sub	r0, r1
 	mov	r1, r0
-	mov	r0, -(sp)
+	10046
 	mov	2.(sp), r0
 	jsr	pc, (r0)
 	add	$4., sp
@@ -67,14 +67,14 @@ _main:
 	mov	r5, r0
 	sub	$2., r0
 	asr	r0
-	mov	r0, -(sp)
+	10046
 	mov	$0., r0
 	mov	(sp)+, r1
 	asl	r1
 	mov	r0, (r1)
 L3:
 	mov	-2.(r5), r0
-	mov	r0, -(sp)
+	10046
 	mov	$15., r0
 	cmp	(sp)+, r0
 	bgt	L5
@@ -88,17 +88,17 @@ L6:
 	jmp	L4
 1:
 	mov	_printn, r0
-	mov	r0, -(sp)
+	10046
 	mov	_fib, r0
-	mov	r0, -(sp)
+	10046
 	mov	-2.(r5), r0
-	mov	r0, -(sp)
+	10046
 	mov	2.(sp), r0
 	jsr	pc, (r0)
 	add	$4., sp
-	mov	r0, -(sp)
+	10046
 	mov	$10., r0
-	mov	r0, -(sp)
+	10046
 	mov	0.(sp), r0
 	mov	2.(sp), r1
 	mov	r0, 2.(sp)
@@ -107,18 +107,18 @@ L6:
 	jsr	pc, (r0)
 	add	$6., sp
 	mov	_putchar, r0
-	mov	r0, -(sp)
+	10046
 	mov	$32., r0
-	mov	r0, -(sp)
+	10046
 	mov	2.(sp), r0
 	jsr	pc, (r0)
 	add	$4., sp
 	mov	r5, r0
 	sub	$2., r0
 	asr	r0
-	mov	r0, -(sp)
+	10046
 	mov	-2.(r5), r0
-	mov	r0, -(sp)
+	10046
 	mov	$1., r0
 	mov	(sp)+, r1
 	add	r1, r0
@@ -128,9 +128,9 @@ L6:
 	jmp	L3
 L4:
 	mov	_putchar, r0
-	mov	r0, -(sp)
+	10046
 	mov	$10., r0
-	mov	r0, -(sp)
+	10046
 	mov	2.(sp), r0
 	jsr	pc, (r0)
 	add	$4., sp

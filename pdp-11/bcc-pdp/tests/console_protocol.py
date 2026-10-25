@@ -67,6 +67,15 @@ class ConsoleProtocol(unittest.TestCase):
         self.assertFalse(protocol.compile_failure(b'I\nII\n', False))
         self.assertTrue(protocol.compile_failure(b'b: assembler failed\n', False))
 
+    def test_oversized_program_failure(self):
+        output = b'b ./v1.b\r\nI\r\nII\r\nb: program exceeds 16 KB\r\n# '
+        self.assertTrue(protocol.compile_failure(output, False))
+        self.assertTrue(protocol.compile_failure(output, False, 'program exceeds 16 KB'))
+        self.assertFalse(protocol.compile_failure(output, True))
+        self.assertFalse(protocol.compile_failure(output, False, 'compiler stack exhausted'))
+        self.assertFalse(protocol.compile_failure(b'echo b: program exceeds 16 KB\n', False))
+        self.assertFalse(protocol.compile_failure(b'b: program exceeds 16 KB extra\n', False))
+
     def test_reject_marker_metacharacters(self):
         for marker in ('', 'a;b', 'a b', 'a\nb', '$x', "'x'"):
             with self.assertRaises(ValueError):

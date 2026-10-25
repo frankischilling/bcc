@@ -25,6 +25,7 @@ def main():
         work = Path(directory)
         with build_snapshot_lock(ROOT):
             shutil.copytree(ROOT / 'build/aroot', work, dirs_exist_ok=True)
+            (work / 'usr/lib/bcc').mkdir(parents=True, exist_ok=True)
             shutil.copy2(ROOT.parent / 'unix-v1/tools/apout/apout', work / 'apout')
             for name in ('b00', 'b01', 'b1'):
                 shutil.copyfile(ROOT / 'build' / name, work / name)

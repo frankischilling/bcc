@@ -27,7 +27,7 @@ def main():
         ('successive-addresses', 'ex value\nex other\ndr\n', external+b'\tmov\t_other, r0\n'),
         ('label-boundary', 'lc 0\nlb 9\ndr\n', local+b'L9:\n'+deref),
         ('overwritten-value', 'lc 0\nn 5\ndr\n', local+b'\tmov\t$5., r0\n'+deref),
-        ('saved-address', 'ar 0\nps\n', argument+b'\tmov\tr0, -(sp)\n'),
+        ('saved-address', 'ar 0\nps\n', argument+b'\t10046\n'),
         ('double-indirection', 'ex value\ndr\ndr\n', b'\tmov\t_value, r0\n'+deref),
         ('local-and-argument', 'lc 0\ndr\nar 0\ndr\n', b'\tmov\t-2.(r5), r0\n\tmov\t4.(r5), r0\n'),
     ]

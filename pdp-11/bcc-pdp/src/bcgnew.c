@@ -93,10 +93,13 @@ cggvl(id) {
 
 cggve() {
 	extern gvnstor, gvinit;
-	int gvnstor, gvinit;
+	int gvnstor, gvinit, count;
+	/* Reserve zero bytes in bounded chunks instead of one token per word. */
 	while (gvinit < gvnstor) {
-		outs("\t0.\n");
-		gvinit = gvinit + 1;
+		count = gvnstor - gvinit;
+		if (count > 8191) count = 8191;
+		outs("\t.=.+"); outd(count * 2); outs(".\n");
+		gvinit = gvinit + count;
 	}
 	outs("\t.even\n");
 }

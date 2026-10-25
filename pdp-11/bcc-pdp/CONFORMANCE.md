@@ -260,3 +260,23 @@ reference lists the store but does not specify a return value. Regression
 checks cover 004-terminated copying and values whose stored byte differs
 from the returned word; they do not attribute this stronger BCC contract to
 the historical PDP-11 manual.
+
+## Zero-filled storage
+
+The native emitter reserves zero-filled globals with bounded location-counter
+advances rather than printing one zero word per line. The allocation and
+loadable bytes are unchanged. The checks compare compact output with its
+expanded word-by-word form, including partially initialized vectors, and
+verify chunking for the full signed IC field range.
+
+This also reduces the historical assembler's temporary token file. One
+larger VM experiment produced 66,560 bytes of tokens, beyond the restored
+kernel's 16-bit file-position range. Compact reservations reduced that file
+to 62,464 bytes and allowed the same 14,592-byte program to build in the
+kernel. This is not an increase in process memory or a new general linker.
+
+The emitter also writes `010046` as an octal instruction word for the common
+`mov r0,-(sp)` stack push. This reduces assembler tokens without changing
+the machine instruction. Tests expand those words back into mnemonics and
+compare the complete loadable images for calls, recursion, arithmetic,
+vector accesses, and assignment.

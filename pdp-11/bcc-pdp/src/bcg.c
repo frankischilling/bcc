@@ -28,7 +28,8 @@ cgnst(n) {
 }
 
 cgpsh() {
-	eop("mov\tr0, -(sp)");
+	/* mov r0,-(sp), encoded to keep the V1 assembler token file small. */
+	eop("10046");
 }
 
 /* runtime call helper: stack = [LHS]; R0 = RHS.  Pushes R0, then jsr. */

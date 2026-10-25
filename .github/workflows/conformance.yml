@@ -74,6 +74,8 @@ jobs:
           python3 pdp-11/bcc-pdp/tests/driver_cases.py
           python3 pdp-11/bcc-pdp/tests/ic_cases.py
           python3 pdp-11/bcc-pdp/tests/direct_loads.py
+          python3 pdp-11/bcc-pdp/tests/zero_storage.py
+          python3 pdp-11/bcc-pdp/tests/compact_push.py
           python3 pdp-11/bcc-pdp/tests/read_errors.py
           python3 pdp-11/bcc-pdp/tests/compiler_stack.py
           python3 pdp-11/bcc-pdp/tests/native_build.py

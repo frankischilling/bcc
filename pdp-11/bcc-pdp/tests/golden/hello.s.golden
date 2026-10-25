@@ -7,44 +7,44 @@ _main:
 	mov	sp, r5
 	sub	$L30000f, sp
 	mov	_putchar, r0
-	mov	r0, -(sp)
+	10046
 	mov	$104., r0
-	mov	r0, -(sp)
+	10046
 	mov	2.(sp), r0
 	jsr	pc, (r0)
 	add	$4., sp
 	mov	_putchar, r0
-	mov	r0, -(sp)
+	10046
 	mov	$101., r0
-	mov	r0, -(sp)
+	10046
 	mov	2.(sp), r0
 	jsr	pc, (r0)
 	add	$4., sp
 	mov	_putchar, r0
-	mov	r0, -(sp)
+	10046
 	mov	$108., r0
-	mov	r0, -(sp)
+	10046
 	mov	2.(sp), r0
 	jsr	pc, (r0)
 	add	$4., sp
 	mov	_putchar, r0
-	mov	r0, -(sp)
+	10046
 	mov	$108., r0
-	mov	r0, -(sp)
+	10046
 	mov	2.(sp), r0
 	jsr	pc, (r0)
 	add	$4., sp
 	mov	_putchar, r0
-	mov	r0, -(sp)
+	10046
 	mov	$111., r0
-	mov	r0, -(sp)
+	10046
 	mov	2.(sp), r0
 	jsr	pc, (r0)
 	add	$4., sp
 	mov	_putchar, r0
-	mov	r0, -(sp)
+	10046
 	mov	$10., r0
-	mov	r0, -(sp)
+	10046
 	mov	2.(sp), r0
 	jsr	pc, (r0)
 	add	$4., sp
