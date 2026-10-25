@@ -84,6 +84,7 @@ jobs:
           python3 tests/test_external_scope.py --native
           python3 tests/test_switch_runtime.py --native
           python3 pdp-11/bcc-pdp/tests/image_tools.py
+          python3 pdp-11/bcc-pdp/tests/assembler_diagnostics.py
           python3 pdp-11/bcc-pdp/tests/emit_image.py
           python3 pdp-11/bcc-pdp/tests/file_verification.py
           python3 pdp-11/bcc-pdp/tests/console_protocol.py

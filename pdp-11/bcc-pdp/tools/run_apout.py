@@ -11,7 +11,7 @@ import subprocess
 import struct
 import sys
 import tempfile
-from apout_image import native_image, test_image
+from apout_image import native_image, test_image, validate_assembler_output
 from runtime_selection import select_runtime, needs_b_library, select_primitive_runtime
 
 
@@ -93,6 +93,7 @@ def main():
         if result.stderr: sys.stderr.buffer.write(result.stderr)
         if result.returncode:
             return result.returncode if result.returncode > 0 else 1
+        validate_assembler_output(result.stdout, result.stderr)
         header = (work / 'a.out').read_bytes()[:16]
         if len(header) != 16:
             raise ValueError('truncated assembler output')

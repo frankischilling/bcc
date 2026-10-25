@@ -9,6 +9,12 @@ B instructions, data, and their addresses do not change. Real V1 behavior is che
 import struct
 
 
+def validate_assembler_output(stdout, stderr=b''):
+    """The pinned assembler can report an error while returning status zero."""
+    if stderr or stdout.replace(b'\r\n', b'\n') != b'I\nII\n':
+        raise ValueError('assembler reported unexpected diagnostics')
+
+
 def native_image(assembled):
     """Strip a fixed-origin 0407 text image into the six-word V1 layout."""
     if len(assembled) < 16:

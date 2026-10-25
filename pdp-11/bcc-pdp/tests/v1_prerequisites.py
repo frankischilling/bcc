@@ -27,7 +27,7 @@ def test_make_target():
         print('PASS: v1-tools builds missing emulator and filesystem builder')
 
 
-def test_launcher(populated, launcher=None):
+def test_launcher(populated, launcher=None, *, mutate=False, shell="sh"):
     with tempfile.TemporaryDirectory(prefix='bcc-v1-launcher-') as directory:
         work = Path(directory)
         native = work / 'native'
@@ -64,10 +64,15 @@ set -e
 [ -f "$TEST_ROOT/unix-v1/tools/mkfs" ]
 ''')
             script.chmod(0o755)
-        (tools / 'v1_smoke.py').write_text('print("OK")\n')
+        smoke = 'print("OK")\n'
+        if mutate:
+            smoke = ('from pathlib import Path\nimport os\n'
+                     'path=Path(os.environ["TEST_ROOT"])/"native/tools/v1-run.sh"\n'
+                     'path.write_text("# launcher edited during guest execution\\n" + path.read_text())\n' + smoke)
+        (tools / 'v1_smoke.py').write_text(smoke)
         env = dict(os.environ, PATH=str(bin_dir) + os.pathsep + os.environ['PATH'], TEST_ROOT=str(work))
         env.pop('_BCC_NATIVE_LOCKED', None)
-        process = subprocess.run(['sh', str(tools / 'v1-run.sh'), str(source)],
+        process = subprocess.run([shell, str(tools / 'v1-run.sh'), str(source)],
                                  cwd=work, env=env, capture_output=True, timeout=30)
         if process.returncode or process.stdout != b'OK\n':
             raise AssertionError((process.returncode, process.stdout, process.stderr))
@@ -76,14 +81,17 @@ set -e
             assert stage.read_text() == 'original staged source\n'
         else:
             assert not stage.exists()
-        print(f'PASS: direct launcher prerequisites and source restoration/{"existing" if populated else "clean"}')
+        print(f'PASS: direct launcher/{shell}/{"existing" if populated else "clean"}/{"edited" if mutate else "unchanged"}')
 
 
 def main():
     test_make_target()
     test_launcher(False)
     test_launcher(True)
-    print('Results: 3 passed, 0 failed')
+    for shell in ('sh', 'bash'):
+        for populated in (False, True):
+            test_launcher(populated, mutate=True, shell=shell)
+    print('Results: 7 passed, 0 failed')
 
 
 if __name__ == '__main__':

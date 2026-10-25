@@ -16,7 +16,7 @@ from build_passes import seed_image
 from build_vm import source_text
 from run_apout import build_snapshot_lock
 from runtime_selection import select_runtime, needs_b_library, select_primitive_runtime
-from apout_image import native_image, test_image
+from apout_image import native_image, test_image, validate_assembler_output
 
 
 def snapshot_inputs(work):
@@ -52,7 +52,8 @@ def assemble(program, runtimes, work):
         (work / name).write_bytes(runtime)
     inputs = ['bmain.s', 'brt.s'] + (['libb.s'] if library_needed else []) + [program]
     (work / 'a.out').unlink(missing_ok=True)
-    run([work / 'apout', work / 'bin/as', *inputs], work)
+    assembled = run([work / 'apout', work / 'bin/as', *inputs], work)
+    validate_assembler_output(assembled.stdout, assembled.stderr)
     return native_image((work / 'a.out').read_bytes())
 
 
