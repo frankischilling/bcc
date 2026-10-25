@@ -132,11 +132,17 @@ rrdef(name) {
     scls[sid]=8;bouts("lb ");outd(soff[sid]);outc('*n');
 }
 rewrt() {
-    extrn dbuf,dtag,dnm,fnsy,nlocs,hdrdn,pndcls,lchar;
+    extrn dbuf,dtag,dnm,fnsy,nlocs,hdrdn,pndcls,lchar,char;
     extrn infun,fnst,nsy,scls,soff,ghbuf,ghlen,ghon,glits,compat;
-    auto idx,sz,base,sid;
+    auto idx,sz,base,sid,lead;
     while(getln(dbuf,1040)) {
         icrst();nxtnam(dbuf,dtag);
+        /* Keep these families in sync with the record handlers below. */
+        lead=char(dtag,0);
+        if(lead!='A' & lead!='R' & lead!='g' & lead!='G' & lead!='S') {
+            if(infun) emitpr();
+            pndcls=0;echoln(dbuf);goto nextrec;
+        }
         if(tageq(dtag,"Acompat")) {compat=1;goto nextrec;}
         if(tageq(dtag,"Gstr")) {
             if(!ghon) fatal("literal outside global definition");

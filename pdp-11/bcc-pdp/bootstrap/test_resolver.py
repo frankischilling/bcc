@@ -12,8 +12,12 @@ NATIVE = Path(__file__).resolve().parents[1]
 PROJECT = NATIVE.parents[1]
 sys.path.insert(0, str(NATIVE / 'tools'))
 from run_apout import build_snapshot_lock
+sys.path.insert(0, str(NATIVE / 'bootstrap/tools'))
+from resolver_fixtures import opaque_records, shadowing_records
 
 RAW = [
+    ('opaque-records', opaque_records(), None),
+    ('shadowing-records', shadowing_records(), None),
     ('empty', '', None),
     ('blank-lines', '\n\n', None),
     ('function', 'Adef main\nn 0\nrt\nAend\n', None),

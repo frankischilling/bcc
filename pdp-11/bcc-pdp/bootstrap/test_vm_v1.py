@@ -13,9 +13,12 @@ V1 = NATIVE.parent / 'unix-v1'
 sys.path.insert(0, str(BOOTSTRAP / 'tools'))
 sys.path.insert(0, str(NATIVE / 'tools'))
 from build_vm import resolver_image, source_text
+from resolver_fixtures import opaque_records, shadowing_records
 from v1_files import FileSystem
 
 CASES = {
+    'opaque-records': opaque_records(),
+    'shadowing-records': shadowing_records(),
     'return': 'Adef main\nn 42\nrt\nAend\n',
     'global-literal': 'gvb text 1\nGstr 4 65 0 255 4\ngve\nAdef main\nAextrn text\nRname text\nRderef\nrt\nAend\n',
     'labels-locals': 'Adef main\nAauto local\nRname done\ngor\nRdef done\nRname local\nn 7\nrt\nAend\n',
@@ -45,7 +48,7 @@ def main():
                         target.write_bytes(data)
                     targets[-1].unlink(missing_ok=True)
                     command = ['bash', str(NATIVE / 'tools/v1-run.sh'), str(work / 'runner.b'),
-                               '--workdir', '/usr/tmp', '--timings', '--argument=code.vm',
+                               '--workdir', '/usr/tmp', '--timings', '--run-timeout=180', '--argument=code.vm',
                                '--argument=-i', '--argument=raw.ic', '--argument=-o', '--argument=out.ic']
                     subprocess.run(command, env=dict(os.environ, _BCC_NATIVE_LOCKED='1'), check=True, timeout=600)
                     actual = FileSystem((V1 / 'images/rk0.dsk').read_bytes()).read('tmp/out.ic')

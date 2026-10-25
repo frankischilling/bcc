@@ -107,7 +107,7 @@ where it is no longer used must be recorded.
 
 [`pdp-11/bcc-pdp/bootstrap`](../pdp-11/bcc-pdp/bootstrap/README.md) contains
 an experimental B-written resolver. Its output, diagnostics, and success or
-failure agree with the native C resolver in 381 host-side comparisons across
+failure agree with the native C resolver in 393 host-side comparisons across
 the 16-bit, 32-bit, and host-word models. The frontend rejects another 21
 fixtures before they reach the resolver; those are reported separately.
 
