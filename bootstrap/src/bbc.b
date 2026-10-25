@@ -369,10 +369,7 @@ scan_string() {
         c = getc1();
         if (c == 0) fatal("unterminated string");
         if (c == '"') break;
-        if (c == 92) {
-            if (STRICT) fatal("backslash escapes are not strict B");
-            c = read_escape();
-        }
+        if ((c == 92) & !STRICT) c = read_escape();
         if ((c == 42) & is_star_escape(peekc())) c = read_escape();
         buf_ch(b, c);
     }
@@ -389,10 +386,7 @@ scan_char() {
         c = getc1();
         if (c == 0) fatal("unterminated char constant");
         if (c == 39) break;
-        if (c == 92) {
-            if (STRICT) fatal("backslash escapes are not strict B");
-            c = read_escape();
-        }
+        if ((c == 92) & !STRICT) c = read_escape();
         if ((c == 42) & is_star_escape(peekc())) {
             if ((peekc() != 39) | (char(SRC, POS + 1) == 39)) c = read_escape();
         }

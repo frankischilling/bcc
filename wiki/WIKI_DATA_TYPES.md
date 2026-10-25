@@ -47,7 +47,8 @@ string representation.
 
 B escapes use an asterisk: `*n` newline, `*t` tab, `*0` NUL, `**` asterisk,
 `*'` apostrophe, `*"` double quote, `*(` left brace, and `*)` right brace.
-Use B escapes rather than C backslash escapes in strict programs.
+Use B escapes for special characters in strict programs. A backslash is
+literal there: `"\n"` contains backslash and `n`, while `"*n"` contains a newline.
 
 <!-- bcc-example {"stdout":"AB 16706\n","native":true,"bootstrap":true} -->
 ```b

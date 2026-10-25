@@ -1165,3 +1165,18 @@ in the inventory so that missing or duplicated material is visible.
 | 126 | [bcc/blob/main/README.md](https://github.com/frankischilling/bcc/blob/main/README.md) | Retrieved main snapshot matches corresponding pinned document; read in full |
 | 127 | [bcc/blob/main/pdp-11/bcc-pdp/README.md](https://github.com/frankischilling/bcc/blob/main/pdp-11/bcc-pdp/README.md) | Retrieved main snapshot matches corresponding pinned document; read in full |
 | 128 | [bcc/blob/main/asm/README.md](https://github.com/frankischilling/bcc/blob/main/asm/README.md) | Retrieved main snapshot matches corresponding pinned document; read in full |
+
+
+### Literal backslashes in B source
+
+Thompson's [character-set and primary-expression rules](https://www.nokia.com/bell-labs/about/dennis-m-ritchie/kbman.html)
+identify `*`, not backslash, as B's escape introducer. A backslash in a strict
+string or character constant is therefore an ordinary ASCII character.
+For example, the two characters in `"\n"` are backslash and `n`; a newline
+is written `"*n"`. The native lexer already makes this distinction.
+
+The host's pedantic mode and the B-written C-output bootstrap had rejected
+these literal backslashes while trying to disable C-style escapes. Disabling
+an extension must not reject an otherwise ordinary character. Regression
+checks distinguish strict literals from compatibility-mode C escapes,
+including a literal backslash immediately before the closing quote.

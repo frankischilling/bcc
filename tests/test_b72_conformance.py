@@ -8,6 +8,11 @@ import tempfile
 
 
 CASES = {
+    'backslash_string': (r"""main(){extrn char;auto p;p="\n";return(char(p,0)!=92 | char(p,1)!='n' | char(p,2)!=4);}""", 0),
+    'backslash_character': (r"""main(){return('\'!=92);}""", 0),
+    'backslash_packed': (r"""main(){return('\n'!=23662);}""", 0),
+    'backslash_before_quote': (r"""main(){extrn char;auto p;p="\";return(char(p,0)!=92 | char(p,1)!=4);}""", 0),
+
     'address_rvalue_rejected': ('main(){auto p;p= &(1+2);return(0);}', None),
     'call_index_lvalue': ('data[2];fetch(){extrn data;return(data);} main(){extrn fetch,data;auto p;fetch()[1]=42;p= &fetch()[1];return(*p!=42 | p!= &data[1]);}',0),
     'no_argument_exit': ('main(){extrn exit; exit(); return(9);}', 0),

@@ -47,15 +47,9 @@ static int parse_escape(Lexer *L, int line, int col) {
 
 /* Parse C-style backslash escapes inside strings/chars (extension) */
 static int parse_backslash_escape(Lexer *L, int line, int col) {
-    /* Check if backslash escapes are enabled */
-    if (!EXT_ENABLED(EXT_BACKSLASH_ESC)) {
-        if (g_pedantic) {
-            error_at_location(L->filename, line, col, ERR_EXPR_SYNTAX,
-                "backslash escapes are not allowed in strict B mode (use *-escapes or omit --strict)");
-        }
-        /* If not pedantic, just return the backslash as literal */
-        return '\\';
-    }
+    /* Without the C escape extension, backslash is an ordinary B character.
+       Do not consume the next byte, which may be the closing quote. */
+    if (!EXT_ENABLED(EXT_BACKSLASH_ESC)) return '\\';
 
     int e = lx_get(L);
     if (!e) error_at_location(L->filename, line, col, ERR_EXPR_SYNTAX, "unterminated escape sequence");

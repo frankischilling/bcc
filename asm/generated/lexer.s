@@ -267,12 +267,8 @@ parse_escape:
 	.cfi_endproc
 .LFE17:
 	.size	parse_escape, .-parse_escape
-	.section	.rodata.str1.8,"aMS",@progbits,1
-	.align 8
-.LC2:
-	.string	"backslash escapes are not allowed in strict B mode (use *-escapes or omit --strict)"
 	.section	.rodata.str1.1
-.LC3:
+.LC2:
 	.string	"unknown escape sequence \\%c"
 	.text
 	.p2align 4
@@ -286,48 +282,48 @@ parse_backslash_escape:
 	pushq	%r13
 	.cfi_def_cfa_offset 24
 	.cfi_offset 13, -24
-	movl	%esi, %r13d
 	pushq	%r12
 	.cfi_def_cfa_offset 32
 	.cfi_offset 12, -32
-	movl	%edx, %r12d
 	pushq	%rbp
 	.cfi_def_cfa_offset 40
 	.cfi_offset 6, -40
 	pushq	%rbx
 	.cfi_def_cfa_offset 48
 	.cfi_offset 3, -48
-	movq	%rdi, %rbx
 	subq	$64, %rsp
 	.cfi_def_cfa_offset 112
 	testb	$4, g_extensions(%rip)
-	je	.L50
+	je	.L32
 	movq	16(%rdi), %rax
+	movq	%rdi, %rbx
+	movl	%esi, %r13d
+	movl	%edx, %r12d
 	cmpq	8(%rdi), %rax
-	jnb	.L34
+	jnb	.L33
 	movq	(%rdi), %rdx
 	movzbl	(%rdx,%rax), %ebp
 	testl	%ebp, %ebp
-	je	.L34
+	je	.L33
 	addq	$1, %rax
 	movq	%rax, 16(%rdi)
 	cmpl	$10, %ebp
-	je	.L51
+	je	.L52
 	addl	$1, 28(%rdi)
 	cmpb	$92, %bpl
-	je	.L33
-	jle	.L52
+	je	.L32
+	jle	.L53
 	cmpb	$114, %bpl
-	je	.L43
+	je	.L42
 	cmpb	$116, %bpl
-	je	.L44
+	je	.L43
 	cmpb	$110, %bpl
-	jne	.L36
+	jne	.L35
 	movl	$10, %ebp
 	jmp	.L31
 	.p2align 4,,10
 	.p2align 3
-.L34:
+.L33:
 	movq	32(%rbx), %rdi
 	leaq	.LC0(%rip), %r8
 	movl	%r12d, %edx
@@ -335,9 +331,9 @@ parse_backslash_escape:
 	movl	$8, %ecx
 	movl	%r13d, %esi
 	call	error_at_location@PLT
-.L36:
+.L35:
 	movl	%ebp, %ecx
-	leaq	.LC3(%rip), %rdx
+	leaq	.LC2(%rip), %rdx
 	movl	$64, %esi
 	xorl	%eax, %eax
 	movq	%rsp, %rdi
@@ -366,12 +362,8 @@ parse_backslash_escape:
 	ret
 	.p2align 4,,10
 	.p2align 3
-.L50:
+.L32:
 	.cfi_restore_state
-	movl	g_pedantic(%rip), %eax
-	testl	%eax, %eax
-	jne	.L53
-.L33:
 	addq	$64, %rsp
 	.cfi_remember_state
 	.cfi_def_cfa_offset 48
@@ -390,59 +382,51 @@ parse_backslash_escape:
 	ret
 	.p2align 4,,10
 	.p2align 3
-.L52:
+.L53:
 	.cfi_restore_state
 	cmpb	$39, %bpl
-	je	.L40
+	je	.L39
 	cmpb	$48, %bpl
-	je	.L41
+	je	.L40
 	cmpb	$34, %bpl
-	jne	.L36
+	jne	.L35
 	movl	$34, %ebp
 	jmp	.L31
 	.p2align 4,,10
 	.p2align 3
-.L51:
+.L52:
 	addl	$1, 24(%rdi)
 	movl	$1, 28(%rdi)
-	jmp	.L36
+	jmp	.L35
 	.p2align 4,,10
 	.p2align 3
-.L53:
-	movq	32(%rdi), %rdi
-	leaq	.LC2(%rip), %r8
-	movl	$8, %ecx
-	call	error_at_location@PLT
-	jmp	.L33
-	.p2align 4,,10
-	.p2align 3
-.L41:
+.L40:
 	xorl	%ebp, %ebp
 	jmp	.L31
 	.p2align 4,,10
 	.p2align 3
-.L40:
+.L39:
 	movl	$39, %ebp
 	jmp	.L31
 	.p2align 4,,10
 	.p2align 3
-.L44:
+.L43:
 	movl	$9, %ebp
 	jmp	.L31
 	.p2align 4,,10
 	.p2align 3
-.L43:
+.L42:
 	movl	$13, %ebp
 	jmp	.L31
 	.cfi_endproc
 .LFE18:
 	.size	parse_backslash_escape, .-parse_backslash_escape
 	.section	.rodata.str1.1
-.LC4:
+.LC3:
 	.string	"unterminated /* comment"
-	.section	.rodata.str1.8
+	.section	.rodata.str1.8,"aMS",@progbits,1
 	.align 8
-.LC5:
+.LC4:
 	.string	"// comments are not allowed in strict B mode (use /* */ or omit --strict)"
 	.text
 	.p2align 4
@@ -544,7 +528,7 @@ lx_skip_ws_and_comments:
 	je	.L54
 	movl	28(%rbx), %edx
 	movl	24(%rbx), %esi
-	leaq	.LC5(%rip), %r8
+	leaq	.LC4(%rip), %r8
 	movl	$8, %ecx
 	movq	32(%rbx), %rdi
 	addq	$8, %rsp
@@ -649,7 +633,7 @@ lx_skip_ws_and_comments:
 .L72:
 	movl	28(%rbx), %edx
 	movl	24(%rbx), %esi
-	leaq	.LC4(%rip), %r8
+	leaq	.LC3(%rip), %r8
 	movl	$2, %ecx
 	movq	32(%rbx), %rdi
 	call	error_at_location@PLT
@@ -746,72 +730,72 @@ mk_tok:
 .LFE20:
 	.size	mk_tok, .-mk_tok
 	.section	.rodata.str1.1
-.LC6:
+.LC5:
 	.string	"NUL byte outside a literal"
 	.section	.rodata.str1.8
 	.align 8
-.LC7:
+.LC6:
 	.string	"B72 names cannot exceed 8 characters"
 	.align 8
-.LC8:
+.LC7:
 	.string	"dots are not allowed in B72 names"
 	.section	.rodata.str1.1
-.LC9:
+.LC8:
 	.string	"out of memory"
-.LC10:
+.LC9:
 	.string	"auto"
-.LC11:
+.LC10:
 	.string	"else"
-.LC12:
+.LC11:
 	.string	"while"
-.LC13:
+.LC12:
 	.string	"return"
-.LC14:
+.LC13:
 	.string	"extrn"
-.LC15:
+.LC14:
 	.string	"break"
-.LC16:
+.LC15:
 	.string	"continue"
-.LC17:
+.LC16:
 	.string	"goto"
-.LC18:
+.LC17:
 	.string	"switch"
-.LC19:
+.LC18:
 	.string	"case"
-.LC20:
+.LC19:
 	.string	"default"
 	.section	.rodata.str1.8
 	.align 8
-.LC21:
+.LC20:
 	.string	"hexadecimal literals are not allowed in strict B mode (use octal or omit --strict)"
 	.section	.rodata.str1.1
-.LC22:
+.LC21:
 	.string	"bad octal digit '%c'"
-.LC23:
+.LC22:
 	.string	"bad number"
-.LC24:
+.LC23:
 	.string	"unterminated string"
-.LC25:
+.LC24:
 	.string	"character constant too long"
 	.section	.rodata.str1.8
 	.align 8
-.LC26:
+.LC25:
 	.string	"unterminated character constant"
 	.align 8
-.LC27:
+.LC26:
 	.string	"character constants longer than 2 bytes are not allowed in strict B72 mode"
 	.section	.rodata.str1.1
-.LC28:
+.LC27:
 	.string	"empty character constant"
 	.section	.rodata.str1.8
 	.align 8
-.LC29:
+.LC28:
 	.string	"C-style compound assignments (op=) are not allowed in strict B mode (use =op)"
 	.align 8
-.LC30:
+.LC29:
 	.string	"|| is not part of Thompson B72 (use | or a conditional expression)"
 	.section	.rodata.str1.1
-.LC31:
+.LC30:
 	.string	"unexpected character '%c'"
 	.text
 	.p2align 4
@@ -925,7 +909,7 @@ lx_next:
 	movl	20(%rsp), %esi
 	movl	$8, %ecx
 	movl	%r14d, %edx
-	leaq	.LC6(%rip), %r8
+	leaq	.LC5(%rip), %r8
 	call	error_at_location@PLT
 .L602:
 	movl	$0, 0(%rbp)
@@ -1006,7 +990,7 @@ lx_next:
 	movl	20(%rsp), %esi
 	movl	$8, %ecx
 	movl	%r14d, %edx
-	leaq	.LC8(%rip), %r8
+	leaq	.LC7(%rip), %r8
 	call	error_at_location@PLT
 	movq	16(%rbx), %r15
 .L153:
@@ -1020,7 +1004,7 @@ lx_next:
 	call	arena_xstrdup_range@PLT
 	movq	%rax, %r12
 .L156:
-	leaq	.LC10(%rip), %rsi
+	leaq	.LC9(%rip), %rsi
 	movq	%r12, %rdi
 	call	strcmp@PLT
 	movl	%eax, %edx
@@ -1032,28 +1016,28 @@ lx_next:
 	cmpb	$102, 1(%r12)
 	je	.L612
 .L438:
-	leaq	.LC11(%rip), %rsi
+	leaq	.LC10(%rip), %rsi
 	movq	%r12, %rdi
 	call	strcmp@PLT
 	movl	%eax, %edx
 	movl	$7, %eax
 	testl	%edx, %edx
 	je	.L159
-	leaq	.LC12(%rip), %rsi
+	leaq	.LC11(%rip), %rsi
 	movq	%r12, %rdi
 	call	strcmp@PLT
 	movl	%eax, %edx
 	movl	$8, %eax
 	testl	%edx, %edx
 	je	.L159
-	leaq	.LC13(%rip), %rsi
+	leaq	.LC12(%rip), %rsi
 	movq	%r12, %rdi
 	call	strcmp@PLT
 	movl	%eax, %edx
 	movl	$9, %eax
 	testl	%edx, %edx
 	je	.L159
-	leaq	.LC14(%rip), %rsi
+	leaq	.LC13(%rip), %rsi
 	movq	%r12, %rdi
 	call	strcmp@PLT
 	movl	%eax, %edx
@@ -1064,21 +1048,21 @@ lx_next:
 	andl	$64, %r14d
 	jne	.L613
 .L161:
-	leaq	.LC17(%rip), %rsi
+	leaq	.LC16(%rip), %rsi
 	movq	%r12, %rdi
 	call	strcmp@PLT
 	movl	%eax, %edx
 	movl	$58, %eax
 	testl	%edx, %edx
 	je	.L159
-	leaq	.LC18(%rip), %rsi
+	leaq	.LC17(%rip), %rsi
 	movq	%r12, %rdi
 	call	strcmp@PLT
 	movl	%eax, %edx
 	movl	$59, %eax
 	testl	%edx, %edx
 	je	.L159
-	leaq	.LC19(%rip), %rsi
+	leaq	.LC18(%rip), %rsi
 	movq	%r12, %rdi
 	call	strcmp@PLT
 	movl	%eax, %edx
@@ -1088,7 +1072,7 @@ lx_next:
 	movl	$1, %eax
 	testl	%r14d, %r14d
 	je	.L159
-	leaq	.LC20(%rip), %rsi
+	leaq	.LC19(%rip), %rsi
 	movq	%r12, %rdi
 	call	strcmp@PLT
 	cmpl	$1, %eax
@@ -1279,7 +1263,7 @@ lx_next:
 	movl	$64, %esi
 	xorl	%eax, %eax
 	movq	%r8, %rdi
-	leaq	.LC22(%rip), %rdx
+	leaq	.LC21(%rip), %rdx
 	movq	%r8, 24(%rsp)
 	call	snprintf@PLT
 	movq	32(%rbx), %rdi
@@ -1292,14 +1276,14 @@ lx_next:
 	.p2align 4,,10
 	.p2align 3
 .L613:
-	leaq	.LC15(%rip), %rsi
+	leaq	.LC14(%rip), %rsi
 	movq	%r12, %rdi
 	call	strcmp@PLT
 	movl	%eax, %edx
 	movl	$10, %eax
 	testl	%edx, %edx
 	je	.L159
-	leaq	.LC16(%rip), %rsi
+	leaq	.LC15(%rip), %rsi
 	movq	%r12, %rdi
 	call	strcmp@PLT
 	movl	%eax, %edx
@@ -1438,7 +1422,7 @@ lx_next:
 	movl	$64, %esi
 	xorl	%eax, %eax
 	movq	%r12, %rdi
-	leaq	.LC31(%rip), %rdx
+	leaq	.LC30(%rip), %rdx
 	call	snprintf@PLT
 	movq	32(%rbx), %rdi
 	movl	20(%rsp), %esi
@@ -1566,7 +1550,7 @@ lx_next:
 	movl	20(%rsp), %esi
 	movl	$8, %ecx
 	movl	%r14d, %edx
-	leaq	.LC7(%rip), %r8
+	leaq	.LC6(%rip), %r8
 	call	error_at_location@PLT
 	movl	g_strict(%rip), %r11d
 	movq	16(%rbx), %r15
@@ -1598,7 +1582,7 @@ lx_next:
 	movl	20(%rsp), %esi
 	movl	$8, %ecx
 	movl	%r14d, %edx
-	leaq	.LC23(%rip), %r8
+	leaq	.LC22(%rip), %r8
 	call	error_at_location@PLT
 	jmp	.L199
 	.p2align 4,,10
@@ -1608,7 +1592,7 @@ lx_next:
 	movl	20(%rsp), %esi
 	movl	$8, %ecx
 	movl	%r14d, %edx
-	leaq	.LC23(%rip), %r8
+	leaq	.LC22(%rip), %r8
 	call	error_at_location@PLT
 	jmp	.L201
 	.p2align 4,,10
@@ -1751,7 +1735,7 @@ lx_next:
 	movl	$8, %ecx
 	xorl	%r14d, %r14d
 	movl	20(%rsp), %esi
-	leaq	.LC24(%rip), %r8
+	leaq	.LC23(%rip), %r8
 	call	error_at_location@PLT
 	jmp	.L206
 	.p2align 4,,10
@@ -1785,7 +1769,7 @@ lx_next:
 	movq	%rax, %r13
 	testq	%rax, %rax
 	jne	.L214
-	leaq	.LC9(%rip), %rdi
+	leaq	.LC8(%rip), %rdi
 	xorl	%eax, %eax
 	call	dief@PLT
 	jmp	.L214
@@ -1851,7 +1835,7 @@ lx_next:
 	movl	$8, %ecx
 	movl	%r14d, %edx
 	movl	%r15d, %esi
-	leaq	.LC26(%rip), %r8
+	leaq	.LC25(%rip), %r8
 	call	error_at_location@PLT
 	cmpq	$1, %r13
 	jbe	.L229
@@ -2131,7 +2115,7 @@ lx_next:
 	movl	$8, %ecx
 	movl	%r14d, %edx
 	movl	%r15d, %esi
-	leaq	.LC27(%rip), %r8
+	leaq	.LC26(%rip), %r8
 	call	error_at_location@PLT
 	jmp	.L231
 .L165:
@@ -2197,7 +2181,7 @@ lx_next:
 	movl	$8, %ecx
 	movl	%r14d, %edx
 	movl	%r15d, %esi
-	leaq	.LC25(%rip), %r8
+	leaq	.LC24(%rip), %r8
 	call	error_at_location@PLT
 	jmp	.L596
 	.p2align 4,,10
@@ -2214,7 +2198,7 @@ lx_next:
 	movq	32(%rbx), %rdi
 	movl	$8, %ecx
 	movl	%r14d, %edx
-	leaq	.LC29(%rip), %r8
+	leaq	.LC28(%rip), %r8
 	movb	%r9b, 24(%rsp)
 	call	error_at_location@PLT
 	movq	16(%rbx), %r13
@@ -2320,7 +2304,7 @@ lx_next:
 	movl	20(%rsp), %esi
 	movl	$8, %ecx
 	movl	%r14d, %edx
-	leaq	.LC21(%rip), %r8
+	leaq	.LC20(%rip), %r8
 	call	error_at_location@PLT
 	movq	16(%rbx), %rax
 	cmpq	8(%rbx), %rax
@@ -2400,7 +2384,7 @@ lx_next:
 	movq	32(%rbx), %rdi
 	movl	$8, %ecx
 	movl	%r14d, %edx
-	leaq	.LC30(%rip), %r8
+	leaq	.LC29(%rip), %r8
 	movb	%r9b, 24(%rsp)
 	call	error_at_location@PLT
 	movq	16(%rbx), %rsi
@@ -2412,7 +2396,7 @@ lx_next:
 	movl	20(%rsp), %esi
 	movl	$8, %ecx
 	movl	%r14d, %edx
-	leaq	.LC28(%rip), %r8
+	leaq	.LC27(%rip), %r8
 	call	error_at_location@PLT
 	xorl	%eax, %eax
 	jmp	.L242
@@ -2440,7 +2424,7 @@ lx_next:
 	movl	$8, %ecx
 	movl	%r14d, %edx
 	movl	%r15d, %esi
-	leaq	.LC25(%rip), %r8
+	leaq	.LC24(%rip), %r8
 	call	error_at_location@PLT
 	jmp	.L230
 .L293:
@@ -2578,7 +2562,7 @@ lx_next:
 	movl	$8, %ecx
 	movl	%r14d, %edx
 	movl	%r15d, %esi
-	leaq	.LC25(%rip), %r8
+	leaq	.LC24(%rip), %r8
 	xorl	%r12d, %r12d
 	call	error_at_location@PLT
 	jmp	.L596
@@ -2811,7 +2795,7 @@ lx_next:
 	movq	32(%rbx), %rax
 	jmp	.L601
 .L636:
-	leaq	.LC9(%rip), %rdi
+	leaq	.LC8(%rip), %rdi
 	xorl	%eax, %eax
 	call	dief@PLT
 	movq	16(%rbx), %r12
@@ -2876,12 +2860,12 @@ lx_next:
 	movq	32(%rbx), %rax
 	jmp	.L601
 .L614:
-	leaq	.LC9(%rip), %rdi
+	leaq	.LC8(%rip), %rdi
 	xorl	%eax, %eax
 	call	dief@PLT
 	jmp	.L158
 .L622:
-	leaq	.LC9(%rip), %rdi
+	leaq	.LC8(%rip), %rdi
 	call	dief@PLT
 	movq	(%rbx), %rcx
 	movzbl	24(%rsp), %r8d
@@ -2932,109 +2916,109 @@ tok_free:
 .LFE23:
 	.size	tok_free, .-tok_free
 	.section	.rodata.str1.1
-.LC32:
+.LC31:
 	.string	"EOF"
-.LC33:
+.LC32:
 	.string	"identifier"
-.LC34:
+.LC33:
 	.string	"number"
-.LC35:
+.LC34:
 	.string	"string"
-.LC36:
+.LC35:
 	.string	"character"
-.LC37:
+.LC36:
 	.string	"if"
-.LC38:
+.LC37:
 	.string	"("
-.LC39:
+.LC38:
 	.string	")"
-.LC40:
+.LC39:
 	.string	"{"
-.LC41:
+.LC40:
 	.string	"}"
-.LC42:
+.LC41:
 	.string	","
-.LC43:
+.LC42:
 	.string	";"
-.LC44:
+.LC43:
 	.string	"="
-.LC45:
+.LC44:
 	.string	"=="
-.LC46:
+.LC45:
 	.string	"!="
-.LC47:
+.LC46:
 	.string	"<"
-.LC48:
+.LC47:
 	.string	"<="
-.LC49:
+.LC48:
 	.string	">"
-.LC50:
+.LC49:
 	.string	">="
-.LC51:
+.LC50:
 	.string	"<<"
-.LC52:
+.LC51:
 	.string	">>"
-.LC53:
+.LC52:
 	.string	"+"
-.LC54:
+.LC53:
 	.string	"-"
-.LC55:
+.LC54:
 	.string	"*"
-.LC56:
+.LC55:
 	.string	"/"
-.LC57:
+.LC56:
 	.string	"%"
-.LC58:
+.LC57:
 	.string	"!"
-.LC59:
+.LC58:
 	.string	"?"
-.LC60:
+.LC59:
 	.string	"["
-.LC61:
+.LC60:
 	.string	"]"
-.LC62:
+.LC61:
 	.string	"++"
-.LC63:
+.LC62:
 	.string	"--"
-.LC64:
+.LC63:
 	.string	"=+"
-.LC65:
+.LC64:
 	.string	"=-"
-.LC66:
+.LC65:
 	.string	"=*"
-.LC67:
+.LC66:
 	.string	"=/"
-.LC68:
+.LC67:
 	.string	"=%"
-.LC69:
+.LC68:
 	.string	"=<<"
-.LC70:
+.LC69:
 	.string	"=>>"
-.LC71:
+.LC70:
 	.string	"=&"
-.LC72:
+.LC71:
 	.string	"=|"
-.LC73:
+.LC72:
 	.string	"=<"
-.LC74:
+.LC73:
 	.string	"=<="
-.LC75:
+.LC74:
 	.string	"=>"
-.LC76:
+.LC75:
 	.string	"=>="
-.LC77:
+.LC76:
 	.string	"==="
-.LC78:
+.LC77:
 	.string	"=!="
-.LC79:
+.LC78:
 	.string	"&"
-.LC80:
+.LC79:
 	.string	"|"
-.LC81:
+.LC80:
 	.string	"||"
-.LC82:
+.LC81:
 	.string	":"
-.LC83:
+.LC82:
 	.string	"<unknown token>"
 	.text
 	.p2align 4
@@ -3120,315 +3104,315 @@ tk_name:
 	.p2align 4,,10
 	.p2align 3
 .L753:
-	leaq	.LC33(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L752:
 	leaq	.LC32(%rip), %rax
 	ret
 	.p2align 4,,10
 	.p2align 3
+.L752:
+	leaq	.LC31(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
 .L690:
-	leaq	.LC20(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L707:
-	leaq	.LC71(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L708:
-	leaq	.LC70(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L709:
-	leaq	.LC69(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L710:
-	leaq	.LC68(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L711:
-	leaq	.LC67(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L712:
-	leaq	.LC66(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L713:
-	leaq	.LC65(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L714:
-	leaq	.LC64(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L715:
-	leaq	.LC63(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L716:
-	leaq	.LC62(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L717:
-	leaq	.LC58(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L718:
-	leaq	.LC57(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L719:
-	leaq	.LC56(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L720:
-	leaq	.LC55(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L721:
-	leaq	.LC54(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L698:
-	leaq	.LC80(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L699:
-	leaq	.LC79(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L700:
-	leaq	.LC78(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L701:
-	leaq	.LC77(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L702:
-	leaq	.LC76(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L703:
-	leaq	.LC75(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L704:
-	leaq	.LC74(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L705:
-	leaq	.LC73(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L694:
-	leaq	.LC17(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L695:
-	leaq	.LC82(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L696:
-	leaq	.LC59(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L697:
-	leaq	.LC81(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L692:
 	leaq	.LC19(%rip), %rax
 	ret
 	.p2align 4,,10
 	.p2align 3
-.L706:
-	leaq	.LC72(%rip), %rax
+.L707:
+	leaq	.LC70(%rip), %rax
 	ret
 	.p2align 4,,10
 	.p2align 3
-.L748:
-	leaq	.LC36(%rip), %rax
+.L708:
+	leaq	.LC69(%rip), %rax
 	ret
 	.p2align 4,,10
 	.p2align 3
-.L749:
-	leaq	.LC35(%rip), %rax
+.L709:
+	leaq	.LC68(%rip), %rax
 	ret
 	.p2align 4,,10
 	.p2align 3
-.L744:
-	leaq	.LC12(%rip), %rax
+.L710:
+	leaq	.LC67(%rip), %rax
 	ret
 	.p2align 4,,10
 	.p2align 3
-.L745:
-	leaq	.LC11(%rip), %rax
+.L711:
+	leaq	.LC66(%rip), %rax
 	ret
 	.p2align 4,,10
 	.p2align 3
-.L746:
-	leaq	.LC37(%rip), %rax
+.L712:
+	leaq	.LC65(%rip), %rax
 	ret
 	.p2align 4,,10
 	.p2align 3
-.L747:
-	leaq	.LC10(%rip), %rax
+.L713:
+	leaq	.LC64(%rip), %rax
 	ret
 	.p2align 4,,10
 	.p2align 3
-.L736:
-	leaq	.LC41(%rip), %rax
+.L714:
+	leaq	.LC63(%rip), %rax
 	ret
 	.p2align 4,,10
 	.p2align 3
-.L737:
-	leaq	.LC40(%rip), %rax
+.L715:
+	leaq	.LC62(%rip), %rax
 	ret
 	.p2align 4,,10
 	.p2align 3
-.L738:
-	leaq	.LC39(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L739:
-	leaq	.LC38(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L740:
-	leaq	.LC14(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L741:
-	leaq	.LC16(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L742:
-	leaq	.LC15(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L743:
-	leaq	.LC13(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L693:
-	leaq	.LC18(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L750:
-	leaq	.LC34(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L722:
-	leaq	.LC53(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L723:
-	leaq	.LC52(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L724:
-	leaq	.LC51(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L725:
-	leaq	.LC50(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L726:
-	leaq	.LC49(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L727:
-	leaq	.LC48(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L728:
-	leaq	.LC47(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L729:
-	leaq	.LC46(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L730:
-	leaq	.LC45(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L731:
-	leaq	.LC44(%rip), %rax
-	ret
-	.p2align 4,,10
-	.p2align 3
-.L732:
+.L716:
 	leaq	.LC61(%rip), %rax
 	ret
 	.p2align 4,,10
 	.p2align 3
-.L733:
-	leaq	.LC60(%rip), %rax
+.L717:
+	leaq	.LC57(%rip), %rax
 	ret
 	.p2align 4,,10
 	.p2align 3
-.L734:
+.L718:
+	leaq	.LC56(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L719:
+	leaq	.LC55(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L720:
+	leaq	.LC54(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L721:
+	leaq	.LC53(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L698:
+	leaq	.LC79(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L699:
+	leaq	.LC78(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L700:
+	leaq	.LC77(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L701:
+	leaq	.LC76(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L702:
+	leaq	.LC75(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L703:
+	leaq	.LC74(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L704:
+	leaq	.LC73(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L705:
+	leaq	.LC72(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L694:
+	leaq	.LC16(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L695:
+	leaq	.LC81(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L696:
+	leaq	.LC58(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L697:
+	leaq	.LC80(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L692:
+	leaq	.LC18(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L706:
+	leaq	.LC71(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L748:
+	leaq	.LC35(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L749:
+	leaq	.LC34(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L744:
+	leaq	.LC11(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L745:
+	leaq	.LC10(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L746:
+	leaq	.LC36(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L747:
+	leaq	.LC9(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L736:
+	leaq	.LC40(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L737:
+	leaq	.LC39(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L738:
+	leaq	.LC38(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L739:
+	leaq	.LC37(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L740:
+	leaq	.LC13(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L741:
+	leaq	.LC15(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L742:
+	leaq	.LC14(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L743:
+	leaq	.LC12(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L693:
+	leaq	.LC17(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L750:
+	leaq	.LC33(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L722:
+	leaq	.LC52(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L723:
+	leaq	.LC51(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L724:
+	leaq	.LC50(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L725:
+	leaq	.LC49(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L726:
+	leaq	.LC48(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L727:
+	leaq	.LC47(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L728:
+	leaq	.LC46(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L729:
+	leaq	.LC45(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L730:
+	leaq	.LC44(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L731:
 	leaq	.LC43(%rip), %rax
 	ret
 	.p2align 4,,10
 	.p2align 3
-.L735:
+.L732:
+	leaq	.LC60(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L733:
+	leaq	.LC59(%rip), %rax
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L734:
 	leaq	.LC42(%rip), %rax
 	ret
+	.p2align 4,,10
+	.p2align 3
+.L735:
+	leaq	.LC41(%rip), %rax
+	ret
 .L689:
-	leaq	.LC83(%rip), %rax
+	leaq	.LC82(%rip), %rax
 	ret
 	.cfi_endproc
 .LFE24:
