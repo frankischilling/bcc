@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Exec buffers may be omitted only when program and retained library do not use them."""
+"""Omit runtime groups only when program and retained library do not use them."""
 import os
 from pathlib import Path
 import shutil
@@ -11,18 +11,19 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'tools'))
 from compile_native import compile_sources
 from run_apout import build_snapshot_lock
-from runtime_selection import needs_b_library, needs_exec_runtime, select_primitive_runtime
+from runtime_selection import needs_b_library, needs_exec_runtime, select_primitive_runtime, needs_meta_runtime
 
 HARNESS = '''
 failmsg(s) char s[]; { exit(1); }
 badout(s) char s[]; { exit(1); }
 main() {
-    extern uselib, usexec;
-    int uselib, usexec;
+    extern uselib, usexec, usemet;
+    int uselib, usexec, usemet;
+    char flag[1];
     selfns("input.s");
-    if(uselib) selfex("library.s");
-    selfil("runtime.s","selected.s",!usexec);
-    if(usexec) write(1,"yes",3); else write(1,"no",2);
+    if(uselib) seldep("library.s");
+    selfil("runtime.s","selected.s",(1-usexec)+2*(1-usemet));
+    flag[0]='0'+usexec+2*usemet; write(1,flag,1);
     return(0);
 }
 '''
@@ -40,15 +41,31 @@ CASES = [
     ('library-call', b'mov $_printf, r0\n', b'jsr pc, *_execv\n', RUNTIME, True),
     ('library-address', b'mov $_printn, r0\n', b'_execl\n', RUNTIME, True),
     ('library-without-exec', b'mov $_getstr, r0\n', b'_write\n', RUNTIME, False),
-    ('split-program', b'x'*1040, b'', RUNTIME, True),
+    ('split-program', b'x'*1040, b'', RUNTIME, 3),
     ('tail-limit', b'x'*1039, b'', RUNTIME, False),
-    ('split-library', b'_ctime\n', b'x'*1040, RUNTIME, True),
+    ('split-library', b'_ctime\n', b'x'*1040, RUNTIME, 3),
     ('crlf', b'', b'', RUNTIME.replace(b'\n', b'\r\n'), False),
     ('marker-whitespace', b'', b'', RUNTIME.replace(b'begin\n', b'begin \t\n'), False),
     ('unmarked-runtime', b'', b'', b'_execv:\n\t.+2\n', False),
     ('nested', b'', b'', b'/ bcc-exec-begin\n/ bcc-exec-begin\n', None),
     ('unmatched-end', b'', b'', b'/ bcc-exec-end\n', None),
     ('unfinished', b'', b'', b'/ bcc-exec-begin\n', None),
+]
+
+META_RUNTIME = RUNTIME + (b'/ bcc-meta-begin\n.globl _time\n_time:\n\t.+2\n'
+                          b'.meta: .=.+8.\n/ bcc-meta-end\n')
+for entry in ('fork', 'wait', 'chdir', 'link', 'chmod', 'chown', 'stat', 'fstat',
+              'stty', 'gtty', 'setuid', 'getuid', 'time', 'mkdir', 'makdir'):
+    CASES.append(('metadata-' + entry, ('mov $_' + entry + ', r0\n').encode(), b'', META_RUNTIME, 2))
+CASES += [
+    ('metadata-unused', b'', b'', META_RUNTIME, 0),
+    ('metadata-prefix', b'_times\n', b'', META_RUNTIME, 0),
+    ('metadata-override', b'_time:\n\t.+2\n', b'', META_RUNTIME, 2),
+    ('metadata-library', b'_ctime\n', b'jsr pc, *_time\n', META_RUNTIME, 2),
+    ('both-groups', b'_printf\n', b'_time _execv\n', META_RUNTIME, 3),
+    ('metadata-unfinished', b'', b'', b'/ bcc-meta-begin\n', None),
+    ('mixed-end', b'', b'', b'/ bcc-meta-begin\n/ bcc-exec-end\n', None),
+    ('mixed-nesting', b'', b'', b'/ bcc-meta-begin\n/ bcc-exec-begin\n', None),
 ]
 
 
@@ -77,14 +94,15 @@ def main():
                 ok = needed is None and run.returncode != 0 and not (work / 'selected.s').exists()
             else:
                 native = (work / 'selected.s').read_bytes() if (work / 'selected.s').exists() else runtime
-                ok = (needed is not None and needs_exec_runtime(program, kept_library) == needed
-                      and run.returncode == 0 and run.stdout == (b'yes' if needed else b'no')
+                ok = (needed is not None and int(needs_exec_runtime(program, kept_library)) + 2*int(needs_meta_runtime(program, kept_library)) == needed
+                      and run.returncode == 0 and run.stdout == str(int(needed)).encode()
                       and not run.stderr and native == selected)
                 if not needed and name != 'unmarked-runtime':
                     ok = ok and b'_execv' not in selected and b'.buf' not in selected
             print(f'{"PASS" if ok else "FAIL"}: exec-selection/{name}', flush=True)
             if not ok:
                 print(run.returncode, repr(run.stdout), repr(run.stderr))
+                if needed is not None: print('native', repr(native), 'host', repr(selected))
             passed += ok
             failed += not ok
     print(f'Results: {passed} passed, {failed} failed')

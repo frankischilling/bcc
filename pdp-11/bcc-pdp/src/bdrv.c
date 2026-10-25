@@ -28,10 +28,10 @@ sa(arr, i, val) int arr[]; char val[]; {
 }
 
 main(argc, argv) int argv[]; {
-	extern b0arg, b1arg, asarg, verbose, aslog, uselib, usexec;
+	extern b0arg, b1arg, asarg, verbose, aslog, uselib, usexec, usemet;
 	int b0arg[], b1arg[], asarg[];
 	char src[];
-	int i, ext, verbose, aslog, uselib, usexec;
+	int i, ext, verbose, aslog, uselib, usexec, usemet;
 	if (argc < 2) {
 		puterr("usage: b [-x] [-v] src.b\n", 25);
 		exit(1);
@@ -94,12 +94,12 @@ main(argc, argv) int argv[]; {
     unlink("/usr/tmp/b.br");
     unlink("/usr/tmp/b.lb");
     selfns("/usr/tmp/b.s");
-    if (uselib) selfex("/usr/lib/libb.s");
+    if (uselib) seldep("/usr/lib/libb.s");
 	sa(asarg, 0, "as");
 	sa(asarg, 1, "/usr/lib/bmain.s");
 	sa(asarg, 2, "/usr/lib/brt.s");
 	sa(asarg, 3, "/usr/lib/libb.s");
-    if (selfil("/usr/lib/brt.s", "/usr/tmp/b.br", !usexec)) sa(asarg, 2, "/usr/tmp/b.br");
+    if (selfil("/usr/lib/brt.s", "/usr/tmp/b.br", (1-usexec)+2*(1-usemet))) sa(asarg, 2, "/usr/tmp/b.br");
     if (uselib) {
         if (selfil("/usr/lib/libb.s", "/usr/tmp/b.lb", 0)) sa(asarg, 3, "/usr/tmp/b.lb");
         sa(asarg, 4, "/usr/tmp/b.s");

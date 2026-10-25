@@ -136,6 +136,7 @@ def main() -> int:
     outcome = parser.add_mutually_exclusive_group()
     outcome.add_argument("--expect-compile-error", action="store_true")
     parser.add_argument("--expect-diagnostic", help="required compiler message with --expect-compile-error")
+    parser.add_argument("--workdir", choices=("/", "/usr/tmp"), default="/", help="guest output directory; /usr/tmp uses the larger RK disk")
     parser.add_argument("--timings", action="store_true", help="report host wall time for guest compilation and execution")
     parser.add_argument("--trace-stages", action="store_true", help="run each compiler pass directly before checking the driver")
     outcome.add_argument("--selfhost", action="store_true", help="rebuild and compare the four compiler binaries inside V1")
@@ -202,14 +203,14 @@ def main() -> int:
         sock.sendall(b"root\n")
         recv_until(sock, rb"# ", timeout=30)
 
-        if args.selfhost:
-            def command(line, timeout=600):
-                sock.sendall(line.encode() + b"\n")
-                result = recv_until(sock, rb"# ", timeout=timeout).decode("latin-1").replace("\r\n", "\n")
-                if result.startswith(line + "\n"):
-                    result = result[len(line) + 1:]
-                return re.sub(r"# $", "", result)
+        def command(line, timeout=600):
+            sock.sendall(line.encode() + b"\n")
+            result = recv_until(sock, rb"# ", timeout=timeout).decode("latin-1").replace("\r\n", "\n")
+            if result.startswith(line + "\n"):
+                result = result[len(line) + 1:]
+            return re.sub(r"# $", "", result)
 
+        if args.selfhost:
             command("chdir /usr/src/bcc")
             builds = {
                 "b00": "b00drv.c bstmt.c bexpr.c blex.c bemit0.c butil.c",
@@ -244,11 +245,16 @@ def main() -> int:
             sys.stderr.write("Guest comparator accepted in-system B library assembly\n")
             command("chdir /")
 
+        if args.workdir != "/":
+            changed = command("chdir " + args.workdir)
+            if changed.strip():
+                raise RuntimeError(f"guest could not change directory: {changed!r}")
+        compile_source = "./" + PROG if args.workdir == "/" else "/" + PROG
         sock.sendall(b"rm a.out\n")
         recv_until(sock, rb"# ", timeout=30)
 
         if args.trace_stages:
-            for line in [f"/usr/lib/bcc/b00 -o /usr/tmp/b.r1 ./{PROG}",
+            for line in [f"/usr/lib/bcc/b00 -o /usr/tmp/b.r1 {compile_source}",
                          "/usr/lib/bcc/b01 -i /usr/tmp/b.r1 -o /usr/tmp/b.r2",
                          "/usr/lib/bcc/b1 -i /usr/tmp/b.r2 -o /usr/tmp/b.s",
                          "ls /usr/tmp/b.s", "df"]:
@@ -260,7 +266,7 @@ def main() -> int:
         sys.stderr.write(f"Guest: compiling {PROG}\n")
         verbose = "-v " if args.trace_stages else ""
         compile_start = time.monotonic()
-        sock.sendall(f"b {verbose}./{PROG}\n".encode())
+        sock.sendall(f"b {verbose}{compile_source}\n".encode())
         compile_out = recv_until(sock, rb"# ", timeout=90 if args.trace_stages else 600)
 
         if args.timings:

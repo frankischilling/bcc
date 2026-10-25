@@ -1,7 +1,8 @@
 # Packed strings
 
 B strings are packed bytes terminated by character 004. `char(s,i)` reads
-byte `i`, and `lchar(s,i,c)` replaces that byte. Indexes begin at zero.
+byte `i`, and `lchar(s,i,c)` replaces that byte with the low eight bits of
+`c` and returns the original `c` value. Indexes begin at zero.
 `lchar` requires enough writable storage; it does not grow the destination.
 
 <!-- bcc-example {"stdout":"cat\n","native":true,"bootstrap":true} -->

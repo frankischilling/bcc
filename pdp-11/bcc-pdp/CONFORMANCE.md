@@ -223,8 +223,8 @@ When the program references none of `printn`, `printf`, `getstr`, or `ctime`,
 the driver and fast runner omit the whole B-written library. References,
 address constants, and source definitions of those names all retain it;
 ambiguous long assembly lines retain it too. Primitive exec routines and their private buffers are also omitted when
-neither the program nor the retained library names them. Shared pathname
-helpers remain linked. This is not general archive loading or per-function dead-code
+neither the program nor the retained library names them. The process/metadata group is selected the same way, including references
+from retained library code. Shared core pathname helpers remain linked. This is not general archive loading or per-function dead-code
 removal: retained library bodies keep their layout.
 
 ## Direct reads
@@ -251,3 +251,12 @@ The early C library returns 0 or 1 from `close`; the B runtime returns 0 or
 cover the three C passes, the host-built B resolver in three word models,
 the driver's selected runtime files, and its final image. These checks complement the kernel rebuild;
 the kernel test does not simulate storage failures.
+
+## Character return values
+
+`lchar` writes the low byte and returns the original character word, matching
+BCC's host runtime and the tutorial's string-copy convention. The PDP-11
+reference lists the store but does not specify a return value. Regression
+checks cover 004-terminated copying and values whose stored byte differs
+from the returned word; they do not attribute this stronger BCC contract to
+the historical PDP-11 manual.

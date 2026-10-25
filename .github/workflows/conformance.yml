@@ -120,6 +120,7 @@ jobs:
           make -C pdp-11/bcc-pdp v1-run B=tests/run/t35_execv.b
           make -C pdp-11/bcc-pdp v1-run B=tests/run/t111_exec_override.b
           make -C pdp-11/bcc-pdp v1-run B=tests/run/t112_seek_offsets.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t113_lchar_result.b
           make -C pdp-11/bcc-pdp v1-run B=tests/v1/tty.b
           make -C pdp-11/bcc-pdp v1-run B=tests/v1/argv_many.b
           make -C pdp-11/bcc-pdp v1-run B=tests/v1/console_prompt.b

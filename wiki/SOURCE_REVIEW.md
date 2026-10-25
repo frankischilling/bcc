@@ -62,6 +62,13 @@ ideas are still useful: calls pass values, assigning a vector copies its
 pointer rather than its elements, and spaces matter in old-style compound
 assignments.
 
+The tutorial describes `lchar` as returning its character argument and uses
+that result to stop a string-copy loop at 004. BCC now provides that return
+value on both host and native targets. The January 1972 PDP-11 library
+entry only specifies the byte store, so this is a cross-target BCC convention,
+not a claim that the PDP-11 reference promised the same result. Native tests
+also check that storage truncation does not change the returned word.
+
 The printed `flip` example on PDF page 15 saves the wrong operand and does
 not swap. That was checked visually. Examples need executable tests, not
 blind transcription. The foreign-call section also requires scalar arguments
@@ -207,6 +214,13 @@ was read. It dates `last1120c` and `prestruct-c` only approximately to
 1972-73 and explains why tape dates can be misleading. The earlier compiler
 uses PDP-11/20 arithmetic hardware and lacks several later C facilities.
 It also reuses initialization-code storage for temporary work.
+
+The pinned seed's [`cbranch` implementation](https://github.com/jserv/unix-v1/blob/7bce7b1e3f8cc08582ffcfd01d4e25273dc6646a/src/c/c11.c)
+treats `&` and `|` in branch conditions as short-circuit truth tests. A bit
+mask therefore has to be computed into an integer first and then tested;
+`if (2 & 1)` is not a safe substitute in that dialect. The native runtime
+selector tests distinguish the exec and metadata bits and cover this case.
+This seed restriction does not change B's eager bitwise operators.
 
 These artifacts explain constraints on the restored C toolchain. They do
 not make BCC an original 1971 B compiler, nor do they make a successful

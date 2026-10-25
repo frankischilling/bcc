@@ -7,11 +7,15 @@ import tempfile
 
 SOURCE = '''main(){
     extrn read,write,char,lchar;
-    auto ctl 1,buf 16,i,at;
+    auto ctl 1,buf 16,i,at,c;
     if(read(0,ctl,1)!=1 | read(0,buf,16)!=16)return(1);
     at=char(ctl,0);
-    if(at==255){i=0;while(i<16){lchar(buf,i,(i*37+3)&255);i++;}}
-    else lchar(buf,at,255);
+    if(at==255){i=0;while(i<16){c=(i*37+3)&255;if(lchar(buf,i,c)!=c)return(2);i++;}}
+    else if(at>=252 & at<=254){
+        c= -1;if(at==253)c=256;if(at==252)c=4660;
+        if(lchar(buf,1,c)!=c)return(3);
+    }
+    else if(lchar(buf,at,255)!=255)return(4);
     return(write(1,buf,16)!=16);
 }'''
 
@@ -35,10 +39,13 @@ def main():
             if inline: flags.append('--inline-runtime')
             build=subprocess.run([str(args.compiler.resolve()),*flags,str(source),'-o',str(exe)],
                                  capture_output=True,timeout=30)
-            for index in (255,0,3,4,7,8,15):
+            for index in (255,254,253,252,0,3,4,7,8,15):
                 data=bytes(range(16))
                 if index==255:
                     expected=bytes((i*37+3)&255 for i in range(16))
+                elif index in (254,253,252):
+                    value={254:255,253:0,252:52}[index]
+                    expected=data[:1]+bytes([value])+data[2:]
                 else:
                     expected=data[:index]+b'\xff'+data[index+1:]
                 run=subprocess.run([str(exe)],input=bytes([index])+data,capture_output=True,timeout=5) if build.returncode==0 else build

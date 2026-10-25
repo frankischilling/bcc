@@ -6,7 +6,6 @@
 
 // Forward declarations
 static void sem_add_builtin_functions(SemState *st);
-static void sem_check_switch_fallthrough(SemState *st, Stmt *switch_stmt);
 
 static Symbol *symbol_new(SymbolKind kind, const char *name, int line, int col) {
     Symbol *sym = xmalloc(sizeof(*sym));
@@ -431,7 +430,6 @@ static void sem_check_stmt(SemState *st, Stmt *s) {
 
         case ST_SWITCH:
             sem_check_expr(st, s->as.switch_.expr);
-            sem_check_switch_fallthrough(st, s);
             sem_check_stmt(st, s->as.switch_.body);
             break;
 
@@ -493,30 +491,6 @@ static void sem_check_func(SemState *st, Func *f) {
     sem_pop_scope(st);
     if (g_strict) st->extern_names = saved_externs;
     st->function_name = saved_function;
-}
-
-// Check switch fallthrough
-static void sem_check_switch_fallthrough(SemState *st, Stmt *switch_stmt) {
-    Stmt *body = switch_stmt->as.switch_.body;
-    if (!body || body->kind != ST_BLOCK) return;
-
-    int last_was_case = 0;
-
-    for (size_t i = 0; i < body->as.block.items.len; i++) {
-        Stmt *stmt = body->as.block.items.data[i];
-
-        if (stmt->kind == ST_CASE) {
-            if (last_was_case) {
-                fprintf(stderr, "bcc: warning: case label falls through to another case label at %d:%d\n",
-                        stmt->line, stmt->col);
-            }
-            last_was_case = 1;
-        } else if (stmt->kind != ST_EMPTY) {
-            // Non-empty, non-case statement breaks fallthrough chain
-            last_was_case = 0;
-        }
-        // ST_EMPTY doesn't break the chain
-    }
 }
 
 // Check top-level items

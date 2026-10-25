@@ -38,24 +38,48 @@ def needs_exec_runtime(program, library=b''):
     return False
 
 
+META_REFERENCE = re.compile(rb'(?<![A-Za-z0-9_])_(?:fork|wait|chdir|link|chmod|chown|stat|fstat|stty|gtty|setuid|getuid|time|mkdir|makdir)(?![A-Za-z0-9_])')
+
+
+def needs_meta_runtime(program, library=b''):
+    for text in (program, library):
+        lines = text.split(b"\n")
+        split_line = any(len(line) >= 1039 for line in lines[:-1]) or len(lines[-1]) > 1039
+        if split_line or META_REFERENCE.search(text) is not None:
+            return True
+    return False
+
+
 def select_primitive_runtime(program, runtime, library=b''):
     selected = select_runtime(program, runtime)
-    if needs_exec_runtime(program, library):
+    omitted = set()
+    if not needs_exec_runtime(program, library):
+        omitted.add(b'exec')
+    if not needs_meta_runtime(program, library):
+        omitted.add(b'meta')
+    if not omitted:
         return selected
     output = []
-    dropping = False
+    active = None
+    markers = {b'/ bcc-' + group + suffix: (group, begin)
+               for group in (b'exec', b'meta')
+               for suffix, begin in ((b'-begin', True), (b'-end', False))}
     for line in selected.splitlines(keepends=True):
-        marker = line.rstrip(b" \t\r\n")
-        if marker == b"/ bcc-exec-begin":
-            if dropping:
-                raise ValueError('nested exec runtime group')
-            dropping = True
-        elif marker == b"/ bcc-exec-end":
-            if not dropping:
-                raise ValueError('unmatched exec runtime end')
-            dropping = False
-        elif not dropping:
+        marker = markers.get(line.rstrip(b" \t\r\n"))
+        if marker:
+            group, begin = marker
+            if begin:
+                if active is not None:
+                    raise ValueError('nested runtime group')
+                active = group
+            else:
+                if active != group:
+                    raise ValueError('unmatched runtime group end')
+                active = None
+            if group in omitted:
+                continue
+        if active not in omitted:
             output.append(line)
-    if dropping:
-        raise ValueError('unterminated exec runtime group')
+    if active is not None:
+        raise ValueError('unterminated runtime group')
     return b''.join(output)

@@ -43,22 +43,7 @@ sfstat  = 28.
 .globl	_putstr
 .globl	_char
 .globl	_lchar
-.globl	_fork
-.globl	_wait
 .globl	_unlink
-.globl	_link
-.globl	_chdir
-.globl	_chmod
-.globl	_chown
-.globl	_stat
-.globl	_fstat
-.globl	_setuid
-.globl	_getuid
-.globl	_time
-.globl	_stty
-.globl	_gtty
-.globl	_mkdir
-.globl	_makdir
 
 / B word marker for end-of-string ('*e' in B source, 04 octal)
 EOT = 4
@@ -374,12 +359,29 @@ _lchar:
 	add	4(sp), r0		/ r0 = &s[i]
 	mov	6(sp), r1		/ r1 = c
 	movb	r1, (r0)
+	mov	r1, r0		/ return the supplied character, not its byte address
 	rts	pc
 
 
 / =========== kbman §8 library: V1 syscall wrappers ===========
 
 / ---- _fork(): the parent skips the instruction after sys fork. ----
+/ bcc-meta-begin
+.globl	_fork
+.globl	_wait
+.globl	_chdir
+.globl	_link
+.globl	_chmod
+.globl	_chown
+.globl	_stat
+.globl	_fstat
+.globl	_stty
+.globl	_gtty
+.globl	_setuid
+.globl	_getuid
+.globl	_time
+.globl	_mkdir
+.globl	_makdir
 _fork:
 	.+2
 	sys	sfork
@@ -401,6 +403,7 @@ _wait:
 	mov	$-1, r0
 	rts	pc
 
+/ bcc-meta-end
 _unlink:
 	.+2
 	mov	2(sp), r0
@@ -414,6 +417,7 @@ _unlink:
 	mov	$-1, r0
 	rts	pc
 
+/ bcc-meta-begin
 _chdir:
 	.+2
 	mov	2(sp), r0
@@ -568,6 +572,8 @@ _time:
 	clr	r0
 	rts	pc
 
+/ bcc-meta-end
+
 / bcc-exec-begin
 .globl	_execv
 .globl	_execl
@@ -644,9 +650,11 @@ _execl:
 	mov	$.bp1, r1
 	mov	$256., r2
 	br	.strz
+/ bcc-meta-begin
 .path2:
 	mov	$.bp2, r1
 	mov	$256., r2
+/ bcc-meta-end
 .strz:
 	tst	r0
 	beq	9f
@@ -677,6 +685,8 @@ _execl:
 .estr: .=.+512.
 / bcc-exec-end
 .bp1: .=.+256.
+/ bcc-meta-begin
 .bp2: .=.+256.
+/ bcc-meta-end
 
 / _ctime is implemented in runtime/libb.b.

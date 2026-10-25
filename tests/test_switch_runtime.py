@@ -20,6 +20,10 @@ def main():
     args = parser.parse_args()
     modes = [('host', False)] if args.bootstrap or args.native else [(w, i) for w in ('host','16','32') for i in (False,True)]
     cases = [(name, (ROOT/'pdp-11/bcc-pdp/tests/run'/f'{name}.b').read_text(), b'OK\n', None) for name in FIXTURES]
+    cases += [
+        ('adjacent-labels', "main(){extrn putchar;auto x;x=0;switch 1 {case 1:case 2:x=7;}if(x!=7)return(1);putchar('OK');putchar('*n');return(0);}", b'OK\n', None),
+        ('empty-between-labels', "main(){extrn putchar;auto x;x=0;switch 1 {case 1:;case 2:x=7;}if(x!=7)return(1);putchar('OK');putchar('*n');return(0);}", b'OK\n', None),
+    ]
     cases += [('outside', 'main(){case 1:return(0);}', None, b'case')]
     if args.native:
         cases += [('capacity', 'main(){switch 0 {'+''.join(f'case {i}:' for i in range(33))+'return(0);}}', None, b'>c')]
@@ -42,7 +46,8 @@ def main():
                     result = subprocess.run([str(work/'case')], capture_output=True, timeout=10)
                 output = result.stdout + result.stderr
                 if expected is not None:
-                    ok = result.returncode == 0 and result.stdout == expected
+                    ok = (result.returncode == 0 and result.stdout == expected
+                          and b'case label falls through' not in compile_output)
                 else:
                     ok = result.returncode > 0 and diagnostic in output
                 ok = ok and all(marker not in compile_output + output for marker in (b'Sanitizer', b'runtime error:'))

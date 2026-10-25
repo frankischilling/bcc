@@ -8,5 +8,5 @@ trap 'exit 130' INT
 trap 'exit 143' TERM HUP
 cat "$HERE/src/io.b" "$HERE/src/ic.b" "$HERE/tests/ic_reader.b" > "$WORK/reader.b"
 printf '%s\n' '-32768' > "$WORK/reader.out"
-bash "$HERE/../tools/v1-run.sh" "$WORK/reader.b" --timings
-bash "$HERE/../tools/v1-run.sh" "$HERE/experiments/paged.b" --timings
+bash "$HERE/../tools/v1-run.sh" "$WORK/reader.b" --timings --workdir /usr/tmp
+bash "$HERE/../tools/v1-run.sh" "$HERE/experiments/paged.b" --timings --workdir /usr/tmp

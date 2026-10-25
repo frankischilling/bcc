@@ -242,7 +242,7 @@ assembly references none of its four public entries: `printn`, `printf`,
 `getstr`, and `ctime`. Address-taking counts as a reference. If any entry is
 needed, the whole library stays linked so its internal calls and writable
 function cells keep working. Source-defined overrides retain their existing
-behavior. The primitive runtime is always linked.
+behavior. The core primitive runtime remains linked.
 
 This saves 4,396 bytes for a primitives-only program with the current seed.
 It does not change the language's table or stack limits, and it is not a
@@ -255,3 +255,21 @@ References through saved addresses and source-defined cells keep the group.
 The shared pathname conversion routines remain available to other calls.
 This saves another 804 bytes without changing the limits of programs that
 use exec. Matching checks cover both selectors and the library dependency.
+
+A separate process/metadata group contains `fork`, `wait`, directory and
+link operations, mode/owner changes, status calls, tty calls, user-ID calls,
+and `time`, together with the second pathname buffer. It is retained when
+the program or the selected B library names any of those routines. Omitting
+it saves 658 bytes; the first pathname buffer and byte I/O stay available.
+
+For larger programs, compile and run on the guest's RK scratch filesystem.
+From the repository root:
+
+```sh
+bash pdp-11/bcc-pdp/tools/v1-run.sh path/to/program.b --workdir /usr/tmp --timings
+```
+
+The source is still staged as `/v1.b`. Outputs and relative file operations
+use `/usr/tmp`. The default remains `/` for existing tests. This avoids
+filling the smaller RF root disk with assembler scratch/output files; it
+does not enlarge the process address space.

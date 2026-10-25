@@ -12,6 +12,7 @@ seltail 0;
 selpart 0;
 uselib 0;
 usexec 0;
+usemet 0;
 
 selclr() {
     extern selpos, sellen, seltail, selpart;
@@ -85,7 +86,23 @@ selref(s, which) char s[]; {
     i = 0; prev = 0;
     while (s[i]) {
         if (s[i] == '_') if (!selchr(prev)) {
-            if (which) {
+            if (which == 2) {
+                if (selstr(s, i, "_fork")) return(1);
+                if (selstr(s, i, "_wait")) return(1);
+                if (selstr(s, i, "_chdir")) return(1);
+                if (selstr(s, i, "_link")) return(1);
+                if (selstr(s, i, "_chmod")) return(1);
+                if (selstr(s, i, "_chown")) return(1);
+                if (selstr(s, i, "_stat")) return(1);
+                if (selstr(s, i, "_fstat")) return(1);
+                if (selstr(s, i, "_stty")) return(1);
+                if (selstr(s, i, "_gtty")) return(1);
+                if (selstr(s, i, "_setuid")) return(1);
+                if (selstr(s, i, "_getuid")) return(1);
+                if (selstr(s, i, "_time")) return(1);
+                if (selstr(s, i, "_mkdir")) return(1);
+                if (selstr(s, i, "_makdir")) return(1);
+            } else if (which == 1) {
                 if (selstr(s, i, "_execv")) return(1);
                 if (selstr(s, i, "_execl")) return(1);
             } else {
@@ -101,16 +118,17 @@ selref(s, which) char s[]; {
 }
 
 selfns(path) char path[]; {
-    extern sellin, selnam, selnum, uselib, usexec;
+    extern sellin, selnam, selnum, uselib, usexec, usemet;
     char sellin[], selnam[], name[10];
-    int selnum, uselib, usexec, fd, j;
-    selnum = 0; uselib = 0; usexec = 0;
+    int selnum, uselib, usexec, usemet, fd, j;
+    selnum = 0; uselib = 0; usexec = 0; usemet = 0;
     fd = open(path, 0);
     if (fd < 0) failmsg("b: no program assembly\n");
     selclr();
     while (selget(fd)) {
         if (selref(sellin, 0)) uselib = 1;
         if (selref(sellin, 1)) usexec = 1;
+        if (selref(sellin, 2)) usemet = 1;
         if (sellab(sellin, name)) {
             if (selnum >= 200) failmsg("b: too many external definitions\n");
             j = 0;
@@ -123,14 +141,17 @@ selfns(path) char path[]; {
 }
 
 /* Library calls can need exec even when the program does not name it. */
-selfex(path) char path[]; {
-    extern sellin, usexec;
+seldep(path) char path[]; {
+    extern sellin, usexec, usemet;
     char sellin[];
-    int usexec, fd;
+    int usexec, usemet, fd;
     fd = open(path, 0);
     if (fd < 0) failmsg("b: missing runtime assembly\n");
     selclr();
-    while (selget(fd)) if (selref(sellin, 1)) usexec = 1;
+    while (selget(fd)) {
+        if (selref(sellin, 1)) usexec = 1;
+        if (selref(sellin, 2)) usemet = 1;
+    }
     close(fd);
 }
 
@@ -140,6 +161,17 @@ selmark(s, name) char s[], name[]; {
     while (name[i]) { if (s[i] != name[i]) return(0); i++; }
     while (s[i] == ' ' | s[i] == '\t' | s[i] == '\r' | s[i] == '\n') i++;
     return(s[i] == 0);
+}
+
+selgrp(s) char s[]; {
+    extern seltail, selpart;
+    int seltail, selpart;
+    if (seltail | selpart) return(0);
+    if (selmark(s, "/ bcc-exec-begin")) return(1);
+    if (selmark(s, "/ bcc-exec-end")) return(-1);
+    if (selmark(s, "/ bcc-meta-begin")) return(2);
+    if (selmark(s, "/ bcc-meta-end")) return(-2);
+    return(0);
 }
 
 selhas() {
@@ -163,7 +195,7 @@ selhas() {
 selfil(path, dest, omit) char path[], dest[]; {
     extern sellin;
     char sellin[];
-    int fd, out, n, found, omit, drop;
+    int fd, out, n, found, omit, group, kind, drop;
     fd = open(path, 0);
     if (fd < 0) failmsg("b: missing runtime assembly\n");
     found = omit;
@@ -173,24 +205,31 @@ selfil(path, dest, omit) char path[], dest[]; {
     if (seek(fd, 0, 0) < 0) failmsg("b: cannot rewind runtime\n");
     out = creat(dest, 016);
     if (out < 0) failmsg("b: cannot create selected runtime\n");
-    selclr(); drop = 0;
+    selclr(); group = 0;
     while (n = selget(fd)) {
         if (omit) {
-            if (selmark(sellin, "/ bcc-exec-begin")) {
-                if (drop) { unlink(dest); badout("b: nested exec runtime group\n"); }
-                drop = 1; continue;
+            kind = selgrp(sellin);
+            if (kind > 0) {
+                if (group) { unlink(dest); badout("b: nested runtime group\n"); }
+                group = kind;
+                drop = omit & kind;
+                if (drop) continue;
             }
-            if (selmark(sellin, "/ bcc-exec-end")) {
-                if (!drop) { unlink(dest); badout("b: unmatched exec runtime end\n"); }
-                drop = 0; continue;
+            if (kind < 0) {
+                if (group != -kind) { unlink(dest); badout("b: unmatched runtime group end\n"); }
+                group = 0;
+                drop = omit & -kind;
+                if (drop) continue;
             }
         }
+        /* Early C treats & in branch conditions as logical conjunction. */
+        drop = omit & group;
         if (!drop) if (!selhas()) if (write(out, sellin, n) != n) {
             close(fd); close(out); unlink(dest);
             failmsg("b: runtime write failed\n");
         }
     }
-    if (drop) { unlink(dest); badout("b: unterminated exec runtime group\n"); }
+    if (group) { unlink(dest); badout("b: unterminated runtime group\n"); }
     close(fd);
     if (close(out)) { unlink(dest); badout("b: runtime close failed\n"); }
     return(1);
