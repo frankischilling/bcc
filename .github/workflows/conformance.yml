@@ -52,6 +52,7 @@ jobs:
           chmod +x "$RUNNER_TEMP/bcc-instrumented"
           python3 tests/test_word_arithmetic.py --compiler "$RUNNER_TEMP/bcc-instrumented"
           python3 tests/test_char_storage.py --compiler "$RUNNER_TEMP/bcc-instrumented"
+          python3 tests/test_seek_runtime.py --compiler "$RUNNER_TEMP/bcc-instrumented"
           python3 tests/test_argv_runtime.py --compiler "$RUNNER_TEMP/bcc-instrumented"
           python3 tests/test_call_frames.py --compiler "$RUNNER_TEMP/bcc-instrumented"
           python3 tests/test_library_bindings.py --compiler "$RUNNER_TEMP/bcc-instrumented"
@@ -118,6 +119,7 @@ jobs:
           make -C pdp-11/bcc-pdp v1-run B=tests/run/t34_fork.b
           make -C pdp-11/bcc-pdp v1-run B=tests/run/t35_execv.b
           make -C pdp-11/bcc-pdp v1-run B=tests/run/t111_exec_override.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t112_seek_offsets.b
           make -C pdp-11/bcc-pdp v1-run B=tests/v1/tty.b
           make -C pdp-11/bcc-pdp v1-run B=tests/v1/argv_many.b
           make -C pdp-11/bcc-pdp v1-run B=tests/v1/console_prompt.b

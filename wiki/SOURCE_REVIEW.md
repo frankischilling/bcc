@@ -124,6 +124,11 @@ return fewer bytes than requested; an open file survives its last directory
 link until it is closed. `stat` uses a 34-byte record, not a modern host
 `struct stat`. Ordinary-file seek offsets and block-device offsets also have
 different units.
+The seek review also distinguishes the unsigned 16-bit absolute offset from
+signed relative displacements. Tests return from offsets 32768 and 65535 to
+read a small file, so they exercise the high bits without creating a large
+fixture. The host wrapper preserves those absolute bit patterns in its
+16-bit model; it does not reproduce every kernel file-position wrap.
 
 The November terminal interface passes three words: two DC11 control/status
 register values and a mode word. Bit `010` disables echo. Raw mode bypasses

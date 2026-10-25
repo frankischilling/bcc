@@ -95,6 +95,8 @@ def main():
                           '--compiler', str(compiler)], 'vector extents') and ok
         ok = checked_run([sys.executable, str(root / 'tests/test_char_storage.py'),
                           '--compiler', str(compiler)], 'packed byte storage') and ok
+        ok = checked_run([sys.executable, str(root / 'tests/test_seek_runtime.py'),
+                          '--compiler', str(compiler)], 'file offsets') and ok
         ok = checked_run([sys.executable, str(root / 'tests/test_argv_runtime.py'),
                           '--compiler', str(compiler)], 'argument vector') and ok
         ok = checked_run([sys.executable, str(root / 'tests/test_unix_metadata.py'),

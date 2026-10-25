@@ -2,6 +2,15 @@
 #ifndef BCC_BUNIX_H
 #define BCC_BUNIX_H
 
+/* V1 absolute offsets use all 16 bits; relative displacements are signed. */
+static inline word __bcc_unix_seek(word fd, word offset, word origin) {
+    off_t position = (off_t)offset;
+#if WORD_BITS == 16
+    if (origin == SEEK_SET) position = (off_t)(uint16_t)offset;
+#endif
+    return lseek((int)fd, position, (int)origin) < 0 ? (word)-1 : (word)0;
+}
+
 static inline mode_t __bcc_unix_mode(word value, int directory) {
     /* Larger modes retain the existing POSIX-mode compatibility interface. */
     if ((uword)value > 077) return (mode_t)value;

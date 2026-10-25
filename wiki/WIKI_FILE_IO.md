@@ -12,9 +12,16 @@ an error/end-of-file occurs.
 - `close(fd)` closes a descriptor.
 - `read(fd,buf,count)` returns the bytes read, zero at EOF, or -1 on error.
 - `write(fd,buf,count)` returns the bytes written or -1 on error.
-- `seek(fd,offset,whence)` returns zero or -1. The host wrapper currently
-  passes the offset and origin to `lseek`; it is not a complete emulation
-  of every historical seek mode.
+- `seek(fd,offset,whence)` returns zero or -1. Origins 0, 1, and 2 mean the
+  beginning, current position, and end of the file. In the 16-bit model,
+  absolute offsets use all 16 bits: values from 32768 through 65535 remain
+  usable, and the bit pattern of -1 means 65535. Relative displacements are
+  signed. Wider word models keep the host's offset representation.
+
+The host wrapper does not emulate the V1 kernel's 16-bit file-position wrap
+or block-device addressing units. File sizes and other host behavior still
+come from `lseek`. The [June 1972 seek page](https://www.tuhs.org/Archive/Distributions/Research/Dennis_v2/v2man.pdf)
+describes the three origins and the historical 16-bit absolute address range.
 
 `read` does not append a terminator. It leaves bytes beyond the returned
 count unchanged, including after EOF, a zero-length request, or an error.

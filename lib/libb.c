@@ -478,8 +478,7 @@ word b_creat(word name, word mode) {
 }
 
 word b_seek(word fd, word offset, word whence) {
-    off_t r = lseek((int)fd, (off_t)offset, (int)whence);
-    return (r < 0) ? (word)-1 : (word)0;
+    return __bcc_unix_seek(fd, offset, whence);
 }
 
 /* Process Control */
