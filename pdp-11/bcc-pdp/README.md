@@ -61,7 +61,11 @@ are checked only in the full-system suite.
 
 ## Full Unix V1 checks
 
-These need the nested SIMH source and Python's `pexpect` package:
+These need the nested SIMH source and Python's `pexpect` package. Both the
+Makefile entry points and the direct `tools/v1-run.sh` launcher build the
+emulator and filesystem tools before staging a guest run. `make -C
+pdp-11/bcc-pdp v1-tools` prepares those tools without rebuilding disk images.
+
 
 ```sh
 git submodule update --init --recursive pdp-11/unix-v1

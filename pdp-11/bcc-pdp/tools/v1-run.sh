@@ -36,7 +36,7 @@ restore_stage() {
 	rm -f "$BACKUP"
 }
 
-(cd "$HERE" && make)
+(cd "$HERE" && make all v1-tools)
 if [ -e "$STAGE" ]; then
 	cp "$STAGE" "$BACKUP"
 	HAD_STAGE=1

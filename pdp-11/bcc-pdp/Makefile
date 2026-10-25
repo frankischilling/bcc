@@ -150,11 +150,13 @@ $(V1)/tools/simh/makefile:
 	@echo "Missing SIMH source. Run git submodule update --init --recursive pdp-11/unix-v1 from the repository root." >&2
 	@exit 1
 
-v1-run v1-smoke v1-selfhost: $(V1)/tools/pdp11
 
 $(V1)/tools/mkfs: $(V1)/tools/mkfs.c
 	$(MAKE) -C $(V1)/tools mkfs
 
-v1-run v1-smoke v1-selfhost: $(V1)/tools/mkfs
+.PHONY: v1-tools
+v1-tools: $(V1)/tools/pdp11 $(V1)/tools/mkfs
+
+v1-run v1-smoke v1-selfhost: v1-tools
 
 endif

@@ -228,7 +228,9 @@ jobs:
       - name: Install console test dependency
         run: python3 -m pip install pexpect==4.9.0
       - name: Check clean kernel-test staging
-        run: python3 pdp-11/bcc-pdp/bootstrap/test_kernel_staging.py
+        run: |
+          python3 pdp-11/bcc-pdp/bootstrap/test_kernel_staging.py
+          python3 pdp-11/bcc-pdp/tests/v1_prerequisites.py
       - name: Build the historical seed
         run: make -C pdp-11/bcc-pdp
       - name: Run the B-written pipeline inside Unix V1
