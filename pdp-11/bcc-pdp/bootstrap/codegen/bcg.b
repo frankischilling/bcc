@@ -28,18 +28,18 @@ cmpop(brmiss, lfa, lend) {
     eop("cmp*t(sp)+, r0");
     outc('*t');
     bouts(brmiss);
-    bouts("*tL");
+    bouts("*t");lpref();
     outd(lfa);
     outc('*n');
     eop("mov*t$1, r0");
-    bouts("*tjmp*tL");
+    bouts("*tjmp*t");lpref();
     outd(lend);
     outc('*n');
-    bouts("L");
+    lpref();
     outd(lfa);
     bouts(":*n");
     eop("clr*tr0");
-    bouts("L");
+    lpref();
     outd(lend);
     bouts(":*n");
 }
@@ -168,7 +168,7 @@ cgpro(name, nlocals, retlbl) {
     bouts(":*n*t.+2*n");
     eop("mov*tr5, -(sp)");
     eop("mov*tsp, r5");
-    bouts("*tsub*t$L");
+    bouts("*tsub*t$");lpref();
     outd(retlbl);
     bouts("f, sp*n");
 }
@@ -189,13 +189,13 @@ cgvini(slot, dataoff) {
 cgepi(nlocals) {
     extrn retl;
     if (nlocals < 0 | nlocals > 8191) fatal("bad frame size");
-    bouts("L");
+    lpref();
     outd(retl);
     bouts(":*n");
     eop("mov*tr5, sp");
     eop("mov*t(sp)+, r5");
     eop("rts*tpc");
-    bouts("L");
+    lpref();
     outd(retl);
     bouts("f = ");
     outd(2 * nlocals);
@@ -204,7 +204,7 @@ cgepi(nlocals) {
 
 cgret() {
     extrn retl;
-    bouts("*tjmp*tL");
+    bouts("*tjmp*t");lpref();
     outd(retl);
     outc('*n');
 }
@@ -257,20 +257,20 @@ cgasn() {
 cgbrf(l) {
     eop("tst*tr0");
     bouts("*tbne*t1f*n");
-    bouts("*tjmp*tL");
+    bouts("*tjmp*t");lpref();
     outd(l);
     outc('*n');
     bouts("1:*n");
 }
 
 cgjmp(l) {
-    bouts("*tjmp*tL");
+    bouts("*tjmp*t");lpref();
     outd(l);
     outc('*n');
 }
 
 cglab(l) {
-    bouts("L");
+    lpref();
     outd(l);
     bouts(":*n");
 }
@@ -283,7 +283,7 @@ cgext(name) {
 }
 
 cgsta(id) {
-    bouts("*tmov*t$S");
+    bouts("*tmov*t$");spref();
     outd(id);
     bouts(", r0*n");
     cgword();
@@ -303,18 +303,18 @@ cguop(op) {
 
 cguopn(l1, l2) {
     eop("tst*tr0");
-    bouts("*tbne*tL");
+    bouts("*tbne*t");lpref();
     outd(l1);
     outc('*n');
     eop("mov*t$1, r0");
-    bouts("*tjmp*tL");
+    bouts("*tjmp*t");lpref();
     outd(l2);
     outc('*n');
-    bouts("L");
+    lpref();
     outd(l1);
     bouts(":*n");
     eop("clr*tr0");
-    bouts("L");
+    lpref();
     outd(l2);
     bouts(":*n");
 }
@@ -322,14 +322,14 @@ cguopn(l1, l2) {
 cgaob(isand, l) {
     eop("tst*tr0");
     if (isand) bouts("*tbne*t1f*n"); else bouts("*tbeq*t1f*n");
-    bouts("*tjmp*tL");
+    bouts("*tjmp*t");lpref();
     outd(l);
     outc('*n');
     bouts("1:*n");
 }
 
 cgaoe(l) {
-    bouts("L");
+    lpref();
     outd(l);
     bouts(":*n");
 }
@@ -337,23 +337,23 @@ cgaoe(l) {
 cgtnq(l) {
     eop("tst*tr0");
     bouts("*tbne*t1f*n");
-    bouts("*tjmp*tL");
+    bouts("*tjmp*t");lpref();
     outd(l);
     outc('*n');
     bouts("1:*n");
 }
 
 cgtnc(lel, le) {
-    bouts("*tjmp*tL");
+    bouts("*tjmp*t");lpref();
     outd(le);
     outc('*n');
-    bouts("L");
+    lpref();
     outd(lel);
     bouts(":*n");
 }
 
 cgtne(le) {
-    bouts("L");
+    lpref();
     outd(le);
     bouts(":*n");
 }

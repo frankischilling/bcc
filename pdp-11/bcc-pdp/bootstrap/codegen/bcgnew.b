@@ -1,7 +1,7 @@
 /* Emit switches, writable label cells, globals and collision-free names. */
 cgswb(ldisp) {
     eop("mov*tr0, -(sp)");
-    bouts("*tjmp*tL");
+    bouts("*tjmp*t");lpref();
     outd(ldisp);
     outc('*n');
 }
@@ -31,7 +31,7 @@ cggor() {
 }
 
 cgla(lid) {
-    bouts("*tmov*t$L");
+    bouts("*tmov*t$");lpref();
     outd(lid);
     bouts("v, r0*n");
     eop("clc");
@@ -39,9 +39,9 @@ cgla(lid) {
 }
 
 cglval(lid) {
-    bouts("L");
+    lpref();
     outd(lid);
-    bouts("v:*tL");
+    bouts("v:*t");lpref();
     outd(lid);
     outc('*n');
 }
@@ -76,7 +76,7 @@ cggvn(name) {
 cggvl(id) {
     extrn gvinit, nstr;
     if (id < 0 | id >= nstr) fatal("bad literal reference");
-    bouts("*t[S");
+    bouts("*t[");spref();
     outd(id);
     bouts("-start+40014]\/2*n");
     gvinit = gvinit + 1;

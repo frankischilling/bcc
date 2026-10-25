@@ -56,6 +56,7 @@ main() {
     if(in) {ifd=open(in,0);if(ifd<0) fatal("b01: open");}
     if(out) {ofd=creat(out,016);if(ofd<0) fatal("b01: creat");}
     icini(ifd);outinit(ofd);rewrt();
+    oflush();
     if(ofd!=1) if(close(ofd)<0) fatal("cannot close output");
     if(done) markok(done);
     exit(0);

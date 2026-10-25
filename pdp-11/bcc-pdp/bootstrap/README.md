@@ -2,7 +2,8 @@
 
 This directory contains experimental B implementations of the frontend,
 resolver, paged instruction encoder, PDP-11 assembly generator, and native
-image writer. They are
+image writer. A B-written runtime selector and build driver connect these
+components. They are
 not installed in place of the native C passes. The B versions run through a
 separate [paged execution engine](vm/README.md), which keeps most of their
 code and data in files to fit the PDP-11 process limit.
@@ -17,8 +18,10 @@ independent toolchain.
 
 ## Source layout
 
-- `src/io.b` writes packed bytes, formats signed record fields, reports errors,
-  and writes the driver's completion marker after successful output.
+- `src/buffered_io.b` buffers compiler output in 256-byte blocks, formats
+  record fields, and writes completion markers after successful output.
+  Diagnostics remain immediate. `src/io.b` is the smaller unbuffered variant
+  used where only diagnostics and markers need those helpers.
 - `src/ic.b` reads bounded records and checks signed 16-bit decimal fields.
 - `src/symbols.b` stores symbol names as packed bytes, with separate B-cell
   arrays for their classes and offsets.
@@ -195,3 +198,23 @@ and execute permission from the disk image, then boots again and runs the
 saved executable. The second boot uses a C-seeded verification launcher;
 it is not part of executable construction. This is a component check, not
 a complete B-written compiler driver or an independent runtime rebuild.
+
+
+## B-written driver and runtime regeneration
+
+The [build driver](driver/README.md) runs the B passes itself, with a fresh
+heap file and completion marker for each child. The [runtime selector](selector/README.md)
+keeps retained assembly unchanged. The [target template emitter](runtime/README.md)
+regenerates startup and primitive assembly from B-maintained instruction
+templates; the code generator's `-L` mode rebuilds the B library without an
+external namespace-rewriting command.
+
+```sh
+python3 pdp-11/bcc-pdp/bootstrap/test_toolchain.py
+```
+
+The application-emulator test removes the seed runtime assembly files before
+regenerating them with the B driver. It then compiles and runs a program,
+checks output modes, and tests failed passes and protected paths. The isolated
+application root contains no C compiler or assembler. Seed creation and
+independent byte references still use the existing tools outside that root.

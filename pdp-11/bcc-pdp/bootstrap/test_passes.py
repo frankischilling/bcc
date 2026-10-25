@@ -43,7 +43,7 @@ def main():
     parser.add_argument('--bcc', type=Path, default=PROJECT / 'bcc')
     parser.add_argument('--vm', action='store_true', help='also execute all three B passes in each VM')
     parser.add_argument('--self-test', action='store_true',
-                        help='also rebuild all three pass images from B source in each VM (slow)')
+                        help='also rebuild all pass images from B source in each VM (slow)')
     args = parser.parse_args()
     sources = {name: source_text(name) for name in MODULES}
     passed = failed = 0
@@ -99,6 +99,10 @@ def main():
         for name in MODULES:
             image, _, _ = seed_image(name, work, source=sources[name])
             (work / (name + '.vm')).write_bytes(image)
+            for label, data in [('source', sources[name].encode()),
+                                ('raw', (work / 'raw.ic').read_bytes()),
+                                ('resolved', (work / 'code.ic').read_bytes()), ('image', image)]:
+                check(f'guest-file-size/{name}/{label}', len(data) <= 65535, True)
             encoder_cases.append(('self/' + name, (work / 'code.ic').read_text()))
 
         for word in ('16', '32', 'host'):

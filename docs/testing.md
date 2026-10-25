@@ -307,3 +307,33 @@ never produces an image.
 These tests do not establish a complete B-only build. The image writer's
 construction step is B-written, but runtime selection, seed tools, and test
 launchers remain separate dependencies.
+
+
+## B-driven toolchain checks
+
+```sh
+python3 pdp-11/bcc-pdp/bootstrap/test_selector.py --vm
+python3 pdp-11/bcc-pdp/bootstrap/test_runtime.py --vm
+python3 pdp-11/bcc-pdp/bootstrap/test_toolchain.py
+python3 pdp-11/bcc-pdp/bootstrap/test_toolchain.py --rebuild driver --rebuild runtime
+python3 pdp-11/bcc-pdp/bootstrap/test_toolchain_v1.py
+```
+
+The application test has no C compiler or assembler in its tool directory.
+It regenerates the runtime files, builds and executes a native program, and
+checks output modes, stale markers, protected paths, closed-descriptor
+diagnostics, and the engine-argument budget. Seed construction and independent
+references still use the existing tools outside that directory.
+
+`--rebuild` compares selected components rebuilt from B; it can be repeated.
+`--self-test` checks all instruction images and both native executables instead.
+These are long-running checks, separate from ordinary fixture execution.
+
+The kernel test regenerates runtime files and compiles through the B driver
+inside Unix V1. A success-only wrapper catches driver failures even when the
+shell cannot report useful exit status. Disk-file comparisons and a second
+boot check the executable independently. Further guest cases close descriptor
+2 and verify that rejected commands preserve the heap and marker files.
+Allow more than half an hour for the combined guest build. Failure images
+and the original error are saved under
+`pdp-11/bcc-pdp/build/toolchain-v1-failures`.

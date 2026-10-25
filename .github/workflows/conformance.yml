@@ -136,6 +136,51 @@ jobs:
       - name: Compare B-written native executable images
         run: python3 pdp-11/bcc-pdp/bootstrap/test_image.py --vm
 
+  b-toolchain:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Check seed-directory and guest-file limits
+        run: python3 pdp-11/bcc-pdp/bootstrap/test_toolchain_seed.py
+      - name: Build the seed compilers
+        run: |
+          make
+          make -C pdp-11/bcc-pdp
+      - name: Check B-written runtime selection and templates
+        run: |
+          python3 pdp-11/bcc-pdp/bootstrap/test_selector.py --vm
+          python3 pdp-11/bcc-pdp/bootstrap/test_runtime.py --vm
+      - name: Check B-driven native construction and failure handling
+        run: python3 pdp-11/bcc-pdp/bootstrap/test_toolchain.py
+
+  b-toolchain-v1:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install console test dependency
+        run: python3 -m pip install pexpect==4.9.0
+      - name: Check staging and build the seed
+        run: |
+          python3 pdp-11/bcc-pdp/bootstrap/test_kernel_staging.py
+          make -C pdp-11/bcc-pdp
+      - name: Regenerate runtimes and build with B inside Unix V1
+        run: python3 pdp-11/bcc-pdp/bootstrap/test_toolchain_v1.py
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: b-toolchain-v1-failures
+          path: pdp-11/bcc-pdp/build/toolchain-v1-failures
+          if-no-files-found: ignore
+
   unix-v1:
     runs-on: ubuntu-24.04
     timeout-minutes: 20

@@ -1223,3 +1223,42 @@ simple programs but fail valid runtime assembly. The corpus comparison
 covers this distinction. The reconstruction also contains later assembler
 features; its entire predefined table is not evidence that every feature
 belonged to the first-edition assembler.
+
+
+### Completion and file output in the B-driven build
+
+The early guest environment does not always provide useful child exit status
+through the available interfaces. The native C driver already checks pass
+completion files. The B driver follows that protocol rather than treating a
+returned child PID or a shell prompt as proof that compilation succeeded.
+Kernel tests also require a success-only message and compare the resulting
+files outside the terminal channel, which can discard NUL bytes.
+
+B-written compiler output is explicitly buffered and flushed before close.
+Closing a file is not an implicit request to flush a B-level buffer. Both
+output-close and marker-close failures must prevent a completion marker from
+being accepted. Diagnostics fall back to descriptor 1 when descriptor 2 is
+closed, as can happen with early shells.
+
+The runtime template emitter uses B's asterisk escapes. Backslashes intended
+for assembler syntax remain literal bytes; treating them as C escapes would
+change the emitted instruction templates. The emitter's byte comparisons
+check that distinction. Maintaining target instruction templates in B removes
+an external source-file dependency during rebuilding, but does not turn those
+target-specific sequences into portable B library algorithms.
+
+
+### Intermediate files must fit the guest too
+
+The pinned guest inode reserves two bytes for its unsigned file size, and its
+read path compares the file offset with that value. A compiler image can fit
+the instruction limit while its textual intermediate file is too large for
+that filesystem. The buffered frontend initially produced 65,960 raw-record
+bytes when compiling its own source. Removing seven unused emitter routines
+reduced that to 64,887 bytes without removing a language feature.
+
+The seed builder and pass tests now check each component's source, raw records,
+resolved records, and instruction image against the 65,535-byte file limit.
+This check applies to the guest rebuild path, not to the B language in general.
+Native assembly for the engine and driver is a separate construction path;
+large compiler components are rebuilt as paged instruction images instead.

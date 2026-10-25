@@ -85,8 +85,11 @@ the B-written resolver inside Unix V1 with exact output checks. Experimental
 [B compiler passes](pdp-11/bcc-pdp/bootstrap/README.md#frontend-and-code-generators)
 also run through that engine. A [B-written native image writer](pdp-11/bcc-pdp/bootstrap/image/README.md)
 can construct supported PDP-11 executables without an external assembler or
-image converter. The complete compiler driver and runtime still do not
-rebuild from B alone.
+image converter. An experimental [B build driver](pdp-11/bcc-pdp/bootstrap/driver/README.md)
+now runs the passes and regenerates the target runtime files from B-maintained
+sources after its seed. It is not installed as the normal compiler. Complete
+in-guest source bootstrapping and a host native-output backend remain separate
+work; the existing host builds still depend on C.
 
 ## Dialect and word modes
 

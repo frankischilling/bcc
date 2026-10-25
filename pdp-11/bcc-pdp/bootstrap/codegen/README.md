@@ -34,3 +34,9 @@ python3 pdp-11/bcc-pdp/bootstrap/tools/build_passes.py codegen codegen-host --ho
 The host build still uses the C-based seed. A VM image of this pass runs under
 the paged B engine; it is not a directly loaded PDP-11 compiler executable.
 The installed native compiler continues to use the C-written `b1` pass.
+
+
+`-L` emits bundled-library assembly with a separate internal label namespace.
+It includes `-l` behavior and assigns the B/C/LC prefixes during code emission,
+so a library rebuild does not need a separate `sed` pass. Ordinary `-l` output
+retains its existing namespace for byte comparisons with the seed.

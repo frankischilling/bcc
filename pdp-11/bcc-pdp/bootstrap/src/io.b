@@ -72,6 +72,6 @@ markok(path) {
     auto fd;
     fd=creat(path,016);
     if(fd<0) exit(1);
-    if(write(fd,"ok",2)!=2) exit(1);
+    if(write(fd,"ok",2)!=2) {close(fd);unlink(path);exit(1);}
     if(close(fd)<0) {unlink(path);exit(1);}
 }

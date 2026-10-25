@@ -49,18 +49,6 @@ cgret() {
     bouts("rt*n");
 }
 
-cglca(off) {
-    bouts("lc ");
-    outd(off);
-    outc('*n');
-}
-
-cgara(off) {
-    bouts("ar ");
-    outd(off);
-    outc('*n');
-}
-
 cgdrf() {
     bouts("dr*n");
 }
@@ -88,12 +76,6 @@ cgjmp(l) {
 cglab(l) {
     bouts("lb ");
     outd(l);
-    outc('*n');
-}
-
-cgext(name) {
-    bouts("ex ");
-    outs(name);
     outc('*n');
 }
 
@@ -142,20 +124,6 @@ cguopn(l1, l2) {
     outd(l1);
     outc(' ');
     outd(l2);
-    outc('*n');
-}
-
-cgaob(isand, l) {
-    bouts("ao ");
-    outd(isand);
-    outc(' ');
-    outd(l);
-    outc('*n');
-}
-
-cgaoe(l) {
-    bouts("aoe ");
-    outd(l);
     outc('*n');
 }
 
@@ -209,9 +177,6 @@ cgpri(isinc) {
     bouts("pi ");
     outd(isinc);
     outc('*n');
-}
-
-cgvini(slot, dataoff) {
 }
 
 cgaauto(name) {
@@ -276,12 +241,6 @@ cgswe(last, lend) {
 
 cggor() {
     bouts("gor*n");
-}
-
-cgla(lid) {
-    bouts("la ");
-    outd(lid);
-    outc('*n');
 }
 
 cggvb(name, n) {

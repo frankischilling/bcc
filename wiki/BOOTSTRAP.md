@@ -123,10 +123,11 @@ the resulting file bytes against the C-written pass. The engine uses eight
 64-byte pages for each of its instruction and heap caches. Its 8,192-word virtual
 heap holds globals and frames in a caller-supplied backing file.
 
-The resolver image contains 9,128 instruction-file words, including startup
-and static-data loading, with 3,386 words reserved for its initial data.
-These are virtual storage counts, not resident PDP-11 process sizes. The
-native engine still has to fit the kernel's separate 16 KB process limit.
+Each instruction image has its own static-data and code sizes. The seed
+manifest produced by the [toolchain builder](../pdp-11/bcc-pdp/bootstrap/tools/build_toolchain.py)
+records those counts and source hashes. These are virtual storage counts,
+not resident PDP-11 process sizes; the native engine must still fit the
+kernel's separate 16 KB process limit.
 
 The seed path still uses the C-written compiler to build the engine and
 resolve the B source. An independent Python encoder creates seed instruction
@@ -135,18 +136,17 @@ resolver. The test pipeline runs all three B passes in sequence and checks
 the resulting images and program behavior in both execution models.
 
 The optional source-rebuild check runs that pipeline on each pass's B source
-and compares the resulting instruction image with the seed image. This is
-not a native executable rebuild: the engine, primitive runtime, and test
-driver still have external dependencies. File-descriptor virtualization,
+and compares the resulting instruction image with the seed image. That check
+alone is not a native executable rebuild. The separate B-driven toolchain
+check also rebuilds native engine and driver images. File-descriptor virtualization,
 temporary-file ownership, a complete runtime, host native instruction
 generation, and a complete independent build driver remain unfinished.
 
-The frontend image contains 15,119 instruction-file words and 1,404 initial
-data words. The encoder image contains 17,305 instruction-file words and
-7,802 initial data words. Those numbers include the current startup code;
-they are not native executable sizes. The instruction limit is 32,700 words, below the reserved primitive-call
-addresses. The encoder's initial data leaves 390 heap words for arguments
-and frames, so changes still need explicit memory checks.
+The instruction limit is 32,700 words, below the reserved primitive-call
+addresses. The encoder's static tables use much of the 8,192-word heap.
+Check `data_words` in the seed manifest before changing their capacities;
+arguments and call frames need the remaining space. Buffered compiler output
+uses checked 256-byte writes and an explicit flush before closing the output.
 
 A [B-written native code generator](../pdp-11/bcc-pdp/bootstrap/codegen/README.md)
 also emits the native pass's assembly. The B frontend, resolver, and this
@@ -165,9 +165,10 @@ the B writer's output.
 
 A kernel component check runs the writer inside Unix V1, checks its output
 bytes and native execute permission, then runs the saved executable in a
-second boot. Runtime selection and the verification launcher still use
-external helpers. The writer is not a general relocatable assembler, and
-it is not installed in place of the existing compiler driver. This removes
+second boot. The verification launcher still uses the seed. A B-written selector now
+performs runtime selection for the experimental driver. The writer is not a
+general relocatable assembler, and the B driver is not installed in place
+of the existing compiler driver. This removes
 one construction dependency for supported inputs, not all bootstrap
 dependencies.
 
@@ -175,6 +176,35 @@ The B frontend does not reproduce the C seed's physical-stack exhaustion
 diagnostic. The encoder expects resolved compiler records and is not a
 complete arbitrary-input validator. These experimental components are not
 installed in place of the native C passes.
+
+## B-driven native construction
+
+The [B build driver](../pdp-11/bcc-pdp/bootstrap/driver/README.md) runs compiler
+passes through the engine, clears each pass's heap, and checks a completion
+marker before continuing. Its ordinary build path invokes no C compiler,
+assembler, Python encoder, or namespace-rewriting utility after the seed.
+The [runtime selector](../pdp-11/bcc-pdp/bootstrap/selector/README.md) removes
+only overridden labels and unused primitive groups, preserving retained bytes.
+
+The driver can regenerate startup and primitive assembly from
+[B-maintained target templates](../pdp-11/bcc-pdp/bootstrap/runtime/README.md)
+and rebuild the ordinary B library from `libb.b`. The code generator assigns
+the bundled library's label namespace directly. These templates remain
+PDP-11-specific instruction sequences, not portable high-level B algorithms.
+They are part of the backend, rather than a separate assembler dependency.
+
+The seed builder still uses the existing C-written passes, assembler, and
+Python helpers. Its manifest records the direct tools and inputs. Application
+checks remove runtime assembly from the isolated tool directory before asking
+the B driver to regenerate it. The guest check uses a success-only test entry,
+compares the runtime and executable bytes from disk, and executes the result.
+That verifies the construction path, not a complete in-guest rebuild of every
+toolchain source or the trustworthiness of the original seed.
+
+The driver expects a caller-owned working directory and short guest paths.
+It is experimental, not the installed `/bin/b`. The host compiler and bccasm
+still need a native-output backend and B-maintained runtime work before they
+can meet the same post-seed dependency goal.
 
 ## Completion checks
 

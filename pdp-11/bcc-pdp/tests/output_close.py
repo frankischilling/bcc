@@ -45,22 +45,49 @@ def main():
         sources = {'b00': 'main(){return(0);}\n',
                    'b01': 'Adef main\nn 0\nrt\nAend\n', 'b1': 'n 0\n'}
         commands = {name: [str(work / 'apout'), str(work / name)] for name in sources}
+        pass_arguments = {}
         if args.bcc:
-            for word in ('16', '32', 'host'):
-                name = 'B-resolver-' + word
-                binary = work / name
-                source = [ROOT / 'bootstrap/src' / part for part in ('io.b', 'ic.b', 'symbols.b', 'b01.b')]
-                subprocess.run([str(args.bcc.resolve()), '--strict', '--pedantic', '--word=' + word,
-                                *map(str, source), '-o', str(binary)], check=True, timeout=180)
-                commands[name] = [str(binary)]
-                sources[name] = sources['b01']
+            sys.path.insert(0, str(ROOT / 'bootstrap/tools'))
+            from build_passes import source_text
+            # Prepare valid resolved records before enabling close-fault injection.
+            (work / 'reference.b').write_text('main(){return(0);}' + '\n')
+            plain_env = dict(os.environ, APOUT_ROOT=str(work))
+            for binary, flags in [('b00', ['-o', 'encoder.raw', 'reference.b']),
+                                  ('b01', ['-i', 'encoder.raw', '-o', 'encoder.ic'])]:
+                subprocess.run([str(work / 'apout'), str(work / binary), *flags],
+                               cwd=work, env=plain_env, check=True, timeout=60)
+            resolved = (work / 'encoder.ic').read_text()
+            (work / 'prim.s').write_text('/ primitive runtime\n')
+            (work / 'lib.s').write_bytes(b'')
+            fixtures = {
+                'frontend': (sources['b00'], ['-o', 'result.ic', '-s', 'done', 'input']),
+                'resolver': (sources['b01'], ['-i', 'input', '-o', 'result.ic', '-s', 'done']),
+                'codegen': (sources['b1'], ['-i', 'input', '-o', 'result.ic', '-s', 'done']),
+                'encoder': (resolved, ['-s', 'done', 'input', 'result.ic']),
+                'image': ('..=40014\nsys 1.\n', ['-s', 'done', 'result.ic', 'input']),
+                'selector': ('', ['-s', 'done', 'input', 'prim.s', 'lib.s', 'result.ic', 'unused']),
+                'runtime': ('', ['-s', 'done', 'result.ic', 'unused']),
+            }
+            pass_sources = {kind: source_text(kind) for kind in fixtures}
+            for kind, (data, arguments) in fixtures.items():
+                source = work / (kind + '.b')
+                source.write_text(pass_sources[kind])
+                for word in ('16', '32', 'host'):
+                    name = 'B-' + kind + '-' + word
+                    binary = work / name
+                    subprocess.run([str(args.bcc.resolve()), '--strict', '--pedantic', '--word=' + word,
+                                    str(source), '-o', str(binary)], check=True, timeout=180)
+                    commands[name] = [str(binary)]
+                    sources[name] = data
+                    pass_arguments[name] = arguments
         for name, command in commands.items():
             (work / 'input').write_text(sources[name])
             for target in ('none', 'result.ic', 'done'):
-                for filename in ('result.ic', 'done', 'seen'):
+                for filename in ('result.ic', 'done', 'seen', 'unused'):
                     (work / filename).unlink(missing_ok=True)
                 arguments = ['-o', 'result.ic', '-s', 'done']
                 arguments += ['input'] if name == 'b00' else ['-i', 'input']
+                arguments = pass_arguments.get(name, arguments)
                 result = subprocess.run([*command, *arguments], cwd=work,
                                         env=dict(env, BCC_CLOSE_TARGET=target), capture_output=True, timeout=30)
                 seen = (work / 'seen').exists()

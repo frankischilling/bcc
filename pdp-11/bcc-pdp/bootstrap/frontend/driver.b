@@ -27,6 +27,7 @@ main() {
     lexini(fdin);outinit(fdout);
     if (extflg) bouts("Acompat*n");
     gettok();prog();
+    oflush();
     if (fdout!=1) if (close(fdout)<0) return(1);
     if (done) markok(done);
     return(0);

@@ -75,7 +75,7 @@ def main():
         cases += [('raw/'+name,text.encode(),diagnostic) for name,text,diagnostic in RAW]
         for word in args.word or ('16', '32', 'host'):
             candidate = work/'resolver'
-            sources = [NATIVE/'bootstrap/src'/name for name in ('io.b','ic.b','symbols.b','b01.b')]
+            sources = [NATIVE/'bootstrap/src'/name for name in ('buffered_io.b','ic.b','symbols.b','b01.b')]
             build = subprocess.run([str(args.bcc.resolve()),'--strict','--pedantic','--word='+word,
                                     *map(str,sources),'-o',str(candidate)],capture_output=True,timeout=180)
             if build.returncode:

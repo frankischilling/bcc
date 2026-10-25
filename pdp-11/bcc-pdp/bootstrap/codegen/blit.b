@@ -8,10 +8,10 @@ litinl(len, bytes) {
     if (id >= 32767) fatal("string pool full");
     nstr = nstr + 1;
     bouts("*n.text*n");
-    bouts("*tjmp*tLS");
+    bouts("*tjmp*tL");spref();
     outd(id);
     outc('*n');
-    bouts("S");
+    spref();
     outd(id);
     bouts(":*n*t.byte*t");
     j = 0;
@@ -26,7 +26,7 @@ litinl(len, bytes) {
     }
     outc('*n');
     bouts("*t.even*n");
-    bouts("LS");
+    bouts("L");spref();
     outd(id);
     bouts(":*n");
     return(id);
