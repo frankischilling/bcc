@@ -118,6 +118,7 @@ selfil(path, dest) char path[], dest[]; {
             failmsg("b: runtime write failed\n");
         }
     }
-    close(fd); close(out);
+    close(fd);
+    if (close(out)) { unlink(dest); badout("b: runtime close failed\n"); }
     return(1);
 }

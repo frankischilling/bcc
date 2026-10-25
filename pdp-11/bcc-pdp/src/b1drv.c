@@ -90,7 +90,7 @@ main(argc, argv) int argv[]; {
 	outinit(ofd);
 	dispat();
     if (!libmod) outs("\n.globl .bend\n.bend:\n");
-	if (ofd != 1) close(ofd);
+	if (ofd != 1) if (close(ofd)) exit(1);
 	if (done) markok(done);
 	exit(0);
 }

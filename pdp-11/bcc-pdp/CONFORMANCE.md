@@ -233,3 +233,16 @@ function values are still read before their arguments are evaluated.
 The focused checks cover direct reads, saved addresses, overwritten values,
 consecutive addresses, and double indirection. The native execution suite
 and the in-system compiler rebuild also check the resulting code.
+
+## Output completion
+
+A compiler pass writes its completion marker only after its output file
+closes successfully. If the marker's own close fails, the pass removes it.
+The driver also rejects a failed close of the converted executable instead
+of installing it as `a.out`.
+
+The early C library returns 0 or 1 from `close`; the B runtime returns 0 or
+-1. The callers check the appropriate convention. Fault-injection tests
+cover the three C passes, the host-built B resolver in three word models,
+the driver's selected runtime files, and its final image. These checks complement the kernel rebuild;
+the kernel test does not simulate storage failures.

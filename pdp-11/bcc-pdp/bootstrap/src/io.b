@@ -68,10 +68,10 @@ newl() {
     id=nlab; nlab++;return(id);
 }
 markok(path) {
-    extrn creat,write,close,exit;
+    extrn creat,write,close,unlink,exit;
     auto fd;
     fd=creat(path,016);
     if(fd<0) exit(1);
     if(write(fd,"ok",2)!=2) exit(1);
-    if(close(fd)<0) exit(1);
+    if(close(fd)<0) {unlink(path);exit(1);}
 }

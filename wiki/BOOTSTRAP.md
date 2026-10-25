@@ -78,6 +78,9 @@ A literal translation of the early C files is not sufficient:
   stack tests already show why fitting the executable alone is insufficient.
 - File reads must distinguish errors from EOF, and failed child tools must
   not leave an output that the driver accepts as successful.
+  Native passes check output closes before writing their completion markers;
+  a failed marker close removes the marker. The driver checks the converted
+  executable's close before installing it.
 
 The eventual B-written passes and driver must rebuild their own B sources
 inside the restored system. Keeping the historical assembler is a possible

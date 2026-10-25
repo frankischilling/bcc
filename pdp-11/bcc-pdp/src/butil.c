@@ -56,32 +56,28 @@ outd(n) {
 
 outln() { outc('\n'); }
 
+errhead(s) char s[]; {
+    extern lineno;
+    errinit();
+    outc('\n');
+    outs("bcc: line ");
+    outd(lineno);
+    outs(": ");
+    outs(s);
+}
+
 fatal(s) char s[]; {
-	extern lineno, outfd;
-	int outfd;
-	errinit();
-	outc('\n');
-	outs("bcc: line ");
-	outd(lineno);
-	outs(": ");
-	outs(s);
-	outc('\n');
-	exit(1);
+    errhead(s);
+    outc('\n');
+    exit(1);
 }
 
 fatalst(s, a) char s[]; char a[]; {
-	extern lineno, outfd;
-	int outfd;
-	errinit();
-	outc('\n');
-	outs("bcc: line ");
-	outd(lineno);
-	outs(": ");
-	outs(s);
-	outs(" ");
-	outs(a);
-	outc('\n');
-	exit(1);
+    errhead(s);
+    outc(' ');
+    outs(a);
+    outc('\n');
+    exit(1);
 }
 
 nlab 0;
@@ -107,5 +103,5 @@ markok(path) char path[]; {
     fd = creat(path, 016);
     if (fd < 0) exit(1);
     if (write(fd, "ok", 2) != 2) exit(1);
-    close(fd);
+    if (close(fd)) { unlink(path); exit(1); }
 }

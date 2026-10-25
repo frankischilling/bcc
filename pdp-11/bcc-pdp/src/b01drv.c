@@ -100,7 +100,7 @@ main(argc, argv) int argv[]; {
 	icini(ifd);
 	outinit(ofd);
 	rewrt();
-	if (ofd != 1) close(ofd);
+	if (ofd != 1) if (close(ofd)) exit(1);
 	if (done) markok(done);
 	exit(0);
 }

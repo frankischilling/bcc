@@ -76,7 +76,7 @@ main(argc, argv) int argv[]; {
 
 	gettok();
 	prog();
-	if (fdout != 1) close(fdout);
+	if (fdout != 1) if (close(fdout)) exit(1);
 	if (done) markok(done);
 	exit(0);
 }

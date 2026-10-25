@@ -160,7 +160,7 @@ fixout(name) char name[]; {
         left = left - n;
     }
 	close(fdin);
-	close(fdout);
+	if (close(fdout)) badout("b: output close failed\n");
 	if (unlink(name) < 0) badout("b: cannot replace output\n");
 	if (link(".b.aout", name) < 0) badout("b: cannot install output\n");
 	unlink(".b.aout");
