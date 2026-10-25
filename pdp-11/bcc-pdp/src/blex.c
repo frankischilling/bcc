@@ -102,8 +102,8 @@ kwadd(s, t) char s[]; {
 }
 
 kwinit() {
-	extern kwc;
-	int kwc;
+	extern kwc, extflg;
+	int kwc, extflg;
 	if (kwc) return;
 	kwadd("auto",     10);   /* T_AUTO   */
 	kwadd("extrn",    11);   /* T_EXTRN  */
@@ -112,8 +112,11 @@ kwinit() {
 	kwadd("while",    14);   /* T_WHILE  */
 	kwadd("return",   15);   /* T_RET    */
 	kwadd("goto",     16);   /* T_GOTO   */
-	kwadd("break",    17);   /* T_BREAK  */
-	kwadd("continue", 18);   /* T_CONT   */
+    /* These names are ordinary identifiers in the January 1972 dialect. */
+    if (extflg) {
+        kwadd("break", 17);
+        kwadd("continue", 18);
+    }
 	kwadd("switch",   19);   /* T_SWITCH */
 	kwadd("case",     20);   /* T_CASE   */
 }
@@ -126,12 +129,14 @@ gtch() {
 	if (peekc >= 0) {
 		c = peekc;
 		peekc = -1;
-		return (c);
+		goto gotc;
 	}
 	c = read(inpfd, b, 1);
 	if (c < 0) fatal("cannot read source");
 	if (c == 0) return (-1);
 	c = b[0] & 0377;
+ gotc:
+	/* unch rolls a newline back; consuming it must restore the line. */
 	if (c == '\n') lineno = lineno + 1;
 	return (c);
 }

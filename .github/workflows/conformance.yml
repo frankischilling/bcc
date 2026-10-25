@@ -77,6 +77,7 @@ jobs:
           python3 pdp-11/bcc-pdp/tests/zero_storage.py
           python3 pdp-11/bcc-pdp/tests/compact_push.py
           python3 pdp-11/bcc-pdp/tests/read_errors.py
+          python3 pdp-11/bcc-pdp/tests/source_lines.py
           python3 pdp-11/bcc-pdp/tests/compiler_stack.py
           python3 pdp-11/bcc-pdp/tests/native_build.py
           python3 pdp-11/bcc-pdp/tests/argv_storage.py
@@ -141,6 +142,7 @@ jobs:
           make -C pdp-11/bcc-pdp v1-run B=tests/run/t111_exec_override.b
           make -C pdp-11/bcc-pdp v1-run B=tests/run/t112_seek_offsets.b
           make -C pdp-11/bcc-pdp v1-run B=tests/run/t113_lchar_result.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t114_dialect_names.b
           make -C pdp-11/bcc-pdp v1-run B=tests/v1/tty.b
           make -C pdp-11/bcc-pdp v1-run B=tests/v1/argv_many.b
           make -C pdp-11/bcc-pdp v1-run B=tests/v1/console_prompt.b

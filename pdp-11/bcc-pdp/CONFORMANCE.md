@@ -55,8 +55,13 @@ syscall wrappers translate to machine byte addresses where needed.
 | 5.7 | rvalue statement | ✔ |
 | 5.8 | null `;` | ✔ |
 
-Post-1972 extensions (`break`, `continue`, `~`, `^`, `=^`, `&&`, `||`,
-and `auto v[n]`) require `-x`; strict mode rejects them.
+Compatibility control statements (`break`, `continue`) and operators/forms
+(`~`, `^`, `=^`, `&&`, `||`, and `auto v[n]`) require `-x`. In strict mode,
+`break` and `continue` are ordinary identifiers, as is `default`. They can
+name globals, parameters, functions, and labels. An undeclared `break;`
+is therefore an unresolved name, not a control statement. This follows the
+[canonical syntax and reserved-word rule](https://www.nokia.com/bell-labs/about/dennis-m-ritchie/kbman.html)
+of the January 1972 manual.
 
 ## V1 Deployment Limits
 
@@ -280,3 +285,10 @@ The emitter also writes `010046` as an octal instruction word for the common
 the machine instruction. Tests expand those words back into mnemonics and
 compare the complete loadable images for calls, recursion, arithmetic,
 vector accesses, and assignment.
+
+## Source line tracking
+
+Lexer lookahead rolls back a newline until it is consumed. Consuming a
+cached newline advances the counter just as reading it from the file does.
+Regression checks cover numbers, names, operator lookahead, comments, blank
+lines, CRLF input, and EOF after a pushed-back newline.

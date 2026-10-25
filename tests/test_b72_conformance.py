@@ -51,6 +51,7 @@ CASES = {
     "strict_continue": ("main(){while(0){continue;} return(0);}", None),
     "strict_brackets": ("main(){auto v[3]; return(0);}", None),
     "strict_keyword_names": ("main(){auto break,continue,default; break=1; continue=2; default=3; return(break+continue+default!=6);}", 0),
+    "strict_keyword_bindings": ("break 7; continue(n){return(n+2);} args(break,continue){return(break+continue);} labels(){goto break;return(1);break:goto continue;continue:return(0);} main(){extrn break,continue,args,labels;return(break!=7 | continue(3)!=5 | args(3,4)!=7 | labels()!=0);}", 0),
     "strict_default_label": ("main(){switch 2 {case 1:return(1); default:return(2);} return(0);}", 0),
     "undeclared_internal": ("main(){return(missing);}", None),
     "duplicate_label": ("main(){same:; {same:;} return(0);}", None),

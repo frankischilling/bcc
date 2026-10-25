@@ -1,2 +1,2 @@
-/* t19e - break removed (kbman has no break; use goto out;). */
+/* An undeclared identifier is not a control statement in B72. */
 main() { while (1) break; }

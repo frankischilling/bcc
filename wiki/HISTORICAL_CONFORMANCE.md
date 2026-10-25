@@ -16,7 +16,7 @@ describe different environments or implementation history.
 | Word values and addresses | Sections 3 and 12 | PDP-11 values have 16 bits; the implementation uses word addresses. Address arithmetic must preserve a valid address through addition of zero. |
 | Character escapes | Section 2.2 | `*(` produces `{`; `*)` produces `}`. Test character constants and strings. |
 | Computed branches | Sections 2 and 5.5 | `goto` accepts an expression yielding a label in the current function. Test labels stored in variables and selected by a conditional. |
-| Strict syntax | Sections 2 and 6.2 | Automatic vectors use `auto v 3;`. `break`, `continue`, and switch defaults have no statement productions in this dialect. |
+| Strict syntax | Sections 2 and 6.2 | Automatic vectors use `auto v 3;`. `break`, `continue`, and switch defaults have no statement productions in this dialect. The names `break`, `continue`, and `default` remain ordinary identifiers in strict mode, including on the native target. |
 | Operator precedence | Sections 4.4 and 4.5 | Addition binds more tightly than shifting: `1 << 2 + 1` yields 8. |
 
 These rules come from the [PDP-11 reference][kbman]. Its sections 4.3 and 4.5
