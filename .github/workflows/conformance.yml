@@ -1,14 +1,18 @@
 name: Compiler conformance
 on:
   push:
+    branches: [main]
+    tags: ['**']
   pull_request:
+  workflow_dispatch:
 permissions:
   contents: read
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 jobs:
-  host:
+  host_tests:
+    name: host tests (${{ matrix.cc }})
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
@@ -16,32 +20,79 @@ jobs:
         cc: [gcc, clang]
     steps:
       - uses: actions/checkout@v4
+      - name: Check CI result gates
+        run: python3 tests/test_ci_gate.py
       - name: Build the host compiler
         run: make CC=${{ matrix.cc }}
       - name: Run host and emitted-assembly tests
         run: make test
       - name: Check installed runtime lookup
         run: make test-install
+      - name: Reject delayed compiler output failures
+        run: python3 tests/test_output_errors.py --compiler ./bcc --close-faults
+  b_bootstrap:
+    name: B bootstrap (${{ matrix.cc }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        cc: [gcc, clang]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the seed compiler
+        run: make CC=${{ matrix.cc }}
       - name: Check the B-written bootstrap
         run: make -C bootstrap test
-      - name: Check B-written host-native image packaging
+      - name: Check B-written host-native construction
         run: |
           make -C bootstrap native-test
           python3 bootstrap/native/test_elfimage.py --close-faults
           python3 bootstrap/native/test_x64.py --close-faults
-      - name: Reject delayed compiler output failures
+      - name: Reject delayed bootstrap output failures
         run: |
-          python3 tests/test_output_errors.py --compiler ./bcc --close-faults
           for stage in 1 2 3; do
             python3 tests/test_output_errors.py --bootstrap --compiler bootstrap/build/stage$stage/bbc --close-faults
           done
-      - name: Check assembly-source builds
-        if: matrix.cc == 'gcc'
+  assembly:
+    name: assembly (${{ matrix.mode }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - mode: normal
+            target: check
+            compiler: asm/bccasm
+          - mode: staged
+            target: bootstrap
+            compiler: asm/bootstrap/stage1/bccasm
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the comparison compiler
+        run: make CC=gcc
+      - name: Check assembly-source build and runtime
+        run: make -C asm "${{ matrix.target }}"
+      - name: Check B-written native construction through this build
         run: |
-          make -C asm check
-          make -C asm bootstrap
-          python3 bootstrap/native/test_elfimage.py --compiler asm/bccasm --close-faults
-          python3 bootstrap/native/test_x64.py --compiler asm/bccasm --close-faults
+          python3 bootstrap/native/test_elfimage.py --compiler "${{ matrix.compiler }}" --close-faults
+          python3 bootstrap/native/test_x64.py --compiler "${{ matrix.compiler }}" --close-faults
+  host:
+    name: host (${{ matrix.cc }})
+    needs: [host_tests, b_bootstrap, assembly]
+    if: always()
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        cc: [gcc, clang]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Require every host lane to pass
+        env:
+          HOST_RESULT: ${{ needs.host_tests.result }}
+          BOOTSTRAP_RESULT: ${{ needs.b_bootstrap.result }}
+          ASSEMBLY_RESULT: ${{ needs.assembly.result }}
+        run: sh .github/scripts/require-success.sh "$HOST_RESULT" "$BOOTSTRAP_RESULT" "$ASSEMBLY_RESULT"
   sanitizers:
     runs-on: ubuntu-24.04
     env:

@@ -35,6 +35,31 @@ expression cases at each of its three stages, separately from the generated-C
 fixed-point check. The installation test uses a temporary prefix containing
 spaces and checks both runtime layouts.
 
+## CI scheduling
+
+The conformance workflow runs for pull requests, pushes to `main`, tags, and
+manual dispatches. Feature-branch updates are checked through their pull
+request rather than launching a duplicate push workflow. Keep a draft pull
+request open while working; manual dispatch is available once the workflow
+is on the default branch.
+
+Host tests, B-bootstrap checks, and the normal and staged assembly builds run
+in parallel jobs. Both GCC and Clang still seed the host and B-bootstrap
+checks. Both assembly executables still run the full host suite; their native
+image and instruction-encoder checks run separately too.
+
+The existing `host (gcc)` and `host (clang)` check names are retained as final
+gates. They pass only when every host, B-bootstrap, and assembly lane succeeds.
+A failure, cancellation, skipped lane, or missing result cannot make a gate
+green. `python3 tests/test_ci_gate.py` exercises those status combinations.
+Native PDP-11, kernel, image, and sanitizer jobs remain independent.
+
+In a completed baseline run at `2385bfe`, the GCC job spent about 24 minutes on
+host tests, 20 on B-bootstrap checks, and 48 on the two assembly runs. Those
+checks ran sequentially. Separate jobs remove that dependency; actual turnaround still depends on runner availability
+and the slowest remaining job. No test suite is shortened or replaced by a
+cached pass result.
+
 ## Fast native PDP-11 checks
 
 ```sh
