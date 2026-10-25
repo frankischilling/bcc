@@ -537,6 +537,16 @@ making every external data definition implicitly visible in every function.
 Those distinctions need explicit tests rather than a blanket change to all
 undeclared names.
 
+Selected modern amd64 paths at the same aap/b revision were also inspected:
+`def.h`, startup and library wrappers, assembly emission, and literal scanning.
+They use eight-byte words and word-address conversion, but the wrappers still
+call libc and the assembly pass emits GNU assembly. This is B source
+self-hosting, not the same dependency boundary as BCC's post-seed goal.
+The inspected modern literal scanner uses zero-terminated strings and accepts
+characters up to its target word capacity. Those choices must not replace the
+PDP-11 baseline's EOT terminator and one- or two-character rule. The repository's
+separate restoration variants need to be evaluated on their own terms.
+
 ## Compiler structure and bootstrap evidence
 
 ### BCPL's intermediate-code bootstrap
@@ -1041,7 +1051,7 @@ in the inventory so that missing or duplicated material is visible.
 
 | ID | Reference | Review status |
 | --- | --- | --- |
-| 040 | [GitHub - aap/b: B compiler · GitHub](https://github.com/aap/b) | Project README read; source tree not exhaustively reviewed |
+| 040 | [GitHub - aap/b: B compiler · GitHub](https://github.com/aap/b) | README and selected declaration, amd64 runtime, emitter, and literal paths reviewed; not a whole-tree audit |
 | 041 | [b/unix1_bdir at master · aap/b · GitHub](https://github.com/aap/b/tree/master/unix1_bdir) | Complete project or directory README read; not a full source-tree audit |
 | 042 | [TUHS B compiler restored](https://www.tuhs.org/pipermail/tuhs/2023-July/028602.html) | Read in full |
 | 043 | [B](https://squoze.net/B/) | Not retrieved: 503: Service Unavailable |
@@ -1295,3 +1305,22 @@ The tests construct simple syscall fixtures using the
 This establishes an executable container for a future native backend. It does
 not generate instructions from B, remove the writer's seed/runtime dependency,
 or turn the existing host compiler into a self-hosted native compiler.
+
+
+### Host instruction encoding
+
+For the host-native backend, the REX and operand-addressing sections of AMD's
+Architecture Programmer's Manual Volume 3, revision 3.36, were reviewed.
+Printed pages 15 and 23 were visually checked in the
+[manufacturer PDF mirror](https://www.scs.stanford.edu/~zyedidia/docs/x86/amd-manual-v3.pdf).
+This is a selected encoding review, not a claim to have read the entire volume.
+REX register-extension fields and byte-register selection matter independently
+of operand width; near calls, jumps and stack operations also have their own
+64-bit defaults.
+
+The B encoding library checks supported operands and emits fixed instruction
+forms. Its tests compare these with an independent assembler, using the
+[documented encoding selectors](https://www.sourceware.org/binutils/docs-2.35/as/i386_002dMnemonics.html)
+where an assembler would otherwise choose a shorter form. B-built executable
+fixtures check behavior separately. None of this chooses the compiler's B
+calling convention or supplies a complete source-to-native backend.

@@ -28,6 +28,7 @@ jobs:
         run: |
           make -C bootstrap native-test
           python3 bootstrap/native/test_elfimage.py --close-faults
+          python3 bootstrap/native/test_x64.py --close-faults
       - name: Reject delayed compiler output failures
         run: |
           python3 tests/test_output_errors.py --compiler ./bcc --close-faults
@@ -40,6 +41,7 @@ jobs:
           make -C asm check
           make -C asm bootstrap
           python3 bootstrap/native/test_elfimage.py --compiler asm/bccasm --close-faults
+          python3 bootstrap/native/test_x64.py --compiler asm/bccasm --close-faults
   sanitizers:
     runs-on: ubuntu-24.04
     env:
@@ -63,6 +65,7 @@ jobs:
           python3 tests/test_library_bindings.py --compiler "$RUNNER_TEMP/bcc-instrumented"
           python3 tests/test_identifier_bytes.py --compiler "$RUNNER_TEMP/bcc-instrumented"
           python3 tests/test_open_runtime.py --compiler "$RUNNER_TEMP/bcc-instrumented"
+          python3 bootstrap/native/test_x64.py --compiler "$RUNNER_TEMP/bcc-instrumented"
   pdp11:
     runs-on: ubuntu-24.04
     steps:

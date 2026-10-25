@@ -57,7 +57,8 @@ A self-contained host path needs:
 
 A [B-written ELF image writer](../bootstrap/native/README.md) now packages
 already-generated x86-64 instruction and data bytes without invoking an
-assembler or linker. Tests check its headers and execute its output on Linux
+assembler or linker. A B-written encoding library also emits selected integer,
+branch, memory, and syscall instructions directly. Tests check its headers and execute its output on Linux
 x86-64. It is not an instruction selector, and building the writer still uses
 the C-output toolchain. The native frontend, runtime, and source-to-instruction
 path listed above remain necessary.

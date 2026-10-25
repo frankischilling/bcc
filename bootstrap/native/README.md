@@ -75,3 +75,73 @@ as skipped on other architectures; header comparisons still run.
 `native-test` also builds and tests the writer through all three B-written
 bootstrap stages. Those stages still emit C. Matching their image output is
 useful evidence, but it is not the missing B-to-native backend.
+
+## Instruction encoder
+
+`x64.b` is a B library that emits a limited set of x86-64 instruction forms.
+Concatenate it with an emitter's B source, compile that emitter with the seed
+toolchain, and run it to produce instruction bytes for `elfimage.b`. This
+removes an assembler from that construction step. It does not yet compile
+ordinary B expressions or statements into native code.
+
+The encoder requires 64-bit B words. Register IDs follow the instruction
+encoding: RAX, RCX, RDX, RBX, RSP, RBP, RSI, RDI are 0 through 7; R8 through
+R15 are 8 through 15. A byte operand uses the corresponding low-byte register,
+including SPL, BPL, SIL and DIL, not AH, CH, DH or BH.
+
+Call `xstart(fd)` before emitting anything. It takes ownership of the output
+descriptor. `xtell()` reports bytes emitted, including bytes still buffered;
+`xfinish()` flushes and closes the descriptor, checking both operations.
+Invalid operands and I/O failures terminate with a nonzero status. Discard
+failed output. Internal byte, prefix, and ModRM helpers are not checked public
+interfaces.
+
+The supported interfaces are:
+
+- `xmovim(reg,value)` and `xmov(dst,src)` for 64-bit immediate and register moves.
+- `xload(dst,base,disp)`, `xstore(base,disp,src)`, and `xlea(dst,base,disp)` for
+  memory operations. Displacements are signed 32-bit values and always occupy
+  four bytes, including zero. RSP and R12 bases receive the required SIB byte.
+- `xloadb` and `xstoreb` have the same argument order as their word counterparts.
+  A byte load zero-extends to 64 bits. `xmovzx(dst,src)` zero-extends a low-byte
+  register.
+- `xbin(kind,dst,src)` uses kinds 0 through 6 for add, or, and, subtract, xor,
+  compare, and test. `xmul(dst,src)` emits the two-register signed multiply.
+- `xunary(kind,reg)` uses 0 for not, 1 for negate, and 2 for signed divide.
+  Division uses RDX:RAX; `xcqo()` sign-extends RAX into that pair.
+- `xshift(kind,reg,count)` and `xshiftc(kind,reg)` use 0 for left shift, 1 for
+  logical right shift, and 2 for arithmetic right shift. The latter takes its
+  count from CL. Immediate counts are bytes, 0 through 255; processor masking
+  applies. These are instruction encodings, not a choice of B shift semantics.
+- `xstack(kind,reg)` uses 0 for push and 1 for pop.
+- `xjump(kind,reg)` emits an indirect call (0) or jump (1). `xrel(kind,disp)`
+  emits their relative forms. Relative displacements are signed 32-bit values
+  measured from the end of the instruction.
+- `xjcc(condition,disp)` and `xset(condition,reg)` use the processor's condition
+  codes 0 through 15: overflow, not-overflow, below, above-or-equal, equal,
+  not-equal, below-or-equal, above, sign, not-sign, parity, not-parity, less,
+  greater-or-equal, less-or-equal, greater.
+- `xret()` emits a near return and `xsys()` emits a syscall instruction.
+
+The library does not resolve labels, allocate registers, impose a calling
+convention, or validate runtime memory addresses. Indexed and RIP-relative
+addressing, floating-point/vector instructions, and assembly-text parsing are
+not implemented. The eventual compiler backend must supply those pieces it
+needs and enforce its language semantics above these machine operations.
+
+Encoding rules were checked against AMD's Architecture Programmer's Manual,
+Volume 3, revision 3.36, especially the REX and operand-addressing sections
+([manufacturer manual mirror](https://www.scs.stanford.edu/~zyedidia/docs/x86/amd-manual-v3.pdf)).
+The [GNU assembler's encoding selectors](https://www.sourceware.org/binutils/docs-2.35/as/i386_002dMnemonics.html)
+let the independent test oracle request the same fixed-width forms.
+
+```sh
+python3 bootstrap/native/test_x64.py
+python3 bootstrap/native/test_x64.py --close-faults
+```
+
+Tests compare register combinations, displacement boundaries, byte-register
+forms, conditions, shifts, and branches with the reference assembler. Separate
+fixtures use the B encoder and B ELF writer to build executables that exercise
+arithmetic, memory, calls, conditions, stack operations, and Linux syscalls.
+The assembler is used only for the comparison, not to construct those fixtures.

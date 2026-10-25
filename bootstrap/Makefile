@@ -79,7 +79,8 @@ test: stage3
 
 native-test: stage3
 	python3 native/test_elfimage.py --compiler $(STAGE0)
-	@set -e; for stage in 1 2 3; do python3 native/test_elfimage.py --bootstrap --compiler build/stage$$stage/bbc; done
+	python3 native/test_x64.py --compiler $(STAGE0)
+	@set -e; for stage in 1 2 3; do python3 native/test_elfimage.py --bootstrap --compiler build/stage$$stage/bbc; python3 native/test_x64.py --bootstrap --compiler build/stage$$stage/bbc; done
 
 clean:
 	rm -rf $(BUILD)
