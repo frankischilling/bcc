@@ -12,7 +12,7 @@ import struct
 import sys
 import tempfile
 from apout_image import native_image, test_image
-from runtime_selection import select_runtime
+from runtime_selection import select_runtime, needs_b_library
 
 
 @contextlib.contextmanager
@@ -74,8 +74,11 @@ def main():
             runtime = runtimes[name]
             if name != 'bmain.s': runtime = select_runtime(program, runtime)
             (work/name).write_bytes(runtime)
-        result = subprocess.run([str(apout), str(work / 'bin/as'), 'bmain.s', 'brt.s',
-                                 'libb.s', 'program.s'], cwd=work, env=env,
+        assembly = ['bmain.s', 'brt.s']
+        if needs_b_library(program):
+            assembly.append('libb.s')
+        assembly.append('program.s')
+        result = subprocess.run([str(apout), str(work / 'bin/as'), *assembly], cwd=work, env=env,
                                 capture_output=True, timeout=60)
         if result.stdout: sys.stderr.buffer.write(result.stdout)
         if result.stderr: sys.stderr.buffer.write(result.stderr)

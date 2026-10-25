@@ -65,11 +65,14 @@ operations and a 512-byte code cache. It creates a test instruction file,
 counts to 1,000, and branches across a cache-page boundary. `test_v1.sh`
 compiles and runs it inside Unix V1 and requires `OK` as its exact output.
 
-The complete test image, including its fixture writer and linked runtime,
-occupies 10,786 bytes with the current seed. That leaves room for this test's
-stack, but is not a size estimate for a complete B interpreter. Calls, local
-frames, the remaining operators, compiler-sized data, and a B-written
-instruction encoder are not implemented by this experiment.
+The test reserves 3,072 data cells, checks that the last cell survives the
+loop, and uses a separate 512-byte code cache. The complete test image,
+including its fixture writer and primitive runtime, occupies 12,332 bytes
+with the current seed. The compiler omits the unused B-written library;
+linking that library would add 4,396 bytes and put this test over the limit.
+Calls, local frames, the remaining operators, and a B-written instruction
+encoder are not implemented by this experiment. This is not a size estimate
+for a complete B interpreter.
 
 The VM harness reports host wall time around guest compilation and execution.
 Those timings include emulator and console overhead; they are not PDP-11

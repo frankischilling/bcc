@@ -61,7 +61,6 @@ sfstat  = 28.
 .globl	_execv
 .globl	_mkdir
 .globl	_makdir
-.globl	_ctime
 
 / B word marker for end-of-string ('*e' in B source, 04 octal)
 EOT = 4

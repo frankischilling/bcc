@@ -10,6 +10,7 @@ selpos 0;
 sellen 0;
 seltail 0;
 selpart 0;
+uselib 0;
 
 selclr() {
     extern selpos, sellen, seltail, selpart;
@@ -60,15 +61,49 @@ sellab(s, name) char s[], name[]; {
     return(1);
 }
 
+/* Match complete external names, not prefixes such as _ctimex. */
+selchr(c) {
+    return(c >= 'a' & c <= 'z' | c >= 'A' & c <= 'Z' |
+           c >= '0' & c <= '9' | c == '_');
+}
+
+selstr(s, i, word) char s[], word[]; {
+    int i, j;
+    j = 0;
+    while (word[j]) {
+        if (s[i++] != word[j++]) return(0);
+    }
+    return(!selchr(s[i]));
+}
+
+selref(s) char s[]; {
+    extern seltail, selpart;
+    int seltail, selpart, i, prev;
+    /* A split line is ambiguous; retaining the library is always safe. */
+    if (seltail | selpart) return(1);
+    i = 0; prev = 0;
+    while (s[i]) {
+        if (s[i] == '_') if (!selchr(prev)) {
+            if (selstr(s, i, "_printn")) return(1);
+            if (selstr(s, i, "_printf")) return(1);
+            if (selstr(s, i, "_getstr")) return(1);
+            if (selstr(s, i, "_ctime")) return(1);
+        }
+        prev = s[i++];
+    }
+    return(0);
+}
+
 selfns(path) char path[]; {
-    extern sellin, selnam, selnum;
+    extern sellin, selnam, selnum, uselib;
     char sellin[], selnam[], name[10];
-    int selnum, fd, j;
-    selnum = 0;
+    int selnum, uselib, fd, j;
+    selnum = 0; uselib = 0;
     fd = open(path, 0);
     if (fd < 0) failmsg("b: no program assembly\n");
     selclr();
     while (selget(fd)) {
+        if (selref(sellin)) uselib = 1;
         if (sellab(sellin, name)) {
             if (selnum >= 200) failmsg("b: too many external definitions\n");
             j = 0;

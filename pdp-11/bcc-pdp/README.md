@@ -234,3 +234,17 @@ scratch names. The same lock covers full-system staging and survives
 later rebuild cannot replace the passes it is already using. Use the supplied
 Make targets and scripts rather than launching historical compiler processes
 against the shared build root yourself.
+
+### Unused B library
+
+The native driver and fast runner omit `libb.s` when the generated program
+assembly references none of its four public entries: `printn`, `printf`,
+`getstr`, and `ctime`. Address-taking counts as a reference. If any entry is
+needed, the whole library stays linked so its internal calls and writable
+function cells keep working. Source-defined overrides retain their existing
+behavior. The primitive runtime is always linked.
+
+This saves 4,396 bytes for a primitives-only program with the current seed.
+It does not change the language's table or stack limits, and it is not a
+general-purpose linker. Long assembly lines that the native scanner cannot
+classify in one piece conservatively retain the library.

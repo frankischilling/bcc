@@ -112,8 +112,10 @@ compiler. The direct native backend needs either much smaller passes or a
 more compact execution representation before this port can replace `b01`.
 An eight-operation B-written paging experiment now runs inside Unix V1.
 It counts to 1,000 and fetches an instruction operand across a 512-byte code
-page boundary. Its complete test image, including its fixture writer and
-linked runtime, occupies 10,786 bytes. Calls, local frames, the remaining
+page boundary. It reserves 3,072 data cells and checks the last cell after the loop.
+Its complete test image, including its fixture writer and primitive
+runtime, occupies 12,332 bytes. Omitting the unused B-written library saves
+4,396 bytes; linking it would exceed the process limit. Calls, local frames, the remaining
 operators, and the instruction encoder still need implementation. This
 makes paged compact code a candidate for further work, not an established
 compiler bootstrap.

@@ -1,5 +1,5 @@
 /* Compact-code paging experiment, not a complete B execution engine. */
-cache[256]; cells[128]; pc 0; page -1; nbyte 0; codefd 0;
+cache[256]; cells[3072]; pc 0; page -1; nbyte 0; codefd 0;
 fetch() {
     extrn cache,pc,page,nbyte,codefd,seek,read,char,exit;
     auto p,i,w,hi;
@@ -27,8 +27,8 @@ run(fd) {
     switch op {
     case 0:return(a);
     case 1:a=fetch();goto next;
-    case 2:at=fetch();if(at<0 | at>=128)exit(16);a=cells[at];goto next;
-    case 3:at=fetch();if(at<0 | at>=128)exit(16);cells[at]=a;goto next;
+    case 2:at=fetch();if(at<0 | at>=3072)exit(16);a=cells[at];goto next;
+    case 3:at=fetch();if(at<0 | at>=3072)exit(16);cells[at]=a;goto next;
     case 4:a=a+fetch();goto next;
     case 5:a=a<fetch();goto next;
     case 6:at=fetch();pc=at;goto next;
@@ -37,10 +37,11 @@ run(fd) {
     exit(17);
 }
 /* Count to 1000; the exit branch fetches an instruction across a page. */
-code[24] 1,0,3,0,2,0,4,1,3,0,5,1000,7,255,6,4;
+code[16] 1,0,3,0,2,0,4,1,3,0,5,1000,7,255,6,4;
 main() {
-    extrn cache,code,lchar,creat,write,close,open,putchar;
+    extrn cache,cells,code,lchar,creat,write,close,open,putchar;
     auto fd,i,n;
+    cells[3071]=12345;
     fd=creat("code.vm",016);if(fd<0)return(1);
     i=0;while(i<512){lchar(cache,i,0);i++;}
     i=0;while(i<16){n=code[i];lchar(cache,i*2,n);lchar(cache,i*2+1,n>>8);i++;}
@@ -51,6 +52,6 @@ main() {
     if(close(fd)<0)return(4);
     fd=open("code.vm",0);if(fd<0)return(5);
     n=run(fd);if(close(fd)<0)return(6);
-    if(n!=1000)return(7);
+    if(n!=1000 | cells[3071]!=12345)return(7);
     putchar('OK');putchar('*n');return(0);
 }
