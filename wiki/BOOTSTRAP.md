@@ -93,16 +93,16 @@ native images from restricted multi-function source programs, including
 recursion and writable function cells. [Static data construction](../bootstrap/native/README.md#static-data)
 adds global cells, vectors, named-address initializers, and separate writable
 storage for each string occurrence. [Switch dispatch and computed goto](../bootstrap/native/README.md#switch-dispatch-and-computed-goto)
-add nested cases and mutable label cells. Runtime imports and normal startup
-remain separate work.
+add nested cases and mutable label cells. Normal startup remains separate work.
 The result-reporting test constructor is not a general source compiler.
 
 [Native runtime primitives](../bootstrap/native/README.md#native-runtime-primitives)
 now generate direct Linux x86-64 implementations of packed-byte access, basic
 file I/O, path operations, and process exit. They use the B call frame and
-need no linked C runtime in the resulting image. The test harness exercises
-them directly; source-level runtime imports, process-argument startup,
-allocation, and formatted I/O are still missing. These primitives do not
+need no linked C runtime in the resulting image. The whole-program test constructor now binds these imports only when the
+source does not define the name, preserving writable function cells and
+user-defined replacements. Process-argument startup, allocation, and
+formatted I/O are still missing. These primitives do not
 change the normal compiler's C-toolchain dependency.
 
 A separate [host resolver storage module](../bootstrap/native/README.md#host-resolver-storage)

@@ -114,6 +114,29 @@ SOURCE_CASES += [
  ('main(){switch 4294967297 {case 1:return(1);}return(42);}',42),
 ]
 
+SOURCE_CASES += [
+ ('main(){extrn char;return(char("ABCDEFGHxyz",8));}',120),
+ ('main(){extrn char,lchar;auto p;p="ABCDEFGHxyz";lchar(p,8,321);return(char(p,8));}',65),
+ ('main(){extrn lchar;return(lchar("abc",1,321));}',321),
+ ('main(){extrn close;return(close(-1));}',-1),
+ ('main(){extrn read;auto b 2;return(read(-1,b,1));}',-1),
+ ('main(){extrn write;return(write(-1,"hello",5));}',-1),
+ ('main(){extrn seek;return(seek(-1,0,0));}',-1),
+ ('main(){extrn open;return(open("",0));}',-1),
+ ('main(){extrn creat;return(creat("",016));}',-1),
+ ('main(){extrn chmod;return(chmod("",016));}',-1),
+ ('main(){extrn unlink;return(unlink(""));}',-1),
+ ('char(x,y){return(42);}main(){return(char("abc",0));}',42),
+ ('char 42;main(){extrn char;return(char);}',42),
+ ('char[1] 42;main(){extrn char;return(char[0]);}',42),
+ ('main(){auto char;char=42;return(char);}',42),
+ ('main(){extrn char;return(char("ABC",1));}char(x,y){return(42);}',42),
+ ('saved char;main(){extrn saved;return((*saved)("ABC",1));}',66),
+ ('f(x,y){return(42);}main(){extrn char,f;auto old;old=char;char=f;return(old("ABC",1)+char(0,0));}',108),
+ ('f(x,y){return(42);}main(){extrn char,f;auto p;p= &char;*p=f;return(char(0,0));}',42),
+ ('f(p){return(p("ABC",2));}main(){extrn char;return(f(char));}',67),
+]
+
 ABI_CASES=[(0,0,2,0),(0,1,2,1),(0,2,2,3),(0,5,2,3),(1,8,2,8),
            (2,0,0,0),(2,8,0,8),(3,15,1,120),(4,1,1,141),(5,1,1,15),
            (6,0,0,None),(7,0,0,None),(8,0,0,None),(9,0,32767,0),
@@ -137,14 +160,14 @@ def main():
             run=subprocess.run([*command,str(path),'-o',str(work/name)],capture_output=True,timeout=180)
             assert run.returncode==0,(name,run.stderr)
         parts=[NATIVE/'src'/name for name in ('buffered_io.b','decimal16.b','diagnostics.b','ic.b')]
-        parts += [ROOT/name for name in ('x64.b','labels.b','ops.b','scalar.b','memory.b','control.b', 'switch.b','arity.b','calls.b','data/layout.b','data/labels.b','data/output.b')]
+        parts += [ROOT/name for name in ('x64.b','labels.b','ops.b','scalar.b','memory.b','control.b', 'switch.b','arity.b','calls.b','runtime/emit.b','runtime/path.b','runtime/imports.b','data/layout.b','data/labels.b','data/output.b')]
         common='\n'.join(path.read_text() for path in parts)
         build('abi',common+(FIXTURES/'abi.b').read_text())
         build('constructor',common+'\n'.join((FIXTURES/name).read_text() for name in ('metadata.b','emission.b','driver.b')))
         build('front',frontend.source_text());build('resolver',resolver.source_text())
         build('image',(ROOT/'elfimage.b').read_text());(work/'empty').write_bytes(b'')
 
-        def image_check(name,code,data,value,status=0):
+        def image_check(name,code,data,value,status=0,prefix=b'',stderr=b''):
             nonlocal passed
             (work/'code').write_bytes(code)
             image=subprocess.run([str(work/'image'),'code',data,'0','0'],cwd=work,
@@ -152,9 +175,9 @@ def main():
             assert(image.returncode,image.stderr)==(0,b''),(name,image)
             if execute:
                 (work/'result').write_bytes(image.stdout);(work/'result').chmod(0o700)
-                run=subprocess.run([str(work/'result')],capture_output=True,timeout=10,env=tool_free)
-                expected=b'' if value is None else struct.pack('<q',value)
-                assert(run.returncode,run.stdout,run.stderr)==(status,expected,b''),(name,run,expected)
+                run=subprocess.run([str(work/'result')],cwd=work,stdin=subprocess.DEVNULL,capture_output=True,timeout=10,env=tool_free)
+                expected=prefix+(b'' if value is None else struct.pack('<q',value))
+                assert(run.returncode,run.stdout,run.stderr)==(status,expected,stderr),(name,run,expected)
             passed+=1
 
         for kind,nargs,params,value in ABI_CASES:
@@ -200,6 +223,28 @@ def main():
             records(text);run=construct()
             assert(run.returncode,run.stderr)==(0,b''),(index,text,run)
             image_check('source/'+str(index),run.stdout,'data',value)
+
+        runtime_cases = [
+            ('main(){extrn write;return(write(1,"A",1));}', 1, 0, b'A', b''),
+            ('main(){extrn write;return(write(2,"B",1));}', 1, 0, b'', b'B'),
+            ('main(){extrn exit;exit();return(99);}', None, 0, b'', b''),
+            ('main(){extrn exit;exit(42);return(99);}', None, 42, b'', b''),
+            ('main(){extrn char;return(char("A"));}', None, 77, b'', b''),
+            ('main(){extrn open;return(open("missing"));}', None, 77, b'', b''),
+            ('write(a,b,c){return(42);}main(){return(write(0,0,0));}', 42, 0, b'', b''),
+            ('write 42;main(){extrn write;return(write);}', 42, 0, b'', b''),
+            ('main(){extrn creat,write,close,open,read,char,unlink;auto fd,b 2;'
+             'fd=creat("runtime-file",016);if(fd<0)return(1);'
+             'if(write(fd,"ABC",3)!=3)return(2);if(close(fd))return(3);'
+             'fd=open("runtime-file",0);if(fd<0)return(4);'
+             'if(read(fd,b,3)!=3)return(5);if(close(fd))return(6);'
+             'if(unlink("runtime-file"))return(7);return(char(b,2));}',67,0,b'',b''),
+        ]
+        for index,(text,value,status,prefix,stderr) in enumerate(runtime_cases):
+            records(text);run=construct()
+            assert (run.returncode,run.stderr)==(0,b''),(index,text,run)
+            image_check('runtime/'+str(index),run.stdout,'data',value,status,prefix,stderr)
+        assert not (work/'runtime-file').exists()
 
         (work/'raw.ic').write_bytes(b'Adef main\nAend\n')
         (work/'resolved.ic').write_bytes(b'Glit 1 4\npr main 0 30000\nst 0\ndr\nrt\nep 0\n')

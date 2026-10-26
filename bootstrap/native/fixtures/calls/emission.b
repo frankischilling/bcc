@@ -11,18 +11,18 @@ entry(){
  xmark(4095);xmovim(0,60);xmovim(7,77);xsys();
 }
 body(fd){
- extrn pbuf,flocals,fpars,nlabels,nfunc,xrvalid;auto cur,tag 5,name 5,i,n,lit;
+ extrn pbuf,flocals,fpars,fbuiltin,nlabels,nfunc,xrvalid;auto cur,tag 5,name 5,i,n,lit;
  cur= -1;lit=0;icini(fd);
  while(getln(pbuf,1040)){
   icrst();nxtnam(pbuf,tag);
   if(tageq(tag,"pr")){
    if(cur>=0)fatal("nested emitted function");nxtnam(pbuf,name);cur=findfn(name);
    if(cur<0)fatal("unknown function");n=nxti(pbuf);n=nxti(pbuf);xrend(pbuf);
-   xfpro(nlabels+cur,fpars[cur],flocals[cur]);xcfbeg(nlabels+nfunc+cur);goto next;
+   xfpro(nlabels+cur,fpars[cur],flocals[cur]);if(fbuiltin[cur]<0)xcfbeg(nlabels+nfunc+cur);goto next;
   }
   if(tageq(tag,"ep")){
    if(cur<0)fatal("emitted end outside function");n=nxti(pbuf);xrend(pbuf);
-   if(n!=flocals[cur])fatal("local count changed");xcfend();xfend();cur= -1;goto next;
+   if(n!=flocals[cur])fatal("local count changed");if(fbuiltin[cur]>=0)xbuiltin(fbuiltin[cur]);else xcfend();xfend();cur= -1;goto next;
   }
   if(tageq(tag,"Slit") | tageq(tag,"Glit")){
    if(tageq(tag,"Slit")){xmovim(0,xdlit(lit));xrvalid=1;}lit++;goto next;

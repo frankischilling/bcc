@@ -9,11 +9,12 @@ working directory containing files you need to keep.
 - `metadata.b` collects declared parameter counts and local-frame sizes.
 - `emission.b` resolves source-function symbols to writable cells and lowers
   their bodies with the native libraries.
-- `driver.b` coordinates two code-layout passes and static data output.
+- `driver.b` selects runtime providers, then coordinates two code-layout passes
+  and static data output.
 
 The whole-function constructor emits a binary-result reporting entry point for
-comparison, not normal startup or command-line argument handling. It rejects
-runtime imports. Globals, vectors, address initializers, writable strings,
+comparison, not normal startup or command-line argument handling. It binds the initial Linux runtime primitives when a referenced name has no
+source definition. Other unresolved symbols are rejected. Globals, vectors, address initializers, writable strings,
 and label cells use the static-data modules. Control lowering handles switches
 and computed goto. It is useful evidence that the
 libraries work together, but it is not a general B compiler or a completed

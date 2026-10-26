@@ -576,8 +576,7 @@ The host configuration rejects 16-bit and 32-bit word modes before reading input
 
 This is enough to resolve the expanded test constructor's own source and a
 128-element initializer list of full-width integers. It does not establish
-native self-compilation: the constructor still lacks runtime imports and normal
-startup. Its separate function-metadata table still has 200 slots.
+native self-compilation: the constructor still lacks normal startup and a complete runtime. Its separate function-metadata table still has 200 slots.
 
 ```sh
 python3 bootstrap/native/resolver/build.py /tmp/bcc-resolver
@@ -617,7 +616,7 @@ The control and whole-program tests check nested dispatch, matched and
 unmatched cases, fallthrough, wide case values, recursion, calls and returns,
 source jumps into and out of cases, saved and mutated label values, null jumps,
 label-table collisions, and malformed record sequences. The modules still do
-not provide the native host runtime or normal program startup.
+not provide a complete native host runtime or normal program startup.
 
 ## Native runtime primitives
 
@@ -664,8 +663,40 @@ translation. File tests use a temporary directory. Permission translation is
 checked for all 64 historical modes without creating set-user-ID files.
 Other platforms build the images but report native execution as skipped.
 
-The fixture calls these primitives by numeric ID. It does not yet resolve
-ordinary source-level runtime imports, initialize process arguments, or supply
+The focused runtime fixture calls these primitives by numeric ID. The
+whole-program constructor also binds source-level imports for this initial
+set, as described below. It does not initialize process arguments or supply
 allocation and formatted I/O. The emitters themselves still run through the
 seed's C-backed runtime. This is groundwork for native self-compilation, not
 a completed self-hosting compiler.
+
+
+## Runtime import selection
+
+`runtime/imports.b` scans resolved records for references to the supported
+primitive names and for source definitions of those names. It selects a
+provider only when a name is referenced but never defined in the input.
+Definitions are collected across the whole input before selection, so a later
+function, scalar, or vector definition takes precedence too. Unused primitives
+are not added. Unknown names remain unresolved and fail in the data/code pass.
+
+Call `xbiscan(fd)` before `xbicopy(fd,out,visit)`, reopening the same unchanged
+input for the second pass. The latter copies the records and appends empty
+function records for the selected providers. The callback receives the
+NUL-terminated name, operation ID, and declared argument count. The caller
+must supply distinct input and output files and close both descriptors;
+`xbicopy` flushes but does not close its output. These are internal compiler
+interfaces, not a general linker or a parser for untrusted object formats.
+
+The call-test constructor records which functions came from this selection.
+Only those bodies are replaced with primitive implementations. Their address
+cells go through the ordinary static-data path, so saved function values,
+address initializers, assignment through `&char`, and indirect calls keep the
+same behavior as source functions. A source function named `char` is never
+replaced just because its name matches a primitive.
+
+`test_calls.py` checks these cases, real file I/O through source-level calls,
+stdout and stderr writes, exit status, and argument-count faults. It still uses
+a result-reporting entry point rather than normal process startup. Import
+selection does not remove the seed's C dependency or establish native
+self-compilation.
