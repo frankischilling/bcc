@@ -5,7 +5,6 @@ LDFLAGS ?= -lm
 
 STAGE = stage1
 TARGET = $(STAGE)/bccasm
-RUNTIME = $(STAGE)/lib/libb.c
 
 ASM_SOURCES = \
 	../generated/util.s \
@@ -25,7 +24,7 @@ OBJECTS = \
 	$(STAGE)/obj/emitter.o \
 	$(STAGE)/obj/main.o
 
-all: check-snapshots $(TARGET) $(RUNTIME)
+all: check-snapshots $(TARGET) runtime
 
 check-snapshots:
 	$(MAKE) -C .. check-snapshots
@@ -41,7 +40,8 @@ $(TARGET): $(OBJECTS) | $(STAGE)
 $(STAGE)/obj/%.o: ../generated/%.s | $(STAGE)/obj
 	$(AS) -o $@ $<
 
-$(RUNTIME): ../../lib/libb.c ../../lib/libb.h ../../lib/btarget.h ../../lib/binit.h ../../lib/bcall.h ../../lib/bunix.h ../../lib/bformat.h ../../lib/bprimitives.h | $(STAGE)/lib
+# Refresh the whole runtime, including missing or locally stale headers.
+runtime: | $(STAGE)/lib
 	cp --remove-destination ../../lib/libb.c ../../lib/libb.h ../../lib/btarget.h ../../lib/binit.h ../../lib/bcall.h ../../lib/bunix.h ../../lib/bformat.h ../../lib/bprimitives.h $(STAGE)/lib/
 
 $(STAGE):
@@ -56,4 +56,4 @@ $(STAGE)/lib:
 clean:
 	rm -rf $(STAGE)
 
-.PHONY: all bootstrap check clean check-snapshots
+.PHONY: all bootstrap check clean check-snapshots runtime

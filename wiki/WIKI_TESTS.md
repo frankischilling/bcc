@@ -31,6 +31,11 @@ records expected output, optional input and exit status, and backend flags.
 When adding an example, derive its expected behavior from the relevant
 source or documented implementation choice before recording the result.
 
+The staged assembly runtime has a separate copy-refresh regression check:
+`python3 tests/test_staged_runtime.py`. It removes or replaces each runtime
+copy in a temporary stage and verifies that rebuilding restores the canonical
+bytes. It does not alter the installed stage.
+
 ## Regression coverage
 
 Compiler cases include valid and invalid syntax, expressions, declarations,

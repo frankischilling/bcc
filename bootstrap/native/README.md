@@ -242,3 +242,41 @@ An experimental [64-bit record frontend](frontend/README.md) reuses the
 B-written parser with target-specific numeric helpers. It emits unresolved
 records, not native code, and retains the parser's short-name and storage
 limits. The complete host source-to-native pipeline remains unfinished.
+
+## Function parameter metadata
+
+`arity.b` reads declared parameter counts from the frontend's unresolved
+`Adef`, `Aarg`, and `Aend` records. Read these records before the PDP-11 resolver:
+that pass drops declarations for unused parameters. A future host backend
+needs their counts to implement BCC's zero-filled missing arguments, even when
+a function never names those arguments in its body.
+
+Concatenate `src/buffered_io.b`, `src/decimal16.b`, `src/diagnostics.b`, and
+`src/ic.b` from `pdp-11/bcc-pdp/bootstrap`, then `arity.b` and the caller's B
+source. The library works with 16-bit, 32-bit, and host words.
+
+Call `arscan(fd,visit)` with a readable descriptor and a callback. Each complete
+function calls `visit(name,count)` in input order. The name is a temporary
+NUL-terminated string, not an EOT-terminated B string; copy it if it must survive
+the callback. The callback must return zero. `arscan` returns the number of
+complete functions and leaves the descriptor open for its caller to close.
+
+The reader checks eight-character names, consecutive parameter indices starting
+at zero, and function boundaries. It rejects nested or unfinished functions,
+extra fields in these records, nonzero callback results, and counts above
+32767. Errors terminate the program, so callers must discard partial results.
+Other record types are ignored. This is a metadata reader, not a complete record
+validator, symbol table, or calling-convention implementation. Repeated function
+names are not resolved here.
+
+The library shares the IC reader's global state. Calls may run sequentially,
+but a callback must not start another scan or reset that reader. Its 1040-byte
+line buffer accepts the existing frontend's largest string records.
+
+```sh
+python3 bootstrap/native/test_arity.py
+```
+
+Tests include unused arguments from real frontend output, malformed boundaries,
+parameter and function count limits, callback failures, and repeated scans.
+The bootstrap native test target repeats them through all three B stages.

@@ -74,6 +74,11 @@ eight-character identifiers and bounded parser storage, so it is not a drop-in
 replacement for the existing host frontend. It emits records rather than an
 executable.
 
+The [parameter metadata reader](../bootstrap/native/README.md#function-parameter-metadata)
+collects declared argument counts before resolution discards unused parameter
+declarations. It checks record boundaries and indices, but does not yet lower
+calls or provide the native host runtime.
+
 The existing C and assembly-source builds remain useful seeds and comparison
 implementations during this work. A native-output prototype that cannot yet
 compile its own source is not a completed bootstrap.

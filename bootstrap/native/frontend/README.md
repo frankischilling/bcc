@@ -61,7 +61,9 @@ A complete host path still needs record resolution and native lowering with the
 host's parameter, pointer, label, function-cell, and runtime behavior. The
 existing PDP-11 resolver drops unused argument declarations; a host resolver
 must retain enough information to reproduce BCC's zero-filled missing
-parameters. That host policy is not a guarantee taken from the PDP-11 manual.
+parameters. The [parameter metadata reader](../README.md#function-parameter-metadata)
+collects these declared counts before resolution; native call lowering is still
+missing. That host policy is not a guarantee taken from the PDP-11 manual.
 The instruction, label, and word-operation libraries do not supply that whole path.
 
 ## Checks
