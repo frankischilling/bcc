@@ -123,7 +123,9 @@ now initializes the predefined `argv` vector from Linux process arguments,
 with separate aligned copies of the NUL-terminated strings. The constructor can also exit with `main`'s return value for native tool
 rebuilds. The experimental B-written driver now chains the passes and supplies
 the counted exec library when needed. Compatibility argument functions, full
-installed-command parity, allocation, and formatted I/O are still missing. These primitives do not
+installed-command parity, allocation, and other runtime interfaces are still
+missing. B-written character/string I/O and strict formatting now use the same
+provider selection, preserving source definitions and mutable callbacks. These primitives do not
 change the normal compiler's C-toolchain dependency.
 
 A separate [host resolver storage module](../bootstrap/native/README.md#host-resolver-storage)

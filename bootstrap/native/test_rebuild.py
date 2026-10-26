@@ -16,6 +16,7 @@ import tempfile
 ROOT = Path(__file__).resolve().parent
 PROJECT = ROOT.parents[1]
 SHARED = PROJECT / 'pdp-11/bcc-pdp/bootstrap'
+LIBRARIES = ('execv', 'printf', 'printn', 'putchar', 'getchar', 'getstr', 'putstr')
 sys.path.insert(0, str(SHARED / 'tools'))
 
 
@@ -67,19 +68,23 @@ def main():
     if not args.bootstrap:
         command.append('--word=host')
     text = sources()
+    libraries = {name + ".b": (ROOT / "lib" / (name + ".b")).read_bytes() for name in LIBRARIES}
     with tempfile.TemporaryDirectory(prefix='bcc-native-rebuild-') as directory:
         work = Path(directory)
         source = work / 'sources'
         source.mkdir()
         previous = work / 'stage0'
         previous.mkdir()
+        stdio = module('native_stdio_cases', ROOT / 'test_stdio.py')
+        if not args.bootstrap:
+            stdio.reference_checks(command, work / 'stdio-reference')
         for name, content in text.items():
             path = source / (name + '.b')
             path.write_text(content)
             if name != 'driver':
                 subprocess.run([*command, str(path), '-o', str(previous / name)],
                                check=True, timeout=180)
-        # No compiler/assembler/linker is launched below this point.
+        # No C compiler or external assembler/linker is launched below this point.
         env = dict(os.environ, PATH='')
         manifests = []
 
@@ -93,7 +98,8 @@ def main():
             current = work / f'stage{stage}'
             current.mkdir()
             (current / 'sources').mkdir()
-            (current / 'sources/execv.b').write_text((ROOT / 'lib/execv.b').read_text())
+            for name, content in libraries.items():
+                (current / 'sources' / name).write_bytes(content)
             records = {}
             for name in text:
                 scratch = current / (name + '-work')
@@ -147,6 +153,7 @@ def main():
                                     stdin=subprocess.DEVNULL, capture_output=True, timeout=10)
             assert (result.returncode, result.stdout, result.stderr) == (0, struct.pack('<q', value), b''), (index, content, result)
         print(f'{len(cases)} source programs passed through the final native tools')
+        stdio.run_checks(previous, work / 'stdio')
         driver_cases = [
             ('main(){return(42);}', 42, b''),
             ((PROJECT / 'examples/native-hello.b').read_text(), 0, b'hello from native B\n'),
@@ -195,6 +202,8 @@ def main():
         for missing, content in [
             (previous / 'front', 'main(){return(0);}'),
             (previous / 'sources/execv.b', 'main(){extrn execv;return(execv("missing",0,0));}'),
+            (previous / 'sources/printf.b', 'main(){extrn printf;printf("X");return(0);}'),
+            (previous / 'sources/putchar.b', 'main(){extrn printf;printf("X");return(0);}'),
         ]:
             backup = missing.with_name(missing.name + '.saved')
             missing.rename(backup)
@@ -205,6 +214,16 @@ def main():
                 assert result.returncode != 0 and not result.stdout and result.stderr, (missing, result)
             finally:
                 backup.rename(missing)
+        library = previous / 'sources/printf.b'
+        original = library.read_bytes()
+        try:
+            library.write_text('notprint(){return(0);}')
+            (scratch / 'bad-provider.b').write_text('main(){extrn printf;printf("X");return(0);}')
+            result = subprocess.run([str(previous / 'driver'), 'bad-provider.b'], cwd=scratch,
+                                    env=env, capture_output=True, timeout=60)
+            assert result.returncode != 0 and not result.stdout and b'did not define' in result.stderr, result
+        finally:
+            library.write_bytes(original)
         (scratch / 'full.b').write_text('main(){return(0);}')
         if Path('/dev/full').exists():
             with open('/dev/full', 'wb') as sink:
@@ -230,7 +249,7 @@ def main():
             assert result.returncode != 0 and result.stderr, (content, result)
         manifest = {'source_sha256': {name: digest(value.encode()) for name, value in text.items()},
                     'native_fixed_point': manifests[-1],
-                    'runtime_sha256': {'execv.b': digest((ROOT / 'lib/execv.b').read_bytes())}}
+                    'runtime_sha256': {name: digest(content) for name, content in libraries.items()}}
         if args.output is not None:
             target = args.output.resolve()
             target.mkdir(parents=True, exist_ok=False)
@@ -241,8 +260,9 @@ def main():
                 shutil.copyfile(source / (name + '.b'), target / 'sources' / (name + '.b'))
                 assert (target / name).read_bytes() == (previous / name).read_bytes()
                 assert (target / 'sources' / (name + '.b')).read_bytes() == (source / (name + '.b')).read_bytes()
-            shutil.copyfile(previous / 'sources/execv.b', target / 'sources/execv.b')
-            assert digest((target / 'sources/execv.b').read_bytes()) == manifest['runtime_sha256']['execv.b']
+            for name in libraries:
+                shutil.copyfile(previous / 'sources' / name, target / 'sources' / name)
+                assert digest((target / 'sources' / name).read_bytes()) == manifest['runtime_sha256'][name]
             # Written last: absence means the export did not finish.
             (target / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
             print(f'Verified native tools: {target}')

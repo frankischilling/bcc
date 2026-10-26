@@ -1,6 +1,8 @@
 /* Experimental Linux driver: one frozen input, private scratch, ELF on stdout. */
 owned 0; folder[512]; tools[512]; original[512]; input[512];
 rawfile[512]; resolved[512]; codefile[512]; datafile[512]; program[512]; spare[512];
+libnames[] "execv","printf","printn","putchar","getchar","getstr","putstr";
+libused[7];libdefs[7];libadded[7];
 
 slen(s){extrn char;auto n,c;n=0;while((c=char(s,n))!=0 & c!=4)n++;return(n);}
 append(to,from){
@@ -98,29 +100,44 @@ resolve(){
     if(join(program,tools,"resolve"))fatal("tool path too long");a[0]=program;a[1]="-i";a[2]=rawfile;
     if(invoke(program,a,3,resolved))fatal("resolver failed");
 }
-needexec(){
-    extrn resolved,open,close;auto fd,b 520,tag 5,name 5,used,defined;
-    fd=open(resolved,0);if(fd<0)fatal("cannot inspect imports");used=0;defined=0;icini(fd);
+libfind(name){extrn libnames;auto i;i=0;while(i<7){if(tageq(name,libnames[i]))return(i);i++;}return(-1);}
+needlibs(){
+    extrn resolved,input,tools,spare,libnames,libused,libdefs,libadded,open,close;
+    auto fd,b 520,tag 5,name 5,i,used;
+    fd=open(resolved,0);if(fd<0)fatal("cannot inspect imports");
+    i=0;while(i<7){libused[i]=0;libdefs[i]=0;i++;}icini(fd);
     while(getln(b,1040)){
         icrst();nxtnam(b,tag);
         if(tageq(tag,"pr") | tageq(tag,"gvb") | tageq(tag,"gvp")){
-            nxtnam(b,name);if(tageq(name,"execv"))defined=1;
+            nxtnam(b,name);i=libfind(name);if(i>=0)libdefs[i]=1;
         }
         if(tageq(tag,"ex") | tageq(tag,"gvn")){
-            nxtnam(b,name);if(tageq(name,"execv"))used=1;
+            nxtnam(b,name);i=libfind(name);if(i>=0)libused[i]=1;
         }
     }
-    if(close(fd)<0)fatal("import close failed");return(used & !defined);
+    if(close(fd)<0)fatal("import close failed");used=0;i=0;
+    while(i<7){
+        if(libused[i] & !libdefs[i]){
+            if(libadded[i])fatal("runtime source did not define its provider");
+            if(join(spare,tools,"sources/"))fatal("library path too long");
+            if(append(spare,libnames[i]))fatal("library path too long");
+            if(append(spare,".b"))fatal("library path too long");
+            if(copyfile(spare,input,1))fatal("runtime library copy failed");
+            libadded[i]=1;used++;
+        }
+        i++;
+    }
+    return(used);
 }
+
 main(){
     extrn argv,original,input,program,tools,rawfile,resolved,codefile,datafile,spare,__sys;
-    auto a 5,r;
+    auto a 5,r,rounds;
     if(argv[0]!=2){message("usage: driver input.b > program*n");return(2);}
     setup();if(copyfile(original,input,0))fatal("input copy failed");front();resolve();
-    if(needexec()){
-        if(join(spare,tools,"sources/execv.b"))fatal("library path too long");
-        /* Keep a final token or comment from swallowing the appended library. */
-        if(copyfile(spare,input,1))fatal("runtime library copy failed");front();resolve();
+    rounds=0;
+    while(needlibs()){
+        rounds++;if(rounds>7)fatal("runtime dependency cycle");front();resolve();
     }
     if(join(program,tools,"construct"))fatal("tool path too long");
     a[0]=program;a[1]=rawfile;a[2]=resolved;a[3]=datafile;a[4]="run";
