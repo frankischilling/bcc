@@ -1,6 +1,7 @@
 main(){
- extrn argv,open,close,creat,regfn,nfunc,nlabels,dbase,xdbase,regbi;auto fd,out,input,pass,size;
- if(argv[0]!=4)return(2);
+ extrn argv,open,close,creat,regfn,nfunc,nlabels,dbase,xdbase,regbi,normal;auto fd,out,input,pass,size;
+ if(argv[0]!=4 & argv[0]!=5)return(2);
+ if(argv[0]==5){if(!tageq(argv[5],"run"))return(2);normal=1;}
  fd=open(argv[2],0);if(fd<0)fatal("raw open");arscan(fd,regfn);if(close(fd)<0)fatal("raw close");
  fd=open(argv[3],0);if(fd<0)fatal("imports open");xbiscan(fd);if(close(fd)<0)fatal("imports close");
  fd=open(argv[3],0);out=creat("imports",0600);if(fd<0 | out<0)fatal("imports copy open");

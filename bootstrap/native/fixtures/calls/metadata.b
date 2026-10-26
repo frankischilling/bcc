@@ -1,6 +1,6 @@
 /* Test constructor metadata, including selected native runtime providers. */
 fnames[1000];fpars[200];flocals[200];fseen[200];fbuiltin[200];nfunc 0;nlabels;dbase 0;mainidx;
-pbuf[520];haveargv 0;
+pbuf[520];haveargv 0;normal 0;
 findfn(name){extrn fnames,nfunc;auto i;i=0;while(i<nfunc){if(tageq(fnames+i*5,name))return(i);i++;}return(-1);}
 regfn(name,count){
  extrn fnames,fpars,flocals,fseen,fbuiltin,nfunc,char,lchar;auto i,slot;

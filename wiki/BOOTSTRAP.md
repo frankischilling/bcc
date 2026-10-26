@@ -32,6 +32,21 @@ prove the seed trustworthy or the implementation historically complete.
 The [source review](SOURCE_REVIEW.md#what-a-fixed-point-proves) explains the
 separate trust question.
 
+## Experimental native fixed point
+
+The [native rebuild test](../bootstrap/native/README.md#native-tool-fixed-point)
+now seeds four B-maintained tools and rebuilds all four twice with their native
+versions: frontend, resolver, code constructor, and ELF image writer. The
+native stages match in raw and resolved records, code, data, and complete
+executable bytes. They run without a C runtime or external compiler, assembler,
+or linker after seeding. Python still coordinates the test and compares files.
+
+This is a restricted Linux x86-64 tool set, not a replacement for the installed
+host compiler, assembly snapshots, or PDP-11 compiler. The constructor remains
+a test fixture, with incomplete library coverage and fixed storage bounds.
+A matching native fixed point does not establish historical completeness or
+independently validate the seed.
+
 ## Host path
 
 The current B frontend constructs C expressions and statements. Removing
@@ -103,8 +118,9 @@ need no linked C runtime in the resulting image. The whole-program test construc
 source does not define the name, preserving writable function cells and
 user-defined replacements. An [entry argument packer](../bootstrap/native/README.md#entry-argument-vector)
 now initializes the predefined `argv` vector from Linux process arguments,
-with separate aligned copies of the NUL-terminated strings. Normal startup,
-compatibility argument functions, allocation, and formatted I/O are still missing. These primitives do not
+with separate aligned copies of the NUL-terminated strings. The constructor can also exit with `main`'s return value for native tool
+rebuilds. Compatibility argument functions, a general installed driver,
+allocation, and formatted I/O are still missing. These primitives do not
 change the normal compiler's C-toolchain dependency.
 
 A separate [host resolver storage module](../bootstrap/native/README.md#host-resolver-storage)

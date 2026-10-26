@@ -17,6 +17,11 @@ replace the separate native PDP-11 compiler. See the
 [B-native bootstrap goals](../wiki/BOOTSTRAP.md) for the remaining dependencies
 and the checks needed for a self-contained rebuild.
 
+A separate [native tool test](native/README.md#native-tool-fixed-point) builds
+four B-maintained components as Linux x86-64 executables and checks two further
+byte-identical rebuilds without the seed C toolchain. It is not the C-output
+`bbc` above, an installed compiler replacement, or a completed PDP-11 rebuild.
+
 When invoked by its build-tree path, `bbc` finds the runtime relative to
 that path. If you move the executable or launch it through `PATH`, supply
 the runtime directory explicitly:

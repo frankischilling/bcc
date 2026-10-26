@@ -34,6 +34,7 @@ emit(){
   xmark(2);value(0);xmark(3);
  }
  if(kind==6)value(0);
+ if(kind==10)value(42);
  if(kind==9){xfarg(params-1);line("dr");}
  xfend();
 }
@@ -56,7 +57,7 @@ bad(){
  if(kind==33){xfpro(1,1,0);value(0);line("ps");xfend();return;}
  if(kind==34){xfpro(1,1,0);xfend();return;}
  if(kind==35){xfpro(1,1,0);value(0);xfend();xfend();return;}
- if(kind==36){xrinit(100,102,4095);target(1);line("ps");xcall(0);return;}
+ if(kind==36){xrinit(100,100,4095);return;}
  if(kind==37){line("cl");return;}
  if(kind==38){target(1);line("ps");line("cl 0 1");return;}
  if(kind==39){xfpro(1,1,0);line("ar 0 1");return;}
@@ -73,7 +74,7 @@ main(){
  kind=num(argv[2]);nargs=num(argv[3]);params=num(argv[4]);pass=1;
  while(pass<=2){
   if(pass==1)xstart(creat("layout",0600));else xstart(1);
-  xlblbeg(pass);xrinit(100,4094,4095);
+  xlblbeg(pass);xrinit(100,4094,4095);if(kind==10)xrinit(100,101,4095);
   if(kind>=20)bad();else emit();
   xlblend();xfinish();pass++;
  }

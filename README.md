@@ -8,7 +8,8 @@ B-written bootstrap compiler, and a separate native PDP-11 compiler.
 
 The [native bootstrap work](wiki/BOOTSTRAP.md) includes B-written instruction
 emission, executable construction, and initial Linux runtime primitives.
-It is not yet a self-hosting replacement for the normal compiler.
+The four experimental tools pass a native fixed-point rebuild, but they are
+not yet a replacement for the installed compiler.
 
 Historical compatibility is a work in progress. Syntax, word arithmetic,
 runtime interfaces, and the original Unix process image are different

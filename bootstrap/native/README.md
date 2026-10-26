@@ -474,8 +474,9 @@ Before `xcall(n)`, push the captured callable value and then each argument in
 source order using the scalar stack records. The call copies those values into
 a fresh block sized for the larger of the actual and declared counts, with at
 least one parameter cell. It calls the saved value, restores the caller's stack,
-and leaves the result in RAX. Each call site needs three private labels from
-the scalar operation range. The helper accepts up to 4095 actual arguments and
+and leaves the result in RAX. The call helper uses checked, fixed-size local
+branches rather than consuming three global labels per call site. This lets
+the constructor process its own call-heavy source within the label budget. The helper accepts up to 4095 actual arguments and
 32767 declared parameters; these machine-level bounds do not enlarge the
 frontend's own limits.
 
@@ -504,10 +505,12 @@ by-value isolation. Focused instruction fixtures also test maximum call blocks,
 actual-count metadata, invalid headers, and API errors.
 
 That constructor is test code, not an installed compiler command. Its entry
-point reports binary results for comparison. It binds the initial runtime primitives and predefined `argv` vector, but rejects
+point reports binary results for comparison by default; its optional `run`
+argument instead exits with the return value from `main`. It binds the initial runtime primitives and predefined `argv` vector, but rejects
 entry parameters. It does
-not supply normal startup, multi-file linking, the remaining library, or a
-native compiler fixed point. Tests run instruction construction with an empty
+not supply a general installed compiler command, multi-file linking, or the
+remaining library. A separate rebuild test below checks a fixed point for
+this restricted tool set. Tests run instruction construction with an empty
 tool-search path after seeding, but the seed-built tools still use the existing
 host runtime.
 
@@ -737,5 +740,71 @@ without changing the kernel's original argument bytes. The call constructor
 connects this vector to source-level `argv` references while preserving source
 definitions, local shadows, address initializers, and assignment to the global
 cell. It still uses a binary-result test entry point and rejects parameters
-on `main`. Normal startup, the compatibility argument functions, and native
-compiler self-rebuilding remain unfinished.
+on `main`. Normal startup, the compatibility argument functions, and a general installed
+compiler remain unfinished.
+
+
+## Native tool fixed point
+
+```sh
+python3 bootstrap/native/test_rebuild.py
+make -C bootstrap native-rebuild-test
+```
+
+The rebuild test seeds four tools through the existing C-output compiler:
+the wide frontend, host resolver, call-test constructor, and ELF image writer.
+It then uses those tools to build native versions of all four from their B
+sources. Those native tools rebuild the same sources twice more. Raw records,
+resolved records, instruction bytes, static data, and complete executables must
+match at every native stage. The test also checks the ELF segment layout,
+executes the source-program cases through the final native tools, rejects
+malformed input, and prints source and artifact hashes.
+
+After seeding, every compiler pass runs as a native executable with an empty
+tool-search path. No GCC, assembler, or linker is invoked. The native programs
+use the B-maintained instruction and runtime modules, with direct Linux
+syscalls rather than a linked C runtime. Python still coordinates the test,
+owns the temporary files, and compares the output; it is not a B-written build
+driver. Native execution requires Linux x86-64.
+
+This is a fixed point for the experimental four-tool subset, not a claim that
+the installed `bcc`, `bccasm`, or PDP-11 commands have been replaced. The
+constructor remains a fixture with bounded tables and incomplete library
+coverage. A matching rebuild also cannot prove the seed trustworthy or the
+language implementation complete. The separate conformance tests still matter.
+
+CI runs this rebuild in its own GCC/Clang seed lanes, alongside rather than
+after the longer native-construction suites. The existing B-bootstrap gate
+requires both sets of checks and the bootstrap regressions to succeed.
+
+
+### Try the verified native tools
+
+On Linux x86-64, `--output` saves the final native executables, their exact B
+sources, and a hash manifest after all checks pass. The destination must not
+exist. The manifest is written last, so a failed export without that file is
+not a verified bundle. These hashes record integrity, not authenticity.
+
+From the repository root:
+
+```sh
+set -e
+repo="$PWD"
+tools="$repo/bootstrap/build/native-verified"
+python3 bootstrap/native/test_rebuild.py --output "$tools"
+work=$(mktemp -d)
+cd "$work"
+"$tools/front" "$repo/examples/native-hello.b" > raw.ic
+"$tools/resolve" -i raw.ic > resolved.ic
+"$tools/construct" raw.ic resolved.ic data run > code
+"$tools/image" code data 0 0 > hello
+chmod +x hello
+./hello
+```
+
+The example writes `hello from native B` and a newline using the native `write`
+primitive. No C compiler, assembler, or linker is used after the export.
+Python and the shell still manage this demonstration. The constructor writes
+`imports` and `layout` in its working directory, so use a fresh directory, not
+one containing files you need. Keep output paths separate from source files;
+shell redirection truncates its destination before a tool can check it.

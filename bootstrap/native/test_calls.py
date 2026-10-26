@@ -150,7 +150,7 @@ SOURCE_CASES += [
 ABI_CASES=[(0,0,2,0),(0,1,2,1),(0,2,2,3),(0,5,2,3),(1,8,2,8),
            (2,0,0,0),(2,8,0,8),(3,15,1,120),(4,1,1,141),(5,1,1,15),
            (6,0,0,None),(7,0,0,None),(8,0,0,None),(9,0,32767,0),
-           (3,4095,1,4095*4096//2)]
+           (3,4095,1,4095*4096//2),(10,0,0,42),(10,8,20,42)]
 
 
 def main():
@@ -215,8 +215,10 @@ def main():
             assert(run.returncode,run.stderr)==(0,b''),(text,run)
             (work/'resolved.ic').write_bytes(run.stdout)
 
-        def construct(data='data'):
-            return subprocess.run([str(work/'constructor'),'raw.ic','resolved.ic',data],cwd=work,
+        def construct(data='data',mode=None):
+            command=[str(work/'constructor'),'raw.ic','resolved.ic',data]
+            if mode is not None:command.append(mode)
+            return subprocess.run(command,cwd=work,
                                   capture_output=True,timeout=60,env=tool_free)
 
         cases=list(SOURCE_CASES)
@@ -267,6 +269,13 @@ def main():
         (work/'resolved.ic').write_bytes(b'Glit 1 4\npr main 0 30000\nst 0\ndr\nrt\nep 0\n')
         run=construct();assert(run.returncode,run.stderr)==(0,b''),run
         image_check('preassigned-literal',run.stdout,'data',4)
+
+        records('main(){return(37);}');run=construct(mode='run')
+        assert (run.returncode,run.stderr)==(0,b''),run
+        image_check('normal-return',run.stdout,'data',None,37)
+        run=construct(mode='unknown')
+        assert (run.returncode,run.stdout,run.stderr)==(2,b'',b''),run
+        passed+=1
 
         records('main(){goto 0;}');run=construct()
         assert(run.returncode,run.stderr)==(0,b''),run

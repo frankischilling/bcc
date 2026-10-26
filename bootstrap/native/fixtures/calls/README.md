@@ -13,14 +13,15 @@ working directory containing files you need to keep.
   and static data output.
 
 The whole-function constructor emits a binary-result reporting entry point for
-comparison, not normal startup. Imported `argv` data uses the native entry
+comparison by default. Its optional final `run` argument instead exits with
+`main`'s return value, for the native tool rebuild test. Imported `argv` data uses the native entry
 argument packer, but `main` parameters and compatibility argument functions
 remain unsupported. It binds the initial Linux runtime primitives when a referenced name has no
 source definition. Other unresolved symbols are rejected. Globals, vectors, address initializers, writable strings,
 and label cells use the static-data modules. Control lowering handles switches
 and computed goto. It is useful evidence that the
-libraries work together, but it is not a general B compiler or a completed
-self-hosting path.
+libraries work together. The separate native rebuild test uses this fixture
+in a four-tool fixed point; that does not make it a general installed compiler.
 
 The constructor has 200 function-metadata slots. The host-configured resolver has
 a 1,024-symbol budget that includes function-local imports and declarations, so

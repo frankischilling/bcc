@@ -64,9 +64,22 @@ jobs:
           make -C bootstrap native-test
           python3 bootstrap/native/test_elfimage.py --close-faults
           python3 bootstrap/native/test_x64.py --close-faults
+  b_native_rebuild:
+    name: B native rebuild (${{ matrix.cc }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        cc: [gcc, clang]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the seed compiler
+        run: make CC=${{ matrix.cc }}
+      - name: Rebuild the native tools without the seed toolchain
+        run: make -C bootstrap native-rebuild-test
   b_bootstrap:
     name: B bootstrap (${{ matrix.cc }})
-    needs: [b_bootstrap_checks, b_native]
+    needs: [b_bootstrap_checks, b_native, b_native_rebuild]
     if: ${{ always() }}
     runs-on: ubuntu-24.04
     strategy:
@@ -79,7 +92,8 @@ jobs:
         env:
           BOOTSTRAP_RESULT: ${{ needs.b_bootstrap_checks.result }}
           NATIVE_RESULT: ${{ needs.b_native.result }}
-        run: sh .github/scripts/require-success.sh 2 "$BOOTSTRAP_RESULT" "$NATIVE_RESULT"
+          REBUILD_RESULT: ${{ needs.b_native_rebuild.result }}
+        run: sh .github/scripts/require-success.sh 3 "$BOOTSTRAP_RESULT" "$NATIVE_RESULT" "$REBUILD_RESULT"
   assembly:
     name: assembly (${{ matrix.mode }})
     runs-on: ubuntu-24.04
