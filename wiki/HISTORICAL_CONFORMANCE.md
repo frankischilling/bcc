@@ -276,3 +276,19 @@ values, and both signed-word boundaries through the bootstrap stages. This is
 separate from case comparison order, which section 5.4 of
 [Thompson's manual](https://www.nokia.com/bell-labs/about/dennis-m-ritchie/kbman.html)
 leaves unspecified.
+
+
+### Case and label prefixes
+
+Cases and labels prefix the following statement. That includes another prefix,
+an unbraced conditional, or a loop. The parser retains those bodies, and the C
+emitter groups them so a label does not turn the rest of an `if` or `while` body
+into an unconditional statement. Strict mode requires a statement after a final
+prefix; use a null statement when only a target is needed.
+
+Strict B-bootstrap switches use comparisons and labels rather than C case
+syntax. Repeated constants are accepted, with the first matching source case
+selected. This is an implementation choice, not a claim that B72 specifies
+comparison order. Compatibility-mode defaults are only a no-match fallback,
+not a synonym for case minus one. A compatibility `continue` inside a switch
+rechecks its enclosing loop rather than the switch's internal dispatch loop.

@@ -425,7 +425,7 @@ static void collect_strings_stmt(Stmt *s) {
             collect_strings_stmt(s->as.label_.stmt);
             return;
         case ST_CASE:
-            /* Case values are numeric constants, not string expressions. */
+            collect_strings_stmt(s->as.case_.stmt);
             return;
         default:
             return;
@@ -515,6 +515,7 @@ static void collect_function_labels(Stmt *s) {
         collect_function_labels(s->as.ifs.then_s);
         collect_function_labels(s->as.ifs.else_s);
         break;
+    case ST_CASE: collect_function_labels(s->as.case_.stmt); break;
     case ST_WHILE: collect_function_labels(s->as.whiles.body); break;
     case ST_SWITCH: collect_function_labels(s->as.switch_.body); break;
     default: break;
@@ -522,15 +523,11 @@ static void collect_function_labels(Stmt *s) {
 }
 void emit_expr(FILE *out, Expr *e, const char *filename);
 
-static int stmt_is_block(const Stmt *s) {
-    return s && s->kind == ST_BLOCK;
-}
-
 typedef enum { CTRL_LOOP, CTRL_SWITCH } CtrlKind;
 
 typedef struct CtrlFrame {
     CtrlKind kind;
-    const char *switch_end;   // only valid for CTRL_SWITCH
+    const char *target;       // loop condition or switch exit
     struct CtrlFrame *prev;
 } CtrlFrame;
 
@@ -543,6 +540,7 @@ typedef struct {
 } CaseMap;
 
 static int g_switch_id = 0;
+static unsigned g_loop_id;
 
 static const char *lookup_case_label(Vec *maps, Stmt *node) {
     for (size_t i = 0; i < maps->len; i++) {
@@ -562,7 +560,7 @@ static void collect_cases(Stmt *s, Vec *cases) {
 
         case ST_CASE:
             vec_push(cases, s);
-            // case statements don't have bodies to collect from
+            collect_cases(s->as.case_.stmt, cases);
             return;
 
         case ST_LABEL:
@@ -590,6 +588,7 @@ static void collect_cases(Stmt *s, Vec *cases) {
 
 // Switch-body emitter (so case/default emit internal labels)
 static void emit_stmt_switchctx(FILE *out, Stmt *s, int indent, Vec *maps, const char *filename);
+static void emit_while(FILE *out, Stmt *s, int indent, Vec *maps, const char *filename);
 
 static void emit_stmt_switchctx(FILE *out, Stmt *s, int indent, Vec *maps, const char *filename) {
     if (!s) return;
@@ -601,7 +600,7 @@ static void emit_stmt_switchctx(FILE *out, Stmt *s, int indent, Vec *maps, const
             fprintf(out, "%s:\n", lab);
             emit_indent(out, indent + 1);
             fputs(";\n", out);
-            // case statements don't have bodies to emit
+            emit_stmt_switchctx(out, s->as.case_.stmt, indent, maps, filename);
             return;
         }
 
@@ -626,24 +625,21 @@ static void emit_stmt_switchctx(FILE *out, Stmt *s, int indent, Vec *maps, const
             emit_indent(out, indent);
             fputs("if (", out);
             emit_expr(out, s->as.ifs.cond, filename);
-            fputs(")\n", out);
-            emit_stmt_switchctx(out, s->as.ifs.then_s,
-                                stmt_is_block(s->as.ifs.then_s) ? indent : indent + 1, maps, filename);
+            fputs(") {\n", out);
+            emit_stmt_switchctx(out, s->as.ifs.then_s, indent + 1, maps, filename);
+            emit_indent(out, indent);
+            fputs("}", out);
             if (s->as.ifs.else_s) {
+                fputs(" else {\n", out);
+                emit_stmt_switchctx(out, s->as.ifs.else_s, indent + 1, maps, filename);
                 emit_indent(out, indent);
-                fputs("else\n", out);
-                emit_stmt_switchctx(out, s->as.ifs.else_s,
-                                    stmt_is_block(s->as.ifs.else_s) ? indent : indent + 1, maps, filename);
+                fputs("}", out);
             }
+            fputs("\n", out);
             return;
 
         case ST_WHILE:
-            emit_indent(out, indent);
-            fputs("while (", out);
-            emit_expr(out, s->as.whiles.cond, filename);
-            fputs(")\n", out);
-            emit_stmt_switchctx(out, s->as.whiles.body,
-                                stmt_is_block(s->as.whiles.body) ? indent : indent + 1, maps, filename);
+            emit_while(out, s, indent, maps, filename);
             return;
 
         case ST_SWITCH:
@@ -655,6 +651,39 @@ static void emit_stmt_switchctx(FILE *out, Stmt *s, int indent, Vec *maps, const
             emit_stmt(out, s, indent, 0, filename);
             return;
     }
+}
+
+static int loop_has_continue(const Stmt *s) {
+    if (!s) return 0;
+    switch (s->kind) {
+    case ST_CONTINUE: return 1;
+    case ST_BLOCK:
+        for (size_t i = 0; i < s->as.block.items.len; ++i)
+            if (loop_has_continue(s->as.block.items.data[i])) return 1;
+        return 0;
+    case ST_IF: return loop_has_continue(s->as.ifs.then_s) || loop_has_continue(s->as.ifs.else_s);
+    case ST_SWITCH: return loop_has_continue(s->as.switch_.body);
+    case ST_LABEL: return loop_has_continue(s->as.label_.stmt);
+    case ST_CASE: return loop_has_continue(s->as.case_.stmt);
+    default: return 0; /* A nested while owns its own continues. */
+    }
+}
+
+/* A source continue skips synthetic switch loops and rechecks its own loop. */
+static void emit_while(FILE *out, Stmt *s, int indent, Vec *maps, const char *filename) {
+    char target[64];
+    snprintf(target, sizeof(target), "__bloop%u_condition", ++g_loop_id);
+    if (loop_has_continue(s->as.whiles.body)) {
+        emit_indent(out, indent); fprintf(out, "%s:;\n", target);
+    }
+    emit_indent(out, indent); fputs("while (", out);
+    emit_expr(out, s->as.whiles.cond, filename); fputs(") {\n", out);
+    CtrlFrame frame = { CTRL_LOOP, target, g_ctrl };
+    g_ctrl = &frame;
+    if (maps) emit_stmt_switchctx(out, s->as.whiles.body, indent + 1, maps, filename);
+    else emit_stmt(out, s->as.whiles.body, indent + 1, 0, filename);
+    g_ctrl = frame.prev;
+    emit_indent(out, indent); fputs("}\n", out);
 }
 
 static void emit_switch(FILE *out, Stmt *s, int indent, const char *filename) {
@@ -705,10 +734,16 @@ static void emit_switch(FILE *out, Stmt *s, int indent, const char *filename) {
     emit_indent(out, indent + 1);
     fprintf(out, "__bsw%d_dispatch:\n", sid);
 
-    // dispatch in source order
+    const char *fallback = NULL;
+    // Dispatch in source order; compatibility default is only the fallback.
     for (size_t i = 0; i < cases->len; i++) {
         Stmt *cs = cases->data[i];
         const char *lab = lookup_case_label(maps, cs);
+        if (cs->as.case_.relop == TK_DEFAULT) {
+            if (fallback) dief("duplicate default in switch");
+            fallback = lab;
+            continue;
+        }
 
         emit_indent(out, indent + 2);
         fputs("if (", out);
@@ -737,9 +772,9 @@ static void emit_switch(FILE *out, Stmt *s, int indent, const char *filename) {
         fputs(";\n", out);
     }
 
-    // no-match: go to end
     emit_indent(out, indent + 2);
-    fprintf(out, "goto __bsw%d_end;\n", sid);
+    if (fallback) fprintf(out, "goto %s;\n", fallback);
+    else fprintf(out, "goto __bsw%d_end;\n", sid);
 
     emit_indent(out, indent + 1);
     fprintf(out, "__bsw%d_end:\n", sid);
@@ -1291,6 +1326,7 @@ static void collect_function_autos(Stmt *s, Vec *items) {
         break;
     case ST_WHILE: collect_function_autos(s->as.whiles.body, items); break;
     case ST_SWITCH: collect_function_autos(s->as.switch_.body, items); break;
+    case ST_CASE: collect_function_autos(s->as.case_.stmt, items); break;
     case ST_LABEL: collect_function_autos(s->as.label_.stmt, items); break;
     default: break;
     }
@@ -1360,31 +1396,22 @@ void emit_stmt(FILE *out, Stmt *s, int indent, int is_function_body, const char 
         case ST_IF: {
             emit_indent(out, indent); fputs("if (", out);
             emit_expr(out, s->as.ifs.cond, filename);
-            fputs(")\n", out);
-
-            // If this if is the last statement in a function and has no else,
-            // treat the then branch as if it's in a function body for implicit returns
+            fputs(") {\n", out);
             int then_is_function_body = is_function_body && !s->as.ifs.else_s;
-            int then_ind = stmt_is_block(s->as.ifs.then_s) ? indent : indent + 1;
-            emit_stmt(out, s->as.ifs.then_s, then_ind, then_is_function_body, filename);
-
+            emit_stmt(out, s->as.ifs.then_s, indent + 1, then_is_function_body, filename);
+            emit_indent(out, indent); fputs("}", out);
             if (s->as.ifs.else_s) {
-                emit_indent(out, indent); fputs("else\n", out);
-                int else_ind = stmt_is_block(s->as.ifs.else_s) ? indent : indent + 1;
-                emit_stmt(out, s->as.ifs.else_s, else_ind, 0, filename);
+                fputs(" else {\n", out);
+                emit_stmt(out, s->as.ifs.else_s, indent + 1, 0, filename);
+                emit_indent(out, indent); fputs("}", out);
             }
+            fputs("\n", out);
             return;
         }
 
-        case ST_WHILE: {
-            emit_indent(out, indent); fputs("while (", out);
-            emit_expr(out, s->as.whiles.cond, filename);
-            fputs(")\n", out);
-
-            int body_ind = stmt_is_block(s->as.whiles.body) ? indent : indent + 1;
-            emit_stmt(out, s->as.whiles.body, body_ind, 0, filename);
+        case ST_WHILE:
+            emit_while(out, s, indent, NULL, filename);
             return;
-        }
 
         case ST_RETURN:
             emit_indent(out, indent); fputs("return", out);
@@ -1410,10 +1437,14 @@ void emit_stmt(FILE *out, Stmt *s, int indent, int is_function_body, const char 
             emit_indent(out, indent);
             fputs("break;\n", out);
             return;
-        case ST_CONTINUE:
+        case ST_CONTINUE: {
+            CtrlFrame *loop = g_ctrl;
+            while (loop && loop->kind != CTRL_LOOP) loop = loop->prev;
+            if (!loop) dief("continue outside loop");
             emit_indent(out, indent);
-            fputs("continue;\n", out);
+            fprintf(out, "goto %s;\n", loop->target);
             return;
+        }
 
         case ST_GOTO:
             emit_indent(out, indent);

@@ -434,7 +434,7 @@ static void sem_check_stmt(SemState *st, Stmt *s) {
             break;
 
         case ST_CASE:
-            // These are handled by the switch statement checking
+            sem_check_stmt(st, s->as.case_.stmt);
             break;
     }
 }
@@ -457,6 +457,7 @@ static void sem_collect_labels(SemState *st, Stmt *s) {
         sem_collect_labels(st, s->as.ifs.then_s);
         sem_collect_labels(st, s->as.ifs.else_s);
         break;
+    case ST_CASE: sem_collect_labels(st, s->as.case_.stmt); break;
     case ST_WHILE: sem_collect_labels(st, s->as.whiles.body); break;
     case ST_SWITCH: sem_collect_labels(st, s->as.switch_.body); break;
     default: break;

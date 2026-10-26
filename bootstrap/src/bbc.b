@@ -7,6 +7,7 @@
 
 SRC; SRCLEN; POS; LINE; COL; STRICT; WANT_NCURSES;
 TOK; TNUM; TTEXT; TTEXTLEN;
+SWCUR; SWNEXT;
 HOIST; OUT; FUNS; NFUNS; MAIN_NARGS; HAS_MAIN; GLOBS; NGLOBS;
 ALLFUNS; NALLFUNS; ALLGLOBS; NALLGLOBS;
 EXTERNS[2048]; NEXTERNS; CURFUNC;
@@ -1354,6 +1355,46 @@ block() {
     if(!STRICT) NLOCALS=scope;
 }
 
+/* Strict B cases may repeat; their comparison order is unspecified by B72. */
+swlabel(prefix,id) {emit(prefix);emit(itoa(id));emitln(":;");}
+swjump(prefix,id) {emit("goto ");emit(prefix);emit(itoa(id));emitln(";");}
+swcase(value) {
+    auto node;
+    extrn malloc;
+    if (!SWCUR) fatal("case outside switch");
+    node=malloc(3 * &0[1]);
+    if (!node) fatal("out of memory");
+    node[0]=0;node[1]=value;node[2]=SWNEXT++;
+    if (SWCUR[3]) SWCUR[3][0]=node; else SWCUR[2]=node;
+    SWCUR[3]=node;
+    emitln("{");
+    /* One dead C case retains constant-expression checking without duplicates. */
+    emit("if(0){switch((word)0){case(word)(");emit(value);emitln("):;}}");
+    swlabel("__bbc_case_",node[2]);
+    stmt();
+    emitln("}");
+}
+swstmt(value) {
+    auto node, item, nextitem;
+    extrn malloc, free;
+    node=malloc(4 * &0[1]);
+    if (!node) fatal("out of memory");
+    node[0]=SWCUR;node[1]=SWNEXT++;node[2]=0;node[3]=0;SWCUR=node;
+    emit("{word __bbc_switch_");emit(itoa(node[1]));emit("=(");emit(value);emitln(");");
+    swjump("__bbc_dispatch_",node[1]);
+    stmt();
+    swjump("__bbc_switch_end_",node[1]);
+    swlabel("__bbc_dispatch_",node[1]);
+    item=node[2];
+    while(item) {
+        emit("if(__bbc_switch_");emit(itoa(node[1]));emit("==(word)(");
+        emit(item[1]);emit(")) ");swjump("__bbc_case_",item[2]);
+        nextitem=item[0];free(item);item=nextitem;
+    }
+    swlabel("__bbc_switch_end_",node[1]);emitln("}");
+    SWCUR=node[0];free(node);
+}
+
 stmt() {
     auto e, name, psave, lsave, csave, i, scope;
     if (TOK == 32) {
@@ -1378,12 +1419,14 @@ stmt() {
         expect(31);
         emit("if (");
         emit(e);
-        emit(") ");
+        emitln(") {");
         stmt();
+        emitln("}");
         if (TOK == 13) {
             next();
-            emit("else ");
+            emitln("else {");
             stmt();
+            emitln("}");
         }
         return(0);
     }
@@ -1394,8 +1437,9 @@ stmt() {
         expect(31);
         emit("while (");
         emit(e);
-        emit(") ");
+        emitln(") {");
         stmt();
+        emitln("}");
         return(0);
     }
     if (TOK == 15) {
@@ -1447,6 +1491,7 @@ stmt() {
         } else {
             e = expr(1);
         }
+        if (STRICT) {swstmt(e);return(0);}
         emit("switch ((word)(");
         emit(e);
         emit(")) ");
@@ -1457,6 +1502,7 @@ stmt() {
         next();
         e = expr(1);
         expect(38);
+        if (STRICT) {swcase(e);return(0);}
         emit("case (word)(");
         emit(e);
         emitln("):");

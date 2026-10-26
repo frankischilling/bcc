@@ -211,7 +211,7 @@ struct Stmt {
         struct { Expr *target; } goto_;
         struct { char *name; Stmt *stmt; } label_;
         struct { Expr *expr; Stmt *body; } switch_;
-        struct { int has_range; TokenKind relop; int64_t lo; int64_t hi; } case_;
+        struct { int has_range; TokenKind relop; int64_t lo; int64_t hi; Stmt *stmt; } case_;
     } as;
 };
 

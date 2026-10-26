@@ -528,10 +528,8 @@ static Stmt *parse_label(Parser *P) {
     }
 
     Stmt *inner;
-    // Labels can have no statement if they're just goto targets
-    if (P->cur.kind == TK_RBRACE || P->cur.kind == TK_CASE || P->cur.kind == TK_DEFAULT ||
-        (P->cur.kind == TK_ID && peek_next_kind(P) == TK_COLON)) {
-        // No statement after label - create empty statement
+    /* Strict labels prefix a statement, including another label or case. */
+    if (!g_strict && P->cur.kind == TK_RBRACE) {
         inner = new_stmt(ST_EMPTY, P->cur.line, P->cur.col);
     } else {
         inner = parse_stmt(P);
@@ -570,6 +568,14 @@ static Expr *parse_paren_or_bare_expr(Parser *P) {
 
 
 
+static Stmt *parse_case_body(Parser *P) {
+    if (!g_strict && P->cur.kind == TK_RBRACE)
+        return new_stmt(ST_EMPTY, P->cur.line, P->cur.col);
+    if (!g_strict && P->cur.kind == TK_AUTO) return parse_auto_decl(P);
+    if (!g_strict && P->cur.kind == TK_EXTRN) return parse_extrn_stmt(P);
+    return parse_stmt(P);
+}
+
 Stmt *parse_case(Parser *P) {
     int line = P->cur.line, col = P->cur.col;
     expect(P, TK_CASE);
@@ -587,6 +593,7 @@ Stmt *parse_case(Parser *P) {
     s->as.case_.has_range = 0;   // No ranges in B
     s->as.case_.lo = val;
     s->as.case_.hi = val;
+    s->as.case_.stmt = parse_case_body(P);
     return s;
 }
 
@@ -600,10 +607,11 @@ Stmt *parse_default(Parser *P) {
     expect(P, TK_COLON);
 
     Stmt *s = new_stmt(ST_CASE, line, col);
-    s->as.case_.relop = TK_EOF;
+    s->as.case_.relop = TK_DEFAULT;
     s->as.case_.has_range = 0;
-    s->as.case_.lo = -1;  // Special marker for default case
-    s->as.case_.hi = -1;
+    s->as.case_.lo = 0;
+    s->as.case_.hi = 0;
+    s->as.case_.stmt = parse_case_body(P);
     return s;
 }
 

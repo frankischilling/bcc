@@ -445,3 +445,11 @@ wide integer boundaries, storage limits, and buffered output failures. The
 call-construction fixtures also execute source programs using those objects.
 Run them with `python3 bootstrap/native/test_data.py` and
 `python3 bootstrap/native/test_calls.py`, or as part of `make -C bootstrap native-test`.
+
+
+Switch regressions include repeated constants, wide values, case and label
+prefixes under conditionals and loops, adjacent prefixes, declarations and
+strings under cases, and missing statement bodies. Compatibility checks cover
+default selection and `continue` through nested switches. The shared suite runs
+against host word modes, both runtime layouts, the B bootstrap, and the native
+PDP-11 compiler where the syntax applies.
