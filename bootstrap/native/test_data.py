@@ -12,13 +12,14 @@ PROJECT = ROOT.parents[1]
 NATIVE = PROJECT / 'pdp-11/bcc-pdp/bootstrap/src'
 HARNESS = '''
 entry(name){if(!arname(name))return(0);return(4198400);}
+label(id){return(4198400+id);}
 main(){
- extrn argv,open,close,creat,entry;auto fd,out,pass;
+ extrn argv,open,close,creat,entry,label;auto fd,out,pass;
  if(argv[0]!=3)return(2);
  pass=0;while(pass++<2){
  fd=open(argv[2],0);if(fd<0)return(2);xdscan(fd);if(close(fd)<0)return(2);
  fd=open(argv[2],0);out=creat(argv[3],0600);if(fd<0 | out<0)return(2);
- xdemit(fd,out,8388608,entry);if(close(fd)<0 | close(out)<0)return(2);
+ xdemit(fd,out,8388608,entry,label);if(close(fd)<0 | close(out)<0)return(2);
  }
  return(0);
 }
@@ -32,7 +33,7 @@ def main():
     args = parser.parse_args()
     parts = [NATIVE / name for name in ('buffered_io.b', 'decimal16.b', 'diagnostics.b', 'ic.b')]
     parts += [ROOT / name for name in ('x64.b', 'labels.b', 'ops.b', 'scalar.b', 'arity.b',
-                                       'data/layout.b', 'data/output.b')]
+                                       'data/layout.b', 'data/labels.b', 'data/output.b')]
     command = [str(args.compiler.resolve()), '--strict', '--pedantic']
     if not args.bootstrap:
         command.append('--word=host')
@@ -74,10 +75,19 @@ def main():
         check('maximum-initializers', 'gvb x 0\n'+'gvc 7\n'*128+'gve\n', word(7)*128)
         check('maximum-symbols', ''.join(f'gvb g{i} 1\ngve\n' for i in range(1024)), word(0)*1024)
         check('maximum-literals', 'Glit 1 4\n'*512, (b'\4'+b'\0'*7)*512)
+        check('label-cell', 'lv 30000\n', word(4198400+30000))
+        check('colliding-labels', 'lv 0\nlv 4096\nlv 8192\n',
+              b''.join(word(4198400+i) for i in (0,4096,8192)))
+        check('maximum-label', 'lv 32767\n', word(4198400+32767))
+        check('maximum-label-cells', ''.join(f'lv {i}\n' for i in range(4096)),
+              b''.join(word(4198400+i) for i in range(4096)))
         if Path('/dev/full').exists():
             check('failed-final-write', 'gvb x 1\ngvc 7\ngve\n', error=True, output='/dev/full')
             check('failed-buffer-write', 'gvp x 8190\ngve\n', error=True, output='/dev/full')
         bad = [
+            'lv -1\n', 'lv 32768\n', 'lv 1\nlv 1\n',
+            'pr f 0 30000\nlv 1\nep 0\n',
+            ''.join(f'lv {i}\n' for i in range(4097)),
             'gvb x -1\ngve\n', 'gvp x 8191\ngve\n', 'gvc 0\n', 'gve\n',
             'gvb x 1\n', 'gvb x 1\ngvb y 1\ngve\n',
             'gvb x 1\ngve\ngvb x 1\ngve\n',

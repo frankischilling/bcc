@@ -1447,7 +1447,7 @@ stmt() {
         } else {
             e = expr(1);
         }
-        emit("switch ((int)(");
+        emit("switch ((word)(");
         emit(e);
         emit(")) ");
         stmt();
@@ -1457,7 +1457,7 @@ stmt() {
         next();
         e = expr(1);
         expect(38);
-        emit("case (int)(");
+        emit("case (word)(");
         emit(e);
         emitln("):");
         return(0);

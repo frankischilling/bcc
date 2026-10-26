@@ -5,7 +5,7 @@ xdfail() {fatal("native data: invalid or unsupported layout");}
 xdreset() {
     extrn xdcount,xdwords,xdlits;
     if(65535+1==0 | 2147483647+1<0) xdfail();
-    xdcount=0;xdwords=0;xdlits=0;
+    xdcount=0;xdwords=0;xdlits=0;xdclini();
 }
 xdalloc(n) {
     extrn xdwords;auto old;
@@ -66,6 +66,9 @@ xdscan(fd) {
             i=0;while(i<n){c=nxti(xdbuf);if(c<0 | c>255)xdfail();i++;}
             xrend(xdbuf);if(c!=4)xdfail();
             xdlens[xdlits]=n;xdladdr[xdlits++]=xdalloc((n+7)/8);goto next;
+        }
+        if(tageq(tag,"lv")) {
+            if(body | kind)xdfail();n=nxti(xdbuf);xrend(xdbuf);xdcldef(n);goto next;
         }
         if(!body | kind)xdfail();
      next:;

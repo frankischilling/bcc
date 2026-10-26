@@ -28,6 +28,7 @@ body(fd){
    if(tageq(tag,"Slit")){xmovim(0,xdlit(lit));xrvalid=1;}lit++;goto next;
   }
   if(cur<0)goto next;
+  if(tageq(tag,"la")){i=nxti(pbuf);xrend(pbuf);xmovim(0,xdcla(i));xrvalid=1;goto next;}
   if(tageq(tag,"st")){i=nxti(pbuf);xrend(pbuf);xmovim(0,xdlit(i));xrvalid=1;goto next;}
   if(tageq(tag,"ex")){
    nxtnam(pbuf,name);xrend(pbuf);xmovim(0,xdaddr(name));xrvalid=1;goto next;
@@ -38,9 +39,10 @@ body(fd){
  if(cur>=0)fatal("unfinished emitted function");
 }
 fnentry(name){extrn nlabels;auto i;i=findfn(name);if(i<0)fatal("unknown data function");return(4198400+xlref(nlabels+i));}
+lbentry(id){return(4198400+xlref(xcfmap(id,1,0)));}
 datafile(input,path){
- extrn open,creat,close,fnentry,dbase;auto fd,out;
+ extrn open,creat,close,fnentry,lbentry,dbase;auto fd,out;
  fd=open(input,0);out=creat(path,0600);if(fd<0 | out<0)fatal("static data open");
- xdemit(fd,out,dbase,fnentry);
+ xdemit(fd,out,dbase,fnentry,lbentry);
  if(close(fd)<0 | close(out)<0)fatal("static data close");
 }

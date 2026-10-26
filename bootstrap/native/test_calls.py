@@ -80,6 +80,40 @@ SOURCE_CASES += [
 
 SOURCE_CASES.append(('v[128] '+','.join(['9223372036854775807']*128)+';main(){extrn v;return(v[127]);}', (1<<63)-1))
 
+SOURCE_CASES += [
+ ('main(){goto done;return(1);done:return(42);}',42),
+ ('main(){auto p;p=done;goto p;return(1);done:return(42);}',42),
+ ('main(){auto i;i=0;again:i++;if(i<10)goto again;return(i);}',10),
+ ('main(){first=second;goto first;first:return(1);second:return(42);}',42),
+ ('saved;f(n){extrn saved;if(n){saved=done;return(0);}goto saved;done:return(42);}main(){f(1);return(f(0));}',42),
+ ('main(){auto v 2;v[0]=first;v[1]=second;goto v[1];first:return(1);second:return(42);}',42),
+ ('main(){auto p;p= &first;*p=second;goto first;first:return(1);second:return(42);}',42),
+]
+
+SOURCE_CASES += [
+ ('main(){switch 1 {case 1:return(42);}return(0);}',42),
+ ('main(){switch 0 {case 1:return(7);}return(42);}',42),
+ ('main(){switch 0 {}return(42);}',42),
+ ('main(){auto n;n=0;switch 1 {case 1:n=7;case 2:n=+35;}return(n);}',42),
+ ('main(){switch 1 {case 1:switch 2 {case 1:return(1);case 2:return(42);}}return(0);}',42),
+ ('main(){switch 9223372036854775808 {case 9223372036854775807:return(1);case 9223372036854775808:return(42);}return(0);}',42),
+ ('main(){auto i,n;i=0;n=0;while(i<10){switch i {case 3:n=+7;case 8:n=+9;}i++;}return(n);}',25),
+ ('f(){return(42);}main(){switch 1 {case 1:return(f());}return(0);}',42),
+ ('main(){switch 1 {case 1:goto done;case 2:return(1);}done:return(42);}',42),
+ ('main(){goto inside;switch 2 {case 1:inside:return(42);case 2:return(1);}return(0);}',42),
+]
+
+SOURCE_CASES += [
+ ('main(){return(&one!=&two);one:two:return(0);}',1),
+ ('f(){return(done);done:return(0);}g(){return(done);done:return(0);}main(){return(f()!=g());}',1),
+ ('f(n){switch n {case 0:return(0);case 1:return(1);}return(f(n-1)+f(n-2));}main(){return(f(10));}',55),
+]
+
+SOURCE_CASES += [
+ ('main(){switch 4294967296 {case 0:return(1);case 4294967296:return(42);}return(0);}',42),
+ ('main(){switch 4294967297 {case 1:return(1);}return(42);}',42),
+]
+
 ABI_CASES=[(0,0,2,0),(0,1,2,1),(0,2,2,3),(0,5,2,3),(1,8,2,8),
            (2,0,0,0),(2,8,0,8),(3,15,1,120),(4,1,1,141),(5,1,1,15),
            (6,0,0,None),(7,0,0,None),(8,0,0,None),(9,0,32767,0),
@@ -103,7 +137,7 @@ def main():
             run=subprocess.run([*command,str(path),'-o',str(work/name)],capture_output=True,timeout=180)
             assert run.returncode==0,(name,run.stderr)
         parts=[NATIVE/'src'/name for name in ('buffered_io.b','decimal16.b','diagnostics.b','ic.b')]
-        parts += [ROOT/name for name in ('x64.b','labels.b','ops.b','scalar.b','memory.b','control.b','arity.b','calls.b','data/layout.b','data/output.b')]
+        parts += [ROOT/name for name in ('x64.b','labels.b','ops.b','scalar.b','memory.b','control.b', 'switch.b','arity.b','calls.b','data/layout.b','data/labels.b','data/output.b')]
         common='\n'.join(path.read_text() for path in parts)
         build('abi',common+(FIXTURES/'abi.b').read_text())
         build('constructor',common+'\n'.join((FIXTURES/name).read_text() for name in ('metadata.b','emission.b','driver.b')))
@@ -155,7 +189,7 @@ def main():
         cases=list(SOURCE_CASES)
         cases.append((''.join(f'f{i}(){{return({i});}}' for i in range(199))+'main(){return(f198());}',198))
         for index,(text,value) in enumerate(cases):
-            # Controlled fixtures have no strings; rename the original entry and its references.
+            # Rename the entry and its references in these controlled fixtures.
             reference=re.sub(r'(?<![A-Za-z0-9_\x08])main(?![A-Za-z0-9_\x08])','zzentry',text)
             assert reference!=text
             reference+='main(){extrn zzentry,write;auto value;value=zzentry();write(1,&value,8);return(0);}'
@@ -172,11 +206,11 @@ def main():
         run=construct();assert(run.returncode,run.stderr)==(0,b''),run
         image_check('preassigned-literal',run.stdout,'data',4)
 
-        unsupported=['main(x){return(x);}', 'f(){return(0);}',
+        records('main(){goto 0;}');run=construct()
+        assert(run.returncode,run.stderr)==(0,b''),run
+        image_check('null-goto',run.stdout,'data',None,77)
 
-                     'main(){return(unknown());}',
-                     'main(){switch 1 {case 1:return(7);}return(0);}',
-                     'main(){goto done;done:return(0);}']
+        unsupported=['main(x){return(x);}', 'f(){return(0);}', 'main(){return(unknown());}']
         for text in unsupported:
             records(text);run=construct()
             assert run.returncode!=0 and run.stderr,(text,run)

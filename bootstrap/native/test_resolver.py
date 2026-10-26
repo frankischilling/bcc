@@ -103,7 +103,7 @@ def main():
         sources = [source, text, frontend.source_text()]
         parts = [NATIVE / 'src' / n for n in ('buffered_io.b', 'decimal16.b', 'diagnostics.b', 'ic.b')]
         parts += [ROOT / n for n in ('x64.b', 'labels.b', 'ops.b', 'scalar.b', 'memory.b',
-                                     'control.b', 'arity.b', 'calls.b', 'data/layout.b', 'data/output.b')]
+                                     'control.b', 'switch.b', 'arity.b', 'calls.b', 'data/layout.b', 'data/labels.b', 'data/output.b')]
         parts += [ROOT / 'fixtures/calls' / n for n in ('metadata.b', 'emission.b', 'driver.b')]
         sources.append('\n'.join(p.read_text() for p in parts))
         for source in sources:

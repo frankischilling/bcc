@@ -50,7 +50,8 @@ Decimal and octal literals wrap to the host word width. The minimum signed
 word is emitted as a valid C expression rather than negating an unrepresentable
 positive magnitude. Tests include that boundary in local expressions, global
 initializers, and vectors through the B stages. This is the host storage model,
-not a claim that historical machines used 64-bit words.
+not a claim that historical machines used 64-bit words. Switch selectors and
+case constants also retain the full B word width instead of narrowing to C `int`.
 
 Character constants must contain at least one character. Strict mode allows
 one or two; compatibility mode allows up to four. Unfinished constants fail

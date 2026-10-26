@@ -389,7 +389,8 @@ tool-search path after their seeded build.
 `control.b` adds `lb`, `jm`, `bf`, `rt`, `tq`, `tc`, and `te` records. These
 cover statement labels and branches, early returns, and conditional expressions.
 Together with scalar and memory lowering, they can execute the wide frontend's
-if/else and while-loop bodies. Switch and computed goto are not implemented.
+if/else and while-loop bodies. `control.b` also uses `switch.b` for switch
+dispatch and handles computed jumps; see the section below.
 
 Call `xcfscan(fd)` before emitting instructions. It reads control-label fields,
 assigns dense encoder IDs, and returns their count. Source label numbers can
@@ -503,8 +504,8 @@ by-value isolation. Focused instruction fixtures also test maximum call blocks,
 actual-count metadata, invalid headers, and API errors.
 
 That constructor is test code, not an installed compiler command. Its entry
-point reports binary results for comparison. It rejects runtime imports, entry
-parameters, switch, and computed goto. It does
+point reports binary results for comparison. It rejects runtime imports and
+entry parameters. It does
 not supply normal startup, multi-file linking, the remaining library, or a
 native compiler fixed point. Tests run instruction construction with an empty
 tool-search path after seeding, but the seed-built tools still use the existing
@@ -514,7 +515,8 @@ host runtime.
 ## Static data
 
 `data/layout.b` assigns eight-byte cells to global definitions, function
-variables, and string occurrences. `data/output.b` writes the initial bytes.
+variables, and string occurrences. `data/output.b` writes the initial bytes. `data/labels.b` tracks mutable
+label cells separately from named external objects.
 These are host-native components, not changes to PDP-11 word sizes.
 
 The rules follow sections 7.1 through 7.3 of
@@ -536,17 +538,18 @@ are divided by eight for B pointer arithmetic.
 - `xdfind(name)` returns a symbol index or minus one. `xdoffs`, `xdsizes`,
   and `xdkinds` contain its word offset, allocated words, and kind (scalar,
   vector, or function). `xdladdr` and `xdlens` describe literal occurrences.
-- `xdemit(fd,out,base,entry)` rereads the same unchanged record stream and
-  writes data at the supplied aligned byte base. The callback returns the
-  callable byte address for a function name. Both descriptors remain open.
+- `xdemit(fd,out,base,entry,label)` rereads the same unchanged record stream and
+  writes data at the supplied aligned byte base. The `entry` callback returns the
+  callable byte address for a function name; `label` returns the byte address
+  for a source label ID. Both descriptors remain open.
 - `xdaddr(name)` and `xdlit(index)` return word addresses using `xdbase`.
   Code emission sets that base after its first layout pass.
 
 The caller must retain the input between scans and discard partial output on
 failure. Output is buffered in 4 KB blocks; short or failed writes are errors.
 Limits are 1,024 named objects, 512 string occurrences, 128 initializers per
-definition, 8,190 declared vector elements, and 16 MiB of total data. These
-module bounds do not enlarge the shared frontend or resolver tables.
+definition, 8,190 declared vector elements, 4,096 label cells, and 16 MiB of total data. These
+module bounds do not enlarge the frontend, resolver, or code-label budgets.
 
 `test_data.py` checks exact bytes, forward and cyclic references, literal
 separation, numeric boundaries, table limits, and write failures. The
@@ -583,3 +586,35 @@ python3 bootstrap/native/test_resolver.py
 
 The Python builder is a seed convenience. The resolver itself is B source;
 its ordinary record-processing path does not launch other tools.
+
+
+## Switch dispatch and computed goto
+
+`switch.b` accompanies `control.b`. It lowers `swb`, `swc`, and `swx`, with
+up to 16 nested switches and 32 cases per switch, matching the shared frontend.
+The selector is pushed only while the hidden dispatch chain is searching.
+A matching case or the unmatched exit removes it before entering ordinary
+statement code. Fallthrough skips the comparisons, so it does not pop a second
+selector. Calls and returns inside a case therefore use the normal stack layout.
+Comparison order follows the source records; the manual leaves that order
+unspecified, so this is an implementation choice. Dispatch labels have a separate label kind: an ordinary statement jump cannot
+silently enter a dispatch chain with no selector on the stack.
+
+`xcfline` also handles `gor`. It requires a value and an empty expression stack,
+rejects a null destination through the configured fault branch, and jumps to
+the byte address in RAX. This is not general pointer validation. A valid target
+is a label in the currently executing function. Arbitrary addresses and jumps
+into another function do not establish a valid execution frame.
+
+`la` loads a word pointer to a mutable label cell. Dereferencing the cell gets
+the code byte address, while taking its address permits assignment through a
+pointer. `lv` supplies the initial code address during data emission. Cells are
+distinct even when adjacent labels happen to name the same code location, and
+their values persist across calls. The test constructor connects these data
+records to the control library's code labels.
+
+The control and whole-program tests check nested dispatch, matched and
+unmatched cases, fallthrough, wide case values, recursion, calls and returns,
+source jumps into and out of cases, saved and mutated label values, null jumps,
+label-table collisions, and malformed record sequences. The modules still do
+not provide the native host runtime or normal program startup.

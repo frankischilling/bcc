@@ -84,6 +84,13 @@ def cases():
         ('return(42);return(1/0);',42),
         ('auto break;break=7;if(break)return(break);return(0);',7),
         ('auto x;x=0;if(0){auto v 2;v[0]=9;}else x=3;return(x);',3),
+        ('switch 1 {case 1:return(42);}return(0);',42),
+        ('switch 9 {case 1:return(1);}return(42);',42),
+        ('switch 9 {}return(42);',42),
+        ('auto n;n=2;switch n++ {case 2:n=+39;}return(n);',42),
+        ('switch 1 {case 1:'*16+'return(42);'+'}'*16+'return(0);',42),
+        ('switch 31 {'+''.join(f'case {i}:return({i});' for i in range(32))+'}return(42);',31),
+        ('switch 33 {'+''.join(f'case {i}:return({i});' for i in range(32))+'}return(42);',42),
     ]
 
 
@@ -104,7 +111,7 @@ def main():
             run=subprocess.run([*command,str(path),'-o',str(work/name)],capture_output=True,timeout=180)
             assert run.returncode==0,(name,run.stderr)
         parts=[NATIVE/'src'/name for name in ('buffered_io.b','decimal16.b','diagnostics.b','ic.b')]
-        parts += [ROOT/name for name in ('x64.b','labels.b','ops.b','scalar.b','memory.b','control.b')]
+        parts += [ROOT/name for name in ('x64.b','labels.b','ops.b','scalar.b','memory.b','control.b','switch.b')]
         build('lower','\n'.join(path.read_text() for path in parts)+HARNESS)
         build('front',frontend.source_text());build('resolver',pass_source('resolver'))
         build('image',(ROOT/'elfimage.b').read_text())
@@ -147,6 +154,8 @@ def main():
             assert lines[0].startswith(b'pr main ') and lines[-1].startswith(b'ep '),lines
             check(body,b'\n'.join(lines[1:-1])+b'\n',int(lines[-1].split()[1]),value,0 if value is not None else 77)
         check('fallthrough',b'',value=0)
+        check('duplicate-case-order',b'n 1\nswb 1\nswc 1 2 1 3\nn 7\nrt\nswc 2 4 1 5\nn 9\nrt\nswx 4 6\n',value=7)
+        check('null-goto',b'n 0\ngor\n',value=None,status=77)
         check('high-label',b'jm 32767\nn 1\nrt\nlb 32767\nn 7\nrt\n',value=7)
         collision=b''.join(f'lb {i*4096}\n'.encode() for i in range(8))+b'n 9\nrt\n'
         check('hash-collisions',collision,value=9)
@@ -166,6 +175,16 @@ def main():
                  b'n 1\ntq 1 2\n',b'n 1\ntq 1\nn 2\ntc 1 2 3\n',
                  b'n 1\ntq 1\nn 2\ntc 1 2\nn 3\nte 2 3\n',
                  b'n 1\ntq 1\nn 2\ntq 1\n',b'n 1\nps\n',b'swb 1\n',b'gor\n',b'cl 0\n']
+        invalid += [
+            b'n 1\nswb 1\n', b'swc 1 2 7 3\n', b'swx 1 2\n',
+            b'n 1\nswb 1\nswx 2 3\n', b'n 1\nswb 1\nswc 2 3 7 4\n',
+            b'n 1\nswb 1\nswc 1 1 7 3\n', b'n 1\nswb 1\nlb 1\n',
+            b'n 1\nps\nn 2\nswb 1\nswx 1 2\n',
+            b'n 1\nswb 1\nswc 1 2 9223372036854775808 3\nswx 2 4\n',
+            b'n 1\nswb 1\nswx 1 2 3\n', b'n 1\ngor 7\n', b'n 1\nps\nn 2\ngor\n',
+            b''.join(f'n 1\nswb {i}\n'.encode() for i in range(17)),
+            b'n 1\nswb 0\n'+b''.join(f'swc {i} {i+1} {i} {100+i}\n'.encode() for i in range(33))+b'swx 33 200\n',
+        ]
         for index,records in enumerate(invalid):check('invalid/'+str(index),records,error=True)
         for mode in range(1,10):check('api/'+str(mode),b'lb 0\nn 7\nrt\n',error=True,mode=mode)
         print(f'{passed} control-flow lowering checks passed')

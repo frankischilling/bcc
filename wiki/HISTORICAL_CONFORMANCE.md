@@ -265,3 +265,14 @@ to coexist with the runtime instead of failing with duplicate assembler
 symbols. Matching runtime labels are removed before assembly, while their
 unused bodies remain. That is not a reproduction of the original archive
 loader or its exact output size.
+
+
+### Full-word switch comparisons
+
+The C-output B bootstrap keeps the selector and case constants at B word width.
+Narrowing either to C `int` would merge distinct 64-bit values such as zero and
+4,294,967,296. The wide-switch regression checks distinct high bits, unmatched
+values, and both signed-word boundaries through the bootstrap stages. This is
+separate from case comparison order, which section 5.4 of
+[Thompson's manual](https://www.nokia.com/bell-labs/about/dennis-m-ritchie/kbman.html)
+leaves unspecified.

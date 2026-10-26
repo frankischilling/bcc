@@ -92,8 +92,9 @@ argument blocks and function entries. Integration fixtures now construct
 native images from restricted multi-function source programs, including
 recursion and writable function cells. [Static data construction](../bootstrap/native/README.md#static-data)
 adds global cells, vectors, named-address initializers, and separate writable
-storage for each string occurrence. Runtime imports, switch, computed goto,
-and normal startup remain separate work.
+storage for each string occurrence. [Switch dispatch and computed goto](../bootstrap/native/README.md#switch-dispatch-and-computed-goto)
+add nested cases and mutable label cells. Runtime imports and normal startup
+remain separate work.
 The result-reporting test constructor is not a general source compiler.
 A separate [host resolver storage module](../bootstrap/native/README.md#host-resolver-storage)
 raises its symbol capacity to 1,024 and its buffered initializer records to

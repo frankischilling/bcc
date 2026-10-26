@@ -20,13 +20,13 @@ xdlit(n) {
     if(n<0 | n>=xdlits)fatal("native data: unknown literal");
     return(xdbase/8+xdladdr[n]);
 }
-xdemit(fd,out,base,entry) {
+xdemit(fd,out,base,entry,label) {
     extrn xdused,xdwrote,xdfd,xdbase,xdbuf,xdwords,xdcount;
-    extrn xdoffs,xdsizes,xdkinds,xdlits,xdladdr,xdlens;
-    auto tag 5,name 5,kind,count,init,values 128,slot,lit,n,i,v,seen;
+    extrn xdoffs,xdsizes,xdkinds,xdlits,xdladdr,xdlens,xdcells,xdcoffs;
+    auto tag 5,name 5,kind,count,init,values 128,slot,lit,n,i,v,seen,cseen;
     if(base<0 | base%8 | base>9223372036837998592)xdfail();
     xdbase=base;xdfd=out;xdused=0;xdwrote=0;
-    kind=0;slot= -1;lit=0;seen=0;icini(fd);
+    kind=0;slot= -1;lit=0;seen=0;cseen=0;icini(fd);
     while(getln(xdbuf,1040)) {
         icrst();nxtnam(xdbuf,tag);
         if(tageq(tag,"gvb") | tageq(tag,"gvp")) {
@@ -62,8 +62,13 @@ xdemit(fd,out,base,entry) {
             if(v!=4)xdfail();xrend(xdbuf);while(xdwrote%8)xdbyte(0);
             lit++;goto next;
         }
+        if(tageq(tag,"lv")) {
+            if(kind | !label)xdfail();n=nxti(xdbuf);xrend(xdbuf);slot=xdclfind(n);
+            if(slot<0)xdfail();if(xdwrote/8!=xdcoffs[slot])xdfail();
+            v=label(n);if(v<=0)xdfail();xdword(v);cseen++;goto next;
+        }
      next:;
     }
-    if(kind | lit!=xdlits | seen!=xdcount | xdwrote!=xdwords*8)xdfail();
+    if(kind | lit!=xdlits | seen!=xdcount | cseen!=xdcells | xdwrote!=xdwords*8)xdfail();
     xdflush();return(xdwrote);
 }

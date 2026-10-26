@@ -13,8 +13,9 @@ working directory containing files you need to keep.
 
 The whole-function constructor emits a binary-result reporting entry point for
 comparison, not normal startup or command-line argument handling. It rejects
-runtime imports, switch, and computed goto. Globals, vectors, address
-initializers, and writable string storage use the static-data modules. It is useful evidence that the
+runtime imports. Globals, vectors, address initializers, writable strings,
+and label cells use the static-data modules. Control lowering handles switches
+and computed goto. It is useful evidence that the
 libraries work together, but it is not a general B compiler or a completed
 self-hosting path.
 
