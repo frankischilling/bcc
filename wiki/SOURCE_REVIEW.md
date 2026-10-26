@@ -1303,9 +1303,11 @@ defines the target machine identifier and non-executable-stack header used here.
 The tests construct simple syscall fixtures using the
 [Linux x86-64 syscall table](https://github.com/torvalds/linux/blob/master/arch/x86/entry/syscalls/syscall_64.tbl).
 
-This establishes an executable container for a future native backend. It does
-not generate instructions from B, remove the writer's seed/runtime dependency,
-or turn the existing host compiler into a self-hosted native compiler.
+The writer supplies the executable container used by the experimental native
+B pipeline. The writer alone does not compile B expressions or establish a
+bootstrap: those are checked by the frontend, lowering passes, and five-tool
+native rebuild. That rebuild no longer invokes the C toolchain after its seed,
+but the installed host compiler still uses its C backend.
 
 
 ### Host instruction encoding
@@ -1323,8 +1325,9 @@ The B encoding library checks supported operands and emits fixed instruction
 forms. Its tests compare these with an independent assembler, using the
 [documented encoding selectors](https://www.sourceware.org/binutils/docs-2.35/as/i386_002dMnemonics.html)
 where an assembler would otherwise choose a shorter form. B-built executable
-fixtures check behavior separately. None of this chooses the compiler's B
-calling convention or supplies a complete source-to-native backend.
+fixtures check behavior separately. These encoder checks do not, by themselves, establish the compiler's B
+calling convention or source-to-native behavior. The native pipeline tests
+check those layers separately.
 
 ### Host word operations
 
@@ -1376,3 +1379,22 @@ Adding the source buffer increased the frontend's measured raw self-compilation
 records from 64,917 to 65,231 bytes. That still fits the pinned guest's 65,535-byte
 file limit, but leaves little room for later growth. The seed-size checks remain
 necessary even when the final instruction image itself is much smaller.
+
+### Native pathname and identity calls
+
+Section 8 of [Thompson's manual](https://www.nokia.com/bell-labs/about/dennis-m-ritchie/kbman.html)
+includes `chdir`, `link`, and `getuid`. The first two report failure with a
+negative return value; `getuid` returns the process user ID. B string literals
+use EOT, whereas the Linux pathname interface expects NUL. A native adapter
+must convert the terminator without changing the caller's string. The native
+host's pathname limit and Linux user-ID width are implementation choices, not
+claims about PDP-11 storage or the first-edition kernel. The adapter numbers
+come from the [Linux x86-64 syscall table](https://github.com/torvalds/linux/blob/master/arch/x86/entry/syscalls/syscall_64.tbl):
+80 for `chdir`, 86 for `link`, and 102 for `getuid`.
+
+Checking those adapters exposed a separate native `execv` bug: its conversion
+called the program's writable `char` and `lchar` cells. Replacing those helpers
+could corrupt OS arguments and prevent process replacement, unlike the host
+runtime's private conversion. A regression replaces both cells and checks that
+a native child still receives the requested arguments and environment. Native
+`execv` now packs its path and argument bytes without calling those cells.

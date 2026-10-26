@@ -5,6 +5,12 @@ with generated C or embedded by `--inline-runtime`. It does not ship a
 separate historical `libb.a`. Native PDP-11 programs use assembly syscall
 wrappers and a B-written library under `pdp-11/bcc-pdp/runtime/`.
 
+The experimental Linux x86-64 B-native tools have a separate, smaller
+[library](../bootstrap/native/lib/README.md). Its B-source providers include
+formatting, character/string I/O, counted `execv`, `chdir`, `link`, and `getuid`.
+They use the native syscall bridge rather than a linked C runtime. This is not
+yet the full interface map below.
+
 These implementations share tested interfaces, but are not interchangeable
 Unix ABIs. Declare the library names you use with `extrn`. Host convenience
 functions are not evidence that those functions existed in the selected

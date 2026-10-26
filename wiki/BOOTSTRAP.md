@@ -46,6 +46,11 @@ executable itself, without an external permission-setting step, and refuses
 to replace existing paths. OS filenames are handled as NUL-terminated byte
 strings rather than B EOT strings.
 
+The B-source library providers include strict character/string I/O, formatting,
+counted process replacement, and `chdir`, `link`, and `getuid`. Pathname adapters
+preserve their input, accept EOT or NUL, and retain a documented 4,095-byte limit.
+They are Linux host adapters, not an emulation of Unix V1's user table or memory.
+
 This is a restricted Linux x86-64 tool set, not a replacement for the installed
 host compiler, assembly snapshots, or PDP-11 compiler. The constructor remains
 a test fixture, with incomplete library coverage and fixed storage bounds.

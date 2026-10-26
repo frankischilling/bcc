@@ -300,12 +300,17 @@ def main():
                     arguments=[b'',b'A'],environment=exec_environment)
         (work/'helper').write_bytes((work/'result').read_bytes())
         (work/'helper').chmod(0o700)
-        exec_library = (ROOT/'lib/execv.b').read_text()
+        exec_library = (ROOT/'lib/__path.b').read_text() + (ROOT/'lib/execv.b').read_text()
         text = exec_library + ('main(){extrn execv;auto v 3;v[0]="custom";v[1]="";'
                                'v[2]="A";execv("./helper",v,3);return(99);}')
         records(text);run=construct()
         assert (run.returncode,run.stderr)==(0,b''),run
         image_check('execv-replacement',run.stdout,'data',None,37,prefix=b'BCC_EXEC_TEST=kept',
+                    environment=exec_environment)
+        records('char(s,i){return(4);}lchar(s,i,c){return(0);}' + text)
+        run=construct()
+        assert (run.returncode,run.stderr)==(0,b''),run
+        image_check('execv-private-packing',run.stdout,'data',None,37,prefix=b'BCC_EXEC_TEST=kept',
                     environment=exec_environment)
         records(exec_library+'main(){extrn execv,lchar;auto p 7800,v 1,i;'
                 'i=0;while(i<62392)lchar(p,i++,65);lchar(p,62392,4);v[0]=p;'

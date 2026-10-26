@@ -716,5 +716,6 @@ private scratch directory, library dependencies, error handling, and limits.
 
 ## Native character and formatted I/O
 
-The [B library guide](lib/README.md) describes strict formatting, character
+The [B library guide](lib/README.md) describes pathname and identity calls,
+strict formatting, character
 pairs, string termination, writable callbacks, and counted process replacement.

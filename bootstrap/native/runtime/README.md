@@ -1,6 +1,8 @@
 # Native runtime and process entry
 
 These B-written modules emit Linux x86-64 primitives and entry code.
+Additional B-source library providers, including pathname and identity calls,
+are described in the [library guide](../lib/README.md).
 The [native tool guide](../README.md) describes the surrounding compiler.
 
 ## Primitives
@@ -64,9 +66,10 @@ Other platforms build the images but report native execution as skipped.
 The focused runtime fixture calls these primitives by numeric ID. The
 whole-program constructor also binds source-level imports for this initial
 set, as described below. A separate entry module packs the predefined
-argument vector. General allocation and the remaining library interfaces are still missing. The emitters themselves still run through the
-seed's C-backed runtime. This is groundwork for native self-compilation, not
-a completed self-hosting compiler.
+argument vector. General allocation and other library interfaces are still
+missing. Focused tests exercise the emitters through C-backed seeds as well
+as B-built stages; the complete native rebuild runs them without a C runtime
+after seeding. This does not establish full installed-compiler parity.
 
 ## Import selection
 

@@ -53,7 +53,8 @@ this for library dependencies, adding each provider at most once. A source
 function, scalar, or vector prevents replacement, including definitions later
 in the file. A missing provider or a file that fails to define its advertised
 name stops the build. The catalog currently includes `execv`, `printf`,
-`printn`, `putchar`, `getchar`, `putstr`, and `getstr`.
+`printn`, `putchar`, `getchar`, `putstr`, `getstr`, `chdir`, `link`, and
+`getuid`, plus the private `__path` conversion dependency.
 
 See the [B library guide](../lib/README.md) for provider behavior and limits.
 

@@ -45,10 +45,31 @@ The language baseline is [B72 sections 8 and 9](https://www.nokia.com/bell-labs/
 The wider integer, base-16, safety, and additional string-helper behavior above
 follows BCC's existing strict runtime; it is not all claimed as historical B72.
 
+## Pathnames and identity
+
+`chdir`, `link`, and `getuid` are also implemented in B. The pathname calls
+return zero on success and -1 on error. They accept EOT- or NUL-terminated
+strings, copy at most 4,095 bytes per pathname, and leave the input unchanged.
+Missing arguments, null paths, and overlong strings fail before a syscall.
+These checks do not validate arbitrary pointers. `getuid` returns the Linux
+real user ID, not a reconstructed first-edition user table.
+
+The shared private `__path` provider packs bytes directly, so replacing `char`
+or `lchar` does not alter OS pathname conversion. The public function cells
+remain writable, and saved originals remain callable. Tests check errors,
+existing destinations, unchanged strings, non-UTF-8 names, boundary lengths,
+and function replacement. Run them against an exported bundle with:
+
+```sh
+python3 bootstrap/native/test_paths.py --tools bootstrap/build/native-verified --reference ./bcc
+```
+
 ## Counted process replacement
 
 `execv.b` implements B's explicit argument count, converts EOT/NUL strings
-without changing them, and inherits the current process environment. It accepts at most 255 arguments,
+without changing them, and inherits the current process environment.
+Path and argument packing is private: replacing `char` or `lchar` does not
+change the bytes sent to the kernel. It accepts at most 255 arguments,
 a pathname of at most 4,095 bytes, and 62,400 total copied pathname/argument
 bytes including terminators. Failure returns -1; success replaces the process.
 These bounds are native implementation limits, not promises from B72.
