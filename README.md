@@ -1,8 +1,7 @@
 # BCC
 
-BCC compiles B programs through a C backend with GNU extensions and the GNU
-toolchain. Its
-language baseline is Ken Thompson's January 7, 1972 PDP-11 *Users' Reference
+BCC's default compiler translates B through a C backend with GNU extensions
+and the GNU toolchain. Its language baseline is Ken Thompson's January 7, 1972 PDP-11 *Users' Reference
 to B*. The repository also contains an x86-64 assembly-source build, a
 B-written bootstrap compiler, and a separate native PDP-11 compiler.
 
@@ -66,6 +65,11 @@ installed compiler can find both runtime layouts.
 - **[`bootstrap/`](bootstrap/README.md)** contains a compiler written in B.
   Its three-stage test compares generated C and runs conformance programs
   through every stage. It currently targets host-sized storage.
+- **[Native B tools](bootstrap/native/README.md#try-the-verified-native-tools)**
+  are an experimental self-rebuilding Linux x86-64 compiler pipeline maintained
+  in B. Its driver can create executable files after seeding without a C
+  compiler, assembler, linker, shell, or external permission-setting command.
+  It does not yet cover every installed `bcc` option, word model, or runtime API.
 - **[`pdp-11/bcc-pdp/`](pdp-11/bcc-pdp/README.md)** is a separate compiler
   built with the restored historical C toolchain. It emits native PDP-11
   assembly, supports mutable function cells and general function-valued

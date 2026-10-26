@@ -44,7 +44,8 @@ def sources():
         'construct': '\n'.join(p.read_text() for p in parts),
         'image': (ROOT / 'elfimage.b').read_text(),
         'driver': (SHARED / 'src/ic.b').read_text() + '\n' +
-                  (ROOT / 'lib/execv.b').read_text() + '\n' +
+                  (ROOT / 'driver/process.b').read_text() + '\n' +
+                  (ROOT / 'driver/output.b').read_text() + '\n' +
                   (ROOT / 'driver/main.b').read_text(),
     }
 
@@ -154,94 +155,8 @@ def main():
             assert (result.returncode, result.stdout, result.stderr) == (0, struct.pack('<q', value), b''), (index, content, result)
         print(f'{len(cases)} source programs passed through the final native tools')
         stdio.run_checks(previous, work / 'stdio')
-        driver_cases = [
-            ('main(){return(42);}', 42, b''),
-            ((PROJECT / 'examples/native-hello.b').read_text(), 0, b'hello from native B\n'),
-            ('execv 42;main(){extrn execv;return(execv);}', 42, b''),
-            ('execv(a,b,c){return(42);}main(){return(execv(0,0,0));}', 42, b''),
-            ('main(){extrn execv;return(execv("missing",0,0)==-1?42:0);}', 42, b''),
-        ]
-        for index, (content, status, output) in enumerate(driver_cases):
-            path = scratch / "driver input's.b"
-            path.write_text(content)
-            result = subprocess.run([str(previous / 'driver'), path.name], cwd=scratch,
-                                    env=env, capture_output=True, timeout=60)
-            assert (result.returncode, result.stderr) == (0, b''), (index, result)
-            program = scratch / 'driver-result'
-            program.write_bytes(result.stdout)
-            program.chmod(0o700)
-            result = subprocess.run([str(program)], cwd=scratch, env=env,
-                                    capture_output=True, timeout=10)
-            assert (result.returncode, result.stdout, result.stderr) == (status, output, b''), (index, result)
-        for content in ('main(){return(unknown());}', 'main(){return(;}', None):
-            path = scratch / 'bad-driver.b'
-            if content is None:
-                path.unlink(missing_ok=True)
-            else:
-                path.write_text(content)
-            result = subprocess.run([str(previous / 'driver'), path.name], cwd=scratch,
-                                    env=env, capture_output=True, timeout=60)
-            assert result.returncode != 0 and not result.stdout and result.stderr, (content, result)
-        sentinels = {name: (scratch / name).read_bytes() for name in
-                     ('raw.ic', 'resolved.ic', 'code', 'data', 'imports', 'layout')}
-        jobs = []
-        for index in range(2):
-            path = scratch / f'parallel{index}.b'
-            path.write_text(f'main(){{return({40 + index});}}')
-            jobs.append(subprocess.Popen([str(previous / 'driver'), path.name], cwd=scratch,
-                                         env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE))
-        for index, job in enumerate(jobs):
-            output, errors = job.communicate(timeout=60)
-            assert (job.returncode, errors) == (0, b''), (index, errors)
-            program = scratch / f'parallel{index}'
-            program.write_bytes(output)
-            program.chmod(0o700)
-            result = subprocess.run([str(program)], cwd=scratch, env=env, capture_output=True, timeout=10)
-            assert (result.returncode, result.stdout, result.stderr) == (40 + index, b'', b''), result
-        assert all((scratch / name).read_bytes() == data for name, data in sentinels.items())
-        for missing, content in [
-            (previous / 'front', 'main(){return(0);}'),
-            (previous / 'sources/execv.b', 'main(){extrn execv;return(execv("missing",0,0));}'),
-            (previous / 'sources/printf.b', 'main(){extrn printf;printf("X");return(0);}'),
-            (previous / 'sources/putchar.b', 'main(){extrn printf;printf("X");return(0);}'),
-        ]:
-            backup = missing.with_name(missing.name + '.saved')
-            missing.rename(backup)
-            try:
-                (scratch / 'missing.b').write_text(content)
-                result = subprocess.run([str(previous / 'driver'), 'missing.b'], cwd=scratch,
-                                        env=env, capture_output=True, timeout=60)
-                assert result.returncode != 0 and not result.stdout and result.stderr, (missing, result)
-            finally:
-                backup.rename(missing)
-        library = previous / 'sources/printf.b'
-        original = library.read_bytes()
-        try:
-            library.write_text('notprint(){return(0);}')
-            (scratch / 'bad-provider.b').write_text('main(){extrn printf;printf("X");return(0);}')
-            result = subprocess.run([str(previous / 'driver'), 'bad-provider.b'], cwd=scratch,
-                                    env=env, capture_output=True, timeout=60)
-            assert result.returncode != 0 and not result.stdout and b'did not define' in result.stderr, result
-        finally:
-            library.write_bytes(original)
-        (scratch / 'full.b').write_text('main(){return(0);}')
-        if Path('/dev/full').exists():
-            with open('/dev/full', 'wb') as sink:
-                result = subprocess.run([str(previous / 'driver'), 'full.b'], cwd=scratch,
-                                        env=env, stdout=sink, stderr=subprocess.PIPE, timeout=60)
-                assert result.returncode != 0 and result.stderr, result
-        result = subprocess.run([str(previous / 'driver')], cwd=scratch,
-                                env=env, capture_output=True, timeout=10)
-        assert result.returncode == 2 and not result.stdout and b'usage:' in result.stderr, result
-        print('Native B driver checks passed, including parallel invocations and failed dependencies')
-        for name in text:
-            result = subprocess.run([str(previous / 'driver'), str(source / (name + '.b'))],
-                                    cwd=scratch, env=env, capture_output=True, timeout=180)
-            assert (result.returncode, result.stderr) == (0, b''), (name, result)
-            assert result.stdout == (previous / name).read_bytes(), name
-            print(f'Native B driver rebuilt {name} byte-for-byte', flush=True)
-
-
+        driver = module('native_driver_cases', ROOT / 'test_driver.py')
+        driver.run_checks(previous, work / 'driver-checks', source, text)
         for content in ('main(){return(;}', 'main(){return(1);', 'main(){auto;return(0);}'):
             (scratch / 'bad.b').write_text(content)
             result = subprocess.run([str(previous / 'front'), 'bad.b'], cwd=scratch,

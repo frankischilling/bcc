@@ -41,7 +41,10 @@ native stages match in raw and resolved records, code, data, and complete
 executable bytes. They run without a C runtime or external compiler, assembler,
 or linker after seeding. Python coordinates the regression test and compares
 files. The B-written driver also rebuilds every tool, including itself, to the
-same executable bytes without Python or a shell.
+same executable bytes without Python or a shell. Its `-o` option writes a new
+executable itself, without an external permission-setting step, and refuses
+to replace existing paths. OS filenames are handled as NUL-terminated byte
+strings rather than B EOT strings.
 
 This is a restricted Linux x86-64 tool set, not a replacement for the installed
 host compiler, assembly snapshots, or PDP-11 compiler. The constructor remains

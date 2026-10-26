@@ -689,24 +689,23 @@ From the repository root:
 
 ```sh
 set -e
-repo="$PWD"
-tools="$repo/bootstrap/build/native-verified"
+make
+tools="$PWD/bootstrap/build/native-verified"
 python3 bootstrap/native/test_rebuild.py --output "$tools"
-work=$(mktemp -d)
-cd "$work"
-"$tools/driver" "$repo/examples/native-hello.b" > hello
-chmod +x hello
-./hello
+"$tools/driver" examples/hello.b -o hello-native
+./hello-native
 ```
 
-The example writes `hello from native B` and a newline using the native `write`
-primitive. No C compiler, assembler, or linker is used after the export.
+The example writes `Hello, World` and a newline using the B-written formatting
+library. Use a new output name: `-o` refuses to replace an existing path.
+No C compiler, assembler, linker, or external `chmod` is used after the export.
 Python is needed to seed and check this bundle, not to invoke the exported
 driver. Its compiler passes are B-maintained native executables. Keep the
 executables and the bundled `sources/*.b` runtime providers together. If you invoke the constructor
 directly, use a fresh directory: it writes `imports` and `layout` in its working
-directory. Keep output paths separate from source files;
-shell redirection truncates its destination before a tool can check it.
+directory. Prefer `-o` for safe named output. If you use shell redirection
+instead, keep its destination separate from input files: the shell truncates
+it before the driver can check it.
 
 
 ## B-written command driver
