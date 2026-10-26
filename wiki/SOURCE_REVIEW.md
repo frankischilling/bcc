@@ -1361,3 +1361,18 @@ regressions use a two-element vector with valid indices under either order,
 so a differing result is observable without relying on an out-of-bounds
 access. The native corpus checks the same policy across all sixteen
 assignment forms.
+
+
+### Buffered source reads
+
+The B frontend now requests up to 128 source bytes at a time. It consumes only
+the number actually returned, and a later read failure remains an error rather
+than becoming end of file. This follows the `read` contract in section 8 of
+[Thompson's manual](https://cm-bell-labs.github.io/who/dmr/kbman.html); the buffer
+size is an implementation choice. Single-character pushback still adjusts line
+numbers, and selecting an input discards the old buffered bytes.
+
+Adding the source buffer increased the frontend's measured raw self-compilation
+records from 64,917 to 65,231 bytes. That still fits the pinned guest's 65,535-byte
+file limit, but leaves little room for later growth. The seed-size checks remain
+necessary even when the final instruction image itself is much smaller.

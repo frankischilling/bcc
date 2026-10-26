@@ -14,6 +14,7 @@ savstr 0;
 savnam[5];
 
 inpfd 0;
+sinbuf[64];sinpos 0;sinlen 0;
 
 kwn[20];
 kwt[20];
@@ -22,9 +23,9 @@ kwc 0;
 stkend 0;
 
 lexini(fd) {
-    extrn inpfd, peekc, pushd, savtok, lineno;
+    extrn inpfd, peekc, pushd, savtok, lineno, sinpos, sinlen;
 
-    inpfd = fd;
+    inpfd = fd;sinpos=0;sinlen=0;
     peekc = -1;
     pushd = 0;
     savtok = -1;
@@ -61,19 +62,20 @@ kwinit() {
 }
 
 gtch() {
-    extrn peekc, inpfd, lineno;
+    extrn peekc, inpfd, lineno, sinbuf, sinpos, sinlen;
 
     auto c;
-    auto b 1;
     if (peekc >= 0) {
         c = peekc;
         peekc = -1;
         goto gotc;
     }
-    c = read(inpfd, b, 1);
-    if (c < 0) fatal("cannot read source");
-    if (c == 0) return(-1);
-    c = char(b,0) & 0377;
+    if(sinpos>=sinlen) {
+        sinlen=read(inpfd,sinbuf,128);sinpos=0;
+        if(sinlen<0) fatal("cannot read source");
+    }
+    if(sinlen==0) return(-1);
+    c=char(sinbuf,sinpos++) & 0377;
     gotc:
 
     if (c == '*n') lineno = lineno + 1;

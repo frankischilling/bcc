@@ -76,4 +76,6 @@ The checks cover wide and wrapping literals, the minimum signed value, retained
 name and string limits, record output and completion markers, self-parsing, and
 the seed helper's command-line paths. They also reject wrong-width builds.
 `native-test` repeats the applicable checks through all three B bootstrap stages.
+The shared source reader has separate short-read, error, boundary, and reentry
+checks in `pdp-11/bcc-pdp/bootstrap/test_source_reader.py`.
 Parsing its own source is not the same as rebuilding its executable.

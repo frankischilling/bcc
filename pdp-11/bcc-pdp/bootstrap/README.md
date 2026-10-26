@@ -23,6 +23,10 @@ independent toolchain.
   diagnostics and completion markers. Diagnostics remain immediate. The module
   order preserves the resolver and code generator's instruction-image layout.
   `src/io.b` is the smaller standalone variant used by other passes.
+- `frontend/lex.b` reads source in 128-byte blocks. It uses the actual read
+  count, preserves single-character pushback and line numbers, and reports
+  read failures separately from end of file. `lexini` discards cached bytes
+  when selecting an input; seek explicitly before restarting the same descriptor.
 - `frontend/word16.b` keeps literal normalization at 16 bits. The experimental
   [wide frontend](../../../bootstrap/native/frontend/README.md) selects separate
   numeric helpers without changing this target.
@@ -47,6 +51,7 @@ make
 make -C pdp-11/bcc-pdp
 python3 pdp-11/bcc-pdp/bootstrap/test_resolver.py
 python3 pdp-11/bcc-pdp/bootstrap/test_ic_reader.py
+python3 pdp-11/bcc-pdp/bootstrap/test_source_reader.py
 ```
 
 The harness builds the B source for the host compiler's 16-bit, 32-bit, and
@@ -62,7 +67,11 @@ buffered data. A read-count check guards against returning to byte-at-a-time
 input. These checks use host-built programs; the kernel checks below cover
 native execution separately.
 
-The reader uses the returned byte count, not the requested block size. This
+The source-reader checks also cover one-byte and partial reads, failures after
+a buffered prefix, read-call counts, newline pushback, and switching inputs.
+The same lexer serves the experimental wide host frontend.
+
+The readers use the returned byte count, not the requested block size. This
 follows the `read` contract in [Thompson's library description](https://cm-bell-labs.github.io/who/dmr/kbman.html):
 a successful call reports the actual bytes read, while a negative result is
 an error. Input buffering is an implementation choice, not a language rule.
