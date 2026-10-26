@@ -60,10 +60,12 @@ already-generated x86-64 instruction and data bytes without invoking an
 assembler or linker. A B-written encoding library also emits selected integer,
 branch, memory, and syscall instructions directly. Its separate two-pass label
 resolver handles forward and backward calls and jumps, checks layout consistency,
-and rejects undefined labels. Tests compare the bytes and execute the resulting
-images on Linux x86-64. These are not an instruction selector, and building the
-components still uses the C-output toolchain. The native frontend, runtime, and
-source-to-instruction path listed above remain necessary.
+and rejects undefined labels. An integer-operation selector handles 64-bit
+arithmetic, comparisons, shifts, and unary operations while preserving the
+host's word behavior. Tests compare the bytes and execute the resulting images
+on Linux x86-64. Building these components still uses the C-output toolchain.
+The native frontend, full expression lowering, runtime, and source-to-instruction
+path listed above remain necessary.
 
 The existing C and assembly-source builds remain useful seeds and comparison
 implementations during this work. A native-output prototype that cannot yet

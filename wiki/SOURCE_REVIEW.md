@@ -8,7 +8,8 @@ requirement for strict PDP-11 B.
 This review records what was actually read, what it establishes, and how it
 applies to the compiler. The inventory includes all 128 supplied links. A
 successful download or OCR pass does not mean a source has been reviewed.
-The review date is October 24, 2026; unfinished entries remain marked below.
+The initial review is dated October 24, 2026; unfinished entries remain marked
+below. Later implementation notes record follow-up checks.
 
 ## How to use the evidence
 
@@ -1324,3 +1325,20 @@ forms. Its tests compare these with an independent assembler, using the
 where an assembler would otherwise choose a shorter form. B-built executable
 fixtures check behavior separately. None of this chooses the compiler's B
 calling convention or supplies a complete source-to-native backend.
+
+### Host word operations
+
+The AMD manual's IDIV entry, printed pages 178-179, distinguishes signed
+quotient overflow from ordinary arithmetic flags: division raises a fault
+if its quotient cannot fit. The native operation selector therefore bypasses
+hardware division for the minimum word divided by -1. A zero divisor branches to a caller-owned error label. Non-integral
+results truncate toward zero, matching the existing host implementation.
+
+Language behavior and processor behavior need separate checks. The B manual's
+shift rule requires zero-filled vacant bits but leaves negative and overlarge
+counts undefined. BCC's host keeps its masked-count extension, except that a
+shift by the full word width returns zero. The experimental PDP-11 VM chooses
+zero for negative or overlarge counts instead. The 64-bit native selector
+follows the host policy; its tests compare ordinary B expressions as well as
+an independent arithmetic model. Neither extension is presented as a universal
+historical rule.

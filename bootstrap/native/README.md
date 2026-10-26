@@ -186,3 +186,51 @@ for a second program. Linux x86-64 checks also execute a forward call, a backwar
 loop, and a jump across more than one output-buffer block. Construction uses
 the B encoder and ELF writer with an empty tool-search path. `native-test`
 runs these checks through the host seed and all three B bootstrap stages.
+
+## Word operations
+
+`ops.b` selects instructions for individual 64-bit BCC word operations. It uses
+`x64.b` and `labels.b`; it does not parse expressions, evaluate lvalues, or
+implement assignments and function calls. This is a host-target component,
+not a change to the PDP-11's 16-bit arithmetic.
+
+`xbinary(op,base,fail)` takes its left operand in RCX and right operand in RAX,
+and leaves the result in RAX. It may change RCX, RDX, R8, and flags. The other
+general-purpose registers and RSP are preserved. Operator numbers match the
+native intermediate records:
+
+- The character codes for `+`, `-`, `*`, `/`, `%`, `&`, `|`, `^`, `<`, and `>`.
+- 100 for `==`, 101 for `!=`, 102 for `<=`, and 103 for `>=`.
+- 104 for `<<` and 105 for `>>`.
+
+For shifts and division, reserve two unused label IDs, `base` and `base+1`.
+The base must be between 0 and 4094. Division and remainder also need a
+caller-defined `fail` label outside that pair. A zero divisor branches there;
+the selector does not print a diagnostic or choose an exit status. Other
+binary operations do not use these label arguments.
+
+`xunop(op)` takes and returns its value in RAX and may change flags. It handles
+negation (45), logical NOT (33), and bitwise complement (126). XOR and bitwise
+complement are BCC extensions, not operators in the strict PDP-11 B72 dialect.
+
+Addition, subtraction, multiplication, and negation wrap to 64 bits. Comparisons
+are signed. Division truncates toward zero; the minimum signed word divided
+by -1 wraps to that minimum, with remainder zero. Guards keep this case and
+a zero divisor from reaching an invalid hardware division.
+
+Right shifts fill with zeros. A shift by 64 returns zero; other counts use
+their low six bits, matching BCC's existing host extension. The negative and
+overlarge-count behavior is not a historical guarantee: [Thompson's manual](https://cm-bell-labs.github.io/who/dmr/kbman.html)
+leaves those cases undefined. The selector preserves the current host policy
+rather than copying the experimental PDP-11 VM's different extension.
+
+```sh
+python3 bootstrap/native/test_ops.py
+```
+
+The tests compare ordinary B expressions with an independent arithmetic oracle,
+then execute B-built images for every supported operator across boundary values.
+They also check register and stack preservation, division overflow and zero-divisor handling,
+label limits, and rejected operators. The normal native test target repeats
+them through all three B bootstrap stages. These checks do not establish a
+complete expression compiler or runtime.

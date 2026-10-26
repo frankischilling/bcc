@@ -46,7 +46,8 @@ is on the default branch.
 Host tests, B-bootstrap checks, and the normal and staged assembly builds run
 in parallel jobs. Both GCC and Clang still seed the host and B-bootstrap
 checks. Both assembly executables still run the full host suite; their native
-image, instruction-encoder, and label-resolution checks run separately too.
+image, instruction-encoder, label-resolution, and word-operation checks run
+separately too.
 
 The existing `host (gcc)` and `host (clang)` check names are retained as final
 gates. They pass only when every host, B-bootstrap, and assembly lane succeeds.
