@@ -84,6 +84,7 @@ jobs:
           python3 bootstrap/native/test_arity.py --compiler "${{ matrix.compiler }}"
           python3 bootstrap/native/test_scalar.py --compiler "${{ matrix.compiler }}"
           python3 bootstrap/native/test_memory.py --compiler "${{ matrix.compiler }}"
+          python3 bootstrap/native/test_control.py --compiler "${{ matrix.compiler }}"
           python3 pdp-11/bcc-pdp/bootstrap/test_source_reader.py --compiler "${{ matrix.compiler }}"
   host:
     name: host (${{ matrix.cc }})
@@ -143,6 +144,7 @@ jobs:
           python3 bootstrap/native/test_arity.py --compiler "$RUNNER_TEMP/bcc-instrumented"
           python3 bootstrap/native/test_scalar.py --compiler "$RUNNER_TEMP/bcc-instrumented"
           python3 bootstrap/native/test_memory.py --compiler "$RUNNER_TEMP/bcc-instrumented"
+          python3 bootstrap/native/test_control.py --compiler "$RUNNER_TEMP/bcc-instrumented"
           python3 pdp-11/bcc-pdp/bootstrap/test_source_reader.py --compiler "$RUNNER_TEMP/bcc-instrumented"
   sanitizers:
     name: sanitizers

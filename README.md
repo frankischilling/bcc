@@ -96,9 +96,11 @@ calls, loops, branches, and integer operations for those images. A shared
 64-bit record frontend and [scalar lowerer](bootstrap/native/README.md#scalar-record-lowering)
 connect arithmetic expressions to those encoders. A
 [local-memory lowerer](bootstrap/native/README.md#local-storage-and-pointer-records)
-adds local variables, vectors, pointers, and assignments. Source-level calls,
-global storage, and control flow still need lowering, so this is not yet a
-general B-to-native compiler.
+adds local variables, vectors, pointers, and assignments.
+[Structured control-flow lowering](bootstrap/native/README.md#structured-control-flow)
+handles if/else, while loops, conditional expressions, and returns. Calls,
+global storage, switch, and computed goto still need implementation, so this
+is not yet a general B-to-native compiler.
 
 ## Dialect and word modes
 

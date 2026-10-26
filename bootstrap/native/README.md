@@ -369,9 +369,9 @@ and RSP. Arithmetic faults branch to the caller's fault label. That handler
 must terminate or unwind the frame, not resume inside the failed expression.
 
 These records cover local storage only. Arguments, global symbols, strings,
-function calls, labels, and general control flow still need surrounding
-lowering and runtime support. The tests supply a frame and reporting harness;
-there is still no general native source compiler command.
+function calls, and computed labels remain outside this module. The control
+module below handles structured branches. The tests supply a frame and
+reporting harness; there is still no general native source compiler command.
 
 ```sh
 python3 bootstrap/native/test_memory.py
@@ -383,3 +383,62 @@ expected values. They cover captured indexed lvalues, vector addressing,
 compound operators, word boundaries, frame restoration, maximum frame size,
 and malformed records. The instruction-building steps run with an empty
 tool-search path after their seeded build.
+
+## Structured control flow
+
+`control.b` adds `lb`, `jm`, `bf`, `rt`, `tq`, `tc`, and `te` records. These
+cover statement labels and branches, early returns, and conditional expressions.
+Together with scalar and memory lowering, they can execute the wide frontend's
+if/else and while-loop bodies. Switch and computed goto are not implemented.
+
+Call `xcfscan(fd)` before emitting instructions. It reads control-label fields,
+assigns dense encoder IDs, and returns their count. Source label numbers can
+range from 0 through 32767; at most 4093 distinct labels are accepted. The scan
+leaves the descriptor open. Reopen or rewind it before each emission pass.
+Other records are ignored during this scan and must be validated by the later
+lowering modules.
+
+Reserve IDs 0 through count-1 for these mapped labels. Initialize scalar
+lowering with a disjoint operation-label range, then call `xcfbeg(returnid)`
+for each emission pass. The return label must be outside both ranges and
+must differ from the arithmetic-fault label. For a single body, the tests use
+`xrinit(count,4094,4095)` and `xcfbeg(4094)`. More program labels leave fewer
+labels for division and shift operations; exhausting either range is an error.
+
+During the active body, pass lines to `xcfline(buf)`. It returns one for a
+handled control record and zero for another tag. The caller can then try
+`xmline` and finally `xrline`. Statement labels, jumps, conditional branches,
+and returns require an empty operand stack. A conditional branch also needs
+a value to test.
+
+Conditional expressions may have saved outer operands. The lowerer records
+the depth at `tq`, checks the true arm at `tc`, and checks the false arm at
+`te`. Both arms must produce a value at the same depth. Conditional-arm labels
+and ordinary statement labels are kept separate, so an ordinary jump cannot
+enter halfway through a conditional expression. Undefined, duplicate, and
+unfinished labels are rejected by the scan, lowering state, or label emitter.
+
+Call `xcfend()` after the body. It checks stack balance and unfinished
+conditionals, emits zero for falling through the body, and marks the return
+label. An explicit `rt` jumps past that fallback and retains RAX. The caller
+then emits frame restoration and a return or entry-point exit sequence.
+This fallback is a backend choice, not a historical guarantee about a function
+that returns no value.
+
+The module shares parser and scalar state and is not reentrant. Do not begin
+a second body before ending the first, or rescan while a body is active. A
+failed check can leave partial output that must be discarded. This is still
+an intermediate-record library, not a complete native compiler or arbitrary
+control-flow verifier.
+
+```sh
+python3 bootstrap/native/test_control.py
+```
+
+Tests execute real frontend/resolver output with nested loops, early returns,
+conditional side effects, saved operands, and unselected faulting branches.
+They compare full results with compiled B and independent expectations, check
+frame restoration, and reject invalid label kinds, stack merges, missing
+labels, capacity overflow, and API sequences. The surrounding executable
+harness is test code; it does not add calls, globals, switch, or computed goto
+to the compiler.

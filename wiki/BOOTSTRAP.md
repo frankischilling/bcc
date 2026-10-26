@@ -85,8 +85,11 @@ operand-stack balance and division-fault branches. It does not yet lower
 function calls or control flow. A separate
 [local-memory lowerer](../bootstrap/native/README.md#local-storage-and-pointer-records)
 adds local cells, automatic vectors, word-addressed pointers, and assignments.
-Arguments and global storage remain separate work. Tests execute isolated
-program bodies with a surrounding harness, not a general source compiler.
+A [control-flow lowerer](../bootstrap/native/README.md#structured-control-flow)
+adds statement branches, loops, conditional expressions, and early returns.
+Arguments, global storage, calls, switch, and computed goto remain separate
+work. Tests execute isolated program bodies with a surrounding harness, not
+a general source compiler.
 
 The existing C and assembly-source builds remain useful seeds and comparison
 implementations during this work. A native-output prototype that cannot yet
