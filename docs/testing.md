@@ -406,3 +406,21 @@ The rebuild itself goes through the B driver and its B-maintained components.
 A matching result proves that this source snapshot reproduces its seed; it
 does not establish compiler correctness, remove the host toolchain's separate
 C dependency, or install the experimental driver as `/bin/b`.
+
+## Arithmetic test builds
+
+`test_word_arithmetic.py` compiles the valid arithmetic cases together for each
+word model and runtime layout, then starts a fresh process for every case.
+This avoids compiling the same inline runtime for every expression. The
+constant-folding rejection cases still compile separately.
+
+Use `--individual` when investigating a failure to compile each expression in
+its own program, for example:
+
+```sh
+python3 tests/test_word_arithmetic.py --compiler ./bcc --individual
+```
+
+Both modes report the same case names and expected results. A failed combined
+build fails that group; the runner does not silently skip it or replace it with
+individual results.

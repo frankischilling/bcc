@@ -105,16 +105,15 @@ itoa(n) {
     tmp = malloc(64);
     i = 0;
     neg = 0;
-    if (n < 0) {
-        neg = 1;
-        n = -n;
-    }
+    if (n < 0) neg = 1;
+    /* Keep negative magnitudes so the minimum word formats without overflow. */
+    if (n > 0) n = -n;
     if (n == 0) {
         lchar(tmp, i, '0');
         i = i + 1;
     }
-    while (n > 0) {
-        d = n % 10;
+    while (n < 0) {
+        d = -(n % 10);
         lchar(tmp, i, '0' + d);
         i = i + 1;
         n = n / 10;
@@ -185,6 +184,13 @@ buf_str(b, s) {
 }
 
 buf_num(b, n) {
+    /* Avoid a positive C literal outside the signed range after unary minus. */
+    if (n < 0) if (n == -n) {
+        buf_ch(b, '(');
+        buf_str(b, itoa(n + 1));
+        buf_str(b, "-1)");
+        return;
+    }
     buf_str(b, itoa(n));
 }
 

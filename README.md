@@ -92,8 +92,11 @@ in-guest source bootstrapping and a host native-output backend remain separate
 work; the existing host builds still depend on C. An experimental
 [B-written ELF image writer](bootstrap/native/README.md) can package x86-64
 instruction bytes. B-written instruction and label encoders can construct
-calls, loops, branches, and integer operations for those images, but they are
-not yet a B-to-native compiler.
+calls, loops, branches, and integer operations for those images. A shared
+64-bit record frontend and [scalar lowerer](bootstrap/native/README.md#scalar-record-lowering)
+connect arithmetic expressions to those encoders. Source-level calls, variable
+storage, and control flow still need lowering, so this is not yet a general
+B-to-native compiler.
 
 ## Dialect and word modes
 

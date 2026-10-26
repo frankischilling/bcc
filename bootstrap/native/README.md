@@ -280,3 +280,53 @@ python3 bootstrap/native/test_arity.py
 Tests include unused arguments from real frontend output, malformed boundaries,
 parameter and function count limits, callback failures, and repeated scans.
 The bootstrap native test target repeats them through all three B stages.
+
+## Scalar record lowering
+
+`scalar.b` lowers straight-line expression records from the wide frontend to
+x86-64 instructions. It connects the frontend's accumulator-and-stack records
+to `x64.b`, `labels.b`, and `ops.b`. The result stays in RAX, and successful
+lowering leaves the runtime stack at its starting position.
+
+After starting an instruction and label pass, call `xrinit(base,limit,fail)`.
+The half-open label range `[base,limit)` belongs to this expression lowerer;
+`fail` is a separate label supplied by the caller for division by zero. All
+labels must fit the label library's 0 through 4095 range. Each divide,
+remainder, or shift uses two labels from the reserved range. Call the same
+sequence in both emission passes.
+
+Pass each NUL-terminated record line to `xrline(buf)`, then call `xrendex()`
+to check that a value exists and all pushed operands have been consumed.
+Supported records are `n`, `ps`, `bin`, `binc`, `uo`, and `uon`. The numeric
+constant reader accepts signed 64-bit decimal values and rejects overflow
+instead of wrapping malformed records. Source literals have already been
+normalized by the frontend. Operator behavior follows `ops.b`.
+
+The frontend's `binc` and `uon` label operands describe internal boolean
+materialization. This lowerer checks those operands but uses SETcc instead
+of those branches. They are not general branch targets. The caller must not
+jump to them or overlap its own labels with the reserved lowering range.
+
+The lowerer rejects unsupported records, missing operands, trailing fields,
+an unfinished expression stack, and more than 4096 saved operands. Failure can
+leave partial output; discard it. It requires 64-bit words and the shared IC
+reader and diagnostic helpers used by the parameter reader. It shares their
+global parsing state and is not reentrant.
+
+This module does not lower function definitions, returns, calls, variables,
+pointers, assignments, or control flow. A caller must provide the surrounding
+function and runtime code. The tests supply that surrounding code only for
+isolated expressions; this is not a general B source-to-executable command.
+
+```sh
+python3 bootstrap/native/test_scalar.py
+```
+
+The tests feed real frontend output into the B lowerer and ELF writer, execute
+the resulting images on Linux x86-64, and compare complete 64-bit results with
+both ordinary compiled B and independent arithmetic expectations. After the
+seed build, the frontend, lowerer, and image writer run with an empty tool-search
+path. Their existing host runtime dependency has not been removed. They also
+check stack restoration, division faults, malformed records, numeric bounds,
+label exhaustion, and wrong-width builds. Other hosts skip native execution
+rather than treating it as verified.

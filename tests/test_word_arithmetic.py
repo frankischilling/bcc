@@ -19,6 +19,10 @@ def cases(bits):
         'update-!=': 'x=0; v[0]=7; v[1]=9; v[x++]=!=8; return(x!=1 | v[0]!=1 | v[1]!=9);',
         'octal-digits-eight-nine': 'return(09!=9 | 018!=16 | 099!=81);',
         'octal-word': f'x=0{(1 << bits) - 1:o}; return(x!= -1);',
+        'minimum-literal': f'x={1 << (bits-1)}; return(x!={minimum});',
+        'minimum-octal-literal': f'x=0{1 << (bits-1):o}; return(x!={minimum});',
+        'minimum-negative-literal': f'x=-{1 << (bits-1)}; return(x!={minimum});',
+        'minimum-literal-division': f'x={1 << (bits-1)}; return(x/ -1!={minimum});',
         'full-left-shift': f'x=1; return((x<<{bits})!=0);',
         'full-right-shift': f'x= -1; return((x>>{bits})!=0);',
         'full-left-assign': f'x=1; x=<<{bits}; return(x!=0);',
@@ -51,6 +55,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--compiler', type=Path, required=True)
     parser.add_argument('--bootstrap', action='store_true')
+    parser.add_argument('--individual', action='store_true',
+                        help='compile each case separately when diagnosing a failure')
     args = parser.parse_args()
     modes = [('host', False)] if args.bootstrap else [
         (bits, inline) for bits in ('host', '16', '32') for inline in (False, True)
@@ -60,22 +66,47 @@ def main():
         work = Path(directory)
         for mode, inline in modes:
             bits = struct.calcsize('P') * 8 if mode == 'host' else int(mode)
-            for name, body in cases(bits).items():
-                source = work / 'case.b'
-                source.write_text('main(){auto x,y,v 2;' + body + '}\n')
-                command = [str(args.compiler.resolve()), '--strict', '--pedantic']
-                if not args.bootstrap:
-                    command.append(f'--word={mode}')
-                if inline:
-                    command.append('--inline-runtime')
+            selected = list(cases(bits).items())
+            command = [str(args.compiler.resolve()), '--strict', '--pedantic']
+            if not args.bootstrap:
+                command.append(f'--word={mode}')
+            if inline:
+                command.append('--inline-runtime')
+            source = work / 'case.b'
+            binary = work / 'case'
+            build = None
+            build_error = None
+            if not args.individual:
+                # Compile the runtime once, but execute every case in a fresh process.
+                text = ''.join(f'ar{i}(){{auto x,y,v 2;' + body + '}\n'
+                               for i, (_, body) in enumerate(selected))
+                text += 'main(){extrn argv;auto p;if(argv[0]!=2)return(99);p=argv[2];'
+                for i in range(len(selected)):
+                    digits = f'{i:02d}'
+                    if len(digits) != 2:
+                        raise ValueError('arithmetic dispatcher supports at most 100 cases')
+                    text += (f"if(char(p,0)=='{digits[0]}')"
+                             f"if(char(p,1)=='{digits[1]}')return(ar{i}());")
+                source.write_text(text + 'return(99); }\n')
                 try:
-                    build = subprocess.run(command + [str(source), '-o', str(work / 'case')],
-                                           capture_output=True, timeout=30)
-                    run = (subprocess.run([str(work / 'case')], capture_output=True, timeout=10)
+                    build = subprocess.run(command + [str(source), '-o', str(binary)],
+                                           capture_output=True, timeout=180)
+                except (OSError, subprocess.TimeoutExpired) as error:
+                    build_error = error
+            for index, (name, body) in enumerate(selected):
+                try:
+                    if build_error is not None:
+                        raise build_error
+                    if args.individual:
+                        source.write_text('main(){auto x,y,v 2;' + body + '}\n')
+                        build = subprocess.run(command + [str(source), '-o', str(binary)],
+                                               capture_output=True, timeout=30)
+                    arguments = [] if args.individual else [f'{index:02d}']
+                    run = (subprocess.run([str(binary), *arguments], capture_output=True, timeout=10)
                            if build.returncode == 0 else build)
                     ok = run.returncode == 0 and not run.stdout and not run.stderr
                     detail = repr((run.returncode, run.stdout, run.stderr[-1800:]))
-                except (OSError, subprocess.TimeoutExpired) as error:
+                except (OSError, AssertionError, subprocess.TimeoutExpired) as error:
                     ok, detail = False, str(error)
                 print(f'{"PASS" if ok else "FAIL"}: arithmetic/{mode}/{inline}/{name}', flush=True)
                 if not ok:
