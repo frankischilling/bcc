@@ -675,7 +675,8 @@ requires both sets of checks and the bootstrap regressions to succeed.
 Native-construction checks run in independent host/stage-1/stage-2/stage-3
 jobs for each seed compiler. They share the `native-stage-test` Make target;
 `native-test` still runs every stage locally. This separates the work without
-removing a seed, test command, or close-failure check.
+removing a seed, test command, or close-failure check. Short aggregate gates
+use lightweight runners; compiler and real-kernel jobs keep full VM runners.
 
 
 ### Try the verified native tools

@@ -74,6 +74,20 @@ class Gate(unittest.TestCase):
                 self.assertEqual(self.run_gate(['success'] * 3, count).returncode, 2)
         self.assertEqual(subprocess.run(['sh', str(GATE)], capture_output=True, timeout=5).returncode, 2)
 
+    def test_only_result_gates_use_lightweight_runners(self):
+        import re
+        workflow = (GATE.parents[1] / 'workflows/conformance.yml').read_text()
+        jobs = re.split(r'^  ([A-Za-z0-9_-]+):\n', workflow, flags=re.MULTILINE)
+        slim = []
+        for index in range(1, len(jobs), 2):
+            name, body = jobs[index:index + 2]
+            if 'runs-on: ubuntu-slim' in body:
+                slim.append(name)
+                self.assertIn('timeout-minutes: 5', body)
+                self.assertIn('require-success.sh', body)
+                self.assertNotIn('run: make', body)
+        self.assertEqual(set(slim), {'b_bootstrap', 'host', 'sanitizers', 'unix-v1'})
+
     def test_workflow_supplies_explicit_counts(self):
         workflow = (GATE.parents[1] / 'workflows/conformance.yml').read_text()
         self.assertIn('require-success.sh 3 "$HOST_RESULT" "$BOOTSTRAP_RESULT" "$ASSEMBLY_RESULT"', workflow)

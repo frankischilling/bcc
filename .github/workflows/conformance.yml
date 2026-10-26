@@ -89,7 +89,8 @@ jobs:
     name: B bootstrap (${{ matrix.cc }})
     needs: [b_bootstrap_checks, b_native, b_native_rebuild]
     if: ${{ always() }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-slim
+    timeout-minutes: 5
     strategy:
       fail-fast: false
       matrix:
@@ -144,7 +145,8 @@ jobs:
     name: host (${{ matrix.cc }})
     needs: [host_tests, b_bootstrap, assembly]
     if: always()
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-slim
+    timeout-minutes: 5
     strategy:
       fail-fast: false
       matrix:
@@ -210,7 +212,8 @@ jobs:
     name: sanitizers
     needs: [sanitizer_compiler, sanitizer_generated]
     if: ${{ always() }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-slim
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
       - name: Require both sanitizer lanes
@@ -470,7 +473,8 @@ jobs:
   unix-v1:
     needs: [unix_v1_seed, unix_v1_runtime, unix_v1_bootstrap]
     if: ${{ always() }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-slim
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
       - name: Require every Unix V1 lane to pass
