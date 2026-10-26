@@ -442,3 +442,70 @@ frame restoration, and reject invalid label kinds, stack merges, missing
 labels, capacity overflow, and API sequences. The surrounding executable
 harness is test code; it does not add calls, globals, switch, or computed goto
 to the compiler.
+
+## Native function calls
+
+`calls.b` constructs a host-native call convention for B functions. It keeps
+arguments in contiguous word cells, retains extra arguments, and zero-fills
+missing declared parameters. Zero filling follows BCC's existing host policy;
+it is not a guarantee taken from the historical PDP-11 manual.
+
+`xfpro(id,params,locals)` emits an aligned eight-byte declared-arity header,
+marks the function entry label, and opens a local frame. The callable value
+is the byte address of that entry, not the word address of a data cell. The
+header is immediately before it. `xfarg(index)` produces a declared parameter's
+word address in RAX; dereference it to read the value. `xfargc()` loads the
+actual argument count. `xfend()` restores the frame and emits the return;
+it requires a result value and a balanced operand stack. A control-flow body
+can use `xcfend()` before `xfend()`.
+
+The frame layout is:
+
+- RBP+0: saved RBP.
+- RBP+8: return address.
+- RBP+16: actual argument count.
+- RBP+24 onward: contiguous argument cells, including padding when needed.
+
+This prefix and register convention are implementation details of the new
+host backend. They do not reproduce a PDP-11 process image or the host C ABI.
+
+Before `xcall(n)`, push the captured callable value and then each argument in
+source order using the scalar stack records. The call copies those values into
+a fresh block sized for the larger of the actual and declared counts, with at
+least one parameter cell. It calls the saved value, restores the caller's stack,
+and leaves the result in RAX. Each call site needs three private labels from
+the scalar operation range. The helper accepts up to 4095 actual arguments and
+32767 declared parameters; these machine-level bounds do not enlarge the
+frontend's own limits.
+
+RBX and RBP must be preserved by every callee. The call helper borrows RBX only
+after checking null and arity-header errors, and restores it after return.
+Other scratch registers and flags may change. `xfline(buf)` handles the `ar`
+and `cl` record forms and returns zero for another tag. A caller can combine it
+with control, memory, and scalar lowering.
+
+A callable must point to a function using this convention and carrying a valid
+header. The null and arity checks are not general pointer validation; this does
+not make arbitrary integers safe to call or provide C interoperability. Invalid
+API sequences, counts, stack state, and label capacity fail with partial output
+that the caller must discard.
+
+```sh
+python3 bootstrap/native/test_calls.py
+```
+
+The tests include a B-written [function-program constructor](fixtures/calls/README.md).
+It reads declared arities and local-frame metadata, resolves source-function
+names to writable cells, and emits code and function-cell data in two passes.
+Real source programs exercise recursion, indirect and nested calls, captured
+callees, mutable function cells, unused formal padding, extra arguments, and
+by-value isolation. Focused instruction fixtures also test maximum call blocks,
+actual-count metadata, invalid headers, and API errors.
+
+That constructor is test code, not an installed compiler command. Its entry
+point reports binary results for comparison. It rejects ordinary global data,
+strings, runtime imports, entry parameters, switch, and computed goto. It does
+not supply normal startup, multi-file linking, the remaining library, or a
+native compiler fixed point. Tests run instruction construction with an empty
+tool-search path after seeding, but the seed-built tools still use the existing
+host runtime.

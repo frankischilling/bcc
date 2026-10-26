@@ -87,9 +87,12 @@ function calls or control flow. A separate
 adds local cells, automatic vectors, word-addressed pointers, and assignments.
 A [control-flow lowerer](../bootstrap/native/README.md#structured-control-flow)
 adds statement branches, loops, conditional expressions, and early returns.
-Arguments, global storage, calls, switch, and computed goto remain separate
-work. Tests execute isolated program bodies with a surrounding harness, not
-a general source compiler.
+The [call builder](../bootstrap/native/README.md#native-function-calls) supplies
+argument blocks and function entries. Integration fixtures now construct
+native images from restricted multi-function source programs, including
+recursion and writable function cells. Ordinary globals, strings, runtime
+imports, switch, computed goto, and normal startup remain separate work.
+The result-reporting test constructor is not a general source compiler.
 
 The existing C and assembly-source builds remain useful seeds and comparison
 implementations during this work. A native-output prototype that cannot yet

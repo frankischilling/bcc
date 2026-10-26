@@ -98,9 +98,12 @@ connect arithmetic expressions to those encoders. A
 [local-memory lowerer](bootstrap/native/README.md#local-storage-and-pointer-records)
 adds local variables, vectors, pointers, and assignments.
 [Structured control-flow lowering](bootstrap/native/README.md#structured-control-flow)
-handles if/else, while loops, conditional expressions, and returns. Calls,
-global storage, switch, and computed goto still need implementation, so this
-is not yet a general B-to-native compiler.
+handles if/else, while loops, conditional expressions, and returns.
+[Call construction](bootstrap/native/README.md#native-function-calls) adds
+argument blocks and function entries; the integration tests compile restricted
+multi-function programs. Ordinary global data, strings, runtime imports, switch,
+computed goto, and normal startup remain unfinished. This is not yet a general
+B-to-native compiler.
 
 ## Dialect and word modes
 
