@@ -618,3 +618,54 @@ unmatched cases, fallthrough, wide case values, recursion, calls and returns,
 source jumps into and out of cases, saved and mutated label values, null jumps,
 label-table collisions, and malformed record sequences. The modules still do
 not provide the native host runtime or normal program startup.
+
+## Native runtime primitives
+
+`runtime/emit.b` and `runtime/path.b` emit Linux x86-64 implementations of
+`char`, `lchar`, `read`, `write`, `close`, `seek`, `exit`, `open`, `creat`,
+`chmod`, and `unlink`. The emitted functions use the counted-argument B call
+frame from `calls.b`, not the C calling convention. They make Linux system
+calls directly and do not link a C runtime.
+
+Call `xfpro(id, xbicnt(op), 0)`, then `xbuiltin(op)`, then `xfend()`.
+Operation IDs 0 through 10 follow the order above. The emitter rejects an
+unknown operation, a mismatched declared argument count, a missing function
+frame, or a nonempty expression stack. Private branches consume the label
+budget supplied to `xrinit`. At execution time, too few actual arguments
+branch to that configuration's fault handler. Extra arguments are allowed;
+`exit()` without an argument uses the zero-padded argument cell.
+
+Character offsets count bytes, while buffer and pathname pointers count
+64-bit words. `lchar` stores the low byte and returns the original argument.
+File operations return -1 on a syscall error; `seek` returns zero on success,
+not the resulting position. Short reads and writes are returned to the caller
+without an automatic retry. `open` selects read access for mode zero and write
+access otherwise, matching the existing host compatibility interface.
+
+Pathnames accept EOT or NUL. Each call copies at most 4,095 pathname bytes
+into its own stack buffer, leaving the caller's string unchanged. Null and
+overlong paths return -1. This is a length limit, not validation of arbitrary
+memory addresses. `creat` and `chmod` translate the six-bit Unix V1 permission
+field; larger values retain the existing host POSIX-mode extension.
+
+The syscall numbers come from the
+[Linux x86-64 syscall table](https://github.com/torvalds/linux/blob/master/arch/x86/entry/syscalls/syscall_64.tbl).
+These are host implementations of selected runtime operations, not PDP-11
+instruction sequences or a complete historical runtime.
+
+```sh
+python3 bootstrap/native/test_runtime.py
+```
+
+On Linux x86-64 the test executes generated images with an empty tool-search
+path. It checks argument counts, preserved stack and frame registers, packed
+bytes, short and failed I/O, wide offsets, pathname boundaries, and permission
+translation. File tests use a temporary directory. Permission translation is
+checked for all 64 historical modes without creating set-user-ID files.
+Other platforms build the images but report native execution as skipped.
+
+The fixture calls these primitives by numeric ID. It does not yet resolve
+ordinary source-level runtime imports, initialize process arguments, or supply
+allocation and formatted I/O. The emitters themselves still run through the
+seed's C-backed runtime. This is groundwork for native self-compilation, not
+a completed self-hosting compiler.

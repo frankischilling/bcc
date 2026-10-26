@@ -6,6 +6,10 @@ language baseline is Ken Thompson's January 7, 1972 PDP-11 *Users' Reference
 to B*. The repository also contains an x86-64 assembly-source build, a
 B-written bootstrap compiler, and a separate native PDP-11 compiler.
 
+The [native bootstrap work](wiki/BOOTSTRAP.md) includes B-written instruction
+emission, executable construction, and initial Linux runtime primitives.
+It is not yet a self-hosting replacement for the normal compiler.
+
 Historical compatibility is a work in progress. Syntax, word arithmetic,
 runtime interfaces, and the original Unix process image are different
 parts of that work. The [conformance notes](wiki/HISTORICAL_CONFORMANCE.md)

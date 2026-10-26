@@ -96,6 +96,15 @@ storage for each string occurrence. [Switch dispatch and computed goto](../boots
 add nested cases and mutable label cells. Runtime imports and normal startup
 remain separate work.
 The result-reporting test constructor is not a general source compiler.
+
+[Native runtime primitives](../bootstrap/native/README.md#native-runtime-primitives)
+now generate direct Linux x86-64 implementations of packed-byte access, basic
+file I/O, path operations, and process exit. They use the B call frame and
+need no linked C runtime in the resulting image. The test harness exercises
+them directly; source-level runtime imports, process-argument startup,
+allocation, and formatted I/O are still missing. These primitives do not
+change the normal compiler's C-toolchain dependency.
+
 A separate [host resolver storage module](../bootstrap/native/README.md#host-resolver-storage)
 raises its symbol capacity to 1,024 and its buffered initializer records to
 8,191 bytes. The PDP-11 configuration retains its smaller limits. The expanded
