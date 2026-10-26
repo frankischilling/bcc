@@ -26,6 +26,8 @@ def main():
     ]
     success = "putchar('OK');putchar('*n');return(0);"
     checks = [
+        ('word-mask-literal', 'x=0;switch 65535 {case 65535:x=7;}if(x!=7)return(1);'),
+        ('word-wrap-literal', 'x=0;switch 65536 {case 65536:x=7;}if(x!=7)return(1);'),
         ('adjacent-if-labels', 'x=0;if(0) first:second:x=7;else x=9;if(x!=9)return(1);'),
         ('label-before-case', 'x=0;switch 1 if(0) mark:case 1:x=7;else x=9;if(x!=7)return(1);'),
         ('label-inside-if', 'x=0;if(0) done:x=7;else x=9;if(x!=9)return(1);'),
@@ -45,6 +47,10 @@ def main():
     for name, body in checks:
         cases.append((name, 'main(){extrn putchar;auto x;'+body+success+'}', b'OK\n', None))
     cases += [('trailing-label', 'main(){done:}', None, b''), ('trailing-case', 'main(){switch 1 {case 1:}}', None, b'')]
+    for name, expression in [('parenthesized', '(1)'), ('expression', '1+2'),
+                             ('comparison', '1<2'), ('negated-expression', '!1'),
+                             ('double-minus', '--1'), ('string', '"x"'), ('unary-plus', '+1')]:
+        cases.append(('strict-case-'+name, 'main(){switch 1 {case '+expression+':return(0);}return(0);}', None, b''))
     cases += [('outside', 'main(){case 1:return(0);}', None, b'case')]
     if args.native:
         cases += [('capacity', 'main(){switch 0 {'+''.join(f'case {i}:' for i in range(33))+'return(0);}}', None, b'>c')]

@@ -87,12 +87,13 @@ static int vec_contains_string(Vec *v, const char *s) {
     return 0;
 }
 
-static void collect_known_symbols_from_file(const char *path) {
+static void collect_known_symbols_from_file(const char *path, int word_bits) {
     size_t len = 0;
     char *src = read_file_all(path, &len);
 
     Parser P;
     memset(&P, 0, sizeof(P));
+    P.word_bits = word_bits;
     P.L.src = src;
     P.L.len = len;
     P.L.i = 0;
@@ -283,6 +284,7 @@ char *compile_b_to_c(const char *in_path, int byteptr, int no_line, int verbose,
 
     Parser P;
     memset(&P, 0, sizeof(P));
+    P.word_bits = word_bits;
     P.L.src = src;
     P.L.len = len;
     P.L.i = 0;
@@ -571,7 +573,7 @@ static int run_main(int argc, char **argv) {
 
     if (in_paths.len > 1 && !dump_tokens && !(dump_ast && !dump_c)) {
         for (size_t i = 0; i < in_paths.len; i++) {
-            collect_known_symbols_from_file((const char*)in_paths.data[i]);
+            collect_known_symbols_from_file((const char*)in_paths.data[i], word_bits);
         }
     }
 
@@ -606,6 +608,7 @@ static int run_main(int argc, char **argv) {
 
         Parser P;
         memset(&P, 0, sizeof(P));
+        P.word_bits = word_bits;
         P.L.src = src;
         P.L.len = len;
         P.L.i = 0;
@@ -640,6 +643,7 @@ static int run_main(int argc, char **argv) {
 
         Parser P;
         memset(&P, 0, sizeof(P));
+        P.word_bits = word_bits;
         P.L.src = src;
         P.L.len = len;
         P.L.i = 0;

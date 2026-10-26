@@ -259,3 +259,32 @@ many hours and holds the native build lock. See the
 [testing guide](../../../docs/testing.md#b-driven-toolchain-checks) for the
 timeout, retained failure files, and distinction between the seed and the
 rebuild.
+
+
+### Selecting source rebuilds
+
+A full Unix V1 source rebuild can take many hours. To retry unfinished components
+without rebuilding already checked sources, select them explicitly:
+
+```sh
+python3 pdp-11/bcc-pdp/bootstrap/test_toolchain_v1.py --self-test \
+  --seed path/to/existing-seed --component driver --component engine
+```
+
+`--seed` makes a private copy only after the known files match the producer's
+manifest hashes and lengths. The original seed is not changed. Its recorded
+revision is printed, so an old seed is not mistaken for the current checkout.
+The manifest checks integrity, not the seed's origin or correctness; use a seed
+you trust. Without this option, the test creates a fresh seed as before.
+
+Selected runs still rebuild and compare the runtime templates and B library.
+They report only the selected source components as passed, not a complete
+source rebuild. Omitting `--component` keeps the full set of checks. Duplicate
+selections and selection flags without `--self-test` are rejected.
+
+The staging and argument checks run without booting a guest:
+
+```sh
+python3 pdp-11/bcc-pdp/bootstrap/test_toolchain_seed.py
+python3 pdp-11/bcc-pdp/bootstrap/test_seed_snapshot.py
+```

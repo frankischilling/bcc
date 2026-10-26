@@ -117,6 +117,8 @@ For the selected PDP-11 dialect, use:
 
 Use `auto v 3;` for a three-word automatic vector. In this dialect, `break`,
 `continue`, and `default` are ordinary identifiers, not control statements.
+Case labels take numeric or character literals, with an optional minus sign;
+parenthesized or computed case expressions belong to compatibility mode.
 The default compatibility mode accepts additional syntax, including forms
 found in other historical B implementations. Kernighan's tutorial describes
 a different environment, so it is not interchangeable with the PDP-11 manual.

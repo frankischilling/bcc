@@ -1355,6 +1355,16 @@ block() {
     if(!STRICT) NLOCALS=scope;
 }
 
+/* Match the PDP-11 case grammar: one numeric or character literal, optionally negated. */
+caseval() {
+    auto neg,e,b;
+    neg=0;if(TOK==41){neg=1;next();}
+    if(TOK!=2 & TOK!=4)fatal("expected literal case constant");
+    e=primary();if(!neg)return(e);
+    b=buf_new(128);buf_str(b,"WNEG(");buf_str(b,e);buf_ch(b,')');
+    return(buf_take(b));
+}
+
 /* Strict B cases may repeat; their comparison order is unspecified by B72. */
 swlabel(prefix,id) {emit(prefix);emit(itoa(id));emitln(":;");}
 swjump(prefix,id) {emit("goto ");emit(prefix);emit(itoa(id));emitln(";");}
@@ -1500,7 +1510,7 @@ stmt() {
     }
     if (TOK == 18) {
         next();
-        e = expr(1);
+        if (STRICT) e=caseval(); else e=expr(1);
         expect(38);
         if (STRICT) {swcase(e);return(0);}
         emit("case (word)(");

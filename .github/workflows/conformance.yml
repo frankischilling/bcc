@@ -160,6 +160,7 @@ jobs:
           printf '#!/bin/sh\nexec "%s/bcc" -X -fsanitize=address,undefined "$@"\n' "$PWD" > "$RUNNER_TEMP/bcc-instrumented"
           chmod +x "$RUNNER_TEMP/bcc-instrumented"
           python3 tests/test_word_arithmetic.py --compiler "$RUNNER_TEMP/bcc-instrumented"
+          python3 tests/test_case_constants.py --compiler "$RUNNER_TEMP/bcc-instrumented"
           python3 tests/test_char_storage.py --compiler "$RUNNER_TEMP/bcc-instrumented"
           python3 tests/test_seek_runtime.py --compiler "$RUNNER_TEMP/bcc-instrumented"
           python3 tests/test_argv_runtime.py --compiler "$RUNNER_TEMP/bcc-instrumented"
@@ -279,7 +280,9 @@ jobs:
         with:
           submodules: true
       - name: Check seed-directory and guest-file limits
-        run: python3 pdp-11/bcc-pdp/bootstrap/test_toolchain_seed.py
+        run: |
+          python3 pdp-11/bcc-pdp/bootstrap/test_toolchain_seed.py
+          python3 pdp-11/bcc-pdp/bootstrap/test_seed_snapshot.py
       - name: Build the seed compilers
         run: |
           make

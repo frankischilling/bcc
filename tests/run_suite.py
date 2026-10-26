@@ -103,6 +103,8 @@ def main():
                           '--compiler', str(compiler)], 'Unix metadata') and ok
         ok = checked_run([sys.executable, str(root / 'tests/test_switch_runtime.py'),
                           '--compiler', str(compiler)], 'switch control flow') and ok
+        ok = checked_run([sys.executable, str(root / 'tests/test_case_constants.py'),
+                          '--compiler', str(compiler)], 'switch constant folding') and ok
         ok = checked_run([sys.executable, str(root / 'tests/test_external_scope.py'),
                           '--compiler', str(compiler)], 'external declaration scope') and ok
         ok = checked_run([sys.executable, str(root / 'tests/test_declarations.py'),

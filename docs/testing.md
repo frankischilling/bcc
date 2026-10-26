@@ -453,3 +453,10 @@ strings under cases, and missing statement bodies. Compatibility checks cover
 default selection and `continue` through nested switches. The shared suite runs
 against host word modes, both runtime layouts, the B bootstrap, and the native
 PDP-11 compiler where the syntax applies.
+
+
+`python3 tests/test_case_constants.py` checks compatibility-mode case folding
+against explicit expected values. It covers each word mode, single- and
+multi-file compilation, both C-output paths, signed boundaries, intermediate
+wrapping, and zero divisors after wrapping. Strict literal syntax is checked
+separately by `test_switch_runtime.py` against the compiler variants.

@@ -1022,8 +1022,8 @@ compile_b_to_c:
 	.cfi_def_cfa_offset 56
 	.cfi_offset 3, -56
 	movq	%rdi, %rbx
-	subq	$232, %rsp
-	.cfi_def_cfa_offset 288
+	subq	$248, %rsp
+	.cfi_def_cfa_offset 304
 	movl	%esi, 8(%rsp)
 	testl	%ecx, %ecx
 	jne	.L225
@@ -1031,7 +1031,7 @@ compile_b_to_c:
 	leaq	112(%rsp), %r12
 	movq	$0, 88(%rsp)
 	call	read_file_all
-	movl	$12, %ecx
+	movl	$13, %ecx
 	xorl	%esi, %esi
 	movq	%rbx, %r8
 	leaq	128(%rsp), %rdx
@@ -1041,13 +1041,15 @@ compile_b_to_c:
 	movl	$1, %edx
 	movq	%r13, 112(%rsp)
 	rep stosq
-	movq	88(%rsp), %rax
+	movl	328(%rsp), %eax
 	leaq	16(%rsp), %rdi
 	movl	$1, %ecx
 	movq	%rbx, 144(%rsp)
+	movl	%eax, 216(%rsp)
+	movq	88(%rsp), %rax
+	movq	%r13, 208(%rsp)
 	movq	%rax, 120(%rsp)
 	movq	.LC53(%rip), %rax
-	movq	%r13, 208(%rsp)
 	movq	%rax, 136(%rsp)
 	call	mk_tok@PLT
 	movdqu	16(%rsp), %xmm0
@@ -1074,12 +1076,12 @@ compile_b_to_c:
 	movq	%r14, %rdi
 	call	sem_check_program@PLT
 .L172:
-	movl	296(%rsp), %r8d
+	movl	312(%rsp), %r8d
 	testl	%r8d, %r8d
 	je	.L173
-	cmpq	$0, 304(%rsp)
+	cmpq	$0, 320(%rsp)
 	je	.L173
-	movq	304(%rsp), %rdi
+	movq	320(%rsp), %rdi
 	call	strdup@PLT
 	movq	%rax, %rbp
 	testq	%rax, %rax
@@ -1093,15 +1095,15 @@ compile_b_to_c:
 	je	.L228
 .L176:
 	subq	$8, %rsp
-	.cfi_def_cfa_offset 296
+	.cfi_def_cfa_offset 312
 	movq	%rbx, %rdx
 	movq	%r14, %rsi
 	movl	%r15d, %r8d
-	movl	328(%rsp), %eax
+	movl	344(%rsp), %eax
 	movq	%r12, %rdi
 	pushq	%rax
-	.cfi_def_cfa_offset 304
-	movl	328(%rsp), %r9d
+	.cfi_def_cfa_offset 320
+	movl	344(%rsp), %r9d
 	movl	24(%rsp), %ecx
 	call	emit_program_c_ext@PLT
 	movq	%r12, %rdi
@@ -1110,21 +1112,21 @@ compile_b_to_c:
 	movl	%eax, %ebx
 	call	fclose@PLT
 	popq	%rsi
-	.cfi_def_cfa_offset 296
+	.cfi_def_cfa_offset 312
 	popq	%rdi
-	.cfi_def_cfa_offset 288
+	.cfi_def_cfa_offset 304
 	cmpl	$-1, %eax
 	je	.L195
 	testl	%ebx, %ebx
 	jne	.L195
-	movl	288(%rsp), %ecx
+	movl	304(%rsp), %ecx
 	testl	%ecx, %ecx
 	jne	.L229
 .L186:
 	movq	%r13, %rdi
 	call	free@PLT
 .L163:
-	addq	$232, %rsp
+	addq	$248, %rsp
 	.cfi_remember_state
 	.cfi_def_cfa_offset 56
 	movq	%rbp, %rax
@@ -1210,7 +1212,7 @@ compile_b_to_c:
 .L226:
 	movq	%r14, %rdi
 	call	dump_ast_program@PLT
-	movl	288(%rsp), %edx
+	movl	304(%rsp), %edx
 	testl	%edx, %edx
 	jne	.L170
 .L191:
@@ -1246,7 +1248,7 @@ compile_b_to_c:
 	leaq	.LC63(%rip), %rdi
 	xorl	%eax, %eax
 	call	dief@PLT
-	movl	288(%rsp), %ecx
+	movl	304(%rsp), %ecx
 	testl	%ecx, %ecx
 	je	.L186
 .L229:
@@ -1289,7 +1291,7 @@ compile_b_to_c:
 	movq	%rbx, %rdi
 	movq	$0, 88(%rsp)
 	call	read_file_all
-	movl	$12, %ecx
+	movl	$13, %ecx
 	xorl	%esi, %esi
 	movq	%rbx, %r8
 	leaq	128(%rsp), %rdx
@@ -1299,13 +1301,15 @@ compile_b_to_c:
 	movl	$1, %edx
 	movq	%r13, 112(%rsp)
 	rep stosq
-	movq	88(%rsp), %rax
+	movl	328(%rsp), %eax
 	movl	$1, %ecx
 	leaq	16(%rsp), %rdi
 	movq	%rbx, 144(%rsp)
+	movl	%eax, 216(%rsp)
+	movq	88(%rsp), %rax
+	movq	%r13, 208(%rsp)
 	movq	%rax, 120(%rsp)
 	movq	.LC53(%rip), %rax
-	movq	%r13, 208(%rsp)
 	movq	%rax, 136(%rsp)
 	call	mk_tok@PLT
 	movdqu	16(%rsp), %xmm0
@@ -1376,7 +1380,7 @@ compile_b_to_c:
 .L236:
 	movq	%r14, %rdi
 	call	dump_ast_program@PLT
-	movl	288(%rsp), %eax
+	movl	304(%rsp), %eax
 	testl	%eax, %eax
 	jne	.L168
 	jmp	.L191
@@ -1699,8 +1703,8 @@ run_main:
 	.cfi_def_cfa_offset 56
 	.cfi_offset 3, -56
 	movq	%rsi, %rbx
-	subq	$456, %rsp
-	.cfi_def_cfa_offset 512
+	subq	$472, %rsp
+	.cfi_def_cfa_offset 528
 	movq	(%rsi), %rdi
 	call	init_libb_path
 	leaq	g_libb_dir(%rip), %rax
@@ -1838,7 +1842,7 @@ run_main:
 	leaq	304(%rsp), %rsi
 	movq	%r12, %rdi
 	call	read_file_all
-	movl	$24, %ecx
+	movl	$26, %ecx
 	movq	%r12, %r8
 	xorl	%esi, %esi
 	leaq	352(%rsp), %rdx
@@ -1847,15 +1851,17 @@ run_main:
 	movq	%rdx, %rdi
 	movl	$1, %edx
 	rep stosl
-	movq	304(%rsp), %rax
+	movl	32(%rsp), %eax
 	movq	%r13, %rdi
 	movl	$1, %ecx
 	movq	%rbp, 336(%rsp)
+	movl	%eax, 440(%rsp)
+	movq	304(%rsp), %rax
+	movq	%r12, 368(%rsp)
 	movq	%rax, 344(%rsp)
 	movq	.LC53(%rip), %rax
-	movq	%r12, 368(%rsp)
-	movq	%rax, 360(%rsp)
 	movq	%rbp, 432(%rsp)
+	movq	%rax, 360(%rsp)
 	call	mk_tok@PLT
 	movq	%r13, %rsi
 	movl	$14, %ecx
@@ -1904,7 +1910,7 @@ run_main:
 .L305:
 	xorl	%ebp, %ebp
 .L237:
-	addq	$456, %rsp
+	addq	$472, %rsp
 	.cfi_remember_state
 	.cfi_def_cfa_offset 56
 	movl	%ebp, %eax
@@ -2179,19 +2185,21 @@ run_main:
 	movq	%rbx, %r8
 	xorl	%esi, %esi
 	movq	%rax, %rbp
-	movl	$12, %ecx
+	movl	$13, %ecx
 	xorl	%eax, %eax
 	movl	$1, %edx
 	rep stosq
-	movq	304(%rsp), %rax
+	movl	32(%rsp), %eax
 	movq	104(%rsp), %rdi
 	movl	$1, %ecx
 	movq	%rbx, 368(%rsp)
+	movl	%eax, 440(%rsp)
+	movq	304(%rsp), %rax
+	movq	%rbp, 336(%rsp)
 	movq	%rax, 344(%rsp)
 	movq	.LC53(%rip), %rax
-	movq	%rbp, 336(%rsp)
-	movq	%rax, 360(%rsp)
 	movq	%rbp, 432(%rsp)
+	movq	%rax, 360(%rsp)
 	call	mk_tok@PLT
 	movq	112(%rsp), %rbx
 	movdqu	144(%rsp), %xmm0
@@ -2304,21 +2312,21 @@ run_main:
 	jne	.L334
 .L300:
 	pushq	%r10
-	.cfi_def_cfa_offset 520
+	.cfi_def_cfa_offset 536
 	xorl	%r9d, %r9d
 	xorl	%r8d, %r8d
 	movl	$1, %edx
 	pushq	$0
-	.cfi_def_cfa_offset 528
+	.cfi_def_cfa_offset 544
 	movl	48(%rsp), %r15d
 	pushq	%r15
-	.cfi_def_cfa_offset 536
-	pushq	$0
-	.cfi_def_cfa_offset 544
-	pushq	$0
 	.cfi_def_cfa_offset 552
 	pushq	$0
 	.cfi_def_cfa_offset 560
+	pushq	$0
+	.cfi_def_cfa_offset 568
+	pushq	$0
+	.cfi_def_cfa_offset 576
 	movq	288(%rsp), %rax
 	movl	136(%rsp), %r14d
 	movl	84(%rsp), %r13d
@@ -2329,7 +2337,7 @@ run_main:
 	leaq	384(%rsp), %rdi
 	movl	$6, %ecx
 	addq	$48, %rsp
-	.cfi_def_cfa_offset 512
+	.cfi_def_cfa_offset 528
 	movq	%rax, %rbx
 	xorl	%eax, %eax
 	leaq	336(%rsp), %rbp
@@ -2344,27 +2352,27 @@ run_main:
 	movq	%rax, %rsi
 	call	vec_push@PLT
 	pushq	%r14
-	.cfi_def_cfa_offset 520
+	.cfi_def_cfa_offset 536
 	xorl	%edx, %edx
 	movq	%rbp, %rdi
 	pushq	%r15
-	.cfi_def_cfa_offset 528
+	.cfi_def_cfa_offset 544
 	leaq	.LC149(%rip), %rsi
 	pushq	%r13
-	.cfi_def_cfa_offset 536
-	pushq	$0
-	.cfi_def_cfa_offset 544
-	pushq	%r12
 	.cfi_def_cfa_offset 552
+	pushq	$0
+	.cfi_def_cfa_offset 560
+	pushq	%r12
+	.cfi_def_cfa_offset 568
 	movl	136(%rsp), %eax
 	pushq	%rax
-	.cfi_def_cfa_offset 560
+	.cfi_def_cfa_offset 576
 	movl	132(%rsp), %r9d
 	movl	128(%rsp), %r8d
 	movl	124(%rsp), %ecx
 	call	run_gcc_multi
 	addq	$48, %rsp
-	.cfi_def_cfa_offset 512
+	.cfi_def_cfa_offset 528
 	movl	%eax, %ebp
 	movl	92(%rsp), %eax
 	orl	%ebp, %eax
@@ -2398,29 +2406,29 @@ run_main:
 	.p2align 3
 .L314:
 	subq	$8, %rsp
-	.cfi_def_cfa_offset 520
+	.cfi_def_cfa_offset 536
 	movl	%r13d, %ecx
 	movl	$1, %edx
 	movq	%r12, %rdi
 	movl	60(%rsp), %eax
 	pushq	%rax
-	.cfi_def_cfa_offset 528
+	.cfi_def_cfa_offset 544
 	movl	48(%rsp), %eax
 	pushq	%rax
-	.cfi_def_cfa_offset 536
-	pushq	$0
-	.cfi_def_cfa_offset 544
-	pushq	$0
 	.cfi_def_cfa_offset 552
+	pushq	$0
+	.cfi_def_cfa_offset 560
+	pushq	$0
+	.cfi_def_cfa_offset 568
 	movl	108(%rsp), %eax
 	pushq	%rax
-	.cfi_def_cfa_offset 560
+	.cfi_def_cfa_offset 576
 	movl	112(%rsp), %r9d
 	movl	104(%rsp), %r8d
 	movl	84(%rsp), %esi
 	call	compile_b_to_c
 	addq	$48, %rsp
-	.cfi_def_cfa_offset 512
+	.cfi_def_cfa_offset 528
 	movq	%rax, %r14
 .L333:
 	testq	%r14, %r14
@@ -2456,29 +2464,29 @@ run_main:
 	movq	%rbp, %rdi
 	call	protect_input
 	subq	$8, %rsp
-	.cfi_def_cfa_offset 520
+	.cfi_def_cfa_offset 536
 	movq	%r12, %rdi
 	movl	%r13d, %ecx
 	movl	60(%rsp), %eax
 	movl	$1, %edx
 	pushq	%rax
-	.cfi_def_cfa_offset 528
+	.cfi_def_cfa_offset 544
 	movl	48(%rsp), %eax
 	pushq	%rax
-	.cfi_def_cfa_offset 536
-	pushq	%rbp
-	.cfi_def_cfa_offset 544
-	pushq	$1
 	.cfi_def_cfa_offset 552
+	pushq	%rbp
+	.cfi_def_cfa_offset 560
+	pushq	$1
+	.cfi_def_cfa_offset 568
 	movl	108(%rsp), %eax
 	pushq	%rax
-	.cfi_def_cfa_offset 560
+	.cfi_def_cfa_offset 576
 	movl	112(%rsp), %r9d
 	movl	104(%rsp), %r8d
 	movl	84(%rsp), %esi
 	call	compile_b_to_c
 	addq	$48, %rsp
-	.cfi_def_cfa_offset 512
+	.cfi_def_cfa_offset 528
 	movq	%rbp, %rdi
 	movq	%rax, %r14
 	call	free@PLT
@@ -2509,23 +2517,25 @@ run_main:
 	movq	%rdi, 304(%rsp)
 	movq	%rbp, %rdi
 	call	read_file_all
-	movl	$24, %ecx
+	movl	$26, %ecx
 	movq	%rbp, %r8
 	xorl	%esi, %esi
 	leaq	352(%rsp), %rdx
 	movq	%rax, %rbx
 	xorl	%eax, %eax
+	movl	32(%rsp), %r15d
 	movq	%rdx, %rdi
 	movl	$1, %edx
 	rep stosl
 	movq	304(%rsp), %rax
 	movl	$1, %ecx
 	movq	%r13, %rdi
-	movq	%rbx, 336(%rsp)
+	movl	%r15d, 440(%rsp)
 	movq	%rax, 344(%rsp)
 	movq	.LC53(%rip), %rax
-	movq	%rbp, 368(%rsp)
+	movq	%rbx, 336(%rsp)
 	movq	%rax, 360(%rsp)
+	movq	%rbp, 368(%rsp)
 	movq	%rbx, 432(%rsp)
 	call	mk_tok@PLT
 	leaq	376(%rsp), %rdi
@@ -2542,12 +2552,12 @@ run_main:
 	movq	%rbp, %rsi
 	movq	%r12, %rdi
 	call	sem_check_program@PLT
-	movl	32(%rsp), %r9d
-	movq	%rbp, %rdx
-	movq	%r12, %rsi
 	movl	36(%rsp), %ecx
+	movl	%r15d, %r9d
+	movq	%rbp, %rdx
 	movq	stdout(%rip), %rdi
 	movl	$1, %r8d
+	movq	%r12, %rsi
 	call	emit_program_c@PLT
 	movq	%rbx, %rdi
 	call	free@PLT
@@ -2909,25 +2919,25 @@ run_main:
 	movq	272(%rsp), %rax
 	movq	(%rax,%rbp,8), %rsi
 	pushq	%r14
-	.cfi_def_cfa_offset 520
-	pushq	%r15
-	.cfi_def_cfa_offset 528
-	pushq	%r13
 	.cfi_def_cfa_offset 536
+	pushq	%r15
+	.cfi_def_cfa_offset 544
+	pushq	%r13
+	.cfi_def_cfa_offset 552
 	movl	76(%rsp), %eax
 	pushq	%rax
-	.cfi_def_cfa_offset 544
+	.cfi_def_cfa_offset 560
 	leaq	240(%rsp), %rax
 	pushq	%rax
-	.cfi_def_cfa_offset 552
+	.cfi_def_cfa_offset 568
 	pushq	%r12
-	.cfi_def_cfa_offset 560
+	.cfi_def_cfa_offset 576
 	movl	132(%rsp), %r9d
 	movl	128(%rsp), %r8d
 	movl	124(%rsp), %ecx
 	call	run_gcc_multi
 	addq	$48, %rsp
-	.cfi_def_cfa_offset 512
+	.cfi_def_cfa_offset 528
 	testl	%eax, %eax
 	jne	.L322
 	addq	$1, %rbp
@@ -2980,29 +2990,29 @@ run_main:
 	xorl	%edx, %edx
 	movq	%r14, %rdi
 	pushq	%rax
-	.cfi_def_cfa_offset 520
+	.cfi_def_cfa_offset 536
 	movl	40(%rsp), %eax
 	pushq	%rax
-	.cfi_def_cfa_offset 528
+	.cfi_def_cfa_offset 544
 	movl	52(%rsp), %eax
 	pushq	%rax
-	.cfi_def_cfa_offset 536
+	.cfi_def_cfa_offset 552
 	movl	76(%rsp), %eax
 	pushq	%rax
-	.cfi_def_cfa_offset 544
+	.cfi_def_cfa_offset 560
 	leaq	240(%rsp), %rax
 	pushq	%rax
-	.cfi_def_cfa_offset 552
+	.cfi_def_cfa_offset 568
 	movl	136(%rsp), %eax
 	pushq	%rax
-	.cfi_def_cfa_offset 560
+	.cfi_def_cfa_offset 576
 	movl	132(%rsp), %r9d
 	movl	128(%rsp), %r8d
 	movl	124(%rsp), %ecx
 	movq	88(%rsp), %rsi
 	call	run_gcc_multi
 	addq	$48, %rsp
-	.cfi_def_cfa_offset 512
+	.cfi_def_cfa_offset 528
 	testl	%eax, %eax
 	je	.L324
 .L322:

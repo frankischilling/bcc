@@ -329,6 +329,7 @@ typedef struct {
     Lexer L;
     Token cur;
     const char *source;  // source code for error reporting
+    int word_bits;     /* 0 selects the host word width. */
     int loop_depth;
     int switch_depth;
 } Parser;

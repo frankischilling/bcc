@@ -15,6 +15,7 @@ NATIVE = ROOT.parent
 V1 = NATIVE.parent / 'unix-v1'
 sys.path[:0] = [str(ROOT / 'tools'), str(NATIVE / 'tools')]
 from build_toolchain import build, FILES
+from seed_snapshot import copy_seed
 from v1_files import FileSystem
 
 SOURCE = "main(){extrn putchar;putchar('O');putchar('K');putchar('*n');return(0);}\n"
@@ -64,8 +65,12 @@ stage(s){extrn char,write;auto n,c;n=0;
 """
 
 
-def rebuild_case(seed):
-    """Return the guest wrapper, expected console, staged files and exact outputs."""
+def rebuild_case(seed, selected=None):
+    """Select source rebuilds while always checking runtime prerequisites."""
+    allowed = set(FILES) | {'driver', 'engine'}
+    if selected is not None:
+        if not selected or len(set(selected)) != len(selected) or not set(selected) <= allowed:
+            raise ValueError('invalid or duplicate rebuild component')
     stages = ['templates', 'library']
     lines = ['main(){', "if(invoke('r',0,0))return(1);",
              'if(cmpfiles("bmain.s","rstart"))return(1);',
@@ -80,6 +85,8 @@ def rebuild_case(seed):
     components += [('driver', 'bdrv.b', 'drv.new', 'driver', '0'),
                    ('engine', 'vm.b', 'eng.new', 'engine', '0')]
     for name, source, output, reference, mode in components:
+        if selected is not None and name not in selected:
+            continue
         if output in references or output in files:
             raise ValueError('duplicate guest rebuild output: ' + output)
         files[source] = (seed / source).read_bytes()
@@ -146,14 +153,29 @@ def main():
                         help='rebuild all B toolchain sources inside the guest instead of the small program (many hours)')
     parser.add_argument('--run-timeout', type=int,
                         help='guest execution deadline in seconds (default: 3600, or 86400 with --self-test)')
+    parser.add_argument('--component', action='append', choices=[*FILES, 'driver', 'engine'],
+                        help='rebuild only this source component; repeat to select several (requires --self-test)')
+    parser.add_argument('--seed', type=Path,
+                        help='snapshot a manifest-checked existing seed instead of rebuilding it (requires --self-test)')
     args = parser.parse_args()
+    if (args.component or args.seed) and not args.self_test:
+        parser.error('--component and --seed require --self-test')
+    if args.component and len(set(args.component)) != len(args.component):
+        parser.error('duplicate --component')
     timeout = args.run_timeout if args.run_timeout is not None else (86400 if args.self_test else 3600)
     if timeout <= 0:
         parser.error('--run-timeout must be positive')
     with tempfile.TemporaryDirectory(prefix='bcc-B-toolchain-v1-') as directory:
         work = Path(directory)
         seed = work / 'seed'
-        build(seed)
+        if args.seed:
+            try:
+                manifest = copy_seed(args.seed, seed)
+            except (OSError, ValueError) as error:
+                parser.error(str(error))
+            print('Using seed revision: ' + str(manifest.get('revision', 'unrecorded')), flush=True)
+        else:
+            build(seed)
         driver = (seed / 'bdrv.b').read_text()
         if driver.count('main(){') != 1:
             raise AssertionError('unexpected driver entry definition')
@@ -171,7 +193,7 @@ def main():
         files.update({name: None for name in ('bmain.s', 'brt.s', 'libb.s', 'heap.vm', 'raw.ic',
                                                'code.ic', 'prog.s', 'selrt.s', 'sellib.s', 'done', 'out', 'longout')})
         if args.self_test:
-            wrapper, console, extra, references = rebuild_case(seed)
+            wrapper, console, extra, references = rebuild_case(seed, args.component)
             (work / 'runner.b').write_text(driver.replace('main(){', 'drvmain(){', 1) + wrapper)
             (work / 'runner.out').write_bytes(console)
             files.update(extra)
@@ -194,7 +216,8 @@ def main():
                 fs = FileSystem((V1 / 'images/rk0.dsk').read_bytes())
                 verify_outputs(fs, references)
                 if args.self_test:
-                    print(f'PASS: Unix-V1 B source rebuild, {len(references)} byte-exact outputs', flush=True)
+                    scope = 'selected B sources' if args.component else 'all B sources'
+                    print(f'PASS: Unix-V1 {scope}, {len(references)} byte-exact outputs', flush=True)
                 else:
                     actual = fs.read('tmp/out')
                     if actual != expected:

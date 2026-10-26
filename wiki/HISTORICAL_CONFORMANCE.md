@@ -292,3 +292,23 @@ selected. This is an implementation choice, not a claim that B72 specifies
 comparison order. Compatibility-mode defaults are only a no-match fallback,
 not a synonym for case minus one. A compatibility `continue` inside a switch
 rechecks its enclosing loop rather than the switch's internal dispatch loop.
+
+
+### Case constants and selected word width
+
+The selected PDP-11 parser takes one numeric or character literal after `case`,
+with an optional minus sign. Host and B-bootstrap strict modes use that same
+rule. Parenthesized expressions, arithmetic expressions, and string literals
+are rejected there. The `case` handlers in the
+[aap C frontend](https://github.com/aap/b/blob/master/b.c) and
+[B frontend](https://github.com/aap/b/blob/master/bc.b) also consume a constant
+token rather than calling their expression parser. These implementations have
+other dialect extensions, so they do not replace the selected manual's grammar.
+
+Host compatibility mode retains its constant-expression extension. Accepted
+case expressions are folded at the requested 16-bit, 32-bit, or host width,
+including intermediate results. Negation, addition, subtraction, multiplication,
+and minimum-word division/remainder avoid signed overflow in the C compiler.
+Division by a value that becomes zero after wrapping is diagnosed. These overflow
+rules match BCC's runtime policy; they are not a claim about every historical B
+implementation.
