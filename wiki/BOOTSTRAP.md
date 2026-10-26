@@ -47,7 +47,7 @@ to replace existing paths. OS filenames are handled as NUL-terminated byte
 strings rather than B EOT strings.
 
 The B-source library providers include strict character/string I/O, formatting,
-counted process replacement, `chdir`, `link`, `getuid`, `stat`, and `fstat`. Pathname adapters
+counted process replacement, `chdir`, `link`, `getuid`, `stat`, `fstat`, `time`, and `ctime`. Pathname adapters
 preserve their input, accept EOT or NUL, and retain a documented 4,095-byte limit.
 They are Linux host adapters, not an emulation of Unix V1's user table or memory.
 

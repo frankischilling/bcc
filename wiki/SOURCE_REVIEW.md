@@ -1412,3 +1412,18 @@ size and timestamps occupy different cells from the V1 result. Translation
 keeps the host runtime's documented approximations: zero disk addresses,
 status-change time in place of birth time, and wrapped 60-Hz ticks since
 January 1, 1971. Failed syscalls must leave the caller's result unchanged.
+
+### Native clock and date conversion
+
+[V1 time(II)](https://www.tuhs.org/cgi-bin/utree.pl?file=V1/man/man2/time.2)
+returns 60-Hz ticks since January 1, 1971, high word first. A modern host must
+convert seconds and nanoseconds and keep the low 32 bits. Linux's
+[timespec interface](https://github.com/torvalds/linux/blob/master/include/uapi/linux/time_types.h)
+is not that B record and must stay internal to the adapter.
+
+The existing BCC `ctime` contract writes 15 printable bytes and a NUL into the
+caller's 16-byte buffer. The native provider keeps that contract, including
+calendar boundaries and leap day, rather than reproducing the first-edition
+routine's documented year-boundary defect. It packs bytes privately, so a
+replacement `lchar` cell does not change the date conversion. The wrapped
+32-bit input covers dates from 1971 into 1973, not the full modern calendar.

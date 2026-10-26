@@ -7,7 +7,7 @@ wrappers and a B-written library under `pdp-11/bcc-pdp/runtime/`.
 
 The experimental Linux x86-64 B-native tools have a separate, smaller
 [library](../bootstrap/native/lib/README.md). Its B-source providers include
-formatting, character/string I/O, counted `execv`, `chdir`, `link`, `getuid`, `stat`, and `fstat`.
+formatting, character/string I/O, counted `execv`, `chdir`, `link`, `getuid`, `stat`, `fstat`, `time`, and `ctime`.
 They use the native syscall bridge rather than a linked C runtime. This is not
 yet the full interface map below.
 
@@ -135,7 +135,8 @@ restored filesystem and kernel's record.
 60 Hz ticks since January 1, 1971. The count wraps after about 2.27 years;
 it cannot encode today's date without wrapping. `ctime(tv,date)` writes
 15 printable characters and a NUL into a 16-byte destination, with no
-newline. It is not a B-terminated string.
+newline. It is not a B-terminated string. The Linux B-native providers use
+the same record and date-buffer conventions without a C runtime.
 
 <!-- bcc-example {"stdout":"Jan  1 00:00:00\n","native":true,"bootstrap":true} -->
 ```b

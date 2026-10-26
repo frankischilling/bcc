@@ -54,7 +54,8 @@ function, scalar, or vector prevents replacement, including definitions later
 in the file. A missing provider or a file that fails to define its advertised
 name stops the build. The catalog currently includes `execv`, `printf`,
 `printn`, `putchar`, `getchar`, `putstr`, `getstr`, `chdir`, `link`, and
-`getuid`, `stat`, and `fstat`, plus their private conversion dependencies.
+`getuid`, `stat`, `fstat`, `time`, and `ctime`, plus their private conversion
+dependencies.
 
 See the [B library guide](../lib/README.md) for provider behavior and limits.
 

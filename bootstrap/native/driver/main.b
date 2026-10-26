@@ -1,8 +1,8 @@
 /* Experimental Linux driver: one frozen input, private scratch, ELF on stdout. */
 owned 0;savedmsk 0; folder[512]; tools[512]; original[512]; input[512];
 rawfile[512]; resolved[512]; codefile[512]; datafile[512]; program[512]; spare[512];
-libnames[] "execv","printf","printn","putchar","getchar","getstr","putstr","__path","chdir","link","getuid","__stat","stat","fstat";
-libcount 14;libused[14];libdefs[14];libadded[14];
+libnames[] "execv","printf","printn","putchar","getchar","getstr","putstr","__path","chdir","link","getuid","__stat","stat","fstat","__ticks","time","ctime";
+libcount 17;libused[17];libdefs[17];libadded[17];
 
 rawlen(s){extrn char;auto n;n=0;while(char(s,n))n++;return(n);}
 slen(s){extrn char;auto n,c;n=0;while((c=char(s,n))!=0 & c!=4)n++;return(n);}

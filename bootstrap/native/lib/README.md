@@ -87,6 +87,31 @@ fields and timestamp extremes without changing system ownership or time.
 python3 bootstrap/native/test_metadata.py --tools bootstrap/build/native-verified --reference ./bcc
 ```
 
+## Clock and date buffers
+
+`time` converts Linux realtime seconds and nanoseconds into two B cells,
+high word first, containing the low 32 bits of 60-Hz ticks since January 1,
+1971. This wraps after about 2.27 years; it is not an unbounded modern timestamp.
+An explicit null destination is allowed, as in the host runtime. A failed clock
+call returns -1 and leaves a non-null destination unchanged.
+
+`ctime` converts that wrapped value into 15 printable date bytes plus a NUL,
+with no newline. Supply 16 writable bytes, not a pointer to a shared libc
+buffer. Bytes after that range are preserved, and input/output overlap is
+supported. Null pointers or missing arguments return -1. The result is not an
+EOT-terminated B string. Conversion packs bytes directly instead of calling
+the program's writable `char` or `lchar` cells.
+
+The date tests cover 90 vectors, including month/year boundaries, leap day,
+subsecond truncation, and the largest wrapped value. Other cases check buffer
+guards, overlapping storage, replaced functions, clock failure, and realtime
+values bounded by host observations. The metadata adapters share the same
+private tick converter.
+
+```sh
+python3 bootstrap/native/test_clock.py --tools bootstrap/build/native-verified --reference ./bcc
+```
+
 ## Counted process replacement
 
 `execv.b` implements B's explicit argument count, converts EOT/NUL strings
