@@ -7,7 +7,7 @@ wrappers and a B-written library under `pdp-11/bcc-pdp/runtime/`.
 
 The experimental Linux x86-64 B-native tools have a separate, smaller
 [library](../bootstrap/native/lib/README.md). Its B-source providers include
-formatting, character/string I/O, counted `execv`, `chdir`, `link`, and `getuid`.
+formatting, character/string I/O, counted `execv`, `chdir`, `link`, `getuid`, `stat`, and `fstat`.
 They use the native syscall bridge rather than a linked C runtime. This is not
 yet the full interface map below.
 
@@ -108,7 +108,7 @@ inside the restored Unix kernel.
 
 ## File status
 
-Host `stat` and `fstat` use the
+The C-backed host runtime and Linux x86-64 B-native `stat` and `fstat` use the
 [November 1971 status layout](https://www.tuhs.org/cgi-bin/utree.pl?file=V1/man/man2/stat.2),
 not a host `struct stat`. Supply 20 B cells. A successful host call fills
 17 cells and leaves the final three untouched; failure leaves the buffer
@@ -126,7 +126,7 @@ The host's status-change time substitutes for unavailable creation time.
 The large-file flag reflects a size above 4,096 bytes. V1's owner/other
 permission fields cannot represent independent host group permissions.
 Use 16-bit mode for byte access at PDP-11 offsets. These are explicit host
-approximations, not a reconstructed disk inode. Native calls use the
+approximations, not a reconstructed disk inode. Native PDP-11 calls use the
 restored filesystem and kernel's record.
 
 ## Time and date

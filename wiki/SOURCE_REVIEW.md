@@ -1398,3 +1398,17 @@ could corrupt OS arguments and prevent process replacement, unlike the host
 runtime's private conversion. A regression replaces both cells and checks that
 a native child still receives the requested arguments and environment. Native
 `execv` now packs its path and argument bytes without calling those cells.
+
+### Linux-host file status adapters
+
+The [November 1971 stat manual](https://www.tuhs.org/cgi-bin/utree.pl?file=V1/man/man2/stat.2)
+specifies a 34-byte result, despite B's 20-word buffer allowance. The host
+runtime therefore writes 17 B cells and preserves the rest. A B-native host
+adapter must preserve that interface, not expose Linux's raw record.
+
+The [Linux x86-64 stat definition](https://github.com/torvalds/linux/blob/master/arch/x86/include/uapi/asm/stat.h)
+occupies 144 bytes with 64-bit longs. Mode and owner ID share one 64-bit cell;
+size and timestamps occupy different cells from the V1 result. Translation
+keeps the host runtime's documented approximations: zero disk addresses,
+status-change time in place of birth time, and wrapped 60-Hz ticks since
+January 1, 1971. Failed syscalls must leave the caller's result unchanged.

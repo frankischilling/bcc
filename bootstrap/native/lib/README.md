@@ -64,6 +64,29 @@ and function replacement. Run them against an exported bundle with:
 python3 bootstrap/native/test_paths.py --tools bootstrap/build/native-verified --reference ./bcc
 ```
 
+## File status
+
+`stat` and `fstat` translate Linux status into the same V1-shaped record as the
+C-backed host runtime. Supply 20 B cells. Success writes the first 17 cells;
+the remaining three are preserved. Missing arguments, null buffers, pathname
+errors, and failed syscalls return -1 without changing the output buffer.
+
+The record contains the low 16 inode and size bits, V1 permission/type flags,
+packed link-count and owner bytes, and wrapped 60-Hz creation/modification
+values. Linux status-change time substitutes for birth time, and disk-address
+cells are zero. These are host approximations, not a native V1 disk record.
+The adapter uses the 144-byte Linux x86-64 status structure internally; it does
+not copy that structure into the caller's B buffer.
+
+Tests cover all output cells and surrounding guards, permission flags,
+directories, symbolic links, size and timestamp wrapping, source overrides,
+saved function cells, and errors. Synthetic records check truncated owner/link
+fields and timestamp extremes without changing system ownership or time.
+
+```sh
+python3 bootstrap/native/test_metadata.py --tools bootstrap/build/native-verified --reference ./bcc
+```
+
 ## Counted process replacement
 
 `execv.b` implements B's explicit argument count, converts EOT/NUL strings

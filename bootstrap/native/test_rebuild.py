@@ -16,7 +16,7 @@ import tempfile
 ROOT = Path(__file__).resolve().parent
 PROJECT = ROOT.parents[1]
 SHARED = PROJECT / 'pdp-11/bcc-pdp/bootstrap'
-LIBRARIES = ('execv', 'printf', 'printn', 'putchar', 'getchar', 'getstr', 'putstr', '__path', 'chdir', 'link', 'getuid')
+LIBRARIES = ('execv', 'printf', 'printn', 'putchar', 'getchar', 'getstr', 'putstr', '__path', 'chdir', 'link', 'getuid', '__stat', 'stat', 'fstat')
 sys.path.insert(0, str(SHARED / 'tools'))
 
 
@@ -78,9 +78,11 @@ def main():
         previous.mkdir()
         stdio = module('native_stdio_cases', ROOT / 'test_stdio.py')
         paths = module('native_path_cases', ROOT / 'test_paths.py')
+        metadata = module('native_metadata_cases', ROOT / 'test_metadata.py')
         if not args.bootstrap:
             stdio.reference_checks(command, work / 'stdio-reference')
             paths.reference_checks(command, work / 'paths-reference')
+            metadata.reference_checks(command, work / 'metadata-reference')
         for name, content in text.items():
             path = source / (name + '.b')
             path.write_text(content)
@@ -158,6 +160,7 @@ def main():
         print(f'{len(cases)} source programs passed through the final native tools')
         stdio.run_checks(previous, work / 'stdio')
         paths.run_checks(previous, work / 'paths')
+        metadata.run_checks(previous, work / 'metadata')
         driver = module('native_driver_cases', ROOT / 'test_driver.py')
         driver.run_checks(previous, work / 'driver-checks', source, text)
         for content in ('main(){return(;}', 'main(){return(1);', 'main(){auto;return(0);}'):
