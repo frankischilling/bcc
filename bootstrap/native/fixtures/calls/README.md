@@ -18,7 +18,7 @@ initializers, and writable string storage use the static-data modules. It is use
 libraries work together, but it is not a general B compiler or a completed
 self-hosting path.
 
-The constructor has 200 function-metadata slots. The shared resolver also has
-a 200-symbol budget that includes function-local imports and declarations, so
+The constructor has 200 function-metadata slots. The host-configured resolver has
+a 1,024-symbol budget that includes function-local imports and declarations, so
 a source program can reach that limit earlier. These fixture limits do not
 replace the normal host compiler's limits.

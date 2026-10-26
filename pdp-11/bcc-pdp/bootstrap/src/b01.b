@@ -1,11 +1,11 @@
 /* Resolve raw compiler records; byte offsets do not depend on word size. */
 dbuf[520]; dtag[5]; dnm[5]; fnsy[5];
 pndcls 0; compat 0; nlocs 0; hdrdn 1; infun 0;
-ghbuf[1024]; ghlen 0; ghon 0; glits 0;
+ghlen 0; ghon 0; glits 0;
 
 ghchar(c) {
-    extrn ghbuf,ghlen,lchar;
-    if(ghlen>=2047) fatal("global records too large");
+    extrn ghbuf,ghlen,lchar,ghlimit;
+    if(ghlen>=ghlimit) fatal("global records too large");
     lchar(ghbuf,ghlen++,c);lchar(ghbuf,ghlen,0);
 }
 ghtext(s) {
@@ -33,7 +33,7 @@ usage() {
 main() {
     extrn argv,nlab,char,open,creat,close,exit;
     auto i,ifd,ofd,in,out,done,p;
-    nlab=30000;i=2;in=0;out=0;done=0;
+    resinit();nlab=30000;i=2;in=0;out=0;done=0;
     while(i<=argv[0]) {
         p=argv[i];
         if(char(p,0)=='-') if(char(p,1)=='s') if(char(p,2)==0) goto isdone;

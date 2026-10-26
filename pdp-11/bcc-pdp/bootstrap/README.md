@@ -32,6 +32,9 @@ independent toolchain.
   numeric helpers without changing this target.
 - `src/ic.b` reads bounded records in 128-byte input blocks and checks signed
   16-bit decimal fields. Selecting a new input discards unread buffered bytes.
+- `src/resolver16.b` keeps the native resolver at 200 symbols and a 2,047-byte
+  initializer-record buffer. The host-native prototype selects separate storage
+  without changing these native limits.
 - `src/symbols.b` stores symbol names as packed bytes, with separate B-cell
   arrays for their classes and offsets.
 - `src/b01.b` resolves declarations, names, and labels, and reorders global

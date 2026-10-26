@@ -560,3 +560,26 @@ fixed point.
 python3 bootstrap/native/test_data.py
 python3 bootstrap/native/test_calls.py
 ```
+
+
+## Host resolver storage
+
+The [host resolver seed builder](resolver/build.py) uses the same symbol and
+record-rewriting code as the PDP-11 resolver, with a separate B storage module.
+It allows 1,024 symbols and 8,191 buffered initializer-record bytes. The native
+configuration remains at 200 symbols and 2,047 bytes. Names still have eight
+characters, and local counts and record indices retain their existing bounds.
+The host configuration rejects 16-bit and 32-bit word modes before reading input.
+
+This is enough to resolve the expanded test constructor's own source and a
+128-element initializer list of full-width integers. It does not establish
+native self-compilation: the constructor still lacks runtime imports and normal
+startup. Its separate function-metadata table still has 200 slots.
+
+```sh
+python3 bootstrap/native/resolver/build.py /tmp/bcc-resolver
+python3 bootstrap/native/test_resolver.py
+```
+
+The Python builder is a seed convenience. The resolver itself is B source;
+its ordinary record-processing path does not launch other tools.

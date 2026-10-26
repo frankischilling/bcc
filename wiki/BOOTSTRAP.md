@@ -64,8 +64,8 @@ and rejects undefined labels. An integer-operation selector handles 64-bit
 arithmetic, comparisons, shifts, and unary operations while preserving the
 host's word behavior. Tests compare the bytes and execute the resulting images
 on Linux x86-64. Building these components still uses the C-output toolchain.
-The native frontend, full expression lowering, runtime, and source-to-instruction
-path listed above remain necessary.
+The full runtime, remaining source constructs, normal startup, and independent
+build driver remain necessary.
 
 The [wide record frontend](../bootstrap/native/frontend/README.md) shares the
 B parser while selecting 64-bit numeric helpers. The PDP-11 configuration
@@ -76,13 +76,13 @@ executable.
 
 The [parameter metadata reader](../bootstrap/native/README.md#function-parameter-metadata)
 collects declared argument counts before resolution discards unused parameter
-declarations. It checks record boundaries and indices, but does not yet lower
-calls or provide the native host runtime.
+declarations. It checks record boundaries and indices; call lowering and the
+native host runtime are separate components.
 
 The [scalar record lowerer](../bootstrap/native/README.md#scalar-record-lowering)
 turns straight-line arithmetic records into x86-64 instructions, with checked
-operand-stack balance and division-fault branches. It does not yet lower
-function calls or control flow. A separate
+operand-stack balance and division-fault branches. Calls and control flow use
+separate modules. A
 [local-memory lowerer](../bootstrap/native/README.md#local-storage-and-pointer-records)
 adds local cells, automatic vectors, word-addressed pointers, and assignments.
 A [control-flow lowerer](../bootstrap/native/README.md#structured-control-flow)
@@ -95,6 +95,11 @@ adds global cells, vectors, named-address initializers, and separate writable
 storage for each string occurrence. Runtime imports, switch, computed goto,
 and normal startup remain separate work.
 The result-reporting test constructor is not a general source compiler.
+A separate [host resolver storage module](../bootstrap/native/README.md#host-resolver-storage)
+raises its symbol capacity to 1,024 and its buffered initializer records to
+8,191 bytes. The PDP-11 configuration retains its smaller limits. The expanded
+constructor can now resolve its own source, but cannot yet compile itself to
+a working native executable.
 
 The existing C and assembly-source builds remain useful seeds and comparison
 implementations during this work. A native-output prototype that cannot yet

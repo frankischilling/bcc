@@ -16,10 +16,12 @@ PROJECT=ROOT.parents[1]
 NATIVE=PROJECT/'pdp-11/bcc-pdp/bootstrap'
 FIXTURES=ROOT/'fixtures/calls'
 sys.path.insert(0,str(NATIVE/'tools'))
-from build_passes import source_text as pass_source
 spec=importlib.util.spec_from_file_location('wide_frontend',ROOT/'frontend/build.py')
 frontend=importlib.util.module_from_spec(spec)
 spec.loader.exec_module(frontend)
+spec=importlib.util.spec_from_file_location('host_resolver',ROOT/'resolver/build.py')
+resolver=importlib.util.module_from_spec(spec)
+spec.loader.exec_module(resolver)
 SOURCE_CASES=[('main(){return(42);}', 42),
  ('add(a,b){return(a+b);}main(){return(add(7,9));}', 16),
  ('f(a,b,c){return(a+b+c);}main(){return(f(7));}', 7),
@@ -76,6 +78,8 @@ SOURCE_CASES += [
  ('peek(s,i){return((s[i/8]>>((i%8)*8))&255);}main(){return(peek("123456789*0AB",9)+peek("123456789*0AB",11));}',66),
 ]
 
+SOURCE_CASES.append(('v[128] '+','.join(['9223372036854775807']*128)+';main(){extrn v;return(v[127]);}', (1<<63)-1))
+
 ABI_CASES=[(0,0,2,0),(0,1,2,1),(0,2,2,3),(0,5,2,3),(1,8,2,8),
            (2,0,0,0),(2,8,0,8),(3,15,1,120),(4,1,1,141),(5,1,1,15),
            (6,0,0,None),(7,0,0,None),(8,0,0,None),(9,0,32767,0),
@@ -103,7 +107,7 @@ def main():
         common='\n'.join(path.read_text() for path in parts)
         build('abi',common+(FIXTURES/'abi.b').read_text())
         build('constructor',common+'\n'.join((FIXTURES/name).read_text() for name in ('metadata.b','emission.b','driver.b')))
-        build('front',frontend.source_text());build('resolver',pass_source('resolver'))
+        build('front',frontend.source_text());build('resolver',resolver.source_text())
         build('image',(ROOT/'elfimage.b').read_text());(work/'empty').write_bytes(b'')
 
         def image_check(name,code,data,value,status=0):
@@ -149,7 +153,7 @@ def main():
                                   capture_output=True,timeout=60,env=tool_free)
 
         cases=list(SOURCE_CASES)
-        cases.append((''.join(f'f{i}(){{return({i});}}' for i in range(199))+'main(){return(198);}',198))
+        cases.append((''.join(f'f{i}(){{return({i});}}' for i in range(199))+'main(){return(f198());}',198))
         for index,(text,value) in enumerate(cases):
             # Controlled fixtures have no strings; rename the original entry and its references.
             reference=re.sub(r'(?<![A-Za-z0-9_\x08])main(?![A-Za-z0-9_\x08])','zzentry',text)

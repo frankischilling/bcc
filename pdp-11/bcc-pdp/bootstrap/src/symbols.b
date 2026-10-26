@@ -1,7 +1,4 @@
 /* Names occupy nine packed bytes; classes and offsets occupy B cells. */
-snam[900];
-scls[200];
-soff[200];
 nsy 0;
 fnst 0;
 nameat(a,base,b) {
@@ -38,9 +35,9 @@ symfnd(name) {
     return(-1);
 }
 symadd(name,cls,off) {
-    extrn scls,soff,nsy;
+    extrn scls,soff,nsy,symlimit;
     auto idx;
-    if(nsy>=200) fatal("symbol table full");
+    if(nsy>=symlimit) fatal("symbol table full");
     idx=nsy;nmcpy(idx*9,name);
     scls[idx]=cls;soff[idx]=off;nsy++;
     return(idx);

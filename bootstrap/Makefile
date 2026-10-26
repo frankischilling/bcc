@@ -84,13 +84,14 @@ native-test: stage3
 	python3 native/test_ops.py --compiler $(STAGE0)
 	python3 native/test_calls.py --compiler $(STAGE0)
 	python3 native/test_data.py --compiler $(STAGE0)
+	python3 native/test_resolver.py --compiler $(STAGE0)
 	python3 native/test_control.py --compiler $(STAGE0)
 	python3 native/test_memory.py --compiler $(STAGE0)
 	python3 native/test_scalar.py --compiler $(STAGE0)
 	python3 native/test_arity.py --compiler $(STAGE0)
 	python3 native/test_frontend.py --compiler $(STAGE0)
 	python3 ../pdp-11/bcc-pdp/bootstrap/test_source_reader.py --compiler $(STAGE0)
-	@set -e; for stage in 1 2 3; do python3 native/test_elfimage.py --bootstrap --compiler build/stage$$stage/bbc; python3 native/test_x64.py --bootstrap --compiler build/stage$$stage/bbc; python3 native/test_labels.py --bootstrap --compiler build/stage$$stage/bbc; python3 native/test_ops.py --bootstrap --compiler build/stage$$stage/bbc; python3 native/test_frontend.py --bootstrap --compiler build/stage$$stage/bbc; python3 native/test_arity.py --bootstrap --compiler build/stage$$stage/bbc; python3 native/test_scalar.py --bootstrap --compiler build/stage$$stage/bbc; python3 native/test_memory.py --bootstrap --compiler build/stage$$stage/bbc; python3 native/test_control.py --bootstrap --compiler build/stage$$stage/bbc; python3 native/test_calls.py --bootstrap --compiler build/stage$$stage/bbc; python3 native/test_data.py --bootstrap --compiler build/stage$$stage/bbc; python3 ../pdp-11/bcc-pdp/bootstrap/test_source_reader.py --bootstrap --compiler build/stage$$stage/bbc; done
+	@set -e; for stage in 1 2 3; do python3 native/test_elfimage.py --bootstrap --compiler build/stage$$stage/bbc; python3 native/test_x64.py --bootstrap --compiler build/stage$$stage/bbc; python3 native/test_labels.py --bootstrap --compiler build/stage$$stage/bbc; python3 native/test_ops.py --bootstrap --compiler build/stage$$stage/bbc; python3 native/test_frontend.py --bootstrap --compiler build/stage$$stage/bbc; python3 native/test_arity.py --bootstrap --compiler build/stage$$stage/bbc; python3 native/test_scalar.py --bootstrap --compiler build/stage$$stage/bbc; python3 native/test_memory.py --bootstrap --compiler build/stage$$stage/bbc; python3 native/test_control.py --bootstrap --compiler build/stage$$stage/bbc; python3 native/test_calls.py --bootstrap --compiler build/stage$$stage/bbc; python3 native/test_data.py --bootstrap --compiler build/stage$$stage/bbc; python3 native/test_resolver.py --bootstrap --compiler build/stage$$stage/bbc; python3 ../pdp-11/bcc-pdp/bootstrap/test_source_reader.py --bootstrap --compiler build/stage$$stage/bbc; done
 
 clean:
 	rm -rf $(BUILD)
