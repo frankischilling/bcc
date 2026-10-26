@@ -1,5 +1,5 @@
 /* bexpr.c -- expression parser.  Precedence-climbing, immediate codegen.
- * Strict 1972 kbman conformance by default: no ~ ^ && ||.
+ * The selected B72 operator set excludes ~ ^ && || by default.
  * b00 -x enables those post-1972 compatibility extensions.
  *
  * lvalue convention: primary returns 1 if R0 holds an address (lvalue),
@@ -82,13 +82,22 @@ isasn() {
 	return (0);
 }
 
+namelv() {
+    extern tok, tnam;
+    int tok, i;
+    char tnam[], name[10];
+    i = 0;
+    while (i < 9) { name[i] = tnam[i]; i = i + 1; }
+    gettok();
+    cgrname(name, tok == '(');
+    return (1);
+}
+
 /* Returns 1 if R0 holds an lvalue (address), 0 if rvalue. */
-primlv() {
+atomlv() {
 	extern tok, tval, tstr, tnam, tstrbuf, tstrlen;
 	int  tok, tval, tstr, tstrlen;
 	char tnam[], tstrbuf[];
-	int nargs, i;
-	char name[10];
 
 	if (tok == 2) {                          /* T_NUM */
 		cgnst(tval);
@@ -101,7 +110,7 @@ primlv() {
 		return (0);
 	}
 	if (tok == 3) {                          /* T_STR */
-		cgslt(tstrbuf, tstrlen);
+		cgslt(tstrbuf, tstrlen, 0);
 		gettok();
 		return (0);
 	}
@@ -122,53 +131,61 @@ primlv() {
 		if (unary()) cgdrf();                 /* load pointer value into R0 */
 		return (1);                          /* result is lvalue at that addr */
 	}
-	if (tok == 1) {                          /* T_NAME */
-		i = 0;
-		while (i < 9) {
-			name[i] = tnam[i];
-			i = i + 1;
-		}
-		gettok();
-		if (tok == '(') {
-			nargs = 0;
-			gettok();
-			if (tok != ')') {
-				while (1) {
-					exprv();
-					cgpsh();
-					nargs = nargs + 1;
-					if (tok == ')') break;
-					if (tok != ',') fatal("expected , in args");
-					gettok();
-				}
-			}
-			gettok();
-			cgcll(name, nargs);
-			return (0);
-		}
-		cgrname(name);
-		if (tok == '[') {
-			gettok();
-			cgpsh();
-			exprv();
-			if (tok != ']') fatal("expected ]");
-			gettok();
-			cgidx();
-		}
-		if (tok == 106) {                        /* T_INC */
-			gettok();
-			cgpoi(1);
-			return (0);
-		}
-		if (tok == 107) {                        /* T_DEC */
-			gettok();
-			cgpoi(0);
-			return (0);
-		}
-		return (1);
-	}
+	if (tok == 1) return (namelv());
+
 	fatal("expected expression");
 	return (0);
+}
+
+/* Calls and indexing apply to any primary expression, not just a name. */
+primlv() {
+    stkchk();
+    return (primtl(atomlv()));
+}
+
+primtl(lv) {
+    extern tok;
+    int tok, nargs;
+    while (1) {
+        if (tok == '(') {
+            if (lv) cgdrfr();
+            cgpsh();
+            nargs = 0;
+            gettok();
+            if (tok != ')') {
+                while (1) {
+                    exprv();
+                    cgpsh();
+                    nargs = nargs + 1;
+                    if (tok == ')') break;
+                    if (tok != ',') fatal("expected , in args");
+                    gettok();
+                }
+            }
+            gettok();
+            cgcll(nargs);
+            lv = 0;
+        } else if (tok == '[') {
+            if (lv) cgdrfr();
+            gettok();
+            cgpsh();
+            exprv();
+            if (tok != ']') fatal("expected ]");
+            gettok();
+            cgidx();
+            lv = 1;
+        } else {
+            if (tok == 106) {
+                if (!lv) fatal("++ requires lvalue");
+                gettok(); cgpoi(1); return (0);
+            }
+            if (tok == 107) {
+                if (!lv) fatal("-- requires lvalue");
+                gettok(); cgpoi(0); return (0);
+            }
+            return (lv);
+        }
+    }
 }
 
 /* Prefix unaries.  Returns 1 if result is still an lvalue. */
@@ -176,6 +193,7 @@ unary() {
 	extern tok;
 	int tok;
 	int l1, l2;
+	stkchk();
 	if (tok == '-') {
 		gettok();
 		if (unary()) cgdrfr();
@@ -216,6 +234,7 @@ binary(minprc) {
 	extern tok, rprc, rop;
 	int tok, rprc, rop;
 	int prec, op, islv, lfa, lend, lrhs;
+	stkchk();
 	while (binfo()) {
 		prec = rprc;
 		op = rop;
@@ -269,11 +288,24 @@ binary(minprc) {
 	}
 }
 
+/* Parentheses do not need to retain assignment and branch temporaries. */
 exprv() {
-	extern tok;
-	int tok;
-	int islv, op, bop, le, lend, lfa;
-	islv = unary();
+    extern tok;
+    int tok;
+    stkchk();
+    if (tok == '(') {
+        gettok(); exprv();
+        if (tok != ')') fatal("expected )");
+        gettok(); exprtl(primtl(0));
+        return;
+    }
+    exprtl(unary());
+}
+
+exprtl(islv) {
+    extern tok;
+    int tok;
+    int op, bop, le, lend, lfa;
 	op = 0;
 	if (islv) op = isasn();
 	if (op) {

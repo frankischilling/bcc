@@ -120,6 +120,7 @@ typedef enum {
 typedef struct {
     TokenKind kind;
     char *lexeme;     // for IDs / STR
+    size_t string_len; // TK_STR can contain embedded zero bytes
     int owns_lexeme;  // 1 if lexeme should be freed, 0 if arena-allocated
     long num;         // for NUM
     int line, col;
@@ -159,6 +160,12 @@ typedef enum {
 struct Expr {
     ExprKind kind;
     int line, col;
+    int function_value; /* This name denotes a function rvalue. */
+    int builtin_argv;   /* The predefined argv vector, not argv(i). */
+    int global_value;   /* 1: B storage cell; 2: external or host macro. */
+    int indirect_call;  /* The callee is an evaluated B word. */
+    size_t parameter_index; /* One-based index in the invocation parameter block. */
+    size_t string_len; // EX_STR byte length, excluding the implicit *e
     union {
         long num;          // EX_NUM
         char *str;         // EX_STR
@@ -201,10 +208,10 @@ struct Stmt {
         struct { Expr *e; } expr;
         struct { Vec names; } extrn;                           // names: char*
 
-        struct { char *target; } goto_;
+        struct { Expr *target; } goto_;
         struct { char *name; Stmt *stmt; } label_;
         struct { Expr *expr; Stmt *body; } switch_;
-        struct { int has_range; TokenKind relop; int64_t lo; int64_t hi; } case_;
+        struct { int has_range; TokenKind relop; int64_t lo; int64_t hi; Stmt *stmt; } case_;
     } as;
 };
 
@@ -233,6 +240,7 @@ typedef enum { EXTVAR_SCALAR, EXTVAR_BLOB, EXTVAR_VECTOR } ExtVarKind;
 typedef struct {
     int is_func;           // 1 if function declaration, 0 if variable
     int is_implicit_static; // 1 if created for undeclared variable
+    int is_macro_external; // external reference may name a host header macro
     char *name;
 
     union {
@@ -242,7 +250,7 @@ typedef struct {
             // for VECTOR only:
             Expr *bound;      // NULL for []
             int  has_empty;   // 1 if [] form used
-            long bound_const; // folded const-expr value (upper bound), valid when bound!=NULL
+            long bound_const; // folded constant element count, valid when bound!=NULL
             // initializer tree:
             Init *init;       // NULL means no init
         } var;
@@ -288,6 +296,8 @@ typedef struct Symbol {
     char *name;
     int line, col;        // declaration location
     int is_extern;        // for variables: declared with extrn
+    int is_builtin;       // default library binding, not a source definition
+    size_t parameter_index; /* Zero for non-parameter bindings. */
     union {
         struct {
             int has_size;     // 0 for scalars, 1 for vectors
@@ -310,12 +320,16 @@ typedef struct {
     Vec extern_names;      // char* - names declared as extern
     Vec function_names;    // char* - defined functions
     Vec implicit_statics;  // char* - undeclared variables that become static
+    Vec global_refs;       // char* - referenced external storage
+    Program *program;
+    const char *function_name;
 } SemState;
 
 typedef struct {
     Lexer L;
     Token cur;
     const char *source;  // source code for error reporting
+    int word_bits;     /* 0 selects the host word width. */
     int loop_depth;
     int switch_depth;
 } Parser;
@@ -387,7 +401,6 @@ void emit_program_c_ext(FILE *out, Program *prog, const char *filename, int byte
 
 // Path to libb installation (set by main.c based on executable location)
 extern const char *g_libb_path;
-void emit_program_asm(FILE *out, Program *prog);
 void emit_expr(FILE *out, Expr *e, const char *filename);
 void emit_ival_expr(FILE *out, Expr *e, const char *filename);
 void emit_stmt(FILE *out, Stmt *s, int indent, int is_function_body, const char *filename);
@@ -438,6 +451,7 @@ extern Vec g_include_paths;
 extern Vec g_included_files;
 extern Vec g_parsing_files;
 extern Vec g_known_functions;
+extern Vec g_known_variables;
 
 // Dialect and Extension Flags
 
@@ -450,9 +464,12 @@ typedef enum {
     EXT_C_COMPOUND_ASGN = 1 << 3,  // +=, -=, etc. (C-style)
     EXT_LOGICAL_OR      = 1 << 4,  // || logical OR (not in Thompson B72)
     EXT_LONG_CHAR_CONST = 1 << 5,  // 3-4 byte character constants
+    EXT_CONTROL         = 1 << 6,  // break, continue, default (other B dialects)
+    EXT_BRACKET_AUTO    = 1 << 7,  // auto v[n] instead of auto v n
     EXT_ALL             = 0xFFFF,  // All extensions
 } BExtensions;
 
+extern int g_use_curses;          /* Optional terminal headers requested by -l. */
 extern int g_strict;              // If true, use strict B72 mode (no extensions)
 extern unsigned g_extensions;     // Enabled extensions (bitfield)
 extern int g_pedantic;            // If true, error on any extension use
@@ -473,10 +490,14 @@ size_t emit_edge_list_init(FILE *out, const char *arr,
 
 // Main/File I/O
 
+char *compile_libb(const char *directory, int verbose, int byteptr, int word_bits);
+
 char *read_file_all(const char *path, size_t *out_len);
 char *resolve_include_path(const char *include_name, const char *current_file);
 void dump_token_stream(Parser *P);
 void dump_ast_program(Program *prog);
 int run_gcc(const char *cfile, const char *out_exe, int compile_only, int debug, int wall, int wextra, int werror, Vec *extra_args);
+
+int b_library_function(const char *name);
 
 #endif // BCC_H

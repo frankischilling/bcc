@@ -1,7 +1,7 @@
 / brt.s — runtime helpers for bcc-pdp.
 /
-/ Calling convention (set in Task 5.3): args pushed left-to-right.
-/ Helper called via `jsr pc, _name`; args at 2(sp), 4(sp), ...
+/ Calls place the leftmost argument nearest the return address.
+/ Function cells are called via `jsr pc, *_name`; args at 2(sp), 4(sp), ...
 / Result returned in r0. Helpers preserve no callee-save regs.
 
 / Syscall numbers (V1 manual section II)
@@ -24,8 +24,8 @@ schown  = 16.
 sbreak  = 17.
 sstat   = 18.
 sseek   = 19.
-stty    = 20.
-sgtty   = 21.
+stty    = 31.
+sgtty   = 32.
 ssetuid = 23.
 sgetuid = 24.
 sstime  = 25.
@@ -43,44 +43,35 @@ sfstat  = 28.
 .globl	_putstr
 .globl	_char
 .globl	_lchar
-.globl	_fork
-.globl	_wait
 .globl	_unlink
-.globl	_link
-.globl	_chdir
-.globl	_chmod
-.globl	_chown
-.globl	_stat
-.globl	_fstat
-.globl	_setuid
-.globl	_getuid
-.globl	_time
-.globl	_stty
-.globl	_gtty
-.globl	_execl
-.globl	_execv
-.globl	_mkdir
-.globl	_makdir
-.globl	_ctime
 
 / B word marker for end-of-string ('*e' in B source, 04 octal)
 EOT = 4
 
 / ---- _exit(code) ----
 _exit:
+	.+2
 	mov	2(sp), r0
 	sys	sexit
 
 / ---- _putchar(c) ----
 _putchar:
+	.+2
 	mov	2(sp), pcbuf
 	mov	$1, r0			/ fd = stdout
+	tstb	pcbuf+1
+	beq	1f
+	swab	pcbuf			/ packed pair: high byte first
+	sys	swrite; pcbuf; 2.
+	rts	pc
+1:
 	sys	swrite; pcbuf; 1.
 	rts	pc
 pcbuf:	0
 
 / ---- _getchar() -> int (char, or *e on EOF) ----
 _getchar:
+	.+2
 	clr	r0			/ fd = stdin
 	sys	read; gcbuf; 1.
 	bes	1f
@@ -97,8 +88,10 @@ gcbuf:	0
 
 / ---- _write(fd, buf, n) ----
 _write:
+	.+2
 	mov	2(sp), r0
 	mov	4(sp), 0f
+	asl	0f
 	mov	6(sp), 0f+2
 	sys	write; 0:..; ..
 	bes	1f
@@ -109,8 +102,10 @@ _write:
 
 / ---- _read(fd, buf, n) ----
 _read:
+	.+2
 	mov	2(sp), r0
 	mov	4(sp), 0f
+	asl	0f
 	mov	6(sp), 0f+2
 	sys	read; 0:..; ..
 	bes	1f
@@ -119,19 +114,28 @@ _read:
 	mov	$-1, r0
 	rts	pc
 
-/ ---- _open(name, mode) ----
+/ ---- _open(path, mode): convert the B terminator before the syscall. ----
 _open:
-	mov	2(sp), 0f
-	mov	4(sp), 0f+2
-	sys	open; 0:..; ..
-	bes	1f
-	rts	pc
+	.+2
+	mov	2(sp), r0
+	jsr	pc, .path1
+	bes	9f
+	/ Canonicalize every nonzero B mode to write-only, not host open flags.
+	clr	0f+2
+	tst	4(sp)
+	beq	1f
+	inc	0f+2
 1:
+	sys	sopen; 0:.bp1; ..
+	bes	9f
+	rts	pc
+9:
 	mov	$-1, r0
 	rts	pc
 
 / ---- _close(fd) ----
 _close:
+	.+2
 	mov	2(sp), r0
 	sys	sclose
 	bes	1f
@@ -140,36 +144,49 @@ _close:
 	mov	$-1, r0
 	rts	pc
 
-/ ---- _creat(name, mode) ----
+/ ---- _creat(path, mode): convert the B terminator before the syscall. ----
 _creat:
-	mov	2(sp), 0f
+	.+2
+	mov	2(sp), r0
+	jsr	pc, .path1
+	bes	9f
 	mov	4(sp), 0f+2
-	sys	creat; 0:..; ..
-	bes	1f
+	sys	screat; 0:.bp1; ..
+	bes	9f
 	rts	pc
-1:
+9:
 	mov	$-1, r0
 	rts	pc
 
-/ ---- _seek(fd, off, ptrname) ----
+/ ---- _seek(fd, offset, origin) ----
 _seek:
+	.+2
 	mov	2(sp), r0
 	mov	4(sp), 0f
 	mov	6(sp), 0f+2
-	sys	seek; 0:..; ..
+	sys	sseek; 0:..; ..
+	bes	9f
+	clr	r0
+	rts	pc
+9:
+	mov	$-1, r0
 	rts	pc
 
 / ---- _putstr(s) — print chars until EOT (04) ----
 _putstr:
+	.+2
 	mov	2(sp), r1
+	asl	r1
 1:
 	movb	(r1)+, r0
 	cmpb	r0, $EOT
 	beq	2f
 	bic	$177400, r0
+	mov	r1, -(sp)		/ replacement functions may clobber r1
 	mov	r0, -(sp)
-	jsr	pc, _putchar
+	jsr	pc, *_putchar
 	tst	(sp)+
+	mov	(sp)+, r1
 	br	1b
 2:
 	rts	pc
@@ -194,47 +211,81 @@ _putstr:
 	mov	r3, r0
 	jmp	(r2)
 
-/ ---- .div: LHS/RHS, result in R0. Restoring division, 16-bit unsigned. ----
-.globl	.div
+/ Signed division truncates toward zero; the loop divides unsigned magnitudes.
+/ Save R5 because it is the caller's frame pointer.
+.globl .div
 .div:
-	mov	(sp)+, r2
-	mov	(sp)+, r0		/ r0 = RHS (divisor)
-	mov	(sp)+, r1		/ r1 = LHS (dividend)
-	clr	r3			/ quotient
-	mov	$16., r4
+	mov (sp)+, r2
+	mov (sp)+, r0
+	mov (sp)+, r1
+	mov r5, -(sp)
+	clr r5
+	tst r1
+	bge 1f
+	neg r1
+	inc r5
 1:
-	asl	r1
-	rol	r3			/ r3:r1 shift left
-	cmp	r3, r0
-	blo	2f
-	sub	r0, r3
-	inc	r1
+	tst r0
+	bge 2f
+	neg r0
+	inc r5
 2:
-	dec	r4
-	bne	1b
-	mov	r1, r0
-	jmp	(r2)
+	clr r3
+	mov $16., r4
+3:
+	asl r1
+	rol r3
+	cmp r3, r0
+	blo 4f
+	sub r0, r3
+	inc r1
+4:
+	dec r4
+	bne 3b
+	bit $1, r5
+	beq 5f
+	neg r1
+5:
+	mov r1, r0
+	mov (sp)+, r5
+	jmp (r2)
 
-/ ---- .mod: LHS%RHS, result in R0. Same loop as .div but return remainder. ----
-.globl	.mod
+/ Remainders follow the dividend's sign for the chosen truncation rule.
+.globl .mod
 .mod:
-	mov	(sp)+, r2
-	mov	(sp)+, r0
-	mov	(sp)+, r1
-	clr	r3
-	mov	$16., r4
+	mov (sp)+, r2
+	mov (sp)+, r0
+	mov (sp)+, r1
+	mov r5, -(sp)
+	clr r5
+	tst r1
+	bge 1f
+	neg r1
+	inc r5
 1:
-	asl	r1
-	rol	r3
-	cmp	r3, r0
-	blo	2f
-	sub	r0, r3
-	inc	r1
+	tst r0
+	bge 2f
+	neg r0
 2:
-	dec	r4
-	bne	1b
-	mov	r3, r0
-	jmp	(r2)
+	clr r3
+	mov $16., r4
+3:
+	asl r1
+	rol r3
+	cmp r3, r0
+	blo 4f
+	sub r0, r3
+	inc r1
+4:
+	dec r4
+	bne 3b
+	tst r5
+	beq 5f
+	neg r3
+5:
+	mov r3, r0
+	mov (sp)+, r5
+	jmp (r2)
 
 / ---- .shl: LHS << RHS, result in R0. ----
 .globl	.shl
@@ -286,13 +337,14 @@ _putstr:
 
 
 / =========== kbman §8 library: char, lchar ===========
-/ This compiler is byte-addressed (deviation from kbman §12 word-addressed
-/ model — see README).  So a "string" rvalue is a byte address.
+/ String values are B word addresses; character indices count bytes.
 / char(s, i) = the i-th byte; lchar(s, i, c) sets it.
 
 / ---- _char(s, i) -> int (byte zero-extended) ----
 _char:
-	mov	2(sp), r0		/ r0 = s (byte addr of string base)
+	.+2
+	mov	2(sp), r0		/ r0 = s (B word address)
+	asl	r0
 	add	4(sp), r0		/ r0 = &s[i]
 	clr	r1
 	bisb	(r0), r1		/ r1 = zero-extended byte
@@ -301,215 +353,340 @@ _char:
 
 / ---- _lchar(s, i, c) ----
 _lchar:
+	.+2
 	mov	2(sp), r0
+	asl	r0
 	add	4(sp), r0		/ r0 = &s[i]
 	mov	6(sp), r1		/ r1 = c
 	movb	r1, (r0)
+	mov	r1, r0		/ return the supplied character, not its byte address
 	rts	pc
 
 
 / =========== kbman §8 library: V1 syscall wrappers ===========
 
-/ ---- _fork() — returns child pid in parent, 0 in child, -1 on error ----
+/ ---- _fork(): the parent skips the instruction after sys fork. ----
+/ bcc-meta-begin
+.globl	_fork
+.globl	_wait
+.globl	_chdir
+.globl	_link
+.globl	_chmod
+.globl	_chown
+.globl	_stat
+.globl	_fstat
+.globl	_stty
+.globl	_gtty
+.globl	_setuid
+.globl	_getuid
+.globl	_time
+.globl	_mkdir
+.globl	_makdir
 _fork:
+	.+2
 	sys	sfork
-	bes	1f
+	br	1f
+	bcc	2f
+	mov	$-1, r0
 	rts	pc
-1:	mov	$-1, r0
+1:
+	clr	r0
+2:
 	rts	pc
 
-/ ---- _wait() — returns child pid that exited, -1 on error ----
 _wait:
+	.+2
 	sys	swait
-	bes	1f
+	bes	9f
 	rts	pc
-1:	mov	$-1, r0
+9:
+	mov	$-1, r0
 	rts	pc
 
-/ ---- _unlink(name) ----
+/ bcc-meta-end
 _unlink:
-	mov	2(sp), unmnam
-	sys	sunlink; unmnam
-	bes	1f
-	rts	pc
-1:	mov	$-1, r0
-	rts	pc
-unmnam:	0
-
-/ ---- _link(old, new) ----
-_link:
-	mov	2(sp), lkold
-	mov	4(sp), lknew
-	sys	slink; lkold; lknew
-	bes	1f
-	rts	pc
-1:	mov	$-1, r0
-	rts	pc
-lkold:	0
-lknew:	0
-
-/ ---- _chdir(path) ----
-_chdir:
-	mov	2(sp), cdnam
-	sys	schdir; cdnam
-	bes	1f
-	rts	pc
-1:	mov	$-1, r0
-	rts	pc
-cdnam:	0
-
-/ ---- _chmod(path, mode) ----
-_chmod:
-	mov	2(sp), cmnam
-	mov	4(sp), r0		/ mode in r0
-	sys	schmod; cmnam
-	bes	1f
-	rts	pc
-1:	mov	$-1, r0
-	rts	pc
-cmnam:	0
-
-/ ---- _chown(path, owner) ----
-_chown:
-	mov	2(sp), cwnam
-	mov	4(sp), r0		/ owner in r0
-	sys	schown; cwnam
-	bes	1f
-	rts	pc
-1:	mov	$-1, r0
-	rts	pc
-cwnam:	0
-
-/ ---- _stat(path, statbuf) ----
-_stat:
-	mov	2(sp), stnam
-	mov	4(sp), stbuf
-	sys	sstat; stnam; stbuf
-	bes	1f
-	rts	pc
-1:	mov	$-1, r0
-	rts	pc
-stnam:	0
-stbuf:	0
-
-/ ---- _fstat(fd, statbuf) ----
-_fstat:
+	.+2
 	mov	2(sp), r0
-	mov	4(sp), fsbuf
-	sys	sfstat; fsbuf
-	bes	1f
+	jsr	pc, .path1
+	bes	9f
+	sys	sunlink; .bp1
+	bes	9f
+	clr	r0
 	rts	pc
-1:	mov	$-1, r0
+9:
+	mov	$-1, r0
 	rts	pc
-fsbuf:	0
 
-/ ---- _setuid(uid) ----
+/ bcc-meta-begin
+_chdir:
+	.+2
+	mov	2(sp), r0
+	jsr	pc, .path1
+	bes	9f
+	sys	schdir; .bp1
+	bes	9f
+	clr	r0
+	rts	pc
+9:
+	mov	$-1, r0
+	rts	pc
+
+_link:
+	.+2
+	mov	2(sp), r0
+	jsr	pc, .path1
+	bes	9f
+	mov	4(sp), r0
+	jsr	pc, .path2
+	bes	9f
+	sys	slink; .bp1; .bp2
+	bes	9f
+	clr	r0
+	rts	pc
+9:
+	mov	$-1, r0
+	rts	pc
+
+_chmod:
+	.+2
+	mov	2(sp), r0
+	jsr	pc, .path1
+	bes	9f
+	mov	4(sp), 0f+2
+	sys	schmod; 0:.bp1; ..
+	bes	9f
+	clr	r0
+	rts	pc
+9:
+	mov	$-1, r0
+	rts	pc
+
+_chown:
+	.+2
+	mov	2(sp), r0
+	jsr	pc, .path1
+	bes	9f
+	mov	4(sp), 0f+2
+	sys	schown; 0:.bp1; ..
+	bes	9f
+	clr	r0
+	rts	pc
+9:
+	mov	$-1, r0
+	rts	pc
+
+_stat:
+	.+2
+	mov	2(sp), r0
+	jsr	pc, .path1
+	bes	9f
+	mov	4(sp), 0f+2
+	asl	0f+2
+	sys	sstat; 0:.bp1; ..
+	bes	9f
+	clr	r0
+	rts	pc
+9:
+	mov	$-1, r0
+	rts	pc
+
+_makdir:
+	.+4
+_mkdir:
+	.+2
+	mov	2(sp), r0
+	jsr	pc, .path1
+	bes	9f
+	mov	4(sp), 0f+2
+	sys	smkdir; 0:.bp1; ..
+	bes	9f
+	clr	r0
+	rts	pc
+9:
+	mov	$-1, r0
+	rts	pc
+
+_fstat:
+	.+2
+	mov	2(sp), r0
+	mov	4(sp), 0f
+	asl	0f
+	sys	sfstat; 0:..
+	bes	9f
+	clr	r0
+	rts	pc
+9:
+	mov	$-1, r0
+	rts	pc
+
+_stty:
+	.+2
+	mov	2(sp), r0
+	mov	4(sp), 0f
+	asl	0f
+	sys	stty; 0:..
+	bes	9f
+	clr	r0
+	rts	pc
+9:
+	mov	$-1, r0
+	rts	pc
+
+_gtty:
+	.+2
+	mov	2(sp), r0
+	mov	4(sp), 0f
+	asl	0f
+	sys	sgtty; 0:..
+	bes	9f
+	clr	r0
+	rts	pc
+9:
+	mov	$-1, r0
+	rts	pc
+
 _setuid:
+	.+2
 	mov	2(sp), r0
 	sys	ssetuid
-	bes	1f
+	bes	9f
+	clr	r0
 	rts	pc
-1:	mov	$-1, r0
+9:
+	mov	$-1, r0
 	rts	pc
 
-/ ---- _getuid() ----
 _getuid:
+	.+2
 	sys	sgetuid
 	rts	pc
 
-/ ---- _time(tvec) — store 2-word system time at *tvec ----
+/ V1 time returns the high and low words in the KE11 AC and MQ registers.
 _time:
-	sys	stime			/ kernel returns time in r0:r1
+	.+2
+	sys	stime
 	mov	2(sp), r2
-	mov	r0, (r2)+
-	mov	r1, (r2)
+	asl	r2
+	mov	ac, (r2)+
+	mov	mq, (r2)
+	clr	r0
 	rts	pc
 
-/ ---- _stty(fd, ttstat) ----
-_stty:
-	mov	2(sp), r0
-	mov	4(sp), styb
-	sys	stty; styb
-	bes	1f
-	rts	pc
-1:	mov	$-1, r0
-	rts	pc
-styb:	0
+/ bcc-meta-end
 
-/ ---- _gtty(fd, ttstat) ----
-_gtty:
-	mov	2(sp), r0
-	mov	4(sp), gtyb
-	sys	sgtty; gtyb
-	bes	1f
-	rts	pc
-1:	mov	$-1, r0
-	rts	pc
-gtyb:	0
-
-/ ---- _execl(path, argv...) — last arg must be 0; pass via _execv ----
-/ Caller passes a list ending with 0; we have to repackage as char**.
-/ Simplification: forward to _execv with a synthesized argv vector.
-/ For now, support up to 8 args.
-_execl:
-	mov	2(sp), exlpat		/ path
-	mov	$exlbuf, r0
-	mov	4(sp), (r0)+
-	mov	6(sp), (r0)+
-	mov	10(sp), (r0)+
-	mov	12(sp), (r0)+
-	mov	14(sp), (r0)+
-	mov	16(sp), (r0)+
-	mov	20(sp), (r0)+
-	mov	22(sp), (r0)+
-	sys	sexec; exlpat; exlbuf
-	mov	$-1, r0
-	rts	pc
-exlpat:	0
-exlbuf:	0;0;0;0;0;0;0;0
-
-/ ---- _execv(path, argv) — V1 exec syscall ----
+/ bcc-exec-begin
+.globl	_execv
+.globl	_execl
+/ B72 execv takes a counted vector, not a zero-terminated B vector.
 _execv:
-	mov	2(sp), exnam
-	mov	4(sp), exarg
-	sys	sexec; exnam; exarg
+	.+2
+	mov	2(sp), r0
+	jsr	pc, .path1
+	bes	9f
+	mov	6(sp), r3
+	blt	9f
+	cmp	r3, $64.
+	bhi	9f
+	mov	r3, .ecnt
+	mov	4(sp), r4
+	asl	r4
+	mov	$.earg, .evp
+	mov	$.estr, r1
+	mov	$512., r2
+1:
+	tst	.ecnt
+	beq	2f
+	tst	r4
+	beq	9f
+	mov	(r4)+, r0
+	mov	.evp, r3
+	mov	r1, (r3)+
+	mov	r3, .evp
+	jsr	pc, .strz
+	bes	9f
+	dec	.ecnt
+	br	1b
+2:
+	mov	.evp, r3
+	clr	(r3)
+	sys	sexec; .bp1; .earg
+9:
 	mov	$-1, r0
 	rts	pc
-exnam:	0
-exarg:	0
 
-/ ---- _mkdir/_makdir(path, mode) — V1 mkdir is sys 14, but only super. ----
-/ kbman §8 lists mkdir; V1 mkdir is /bin/mkdir not a syscall on early V1.
-/ Best-effort: try sys mkdir; if it traps, return -1.
-_mkdir:
-_makdir:
-	mov	2(sp), mknam
-	mov	4(sp), r0		/ mode
-	sys	smkdir; mknam
-	bes	1f
+/ The variadic arguments already form a contiguous vector on the stack.
+_execl:
+	.+2
+	mov	sp, r1
+	add	$4, r1
+	clr	r2
+1:
+	tst	(r1)+
+	beq	2f
+	inc	r2
+	cmp	r2, $64.
+	bhi	9f
+	br	1b
+2:
+	mov	2(sp), r3
+	mov	sp, r0
+	add	$4, r0
+	asr	r0
+	mov	r2, -(sp)
+	mov	r0, -(sp)
+	mov	r3, -(sp)
+	jsr	pc, *_execv
+	add	$6, sp
 	rts	pc
-1:	mov	$-1, r0
+9:
+	mov	$-1, r0
 	rts	pc
-mknam:	0
 
-/ ---- _ctime(time, dest) — render 2-word time into 16-byte buf at dest. ----
-/ Minimal compatible formatter: fills the documented 16-byte shape.
-_ctime:
-	mov	4(sp), r0		/ dest
-	movb	$'J, (r0)+
-	movb	$'a, (r0)+
-	movb	$'n, (r0)+
-	movb	$' , (r0)+
-	movb	$' , (r0)+
-	movb	$'1, (r0)+
-	movb	$' , (r0)+
-	movb	$'0, (r0)+
-	movb	$'0, (r0)+
-	movb	$':, (r0)+
-	movb	$'0, (r0)+
-	movb	$'0, (r0)+
-	movb	$':, (r0)+
-	movb	$'0, (r0)+
-	movb	$'0, (r0)+
-	clrb	(r0)
+/ bcc-exec-end
+
+/ Convert a B byte string to NUL-terminated syscall storage.
+/ R0 is a B word address, R1 a byte destination, R2 remaining bytes; R4 and R5 are preserved.
+.path1:
+	mov	$.bp1, r1
+	mov	$256., r2
+	br	.strz
+/ bcc-meta-begin
+.path2:
+	mov	$.bp2, r1
+	mov	$256., r2
+/ bcc-meta-end
+.strz:
+	tst	r0
+	beq	9f
+	asl	r0
+1:
+	tst	r2
+	beq	9f
+	movb	(r0)+, r3
+	beq	2f
+	cmpb	r3, $4
+	beq	2f
+	movb	r3, (r1)+
+	dec	r2
+	br	1b
+2:
+	clrb	(r1)+
+	dec	r2
+	clc
 	rts	pc
+9:
+	sec
+	rts	pc
+.even
+/ bcc-exec-begin
+.ecnt: 0
+.evp: 0
+.earg: .=.+130.
+.estr: .=.+512.
+/ bcc-exec-end
+.bp1: .=.+256.
+/ bcc-meta-begin
+.bp2: .=.+256.
+/ bcc-meta-end
+
+/ _ctime is implemented in runtime/libb.b.

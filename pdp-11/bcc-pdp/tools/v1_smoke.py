@@ -6,24 +6,35 @@ and print captured stdout. PROG.b must already exist in unix-v1/fs/root and
 have been baked into rk0.dsk (run tools/install_v1.sh + tools/rebuild_v1.sh
 first if you changed sources).
 
-Default PROG is hi.b. Exit status is 0 if compile + run reached HALT (the
-current B runtime's exit path) without timing out.
+Default PROG is hi.b. A CPU halt is a failure, not successful completion.
+Use --expected FILE to compare the console output (CRLF normalized to LF).
 """
 
+import argparse
 import os
+from pathlib import Path
+import tempfile
 import re
 import socket
+import secrets
 import sys
 import time
 
 import pexpect
+from v1_image import inspect
+from v1_files import verify_files
+from compile_native import validate_progress, validate_image
+from console_protocol import command_line, completion_pattern, program_output, compile_failure, positive_seconds, StageProgress
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 V1 = os.path.normpath(os.path.join(HERE, "..", "..", "unix-v1"))
 PDP11 = os.path.join(V1, "tools", "pdp11")
 PORT = 5555
+TRACE = False
+SIMH = None
+STOPPED = False
 
-PROG = sys.argv[1] if len(sys.argv) > 1 else "hi.b"
+PROG = "hi.b"
 
 
 def strip_iac(buf: bytes) -> bytes:
@@ -45,6 +56,14 @@ def recv_until(sock: socket.socket, pat: bytes, timeout: float) -> bytes:
     deadline = time.time() + timeout
     sock.settimeout(1.0)
     while time.time() < deadline:
+        if SIMH is not None:
+            state = SIMH.expect([r"Breakpoint", r"HALT instruction", pexpect.TIMEOUT, pexpect.EOF], timeout=0)
+            if state in (0, 1):
+                global STOPPED
+                STOPPED = True
+                raise RuntimeError("guest stopped before reaching its expected console prompt")
+            if state == 3:
+                raise RuntimeError("simulator exited before reaching its expected console prompt")
         try:
             chunk = sock.recv(4096)
         except socket.timeout:
@@ -52,6 +71,8 @@ def recv_until(sock: socket.socket, pat: bytes, timeout: float) -> bytes:
         if not chunk:
             raise RuntimeError(f"socket EOF waiting for {pat!r}; got {bytes(buf)!r}")
         buf.extend(strip_iac(chunk))
+        if TRACE:
+            sys.stderr.write(strip_iac(chunk).decode("latin-1"))
         if rx.search(buf):
             return bytes(buf)
     raise TimeoutError(f"timeout waiting for {pat!r}; got {bytes(buf)!r}")
@@ -71,11 +92,14 @@ def drain(sock: socket.socket, idle: float = 0.5) -> bytes:
         buf.extend(strip_iac(chunk))
 
 
-def run_until_done(sock: socket.socket, simh: pexpect.spawn, timeout: float) -> bytes:
-    """Collect DCI output until the program halts or returns to the shell."""
+def run_until_done(sock: socket.socket, simh: pexpect.spawn, timeout: float, marker: str, report_stages: bool = False) -> bytes:
+    """Collect output until the shell prints a fresh completion marker."""
+    global STOPPED
     buf = bytearray()
     deadline = time.time() + timeout
     sock.setblocking(False)
+    complete = completion_pattern(marker)
+    progress = StageProgress() if report_stages else None
 
     while time.time() < deadline:
         try:
@@ -85,21 +109,22 @@ def run_until_done(sock: socket.socket, simh: pexpect.spawn, timeout: float) -> 
         except socket.timeout:
             chunk = b""
         if chunk:
-            buf.extend(strip_iac(chunk))
-            if re.search(rb"# ", buf):
+            clean = strip_iac(chunk)
+            buf.extend(clean)
+            if progress is not None:
+                for stage in progress.feed(clean):
+                    print('Guest verified: ' + stage, file=sys.stderr, flush=True)
+            if complete.search(buf):
                 return bytes(buf)
 
         try:
-            idx = simh.expect([r"HALT instruction", pexpect.TIMEOUT, pexpect.EOF], timeout=0)
+            idx = simh.expect([r"HALT instruction", r"Breakpoint", pexpect.TIMEOUT, pexpect.EOF], timeout=0)
         except pexpect.ExceptionPexpect:
-            idx = 1
-        if idx == 0:
-            try:
-                buf.extend(drain(sock, idle=0.25))
-            except OSError:
-                pass
-            return bytes(buf)
-        if idx == 2:
+            idx = 2
+        if idx in (0, 1):
+            STOPPED = True
+            raise RuntimeError(f"CPU stopped instead of returning to the shell: {bytes(buf)!r}")
+        if idx == 3:
             raise RuntimeError("simh exited while running ./a.out")
 
         time.sleep(0.05)
@@ -108,14 +133,65 @@ def run_until_done(sock: socket.socket, simh: pexpect.spawn, timeout: float) -> 
 
 
 def main() -> int:
-    simh = pexpect.spawn(PDP11, ["simh.cfg"], cwd=V1, encoding="latin-1", timeout=30)
-    try:
-        simh.expect(r"Listening on port %d" % PORT)
-    except pexpect.ExceptionPexpect:
-        sys.stderr.write("simh failed to listen:\n" + simh.before + "\n")
-        simh.terminate(force=True)
-        return 2
-
+    global PORT, PROG, TRACE, SIMH, STOPPED
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("program", nargs="?", default="hi.b")
+    parser.add_argument("--expected", type=Path)
+    parser.add_argument("--argument", action="append", default=[], help="simple argument passed to the guest program")
+    outcome = parser.add_mutually_exclusive_group()
+    outcome.add_argument("--expect-compile-error", action="store_true")
+    parser.add_argument("--expect-diagnostic", help="required compiler message with --expect-compile-error")
+    parser.add_argument("--workdir", choices=("/", "/usr/tmp"), default="/", help="guest output directory; /usr/tmp uses the larger RK disk")
+    parser.add_argument("--run-timeout", type=positive_seconds, default=60, help="guest execution deadline in seconds (default: 60)")
+    parser.add_argument("--timings", action="store_true", help="report host wall time for guest compilation and execution")
+    parser.add_argument("--report-stages", action="store_true", help="show complete BCC_STAGE test lines as the program runs")
+    parser.add_argument("--trace-stages", action="store_true", help="run each compiler pass directly before checking the driver")
+    outcome.add_argument("--selfhost", action="store_true", help="rebuild and compare the four compiler binaries inside V1")
+    args = parser.parse_args()
+    if args.expect_diagnostic is not None and not args.expect_compile_error:
+        parser.error("--expect-diagnostic requires --expect-compile-error")
+    if any(not re.fullmatch(r"[A-Za-z0-9_.-]+", value) for value in args.argument):
+        parser.error("guest arguments must be simple shell words")
+    expected_rebuilds = {}
+    if args.selfhost:
+        # Snapshot independent host references before the guest can overwrite files.
+        expected_rebuilds = {
+            'rf0.dsk': {'bin/b': Path(V1, 'fs/root/bin/b').read_bytes()},
+            'rk0.dsk': {f'lib/bcc/{name}': Path(V1, f'fs/usr/lib/bcc/{name}').read_bytes()
+                        for name in ('b00', 'b01', 'b1')},
+        }
+        expected_rebuilds['rk0.dsk']['tmp/l.s'] = Path(V1, 'fs/usr/lib/bcc/libb.ref').read_bytes()
+        validate_image(expected_rebuilds['rf0.dsk']['bin/b'])
+        for name in ('b00', 'b01', 'b1'):
+            validate_image(expected_rebuilds['rk0.dsk'][f'lib/bcc/{name}'], 512 if name == 'b00' else 256)
+    run_command = "./a.out" + "".join(" " + value for value in args.argument)
+    PROG = args.program
+    TRACE = args.trace_stages
+    if not re.fullmatch(r"[A-Za-z0-9_.-]+", PROG):
+        parser.error("program must be a simple filename in the guest root")
+    with socket.socket() as reservation:
+        reservation.bind(("127.0.0.1", 0))
+        PORT = reservation.getsockname()[1]
+    inspect(Path(V1, "images/rf0.dsk").read_bytes())
+    config = Path(V1, "simh.cfg").read_text()
+    config = re.sub(r"(?m)^att dci .*", f"att dci 127.0.0.1:{PORT}", config)
+    symbols = Path(V1, "build/usyms").read_text(errors="replace")
+    panic = re.search(r"(?m)^([0-7]+)T panic", symbols)
+    if panic:
+        config = re.sub(r"(?m)^go ", f"break {panic[1]}\ngo ", config)
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".cfg") as script:
+        script.write(config)
+        script.flush()
+        simh = pexpect.spawn(PDP11, [script.name], cwd=V1, encoding="latin-1", timeout=30)
+        # SIMH reads the command file before it announces the listener.
+        try:
+            simh.expect(r"Listening on port [^\r\n]*" + str(PORT))
+        except pexpect.ExceptionPexpect:
+            sys.stderr.write("simh failed to listen:\n" + simh.before + "\n")
+            simh.terminate(force=True)
+            return 2
+    SIMH = simh
+    STOPPED = False
     # simh listens but kernel still booting; connect with retry.
     sock = None
     for _ in range(20):
@@ -134,45 +210,143 @@ def main() -> int:
         sock.sendall(b"root\n")
         recv_until(sock, rb"# ", timeout=30)
 
+        def command(line, timeout=600):
+            sock.sendall(line.encode() + b"\n")
+            result = recv_until(sock, rb"# ", timeout=timeout).decode("latin-1").replace("\r\n", "\n")
+            if result.startswith(line + "\n"):
+                result = result[len(line) + 1:]
+            return re.sub(r"# $", "", result)
+
+        if args.selfhost:
+            command("chdir /usr/src/bcc")
+            builds = {
+                "b00": "b00drv.c bstmt.c bexpr.c blex.c bemit0.c butil.c",
+                "b01": "b01drv.c blex1.c bsym.c butil.c",
+                "b1": "b1drv.c bcg.c bcgnew.c blex1.c blit.c butil.c",
+                "b": "bdrv.c bsel.c",
+            }
+            for name, sources in builds.items():
+                destination = "/bin/b" if name == "b" else f"/usr/lib/bcc/{name}"
+                command("rm a.out")
+                output = command("cc " + sources)
+                validate_progress(output.encode("latin-1"), sources.split())
+                listing = command("ls a.out")
+                if listing.strip() != "a.out":
+                    raise RuntimeError(f"in-system {name} build produced no binary: {output!r} {listing!r}")
+                comparison = command(f"cmp a.out {destination}")
+                if comparison.strip():
+                    raise RuntimeError(f"in-system {name} differs from the apout build: {comparison!r}")
+                # /usr and /bin are on different filesystems in this image.
+                copied = command(f"cp a.out {destination}")
+                mode = command(f"chmod 36 {destination}")
+                if copied.strip() or mode.strip():
+                    raise RuntimeError(f"could not install rebuilt {name}: {copied!r} {mode!r}")
+                sys.stderr.write(f"Guest comparator accepted in-system {name} rebuild\n")
+            command("rm /usr/tmp/l.s")
+            command("/usr/lib/bcc/b00 -o /usr/tmp/l.r1 /usr/lib/libb.b")
+            command("/usr/lib/bcc/b01 -i /usr/tmp/l.r1 -o /usr/tmp/l.r2")
+            command("/usr/lib/bcc/b1 -l -i /usr/tmp/l.r2 -o /usr/tmp/l.s")
+            comparison = command("cmp /usr/tmp/l.s /usr/lib/bcc/libb.ref")
+            if comparison.strip():
+                raise RuntimeError(f"in-system B library differs from the apout build: {comparison!r}")
+            sys.stderr.write("Guest comparator accepted in-system B library assembly\n")
+            command("chdir /")
+
+        if args.workdir != "/":
+            changed = command("chdir " + args.workdir)
+            if changed.strip():
+                raise RuntimeError(f"guest could not change directory: {changed!r}")
+        compile_source = "./" + PROG if args.workdir == "/" else "/" + PROG
         sock.sendall(b"rm a.out\n")
         recv_until(sock, rb"# ", timeout=30)
 
-        sock.sendall(f"b ./{PROG}\n".encode())
-        compile_out = recv_until(sock, rb"# ", timeout=600)
+        if args.trace_stages:
+            for line in [f"/usr/lib/bcc/b00 -o /usr/tmp/b.r1 {compile_source}",
+                         "/usr/lib/bcc/b01 -i /usr/tmp/b.r1 -o /usr/tmp/b.r2",
+                         "/usr/lib/bcc/b1 -i /usr/tmp/b.r2 -o /usr/tmp/b.s",
+                         "ls /usr/tmp/b.s", "df"]:
+                sys.stderr.write("Guest pass: " + line + "\n")
+                sock.sendall(line.encode() + b"\n")
+                response = recv_until(sock, rb"# ", timeout=90)
+                sys.stderr.write(response.decode("latin-1"))
+
+        sys.stderr.write(f"Guest: compiling {PROG}\n")
+        verbose = "-v " if args.trace_stages else ""
+        compile_start = time.monotonic()
+        sock.sendall(f"b {verbose}{compile_source}\n".encode())
+        compile_out = recv_until(sock, rb"# ", timeout=90 if args.trace_stages else 600)
+
+        if args.timings:
+            sys.stderr.write(f"Guest compile wall seconds: {time.monotonic() - compile_start:.3f}\n")
 
         sock.sendall(b"ls a.out\n")
         ls_out = recv_until(sock, rb"# ", timeout=30)
-        if not re.search(rb"(^|[\r\n])a\.out[\r\n]", ls_out):
+        produced = bool(re.search(rb"(^|[\r\n])a\.out[\r\n]", ls_out))
+        if args.expect_compile_error:
+            if compile_failure(compile_out, produced, args.expect_diagnostic):
+                sys.stderr.write("PASS: guest driver rejected the failed compilation\n")
+                return 0
+            sys.stderr.write(compile_out.decode("latin-1"))
+            sys.stderr.write("expected a diagnosed compiler failure without a.out\n")
+            return 1
+        if not produced:
             sys.stderr.write(compile_out.decode("latin-1", errors="replace"))
             sys.stderr.write(ls_out.decode("latin-1", errors="replace"))
             sys.stderr.write("compile did not create a.out\n")
             return 1
 
-        sock.sendall(b"./a.out\n")
-        out = run_until_done(sock, simh, timeout=60)
+        sys.stderr.write("Guest: running a.out\n")
+        marker = "bccdone_" + secrets.token_hex(8)
+        line = command_line(run_command, marker)
+        run_start = time.monotonic()
+        sock.sendall((line + "\n").encode("ascii"))
+        out = run_until_done(sock, simh, timeout=args.run_timeout, marker=marker, report_stages=args.report_stages)
+        if args.timings:
+            sys.stderr.write(f"Guest run wall seconds: {time.monotonic() - run_start:.3f}\n")
+    except Exception:
+        if not STOPPED:
+            simh.sendcontrol("e")
+        try:
+            simh.expect(r"sim>", timeout=5)
+            STOPPED = True
+            simh.sendline("examine pc,r0,r1,r2,r3,r4,r5,sp")
+            simh.expect(r"sim>", timeout=5)
+            sys.stderr.write(simh.before)
+            simh.sendline("show cpu history=30")
+            simh.expect(r"sim>", timeout=5)
+            sys.stderr.write(simh.before)
+        except pexpect.ExceptionPexpect:
+            pass
+        raise
     finally:
         try:
             sock.close()
         except OSError:
             pass
-        simh.sendcontrol("e")
-        try:
-            simh.expect(r"sim>", timeout=5)
-        except pexpect.ExceptionPexpect:
-            pass
+        if not STOPPED:
+            simh.sendcontrol("e")
+            try:
+                simh.expect(r"sim>", timeout=5)
+            except pexpect.ExceptionPexpect:
+                pass
         simh.sendline("quit")
         try:
             simh.expect(pexpect.EOF, timeout=10)
         except pexpect.ExceptionPexpect:
             simh.terminate(force=True)
 
-    text = out.decode("latin-1", errors="replace")
-    # Strip the echoed "./a.out" and a returned shell prompt if present.
-    text = re.sub(r"^\.?/?a\.out\s*\r?\n", "", text)
-    text = re.sub(r"\r?\n?#\s*$", "", text)
+    # SIMH has closed the disks, so verify exact file lengths and bytes on the host.
+    # The historical cmp and console output are not sufficient for odd-sized files.
+    for disk, expected in expected_rebuilds.items():
+        verify_files(Path(V1, 'images', disk).read_bytes(), expected)
+    if expected_rebuilds:
+        sys.stderr.write("PASS: exact disk bytes match all four compiler binaries and B library assembly\n")
+
+    text = program_output(out, line, marker)
     sys.stdout.write(text)
-    if not text.endswith("\n"):
-        sys.stdout.write("\n")
+    if args.expected is not None and text.encode("latin-1") != args.expected.read_bytes():
+        sys.stderr.write(f"console output differs from {args.expected}: {text!r}\n")
+        return 1
     return 0
 
 

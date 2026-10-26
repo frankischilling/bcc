@@ -32,13 +32,10 @@ iscmp(op) {
 	return (0);
 }
 
-cgcll(name, nargs) char name[]; {
+cgcll(nargs) {
 	outs("cl ");
-	outs(name); outc(' ');
 	outd(nargs); outc('\n');
 }
-
-cgpro(name, nloc) char name[]; { }
 
 cgepi()  { outs("Aend\n"); }
 cgret()  { outs("rt\n"); }
@@ -54,14 +51,17 @@ cgjmp(l) { outs("jm "); outd(l); outc('\n'); }
 cglab(l) { outs("lb "); outd(l); outc('\n'); }
 
 cgext(name) char name[]; { outs("ex "); outs(name); outc('\n'); }
-cgrname(name) char name[]; { outs("Rname "); outs(name); outc('\n'); }
+cgrname(name, call) char name[]; {
+	if (call) outs("Rcall "); else outs("Rname ");
+	outs(name); outc('\n');
+}
 cgrlbl(name) char name[]; { outs("Rlbl "); outs(name); outc('\n'); }
 cgrdef(name) char name[]; { outs("Rdef "); outs(name); outc('\n'); }
 
-/* Raw inline string literal: tag=Slit, len, then len decimal bytes. */
-cgslt(buf, len) char buf[]; {
+/* Literal record: Slit in an expression, Gstr in a global initializer. */
+cgslt(buf, len, global) char buf[]; {
 	int j, b;
-	outs("Slit ");
+	if (global) outs("Gstr "); else outs("Slit ");
 	outd(len);
 	j = 0;
 	while (j < len) {
@@ -132,22 +132,15 @@ cgswb(ldisp) {
 	outs("swb "); outd(ldisp); outc('\n');
 }
 
-/* switch end: emit pop+exit, then Ldisp + dispatch chain.
- *   ldisp lpop lend ncases  k0 l0 k1 l1 ... */
-cgswe(ldisp, lpop, lend, ncases, table) int table[]; {
-	int i;
-	outs("swe ");
-	outd(ldisp); outc(' ');
-	outd(lpop);  outc(' ');
-	outd(lend);  outc(' ');
-	outd(ncases);
-	i = 0;
-	while (i < ncases) {
-		outc(' '); outd(table[2 * i]);
-		outc(' '); outd(table[2 * i + 1]);
-		i = i + 1;
-	}
-	outc('\n');
+/* Case nodes are emitted where they occur; no shared case table is needed. */
+cgswc(ldisp, lnext, value, lbody) {
+    outs("swc "); outd(ldisp); outc(' ');
+    outd(lnext); outc(' '); outd(value); outc(' ');
+    outd(lbody); outc('\n');
+}
+
+cgswe(last, lend) {
+    outs("swx "); outd(last); outc(' '); outd(lend); outc('\n');
 }
 
 /* computed goto: r0 holds target address; emit jmp (r0). */
@@ -177,23 +170,7 @@ cggvn(name) char name[]; {
 
 cggve() { outs("gve\n"); }
 
-cggwd(name, val) char name[]; {
-	outs("gw ");
-	outs(name); outc(' ');
-	outd(val); outc('\n');
-}
-
-cggar(name, n, ninit, vals) char name[]; int vals[]; {
-	int i;
-	outs("ga ");
-	outs(name); outc(' ');
-	outd(n); outc(' ');
-	outd(ninit);
-	i = 0;
-	while (i < ninit) {
-		outc(' ');
-		outd(vals[i]);
-		i = i + 1;
-	}
-	outc('\n');
+/* A vector has a mutable pointer cell before its elements. */
+cggvp(name, n) char name[]; {
+    outs("gvp "); outs(name); outc(' '); outd(n); outc('\n');
 }

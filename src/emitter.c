@@ -1,24 +1,34 @@
 // emitter.c - C code emitter
 
 #include "bcc.h"
+#include <limits.h>
 
-// String Pool for Thompson-Accurate Strings
+/* Packed B strings, terminated by octal 004. */
 
 typedef struct {
+    const char *source;
     const char *str;
+    size_t length;
     int id;
 } StringEntry;
 
+static int current_word_bits;
 static Vec string_pool;  // Vec<StringEntry>
+static Vec external_calls; /* Strict calls whose definitions are in another object. */
 
-static int get_string_id(const char *s) {
+static int get_string_id(const char *s, size_t length) {
     for (size_t i = 0; i < string_pool.len; i++) {
         StringEntry *e = (StringEntry*)string_pool.data[i];
-        if (strcmp(e->str, s) == 0) return e->id;
+        /* A literal is writable. Equal bytes in another occurrence must not alias. */
+        if (e->source == s) return e->id;
     }
 
     StringEntry *e = xmalloc(sizeof(StringEntry));
-    e->str = sdup(s);
+    char *copy = xmalloc(length + 1);
+    memcpy(copy, s, length + 1);
+    e->source = s;
+    e->str = copy;
+    e->length = length;
     e->id = (int)string_pool.len;
     vec_push(&string_pool, e);
     return e->id;
@@ -29,14 +39,13 @@ static void emit_string_pool(FILE *out) {
         StringEntry *e = (StringEntry*)string_pool.data[i];
         const unsigned char *s = (const unsigned char*)e->str;
 
-        size_t n = 0;
-        while (s[n]) n++;                 // length excluding NUL
+        size_t n = e->length;
 
         size_t total_bytes = n + 1;       // +1 for 004 terminator
-        size_t W = sizeof(intptr_t);       // bytes per word on this host (matches typedef)
+        size_t W = current_word_bits == 16 ? 2 : sizeof(intptr_t);
         size_t words_needed = (total_bytes + W - 1) / W;
 
-        fprintf(out, "static const word __b_str%zu[] = {", i);
+        fprintf(out, "static word __b_str%zu[] = {", i);
 
         for (size_t wi = 0; wi < words_needed; wi++) {
             uintptr_t w = 0;
@@ -106,8 +115,19 @@ static int is_c_ident_first(char c) {
 static char *mangle_name_raw(const char *original) {
     if (!original || !original[0]) return sdup("__empty");
 
-    // Calculate needed size (worst case: each char becomes _XX + prefix + suffix)
     size_t len = strlen(original);
+    /* B72 admits backspace in names. Encode the complete byte sequence, and
+       escape this private prefix too, so separate files cannot pick aliases. */
+    if (strchr(original, 8) || !strncmp(original, "__bcc_bs_", 9)) {
+        if (len > (SIZE_MAX - 10) / 2) dief("identifier is too long");
+        char *encoded = xmalloc(2 * len + 10);
+        memcpy(encoded, "__bcc_bs_", 9);
+        for (size_t i = 0; i < len; ++i)
+            sprintf(encoded + 9 + 2 * i, "%02x", (unsigned char)original[i]);
+        return encoded;
+    }
+
+    // Calculate needed size (worst case: each char becomes _XX + prefix + suffix)
     size_t max_len = len * 4 + 16;
     char *result = xmalloc(max_len);
     char *p = result;
@@ -150,6 +170,57 @@ static int mangled_exists(const char *mangled) {
     return 0;
 }
 
+static int runtime_function(const char *name);
+static Program *current_program;
+
+static int source_function(const char *name) {
+    if (current_program) {
+        for (size_t i = 0; i < current_program->tops.len; i++) {
+            Top *t = current_program->tops.data[i];
+            if (t->kind == TOP_FUNC && strcmp(t->as.fn->name, name) == 0)
+                return 1;
+        }
+    }
+    for (size_t i = 0; i < g_known_functions.len; i++)
+        if (strcmp(g_known_functions.data[i], name) == 0) return 1;
+    return 0;
+}
+
+static int predefined_argv(const char *name) {
+    if (strcmp(name, "argv") != 0 || source_function(name)) return 0;
+    for (size_t i = 0; i < g_known_variables.len; i++)
+        if (strcmp(g_known_variables.data[i], name) == 0) return 0;
+    for (size_t i = 0; current_program && i < current_program->tops.len; i++) {
+        Top *t = current_program->tops.data[i];
+        if (t->kind == TOP_EXTERN_DEF && strcmp(t->as.ext_def->name, name) == 0)
+            return 0;
+        if (t->kind == TOP_GAUTO) {
+            for (size_t j = 0; j < t->as.gauto->as.autodecl.decls.len; j++) {
+                DeclItem *item = t->as.gauto->as.autodecl.decls.data[j];
+                if (strcmp(item->name, name) == 0) return 0;
+            }
+        }
+    }
+    return 1;
+}
+
+static int global_data_kind(const char *name) {
+    int known = 0;
+    for (size_t i = 0; i < g_known_variables.len; i++)
+        if (strcmp(g_known_variables.data[i], name) == 0) known = 1;
+    for (size_t i = 0; current_program && i < current_program->tops.len; i++) {
+        Top *t = current_program->tops.data[i];
+        if (t->kind == TOP_EXTERN_DEF && strcmp(t->as.ext_def->name, name) == 0) return 1;
+    }
+    if (source_function(name) || (runtime_function(name) && !known)) return 0;
+    for (size_t i = 0; current_program && i < current_program->tops.len; i++) {
+        Top *t = current_program->tops.data[i];
+        if (t->kind == TOP_EXTERN_DECL && strcmp(t->as.ext_decl->name, name) == 0)
+            return t->as.ext_decl->is_macro_external ? 2 : 1;
+    }
+    return known;
+}
+
 // Get or create mangled name for an identifier
 static const char *get_mangled_name(const char *original) {
     if (!original) return NULL;
@@ -162,12 +233,21 @@ static const char *get_mangled_name(const char *original) {
 
     // Create new mangled name
     char *mangled = mangle_name_raw(original);
+    /* Strict B names do not share the host headers' namespace. Compatibility
+       mode still isolates library replacements and escapes private prefixes. */
+    if (g_strict || source_function(original) || runtime_function(original) || strncmp(original, "__bcc_", 6) == 0) {
+        char *private_name = xmalloc(strlen(mangled) + 14);
+        sprintf(private_name, "__bcc_user_%c_%s",
+                g_strict ? 'b' : source_function(original) ? 'f' : runtime_function(original) ? 'r' : 'x', mangled);
+        if (!g_compilation_arena) free(mangled);
+        mangled = private_name;
+    }
 
     // Check if it's a C keyword
     if (is_c_keyword(mangled)) {
-        char *prefixed = xmalloc(strlen(mangled) + 3);
-        sprintf(prefixed, "b_%s", mangled);
-        free(mangled);
+        char *prefixed = xmalloc(strlen(mangled) + 15);
+        sprintf(prefixed, "__bcc_keyword_%s", mangled);
+        if (!g_compilation_arena) free(mangled);
         mangled = prefixed;
     }
 
@@ -178,7 +258,7 @@ static const char *get_mangled_name(const char *original) {
         do {
             sprintf(unique, "%s_%d", mangled, suffix++);
         } while (mangled_exists(unique));
-        free(mangled);
+        if (!g_compilation_arena) free(mangled);
         mangled = unique;
     }
 
@@ -197,6 +277,24 @@ static void emit_name(FILE *out, const char *name) {
     fputs(get_mangled_name(name), out);
 }
 
+static int runtime_function(const char *name) { return b_library_function(name); }
+
+static void emit_function_body_name(FILE *out, const char *name) {
+    if (!strcmp(name, "main")) fputs("__b_user_main", out);
+    else { fputs("__bcc_body_", out); emit_name(out, name); }
+}
+
+static void emit_function_cell(FILE *out, const char *name) {
+    emit_name(out, name);
+    fputs("[0]", out);
+}
+
+static void emit_function_name(FILE *out, const char *name) {
+    if (strcmp(name, "main") == 0) fputs("__b_user_main", out);
+    else if (runtime_function(name) && !source_function(name)) fprintf(out, "b_%s", name);
+    else emit_name(out, name);
+}
+
 static int program_defines_function(Program *prog, const char *name) {
     for (size_t i = 0; i < prog->tops.len; i++) {
         Top *t = (Top*)prog->tops.data[i];
@@ -211,12 +309,11 @@ static void emit_known_external_function_prototypes(FILE *out, Program *prog) {
     int emitted = 0;
     for (size_t i = 0; i < g_known_functions.len; i++) {
         const char *name = (const char*)g_known_functions.data[i];
-        if (strcmp(name, "main") == 0 || strcmp(name, "b_main") == 0) continue;
         if (program_defines_function(prog, name)) continue;
 
         fputs("extern word ", out);
         emit_name(out, name);
-        fputs("();\n", out);
+        fputs("[];\n", out);
         emitted = 1;
     }
     if (emitted) fputc('\n', out);
@@ -237,9 +334,18 @@ static void collect_strings_expr(Expr *e) {
     if (!e) return;
     switch (e->kind) {
         case EX_STR:
-            (void)get_string_id(e->as.str);
+            (void)get_string_id(e->as.str, e->string_len);
             return;
         case EX_CALL:
+            if (g_strict && !e->indirect_call && e->as.call.callee->kind == EX_VAR) {
+                const char *name = e->as.call.callee->as.var;
+                if (!runtime_function(name) && !source_function(name)) {
+                    int found = 0;
+                    for (size_t i = 0; i < external_calls.len; ++i)
+                        if (!strcmp(external_calls.data[i], name)) found = 1;
+                    if (!found) vec_push(&external_calls, sdup(name));
+                }
+            }
             collect_strings_expr(e->as.call.callee);
             for (size_t i = 0; i < e->as.call.args.len; i++)
                 collect_strings_expr((Expr*)e->as.call.args.data[i]);
@@ -305,6 +411,9 @@ static void collect_strings_stmt(Stmt *s) {
         case ST_RETURN:
             collect_strings_expr(s->as.ret.val);
             return;
+        case ST_GOTO:
+            collect_strings_expr(s->as.goto_.target);
+            return;
         case ST_EXPR:
             collect_strings_expr(s->as.expr.e);
             return;
@@ -316,7 +425,7 @@ static void collect_strings_stmt(Stmt *s) {
             collect_strings_stmt(s->as.label_.stmt);
             return;
         case ST_CASE:
-            // if your case holds exprs, add them here
+            collect_strings_stmt(s->as.case_.stmt);
             return;
         default:
             return;
@@ -375,31 +484,50 @@ void emit_c_string(FILE *out, const char *s) {
         if (c == '\\' || c == '"') { fputc('\\', out); fputc(c, out); }
         else if (c == '\n') fputs("\\n", out);
         else if (c == '\t') fputs("\\t", out);
-        else if (c < 32) fprintf(out, "\\x%02x", c);
+        else if (c < 32) fprintf(out, "\\%03o", c);
         else fputc(c, out);
     }
     fputc('"', out);
 }
 
 static int current_byteptr;
-static int current_word_bits;
+static Vec function_labels;
+static unsigned expression_id;
+
+static int label_id(const char *name) {
+    for (size_t i = 0; i < function_labels.len; i++)
+        if (strcmp(name, (char*)function_labels.data[i]) == 0) return (int)i + 1;
+    return 0;
+}
+
+static void collect_function_labels(Stmt *s) {
+    if (!s) return;
+    switch (s->kind) {
+    case ST_LABEL:
+        vec_push(&function_labels, s->as.label_.name);
+        collect_function_labels(s->as.label_.stmt);
+        break;
+    case ST_BLOCK:
+        for (size_t i = 0; i < s->as.block.items.len; i++)
+            collect_function_labels(s->as.block.items.data[i]);
+        break;
+    case ST_IF:
+        collect_function_labels(s->as.ifs.then_s);
+        collect_function_labels(s->as.ifs.else_s);
+        break;
+    case ST_CASE: collect_function_labels(s->as.case_.stmt); break;
+    case ST_WHILE: collect_function_labels(s->as.whiles.body); break;
+    case ST_SWITCH: collect_function_labels(s->as.switch_.body); break;
+    default: break;
+    }
+}
 void emit_expr(FILE *out, Expr *e, const char *filename);
-
-static int stmt_is_block(const Stmt *s) {
-    return s && s->kind == ST_BLOCK;
-}
-
-// Check if expression is a complex lvalue (indexing or dereference, not simple variable)
-static int is_complex_lvalue(Expr *e) {
-    if (!e) return 0;
-    return e->kind == EX_INDEX || (e->kind == EX_UNARY && e->as.unary.op == TK_STAR);
-}
 
 typedef enum { CTRL_LOOP, CTRL_SWITCH } CtrlKind;
 
 typedef struct CtrlFrame {
     CtrlKind kind;
-    const char *switch_end;   // only valid for CTRL_SWITCH
+    const char *target;       // loop condition or switch exit
     struct CtrlFrame *prev;
 } CtrlFrame;
 
@@ -412,6 +540,7 @@ typedef struct {
 } CaseMap;
 
 static int g_switch_id = 0;
+static unsigned g_loop_id;
 
 static const char *lookup_case_label(Vec *maps, Stmt *node) {
     for (size_t i = 0; i < maps->len; i++) {
@@ -431,7 +560,7 @@ static void collect_cases(Stmt *s, Vec *cases) {
 
         case ST_CASE:
             vec_push(cases, s);
-            // case statements don't have bodies to collect from
+            collect_cases(s->as.case_.stmt, cases);
             return;
 
         case ST_LABEL:
@@ -459,6 +588,7 @@ static void collect_cases(Stmt *s, Vec *cases) {
 
 // Switch-body emitter (so case/default emit internal labels)
 static void emit_stmt_switchctx(FILE *out, Stmt *s, int indent, Vec *maps, const char *filename);
+static void emit_while(FILE *out, Stmt *s, int indent, Vec *maps, const char *filename);
 
 static void emit_stmt_switchctx(FILE *out, Stmt *s, int indent, Vec *maps, const char *filename) {
     if (!s) return;
@@ -470,13 +600,13 @@ static void emit_stmt_switchctx(FILE *out, Stmt *s, int indent, Vec *maps, const
             fprintf(out, "%s:\n", lab);
             emit_indent(out, indent + 1);
             fputs(";\n", out);
-            // case statements don't have bodies to emit
+            emit_stmt_switchctx(out, s->as.case_.stmt, indent, maps, filename);
             return;
         }
 
         case ST_LABEL:
             emit_indent(out, indent);
-            fprintf(out, "%s:\n", s->as.label_.name);
+            fprintf(out, "__b_label_%d:\n", label_id(s->as.label_.name));
             emit_indent(out, indent + 1);
             fputs(";\n", out);
             emit_stmt_switchctx(out, s->as.label_.stmt, indent + 1, maps, filename);
@@ -495,24 +625,21 @@ static void emit_stmt_switchctx(FILE *out, Stmt *s, int indent, Vec *maps, const
             emit_indent(out, indent);
             fputs("if (", out);
             emit_expr(out, s->as.ifs.cond, filename);
-            fputs(")\n", out);
-            emit_stmt_switchctx(out, s->as.ifs.then_s,
-                                stmt_is_block(s->as.ifs.then_s) ? indent : indent + 1, maps, filename);
+            fputs(") {\n", out);
+            emit_stmt_switchctx(out, s->as.ifs.then_s, indent + 1, maps, filename);
+            emit_indent(out, indent);
+            fputs("}", out);
             if (s->as.ifs.else_s) {
+                fputs(" else {\n", out);
+                emit_stmt_switchctx(out, s->as.ifs.else_s, indent + 1, maps, filename);
                 emit_indent(out, indent);
-                fputs("else\n", out);
-                emit_stmt_switchctx(out, s->as.ifs.else_s,
-                                    stmt_is_block(s->as.ifs.else_s) ? indent : indent + 1, maps, filename);
+                fputs("}", out);
             }
+            fputs("\n", out);
             return;
 
         case ST_WHILE:
-            emit_indent(out, indent);
-            fputs("while (", out);
-            emit_expr(out, s->as.whiles.cond, filename);
-            fputs(")\n", out);
-            emit_stmt_switchctx(out, s->as.whiles.body,
-                                stmt_is_block(s->as.whiles.body) ? indent : indent + 1, maps, filename);
+            emit_while(out, s, indent, maps, filename);
             return;
 
         case ST_SWITCH:
@@ -524,6 +651,39 @@ static void emit_stmt_switchctx(FILE *out, Stmt *s, int indent, Vec *maps, const
             emit_stmt(out, s, indent, 0, filename);
             return;
     }
+}
+
+static int loop_has_continue(const Stmt *s) {
+    if (!s) return 0;
+    switch (s->kind) {
+    case ST_CONTINUE: return 1;
+    case ST_BLOCK:
+        for (size_t i = 0; i < s->as.block.items.len; ++i)
+            if (loop_has_continue(s->as.block.items.data[i])) return 1;
+        return 0;
+    case ST_IF: return loop_has_continue(s->as.ifs.then_s) || loop_has_continue(s->as.ifs.else_s);
+    case ST_SWITCH: return loop_has_continue(s->as.switch_.body);
+    case ST_LABEL: return loop_has_continue(s->as.label_.stmt);
+    case ST_CASE: return loop_has_continue(s->as.case_.stmt);
+    default: return 0; /* A nested while owns its own continues. */
+    }
+}
+
+/* A source continue skips synthetic switch loops and rechecks its own loop. */
+static void emit_while(FILE *out, Stmt *s, int indent, Vec *maps, const char *filename) {
+    char target[64];
+    snprintf(target, sizeof(target), "__bloop%u_condition", ++g_loop_id);
+    if (loop_has_continue(s->as.whiles.body)) {
+        emit_indent(out, indent); fprintf(out, "%s:;\n", target);
+    }
+    emit_indent(out, indent); fputs("while (", out);
+    emit_expr(out, s->as.whiles.cond, filename); fputs(") {\n", out);
+    CtrlFrame frame = { CTRL_LOOP, target, g_ctrl };
+    g_ctrl = &frame;
+    if (maps) emit_stmt_switchctx(out, s->as.whiles.body, indent + 1, maps, filename);
+    else emit_stmt(out, s->as.whiles.body, indent + 1, 0, filename);
+    g_ctrl = frame.prev;
+    emit_indent(out, indent); fputs("}\n", out);
 }
 
 static void emit_switch(FILE *out, Stmt *s, int indent, const char *filename) {
@@ -574,10 +734,16 @@ static void emit_switch(FILE *out, Stmt *s, int indent, const char *filename) {
     emit_indent(out, indent + 1);
     fprintf(out, "__bsw%d_dispatch:\n", sid);
 
-    // dispatch in source order
+    const char *fallback = NULL;
+    // Dispatch in source order; compatibility default is only the fallback.
     for (size_t i = 0; i < cases->len; i++) {
         Stmt *cs = cases->data[i];
         const char *lab = lookup_case_label(maps, cs);
+        if (cs->as.case_.relop == TK_DEFAULT) {
+            if (fallback) dief("duplicate default in switch");
+            fallback = lab;
+            continue;
+        }
 
         emit_indent(out, indent + 2);
         fputs("if (", out);
@@ -606,9 +772,9 @@ static void emit_switch(FILE *out, Stmt *s, int indent, const char *filename) {
         fputs(";\n", out);
     }
 
-    // no-match: go to end
     emit_indent(out, indent + 2);
-    fprintf(out, "goto __bsw%d_end;\n", sid);
+    if (fallback) fprintf(out, "goto %s;\n", fallback);
+    else fprintf(out, "goto __bsw%d_end;\n", sid);
 
     emit_indent(out, indent + 1);
     fprintf(out, "__bsw%d_end:\n", sid);
@@ -622,24 +788,75 @@ static void emit_switch(FILE *out, Stmt *s, int indent, const char *filename) {
 
 
 
+static void emit_b_call(FILE *out, Expr *e, const char *filename,
+                        const char *direct, unsigned binding) {
+    unsigned id = ++expression_id;
+    size_t count = e->as.call.args.len;
+    fprintf(out, "({ word __bcc_callee_%u = ", id);
+    if (binding) fprintf(out, "*__bcc_binding_%u", binding);
+    else if (direct) emit_function_cell(out, direct);
+    else emit_expr(out, e->as.call.callee, filename);
+    fprintf(out, "; word __bcc_args_%u[%zu] = {", id, count ? count : 1);
+    if (!count) fputc('0', out);
+    for (size_t i = 0; i < count; ++i) {
+        if (i) fputs(", ", out);
+        emit_expr(out, e->as.call.args.data[i], filename);
+    }
+    fprintf(out, "}; word __bcc_builtin_result_%u; "
+            "__bcc_try_builtin(__bcc_callee_%u, %zu, __bcc_args_%u, &__bcc_builtin_result_%u) ? "
+            "__bcc_builtin_result_%u : __bcc_is_source_function(__bcc_callee_%u) ? "
+            "__bcc_invoke_source(__bcc_callee_%u, %zu, __bcc_args_%u) : "
+            "((word (*)())B_FUNCTION_CPTR(__bcc_callee_%u))(",
+            id, id, count, id, id, id, id, id, count, id, id);
+    for (size_t i = 0; i < count; ++i) {
+        if (i) fputs(", ", out);
+        fprintf(out, "__bcc_args_%u[%zu]", id, i);
+    }
+    fputs("); })", out);
+}
+
 void emit_expr(FILE *out, Expr *e, const char *filename) {
     // Don't emit line directives in the middle of expressions
     // They should only be at statement boundaries
     switch (e->kind) {
         case EX_NUM:
-            fprintf(out, "((word)%ld)", e->as.num);
+            fprintf(out, "WVAL((word)%ld)", e->as.num);
             return;
         case EX_STR: {
-            int id = get_string_id(e->as.str);
-            fprintf(out, "B_PTR(__b_str%d)", id);
+            int id = get_string_id(e->as.str, e->string_len);
+            fprintf(out, "B_PTR_N(__b_str%d, sizeof(__b_str%d))", id, id);
             return;
         }
         case EX_VAR: {
-            emit_name(out, e->as.var);
+            int id = label_id(e->as.var);
+            if (id) fprintf(out, "__b_label_value_%d", id);
+            else if (e->parameter_index) fprintf(out, "__bcc_parameters[%zu]", e->parameter_index - 1);
+            else if (e->builtin_argv) fputs("b_argv_vector", out);
+            else if (e->function_value && source_function(e->as.var)) {
+                emit_function_cell(out, e->as.var);
+            } else if (e->function_value) {
+                if (runtime_function(e->as.var)) {
+                    fputs("(*__bcc_binding_cell(", out); emit_c_string(out, e->as.var); fputs("))", out);
+                } else {
+                    fputs("B_FUNCTION(", out); emit_function_name(out, e->as.var); fputc(')', out);
+                }
+            } else if (e->global_value == 2) {
+                fprintf(out, "__b_external_%s", get_mangled_name(e->as.var));
+            } else {
+                emit_name(out, e->as.var);
+                if (e->global_value == 1) fputs("[0]", out);
+            }
             return;
         }
 
         case EX_CALL: {
+            const char *direct = e->as.call.callee->kind == EX_VAR ? e->as.call.callee->as.var : NULL;
+            int cell_call = direct && !e->indirect_call &&
+                (source_function(direct) || (g_strict && !runtime_function(direct)));
+            if (e->indirect_call || cell_call) {
+                emit_b_call(out, e, filename, cell_call ? direct : NULL, 0);
+                return;
+            }
             int used_builtin_prefix = 0;
             int printf_like = 0;
             size_t fmt_index = 0;
@@ -648,47 +865,27 @@ void emit_expr(FILE *out, Expr *e, const char *filename) {
             // Check if callee is a builtin function that needs b_ prefix
             if (e->as.call.callee->kind == EX_VAR) {
                 const char *name = e->as.call.callee->as.var;
-                if (strcmp(name, "callf") == 0) {
-                    size_t nargs = e->as.call.args.len;
-                    size_t extra = (nargs > 0) ? (nargs - 1) : 0; /* args after name */
-                    fprintf(out, "b_callf_dispatch(%zu", extra);
-                    for (size_t i = 0; i < nargs; i++) {
-                        fputs(", ", out);
-                        emit_expr(out, (Expr*)e->as.call.args.data[i], filename);
-                    }
-                    fputc(')', out);
-                    return;
-                }
-                // List of builtin functions that have b_ versions
-                const char *b_funcs[] = {
-                    "char", "lchar", "getchr", "putchr", "getstr", "putstr", "flush", "reread", "printf", "printn", "putnum", "putchar", "exit", "abort", "free",
-                    "open", "close", "read", "write", "creat", "seek", "openr", "openw",
-                    "fork", "wait", "execl", "execv",
-                    "chdir", "chmod", "chown", "link", "unlink", "stat", "fstat",
-                    "time", "ctime", "getuid", "setuid", "makdir", "intr",
-                    "system", "usleep",
-                    "callf",
-                    "argc", "argv",
-                    NULL
-                };
-                for (int i = 0; b_funcs[i]; i++) {
-                    if (strcmp(name, b_funcs[i]) == 0) {
-                        used_builtin_prefix = 1;
-                        break;
-                    }
-                }
+                used_builtin_prefix = runtime_function(name) && !source_function(name);
+            }
+            if (used_builtin_prefix) {
+                unsigned binding = ++expression_id;
+                fprintf(out, "({ word *__bcc_binding_%u = __bcc_binding_cell(", binding);
+                emit_c_string(out, direct); fputs("); ", out);
+                emit_b_call(out, e, filename, NULL, binding);
+                fputs("; })", out);
+                return;
             }
             const char *cname = NULL;
             int wrap_ret_ptr = 0;
             if (e->as.call.callee->kind == EX_VAR) {
                 cname = e->as.call.callee->as.var;
-                if (strcmp(cname, "malloc") == 0 || strcmp(cname, "calloc") == 0 || strcmp(cname, "realloc") == 0) {
+                if (!g_strict && !source_function(cname) && (strcmp(cname, "malloc") == 0 || strcmp(cname, "calloc") == 0 || strcmp(cname, "realloc") == 0)) {
                     wrap_ret_ptr = 1; // return a C pointer: convert to B pointer
                 }
-                if (strcmp(cname, "printf") == 0 && !used_builtin_prefix) { printf_like = 1; fmt_index = 0; }
-                else if (strcmp(cname, "fprintf") == 0 || strcmp(cname, "dprintf") == 0) { printf_like = 1; fmt_index = 1; }
-                else if (strcmp(cname, "sprintf") == 0) { printf_like = 1; fmt_index = 1; }
-                else if (strcmp(cname, "snprintf") == 0) { printf_like = 1; fmt_index = 2; }
+                if (strcmp(cname, "printf") == 0 && !used_builtin_prefix && !source_function(cname)) { printf_like = 1; fmt_index = 0; }
+                else if (!g_strict && !source_function(cname) && (strcmp(cname, "fprintf") == 0 || strcmp(cname, "dprintf") == 0)) { printf_like = 1; fmt_index = 1; }
+                else if (!g_strict && !source_function(cname) && strcmp(cname, "sprintf") == 0) { printf_like = 1; fmt_index = 1; }
+                else if (!g_strict && !source_function(cname) && strcmp(cname, "snprintf") == 0) { printf_like = 1; fmt_index = 2; }
             }
 
             if (wrap_ret_ptr) fputs("B_PTR(", out);
@@ -696,7 +893,7 @@ void emit_expr(FILE *out, Expr *e, const char *filename) {
             if (used_builtin_prefix && e->as.call.callee->kind == EX_VAR) {
                 fprintf(out, "b_%s", e->as.call.callee->as.var);
             } else {
-                emit_expr(out, e->as.call.callee, filename);
+                emit_function_name(out, e->as.call.callee->as.var);
             }
             fputc('(', out);
             size_t nargs = e->as.call.args.len;
@@ -733,7 +930,7 @@ void emit_expr(FILE *out, Expr *e, const char *filename) {
                 }
             }
 
-            int add_exit_zero = (cname && strcmp(cname, "exit") == 0 && nargs == 0);
+            int add_exit_zero = (used_builtin_prefix && cname && strcmp(cname, "exit") == 0 && nargs == 0);
             if (add_exit_zero) {
                 fputs("0", out);
             }
@@ -744,7 +941,7 @@ void emit_expr(FILE *out, Expr *e, const char *filename) {
                 int wrap_arg_ptr = 0;
                 int wrap_arg_cstr = 0;
                 int scale_word_size = 0;
-                if (cname) {
+                if (cname && !g_strict && !source_function(cname)) {
                     if (printf_like && i == fmt_index) wrap_arg_cstr = 1; /* format string */
                     else if (printf_wrap_s && printf_wrap_s[i]) wrap_arg_cstr = 1;
                     else if (strcmp(cname, "strlen") == 0 && i == 0) wrap_arg_cstr = 1;
@@ -802,32 +999,6 @@ void emit_expr(FILE *out, Expr *e, const char *filename) {
             TokenKind op = e->as.unary.op;
 
             if (op == TK_STAR) {
-                /* Check if this is string character access: *(string + offset) or *(offset + string) */
-                Expr *rhs = e->as.unary.rhs;
-                if (rhs->kind == EX_BINARY && rhs->as.bin.op == TK_PLUS) {
-                    Expr *lhs_inner = rhs->as.bin.lhs;
-                    Expr *rhs_inner = rhs->as.bin.rhs;
-                    Expr *str_expr = NULL;
-                    Expr *idx_expr = NULL;
-
-                    if (lhs_inner->kind == EX_STR) {
-                        str_expr = lhs_inner;
-                        idx_expr = rhs_inner;
-                    } else if (rhs_inner->kind == EX_STR) {
-                        str_expr = rhs_inner;
-                        idx_expr = lhs_inner;
-                    }
-
-                    if (str_expr) {
-                        /* Use b_char() for string character access */
-                        fputs("b_char(", out);
-                        emit_expr(out, str_expr, filename);
-                        fputs(", ", out);
-                        emit_expr(out, idx_expr, filename);
-                        fputc(')', out);
-                        return;
-                    }
-                }
                 /* Default: word dereference */
                 fputs("B_DEREF(", out);
                 emit_expr(out, e->as.unary.rhs, filename);
@@ -835,53 +1006,21 @@ void emit_expr(FILE *out, Expr *e, const char *filename) {
                 return;
             }
             if (op == TK_AMP) {
-                // Special case: &arr[i] should give address of array element
-                if (e->as.unary.rhs->kind == EX_INDEX) {
-                    // For &arr[i], compute the byte address of element i, then wrap back to a B pointer.
-                    fputs("B_PTR(", out);
-                    fputs("((", out);
-                    if (!current_byteptr) {
-                        fputs("uword)(", out);
-                        emit_expr(out, e->as.unary.rhs->as.index.base, filename);
-                        fputs(") * sizeof(word)", out);
-                    } else {
-                        fputs("uword)(", out);
-                        emit_expr(out, e->as.unary.rhs->as.index.base, filename);
-                        fputc(')', out);
-                    }
-                    fputs(" + (uword)(", out);
-                    emit_expr(out, e->as.unary.rhs->as.index.idx, filename);
-                    fputs(") * sizeof(word))", out);
-                    fputc(')', out);
-                } else {
-                    fputs("B_ADDR(", out);
-                    emit_expr(out, e->as.unary.rhs, filename);
-                    fputc(')', out);
-                }
+                fputs("B_ADDR(", out);
+                emit_expr(out, e->as.unary.rhs, filename);
+                fputc(')', out);
                 return;
             }
 
-            /* keep the rest normal, but parenthesize to avoid precedence surprises */
             if (op == TK_PLUSPLUS || op == TK_MINUSMINUS) {
-                Expr *rhs = e->as.unary.rhs;
-                /* Use helper function for complex lvalues OR when in non-host mode (for proper wrapping) */
-                if (is_complex_lvalue(rhs) || current_word_bits != 0) {
-                    fputs("b_", out);
-                    fputs(op == TK_PLUSPLUS ? "preinc" : "predec", out);
-                    fputs("(&(", out);
-                    emit_expr(out, rhs, filename);
-                    fputs("))", out);
-                } else {
-                    fputs(tk_name(op), out);
-                    fputc('(', out);
-                    emit_expr(out, rhs, filename);
-                    fputc(')', out);
-                }
+                fputs(op == TK_PLUSPLUS ? "b_preinc(&(" : "b_predec(&(", out);
+                emit_expr(out, e->as.unary.rhs, filename);
+                fputs("))", out);
                 return;
             }
 
             /* Use safe WNEG macro for unary negation to avoid signed overflow UB */
-            if (op == TK_MINUS && current_word_bits != 0) {
+            if (op == TK_MINUS) {
                 fputs("WNEG(", out);
                 emit_expr(out, e->as.unary.rhs, filename);
                 fputc(')', out);
@@ -899,27 +1038,28 @@ void emit_expr(FILE *out, Expr *e, const char *filename) {
             // postfix ops
             TokenKind op = e->as.post.op;
             Expr *lhs = e->as.post.lhs;
-            /* Use helper function for complex lvalues OR when in non-host mode (for proper wrapping) */
-            if (is_complex_lvalue(lhs) || current_word_bits != 0) {
-                fputs("b_", out);
-                fputs(op == TK_PLUSPLUS ? "postinc" : "postdec", out);
-                fputs("(&(", out);
-                emit_expr(out, lhs, filename);
-                fputs("))", out);
-            } else {
-                fputc('(', out);
-                emit_expr(out, lhs, filename);
-                fputs(tk_name(op), out);
-                fputc(')', out);
-            }
+            fputs(op == TK_PLUSPLUS ? "b_postinc(&(" : "b_postdec(&(", out);
+            emit_expr(out, lhs, filename);
+            fputs("))", out);
             return;
         }
 
         case EX_BINARY: {
             TokenKind op = e->as.bin.op;
+            if (op == TK_AMP || op == TK_BAR) {
+                /* kbman 4.8-4.9 require sequenced left-to-right evaluation. */
+                unsigned id = ++expression_id;
+                fprintf(out, "({ word __b_left_%u = ", id);
+                emit_expr(out, e->as.bin.lhs, filename);
+                fprintf(out, "; word __b_right_%u = ", id);
+                emit_expr(out, e->as.bin.rhs, filename);
+                fprintf(out, "; (word)%s(__b_left_%u, __b_right_%u); })",
+                        op == TK_AMP ? "WAND" : "WOR", id, id);
+                return;
+            }
             /* Use safe W* macros to avoid host-C undefined behavior */
             const char *wmacro = NULL;
-            if (current_word_bits != 0) {
+            {
                 switch (op) {
                 case TK_PLUS:   wmacro = "WADD"; break;
                 case TK_MINUS:  wmacro = "WSUB"; break;
@@ -966,56 +1106,41 @@ void emit_expr(FILE *out, Expr *e, const char *filename) {
             default: break;
             }
             if (rel_op != TK_EOF) {
-                // Relational assignment: lhs = (lhs rel_op rhs)
-                fputc('(', out);
+                unsigned id = ++expression_id;
+                fprintf(out, "({ word *__b_dest_%u = &(", id);
                 emit_expr(out, lhs, filename);
-                fputs(" = (", out);
-                emit_expr(out, lhs, filename);
-                fprintf(out, " %s ", tk_name(rel_op));
+                fprintf(out, "); word __b_rhs_%u = (", id);
                 emit_expr(out, rhs, filename);
-                fputs("))", out);
+                fprintf(out, "); *__b_dest_%u = (*__b_dest_%u %s __b_rhs_%u); })",
+                        id, id, tk_name(rel_op), id);
                 return;
             }
 
-            // For compound assignments, use helper function when:
-            // - complex lvalue (to avoid double evaluation), OR
-            // - non-host mode (to ensure proper word wrapping)
-            if (op != TK_ASSIGN && (is_complex_lvalue(lhs) || current_word_bits != 0)) {
-                const char *helper_name = NULL;
-                switch (op) {
-                case TK_PLUSEQ: helper_name = "add_assign"; break;
-                case TK_MINUSEQ: helper_name = "sub_assign"; break;
-                case TK_STAREQ: helper_name = "mul_assign"; break;
-                case TK_SLASHEQ: helper_name = "div_assign"; break;
-                case TK_PERCENTEQ: helper_name = "mod_assign"; break;
-                case TK_LSHIFTEQ: helper_name = "lsh_assign"; break;
-                case TK_RSHIFTEQ: helper_name = "rsh_assign"; break;
-                case TK_ANDEQ: helper_name = "and_assign"; break;
-                case TK_OREQ: helper_name = "or_assign"; break;
-                default: break;
-                }
-                if (helper_name) {
-                    fputs("b_", out);
-                    fputs(helper_name, out);
-                    fputs("(&(", out);
-                    emit_expr(out, lhs, filename);
-                    fputs("), ", out);
-                    emit_expr(out, rhs, filename);
-                    fputc(')', out);
-                } else {
-                    // Fallback for any missing helpers
-                    fputc('(', out);
-                    emit_expr(out, lhs, filename);
-                    fprintf(out, " %s ", assignment_op_to_c(op));
-                    emit_expr(out, rhs, filename);
-                    fputc(')', out);
-                }
+            /* Capture the destination before the RHS, as the native records do. */
+            unsigned id = ++expression_id;
+            fprintf(out, "({ word *__b_dest_%u = &(", id);
+            emit_expr(out, lhs, filename);
+            fprintf(out, "); word __b_rhs_%u = (", id);
+            emit_expr(out, rhs, filename);
+            fputs("); ", out);
+            const char *helper_name = NULL;
+            switch (op) {
+            case TK_PLUSEQ: helper_name = "add_assign"; break;
+            case TK_MINUSEQ: helper_name = "sub_assign"; break;
+            case TK_STAREQ: helper_name = "mul_assign"; break;
+            case TK_SLASHEQ: helper_name = "div_assign"; break;
+            case TK_PERCENTEQ: helper_name = "mod_assign"; break;
+            case TK_LSHIFTEQ: helper_name = "lsh_assign"; break;
+            case TK_RSHIFTEQ: helper_name = "rsh_assign"; break;
+            case TK_ANDEQ: helper_name = "and_assign"; break;
+            case TK_OREQ: helper_name = "or_assign"; break;
+            default: break;
+            }
+            if (helper_name) {
+                fprintf(out, "b_%s(__b_dest_%u, __b_rhs_%u); })", helper_name, id, id);
             } else {
-                fputc('(', out);
-                emit_expr(out, lhs, filename);
-                fprintf(out, " %s ", assignment_op_to_c(op));
-                emit_expr(out, rhs, filename);
-                fputc(')', out);
+                fprintf(out, "*__b_dest_%u %s __b_rhs_%u; })", id,
+                        assignment_op_to_c(op), id);
             }
             return;
         }
@@ -1042,12 +1167,22 @@ void emit_expr(FILE *out, Expr *e, const char *filename) {
 
 void emit_ival_expr(FILE *out, Expr *e, const char *filename){
     if (e->kind == EX_VAR) {
+        if (runtime_function(e->as.var) && !predefined_argv(e->as.var)) {
+            fputs("B_ADDR(*__bcc_binding_cell(", out); emit_c_string(out, e->as.var); fputs("))", out);
+            return;
+        }
         fputs("B_ADDR(", out);
-        emit_name(out, e->as.var);
+        if (predefined_argv(e->as.var)) fputs("b_argv_vector", out);
+        else if (global_data_kind(e->as.var) == 2)
+            fprintf(out, "__b_external_%s", get_mangled_name(e->as.var));
+        else {
+            emit_name(out, e->as.var);
+            if (source_function(e->as.var) || global_data_kind(e->as.var) == 1) fputs("[0]", out);
+        }
         fputc(')', out);
         return;
     }
-    // everything else uses your normal emit_expr
+    /* Other initializers use the ordinary expression emitter. */
     emit_expr(out, e, filename);
 }
 
@@ -1067,7 +1202,7 @@ int try_eval_const_expr(Expr *e, long *out) {
             long v = 0;
             if (!try_eval_const_expr(e->as.unary.rhs, &v)) return 0;
             switch (e->as.unary.op) {
-                case TK_MINUS: *out = -v; return 1;
+                case TK_MINUS: *out = (long)(-(unsigned long)v); return 1;
                 case TK_BANG:  *out = (!v); return 1;
                 default: return 0; // deref, address, increment, and decrement are not foldable here
             }
@@ -1080,8 +1215,14 @@ int try_eval_const_expr(Expr *e, long *out) {
                 case TK_PLUS:    *out = (long)((unsigned long)a + (unsigned long)b); return 1;
                 case TK_MINUS:   *out = (long)((unsigned long)a - (unsigned long)b); return 1;
                 case TK_STAR:    *out = (long)((unsigned long)a * (unsigned long)b); return 1;
-                case TK_SLASH:   if (b == 0) return 0; *out = a / b; return 1;
-                case TK_PERCENT: if (b == 0) return 0; *out = a % b; return 1;
+                case TK_SLASH:
+                    if (b == 0) return 0;
+                    *out = a == LONG_MIN && b == -1 ? LONG_MIN : a / b;
+                    return 1;
+                case TK_PERCENT:
+                    if (b == 0) return 0;
+                    *out = a == LONG_MIN && b == -1 ? 0 : a % b;
+                    return 1;
                 case TK_LT:      *out = (a <  b); return 1;
                 case TK_LE:      *out = (a <= b); return 1;
                 case TK_GT:      *out = (a >  b); return 1;
@@ -1167,6 +1308,46 @@ size_t emit_edge_list_init(FILE *out, const char *arr,
     return cursor;
 }
 
+/* B72 automatic storage belongs to the invocation, not a C block. */
+static void collect_function_autos(Stmt *s, Vec *items) {
+    if (!s) return;
+    switch (s->kind) {
+    case ST_AUTO:
+        for (size_t i = 0; i < s->as.autodecl.decls.len; ++i)
+            vec_push(items, s->as.autodecl.decls.data[i]);
+        break;
+    case ST_BLOCK:
+        for (size_t i = 0; i < s->as.block.items.len; ++i)
+            collect_function_autos(s->as.block.items.data[i], items);
+        break;
+    case ST_IF:
+        collect_function_autos(s->as.ifs.then_s, items);
+        collect_function_autos(s->as.ifs.else_s, items);
+        break;
+    case ST_WHILE: collect_function_autos(s->as.whiles.body, items); break;
+    case ST_SWITCH: collect_function_autos(s->as.switch_.body, items); break;
+    case ST_CASE: collect_function_autos(s->as.case_.stmt, items); break;
+    case ST_LABEL: collect_function_autos(s->as.label_.stmt, items); break;
+    default: break;
+    }
+}
+
+static void emit_auto_storage(FILE *out, DeclItem *item, int indent, const char *filename) {
+    const char *name = get_mangled_name(item->name);
+    if (item->size) {
+        emit_indent(out, indent);
+        fprintf(out, "word __%s_store[(", name);
+        emit_expr(out, item->size, filename);
+        fputs(")];\n", out);
+    }
+    emit_indent(out, indent);
+    fprintf(out, "word %s = 0;\n", name);
+    if (current_word_bits == 16) {
+        emit_indent(out, indent);
+        fprintf(out, "(void)B_LOCAL_PTR_N(&%s, sizeof(%s));\n", name, name);
+    }
+}
+
 void emit_stmt(FILE *out, Stmt *s, int indent, int is_function_body, const char *filename);
 
 void emit_stmt(FILE *out, Stmt *s, int indent, int is_function_body, const char *filename) {
@@ -1199,27 +1380,14 @@ void emit_stmt(FILE *out, Stmt *s, int indent, int is_function_body, const char 
 
         case ST_AUTO: {
             for (size_t i = 0; i < s->as.autodecl.decls.len; i++) {
-                DeclItem *item = (DeclItem*)s->as.autodecl.decls.data[i];
-                const char *mname = get_mangled_name(item->name);
-
+                DeclItem *item = s->as.autodecl.decls.data[i];
+                const char *name = get_mangled_name(item->name);
+                if (!g_strict) emit_auto_storage(out, item, indent, filename);
                 if (item->size) {
-                    // Vector: emit backing storage
                     emit_indent(out, indent);
-                    fprintf(out, "word __%s_store[(", mname);
-                    emit_expr(out, item->size, filename);
-                    fprintf(out, ") + 1];\n"); // B bound is last index
-
-                    // Emit pointer variable
-                    emit_indent(out, indent);
-                    fprintf(out, "word %s;\n", mname);
-
-                    // Emit initialization (will be moved to init function later)
-                    emit_indent(out, indent);
-                    fprintf(out, "%s = B_ADDR(__%s_store[0]);\n", mname, mname);
-                } else {
-                    // Simple variable
-                    emit_indent(out, indent);
-                    fprintf(out, "word %s = 0;\n", mname);
+                    fprintf(out, "%s = B_LOCAL_PTR_N(__%s_store, sizeof(__%s_store));\n", name, name, name);
+                } else if (g_strict) {
+                    emit_indent(out, indent); fputs(";\n", out);
                 }
             }
             return;
@@ -1228,35 +1396,27 @@ void emit_stmt(FILE *out, Stmt *s, int indent, int is_function_body, const char 
         case ST_IF: {
             emit_indent(out, indent); fputs("if (", out);
             emit_expr(out, s->as.ifs.cond, filename);
-            fputs(")\n", out);
-
-            // If this if is the last statement in a function and has no else,
-            // treat the then branch as if it's in a function body for implicit returns
+            fputs(") {\n", out);
             int then_is_function_body = is_function_body && !s->as.ifs.else_s;
-            int then_ind = stmt_is_block(s->as.ifs.then_s) ? indent : indent + 1;
-            emit_stmt(out, s->as.ifs.then_s, then_ind, then_is_function_body, filename);
-
+            emit_stmt(out, s->as.ifs.then_s, indent + 1, then_is_function_body, filename);
+            emit_indent(out, indent); fputs("}", out);
             if (s->as.ifs.else_s) {
-                emit_indent(out, indent); fputs("else\n", out);
-                int else_ind = stmt_is_block(s->as.ifs.else_s) ? indent : indent + 1;
-                emit_stmt(out, s->as.ifs.else_s, else_ind, 0, filename);
+                fputs(" else {\n", out);
+                emit_stmt(out, s->as.ifs.else_s, indent + 1, 0, filename);
+                emit_indent(out, indent); fputs("}", out);
             }
+            fputs("\n", out);
             return;
         }
 
-        case ST_WHILE: {
-            emit_indent(out, indent); fputs("while (", out);
-            emit_expr(out, s->as.whiles.cond, filename);
-            fputs(")\n", out);
-
-            int body_ind = stmt_is_block(s->as.whiles.body) ? indent : indent + 1;
-            emit_stmt(out, s->as.whiles.body, body_ind, 0, filename);
+        case ST_WHILE:
+            emit_while(out, s, indent, NULL, filename);
             return;
-        }
 
         case ST_RETURN:
             emit_indent(out, indent); fputs("return", out);
             if (s->as.ret.val) { fputc(' ', out); emit_expr(out, s->as.ret.val, filename); }
+            else fputs(" 0", out);
             fputs(";\n", out);
             return;
 
@@ -1277,14 +1437,28 @@ void emit_stmt(FILE *out, Stmt *s, int indent, int is_function_body, const char 
             emit_indent(out, indent);
             fputs("break;\n", out);
             return;
-        case ST_CONTINUE:
+        case ST_CONTINUE: {
+            CtrlFrame *loop = g_ctrl;
+            while (loop && loop->kind != CTRL_LOOP) loop = loop->prev;
+            if (!loop) dief("continue outside loop");
             emit_indent(out, indent);
-            fputs("continue;\n", out);
+            fprintf(out, "goto %s;\n", loop->target);
             return;
+        }
 
         case ST_GOTO:
             emit_indent(out, indent);
-            fprintf(out, "goto %s;\n", s->as.goto_.target);
+            fputs("{ word __bcc_target = ", out);
+            emit_expr(out, s->as.goto_.target, filename);
+            fputs(";\n", out);
+            for (size_t i = 0; i < function_labels.len; i++) {
+                emit_indent(out, indent + 1);
+                fprintf(out, "if (__bcc_target == __bcc_label_target_%zu) goto __b_label_%zu;\n", i + 1, i + 1);
+            }
+            emit_indent(out, indent + 1);
+            fputs("fputs(\"bcc: invalid label value\\n\", stderr); abort();\n", out);
+            emit_indent(out, indent);
+            fputs("}\n", out);
             return;
 
         case ST_SWITCH:
@@ -1293,7 +1467,7 @@ void emit_stmt(FILE *out, Stmt *s, int indent, int is_function_body, const char 
 
         case ST_LABEL:
             emit_indent(out, indent);
-            fprintf(out, "%s:\n", s->as.label_.name);
+            fprintf(out, "__b_label_%d:\n", label_id(s->as.label_.name));
             emit_indent(out, indent + 1);
             fputs(";\n", out);
             emit_stmt(out, s->as.label_.stmt, indent + 1, 0, filename);
@@ -1307,12 +1481,190 @@ void emit_stmt(FILE *out, Stmt *s, int indent, int is_function_body, const char 
     }
 }
 
+static void emit_function_body(FILE *out, Func *f, const char *filename) {
+    function_labels.len = 0;
+    collect_function_labels(f->body);
+    fputs("{\n    B_FRAME;\n", out);
+    if (f->params.len) {
+        fputs("    size_t __bcc_count = __bcc_current_call ? __bcc_current_call->count : 0;\n", out);
+        fprintf(out, "    if (__bcc_count < %zu) __bcc_count = %zu;\n", f->params.len, f->params.len);
+        fputs("    word __bcc_parameters[__bcc_count];\n"
+              "    for (size_t __bcc_i = 0; __bcc_i < __bcc_count; ++__bcc_i)\n"
+              "        __bcc_parameters[__bcc_i] = __bcc_current_call && __bcc_i < __bcc_current_call->count\n"
+              "            ? __bcc_current_call->arguments[__bcc_i] : 0;\n", out);
+        if (current_word_bits == 16)
+            fputs("    (void)B_LOCAL_PTR_N(__bcc_parameters, sizeof(__bcc_parameters));\n", out);
+    }
+    if (g_strict) {
+        Vec locals = {0};
+        collect_function_autos(f->body, &locals);
+        for (size_t i = 0; i < locals.len; ++i)
+            emit_auto_storage(out, locals.data[i], 1, filename);
+        if (!g_compilation_arena) free(locals.data);
+    }
+    if (function_labels.len) {
+        fputs("    static int __bcc_labels_ready;\n", out);
+        for (size_t i = 0; i < function_labels.len; i++) {
+            fprintf(out, "    static word __bcc_label_target_%zu;\n", i + 1);
+            fprintf(out, "    static word __b_label_value_%zu;\n", i + 1);
+        }
+        fputs("    if (!__bcc_labels_ready) {\n", out);
+        for (size_t i = 0; i < function_labels.len; i++) {
+            fprintf(out, "        __bcc_label_target_%zu = __bcc_new_label();\n", i + 1);
+            fprintf(out, "        __b_label_value_%zu = __bcc_label_target_%zu;\n", i + 1, i + 1);
+        }
+        fputs("        __bcc_labels_ready = 1;\n    }\n", out);
+    }
+    emit_stmt(out, f->body, 1, 1, filename);
+    fputs("    return 0;\n}\n", out);
+    function_labels.len = 0;
+}
+
+/* Register backing storage before an initializer can take an interior address. */
+/* All B external data is an array. The name denotes its first cell;
+   unlike a vector, a multiword simple definition has no pointer cell. */
+static size_t vector_extent(ExternItem *item) {
+    size_t count = item->as.var.init && item->as.var.init->kind == INIT_LIST
+        ? init_list_length(item->as.var.init) : 0;
+    long bound = item->as.var.bound_const;
+    if (item->as.var.bound && bound > 0 && (size_t)bound > count)
+        count = (size_t)bound;
+    return count;
+}
+
+static size_t global_words(ExternItem *item) {
+    if (item->as.var.vkind != EXTVAR_BLOB) return 1;
+    size_t base = item->as.var.init && item->as.var.init->kind == INIT_LIST
+        ? init_list_length(item->as.var.init) : 1;
+    size_t tail = edge_tail_words_top(item->as.var.init);
+    return base + tail ? base + tail : 1;
+}
+
+static void emit_function_prototypes(FILE *out, Program *prog) {
+    for (size_t i = 0; i < external_calls.len; ++i) {
+        fputs("extern word ", out);
+        emit_name(out, external_calls.data[i]);
+        fputs("[];\n", out);
+    }
+    emit_known_external_function_prototypes(out, prog);
+    for (size_t i = 0; i < prog->tops.len; i++) {
+        Top *t = prog->tops.data[i];
+        if (t->kind != TOP_FUNC) continue;
+        Func *f = t->as.fn;
+        fputs("word ", out); emit_name(out, f->name); fputs("[1];\n", out);
+        fputs("static word ", out); emit_function_body_name(out, f->name); fputc('(', out);
+        fputs("void", out);
+        fputs(");\n", out);
+    }
+}
+
+static void emit_global_declarations(FILE *out, Program *prog, const char *filename) {
+    for (size_t i = 0; i < prog->tops.len; i++) {
+        Top *t = prog->tops.data[i];
+        if (t->kind == TOP_GAUTO) {
+            emit_stmt(out, t->as.gauto, 0, 0, filename);
+            continue;
+        }
+        if (t->kind != TOP_EXTERN_DEF && t->kind != TOP_EXTERN_DECL) continue;
+        ExternItem *item = t->as.ext_def;
+        const char *name = get_mangled_name(item->name);
+        if (t->kind == TOP_EXTERN_DECL) {
+            int kind = global_data_kind(item->name);
+            if (!kind) continue;
+            if (item->is_macro_external) {
+                fprintf(out, "#ifndef %s\nextern word %s[];\n#define __b_external_%s (%s[0])\n#else\n#define __b_external_%s (%s)\n#endif\n",
+                        item->name, name, name, name, name, item->name);
+            } else fprintf(out, "extern word %s[];\n", name);
+            continue;
+        }
+        fprintf(out, "%sword %s[%zu];\n", item->is_implicit_static ? "static " : "", name, global_words(item));
+        if (item->as.var.vkind == EXTVAR_VECTOR) {
+            size_t total = vector_extent(item) + edge_tail_words_top(item->as.var.init);
+            fprintf(out, "static word __%s_store[%zu];\n", name, total ? total : 1);
+        }
+    }
+}
+
+static void emit_global_initializers(FILE *out, Program *prog, const char *filename) {
+    /* Register every module's complete objects before any address initializer
+       runs. Otherwise a forward reference could register only the first word. */
+    if (current_word_bits == 16) {
+        fputs("static void __attribute__((constructor(101))) __b_register_globals(void) {\n", out);
+        for (size_t i = 0; i < prog->tops.len; i++) {
+            Top *t = prog->tops.data[i];
+            if (t->kind == TOP_FUNC) {
+                const char *name = get_mangled_name(t->as.fn->name);
+                fprintf(out, "    (void)B_PTR_N(%s, sizeof(%s));\n", name, name);
+                continue;
+            }
+            if (t->kind != TOP_EXTERN_DEF) continue;
+            ExternItem *item = t->as.ext_def;
+            const char *name = get_mangled_name(item->name);
+            fprintf(out, "    (void)B_PTR_N(%s, sizeof(%s));\n", name, name);
+            if (item->as.var.vkind == EXTVAR_VECTOR)
+                fprintf(out, "    (void)B_PTR_N(__%s_store, sizeof(__%s_store));\n", name, name);
+        }
+        fputs("}\n", out);
+    }
+    fputs("static void __attribute__((constructor(102))) __bcc_bind_functions(void) {\n", out);
+    for (size_t i = 0; i < prog->tops.len; ++i) {
+        Top *t = prog->tops.data[i];
+        if (t->kind != TOP_FUNC) continue;
+        fputs("    ", out); emit_function_cell(out, t->as.fn->name);
+        fputs(" = B_FUNCTION(", out); emit_function_body_name(out, t->as.fn->name);
+        fputs(");\n", out);
+        fprintf(out, "    static struct __bcc_source_function __bcc_function_%zu = {(void*)", i);
+        emit_function_body_name(out, t->as.fn->name);
+        fprintf(out, ", 0, 0};\n    __bcc_register_function(&__bcc_function_%zu);\n", i);
+        fprintf(out, "    static struct __bcc_library_binding __bcc_binding_%zu = {", i);
+        emit_c_string(out, t->as.fn->name);
+        fputs(", ", out); emit_name(out, t->as.fn->name);
+        fprintf(out, ", 0, 0};\n    __bcc_register_binding(&__bcc_binding_%zu);\n", i);
+    }
+    for (size_t i = 0; i < prog->tops.len; ++i) {
+        Top *t = prog->tops.data[i];
+        if (t->kind != TOP_EXTERN_DEF || t->as.ext_def->is_implicit_static) continue;
+        const char *name = t->as.ext_def->name;
+        fprintf(out, "    static struct __bcc_library_binding __bcc_data_%zu = {", i);
+        emit_c_string(out, name); fputs(", ", out); emit_name(out, name);
+        fprintf(out, ", 0, 0};\n    __bcc_register_binding(&__bcc_data_%zu);\n", i);
+    }
+    fputs("}\n", out);
+    fputs("static void __b_initialize_globals(void) {\n", out);
+    for (size_t i = 0; i < prog->tops.len; i++) {
+        Top *t = prog->tops.data[i];
+        if (t->kind != TOP_EXTERN_DEF) continue;
+        ExternItem *item = t->as.ext_def;
+        const char *name = get_mangled_name(item->name);
+        Init *in = item->as.var.init;
+        if (item->as.var.vkind == EXTVAR_VECTOR) {
+            fprintf(out, "    %s[0] = B_PTR_N(__%s_store, sizeof(__%s_store));\n", name, name, name);
+            if (in && in->kind == INIT_LIST) {
+                char *store = fmt("__%s_store", name);
+                emit_edge_list_init(out, store, 0, in, vector_extent(item), 1, filename);
+            }
+        } else if (in && in->kind == INIT_LIST) {
+            emit_edge_list_init(out, name, 0, in, init_list_length(in), 1, filename);
+        } else if (in && in->kind == INIT_EXPR) {
+            fprintf(out, "    %s[0] = ", name);
+            emit_ival_expr(out, in->as.expr, filename);
+            fputs(";\n", out);
+        }
+    }
+    fputs("}\n"
+          "static struct __bcc_initializer __bcc_module = {__b_initialize_globals, 0, 0};\n"
+          "static void __attribute__((constructor(102))) __bcc_register_module(void) {\n"
+          "    __bcc_register_initializer(&__bcc_module);\n"
+          "}\n\n", out);
+}
+
 // Forward declaration for assembly emitter
-void emit_program_asm(FILE *out, Program *prog);
 
 void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr, int no_line, int word_bits) {
+    current_program = prog;
     current_byteptr = byteptr;
     current_word_bits = word_bits;
+    external_calls = (Vec){0};
     string_pool.data = NULL;
     string_pool.len = 0;
     string_pool.cap = 0;
@@ -1321,6 +1673,7 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
     clear_name_map();
 
     collect_strings_program(prog);
+    if (g_use_curses) fputs("#define BCC_USE_CURSES 1\n", out);
     fputs(
         "#define _DEFAULT_SOURCE 1\n"
         "#define _XOPEN_SOURCE 700\n"
@@ -1342,11 +1695,14 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
         "#include <termios.h>\n"
         "#include <sys/ioctl.h>\n"
         "#include <ctype.h>\n"
+        "#include <errno.h>\n"
         "#include <dlfcn.h>\n"
         "#include <math.h>\n"
         "#include <stddef.h>\n"
+        "#ifdef BCC_USE_CURSES\n"
         "#include <ncurses.h>\n"
         "#include <panel.h>\n"
+        "#endif\n"
         "\n"
         "/* Undefine common macros that might conflict with B variable names */\n"
         "#undef TRUE\n"
@@ -1372,17 +1728,18 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
         "\n"
         "/*\n"
         "  Pointer model:\n"
-        "    B_BYTEPTR=1  -> pointers are byte addresses (matches your formulas)\n"
-        "    B_BYTEPTR=0  -> pointers are word addresses (closer to Thompson B: E1[E2]==*(E1+E2))\n"
+        "    B_BYTEPTR=1  -> pointers are byte addresses; subscripts still index words\n"
+        "    B_BYTEPTR=0  -> pointers are word addresses: E1[E2]==*(E1+E2)\n"
         "*/\n",
         out
     );
+    fprintf(out, "#define __bcc_strict_runtime %d\n", g_strict ? 1 : 0);
     fprintf(out, "#define B_BYTEPTR %d\n", byteptr ? 1 : 0);
     fprintf(out, "#define WORD_BITS %d\n", word_bits);
     fputs(
         "/*\n"
         "  Word size emulation:\n"
-        "    WORD_BITS=0   -> host native (no wrapping)\n"
+        "    WORD_BITS=0   -> wrap at the host pointer width\n"
         "    WORD_BITS=16  -> wrap arithmetic like PDP-11 16-bit words\n"
         "    WORD_BITS=32  -> wrap arithmetic at 32 bits\n"
         "  WVAL(x) sign-extends to word width after masking.\n"
@@ -1397,7 +1754,7 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
         "  #define SHIFT_MASK 31\n"
         "#else\n"
         "  #define WORD_MASK (~(uword)0)\n"
-        "  #define WVAL(x) (x)\n"
+        "  #define WVAL(x) ((word)(x))\n"
         "  #define SHIFT_MASK ((int)(sizeof(word)*8 - 1))\n"
         "#endif\n"
         "\n"
@@ -1410,10 +1767,10 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
         "#define WADD(a,b) WVAL((uword)(a) + (uword)(b))\n"
         "#define WSUB(a,b) WVAL((uword)(a) - (uword)(b))\n"
         "#define WMUL(a,b) WVAL((uword)(a) * (uword)(b))\n"
-        "#define WDIV(a,b) WVAL((uword)(a) / (uword)(b))\n"
-        "#define WMOD(a,b) WVAL((uword)(a) % (uword)(b))\n"
-        "#define WSHL(a,n) WVAL(((uword)(a) & WORD_MASK) << ((uword)(n) & SHIFT_MASK))\n"
-        "#define WSHR(a,n) WVAL(((uword)(a) & WORD_MASK) >> ((uword)(n) & SHIFT_MASK))\n"
+        "#define WDIV(a,b) __b_word_div((a),(b))\n"
+        "#define WMOD(a,b) __b_word_mod((a),(b))\n"
+        "#define WSHL(a,n) __b_word_shl((a),(n))\n"
+        "#define WSHR(a,n) __b_word_shr((a),(n))\n"
         "#define WAND(a,b) WVAL((uword)(a) & (uword)(b))\n"
         "#define WOR(a,b)  WVAL((uword)(a) | (uword)(b))\n"
         "#define WXOR(a,b) WVAL((uword)(a) ^ (uword)(b))\n"
@@ -1421,33 +1778,57 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
         "\n",
         out
     );
+    /* Embed the same address translator used by the shared runtime. */
+    {
+        char *path = fmt("%s/btarget.h", g_libb_path);
+        size_t length;
+        char *header = read_file_all(path, &length);
+        /* Inline runtimes in different translation units share one address map. */
+        fputs("#define B_TARGET_DEFINE\n#define B_TARGET_STORAGE __attribute__((common))\n", out);
+        fwrite(header, 1, length, out);
+        fputs("\n", out);
+        free(header);
+    }
+    {
+        char *path = fmt("%s/binit.h", g_libb_path);
+        size_t length;
+        char *header = read_file_all(path, &length);
+        fputs("#define B_INIT_DEFINE\n#define B_INIT_STORAGE __attribute__((common))\n", out);
+        fwrite(header, 1, length, out);
+        fputc('\n', out);
+        free(header);
+    }
+    {
+        char *path = fmt("%s/bcall.h", g_libb_path);
+        size_t length;
+        char *header = read_file_all(path, &length);
+        fputs("#define B_CALL_DEFINE\n#define B_CALL_STORAGE __attribute__((common))\n", out);
+        fwrite(header, 1, length, out);
+        fputc('\n', out);
+        free(header);
+        if (!g_compilation_arena) free(path);
+    }
+
+    {
+        char *path = fmt("%s/bunix.h", g_libb_path);
+        size_t length;
+        char *header = read_file_all(path, &length);
+        fwrite(header, 1, length, out);
+        fputc('\n', out);
+        free(header);
+    }
     fputs(
-        "#if B_BYTEPTR\n"
-        "  /* Byte-addressed pointers: addresses are bytes; array elements are word-sized. */\n"
-        "  #define B_DEREF(p)   (*(word*)(uword)(p))\n"
-        "  #define B_ADDR(x)    B_PTR(&(x))\n"
-        "  #define B_INDEX(a,i) (*(word*)((uword)(a) + (uword)(i) * sizeof(word)))\n"
-        "  #define B_PTR(p)     ((word)(uword)(p))\n"
-        "#else\n"
-        "  #define B_DEREF(p)   (*(word*)(uword)((uword)(p) * sizeof(word)))\n"
-        "  #define B_ADDR(x)    B_PTR(&(x))\n"
-        "  #define B_INDEX(a,i) B_DEREF((a) + (i))\n"
-        "  #define B_PTR(p)     ((word)((uword)(p) / sizeof(word)))\n"
-        "#endif\n"
-        "\n"
-        "#define B_STR(s)     B_PTR((const char*)(s))\n"
-        "\n"
-        "/* Convert B pointer (word) to C pointer */\n"
-        "#if B_BYTEPTR\n"
-        "  #define B_CPTR(p) ((void*)(uword)(p))\n"
-        "#else\n"
-        "  #define B_CPTR(p) ((void*)((uword)(p) * sizeof(word)))\n"
-        "#endif\n"
-        "\n"
-"static int rd_fd = 0;  /* current input fd */\n"
-"static int wr_fd = 1;  /* current output fd */\n"
-"static word rd_unit = 0; /* exposed to B if needed */\n"
-"static word wr_unit = (word)-1;\n"
+"static void __b_init(void) {\n"
+"    if (!__bcc_runtime_initialized) {\n"
+"        setvbuf(stdout, NULL, _IONBF, 0);\n"
+"        __bcc_runtime_initialized = 1;\n"
+"    }\n"
+"    __bcc_run_initializers();\n"
+"}\n"
+"int b_rd_fd __attribute__((weak)) = 0;\n#define rd_fd b_rd_fd\n"
+"int b_wr_fd __attribute__((weak)) = 1;\n#define wr_fd b_wr_fd\n"
+"word b_rd_unit __attribute__((weak)) = 0;\n#define rd_unit b_rd_unit\n"
+"word b_wr_unit __attribute__((weak)) = (word)-1;\n#define wr_unit b_wr_unit\n"
 "static void __b_sync_rd(void){\n"
 "    if (rd_unit < 0) {\n"
 "        if (rd_fd != 0 && rd_fd > 2) close(rd_fd);\n"
@@ -1474,14 +1855,15 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
         "\n"
 "static word b_putchar(word x){\n"
 "    __b_sync_wr();\n"
-"    unsigned char c = (unsigned char)(x & 0xFF);\n"
-"    (void)write(wr_fd, &c, 1);\n"
+"    unsigned char bytes[2] = {(unsigned char)((uword)x >> 8), (unsigned char)x};\n"
+"    size_t start = bytes[0] ? 0 : 1;\n"
+"    (void)write(wr_fd, bytes + start, 2 - start);\n"
 "    return x;\n"
 "}\n"
 "static word b_getchar(void){ __b_sync_rd(); unsigned char c; ssize_t n = read(rd_fd, &c, 1); if (n == 1) return (word)c; if (rd_fd != 0) { close(rd_fd); rd_fd = 0; rd_unit = -1; return b_getchar(); } return (word)004; }\n"
 "static word b_exit(word code){ exit((int)code); return 0; }\n"
 "static word b_abort(void){ abort(); return 0; }\n"
-"static word b_free(word p){ free(B_CPTR(p)); return 0; }\n"
+"static word b_free(word p){ void *host = B_CPTR(p); B_FORGET(host); free(host); return 0; }\n"
         "\n"
         "/* Sign-extend 16-bit value to full word size. Used by 16-bit B programs on 64-bit hosts. */\n"
         "static word sx64(word x){\n"
@@ -1489,11 +1871,12 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
         "}\n"
         "\n"
         "/* Command line argument support */\n"
-        "static int __b_argc;\n"
-        "static char **__b_argv;\n"
+        "int __b_argc __attribute__((common));\n"
+        "char **__b_argv __attribute__((common));\n"
         "\n"
         "/* argv strings converted to B strings (packed words, 004 terminator) */\n"
-        "static word *__b_argvb;\n"
+        "word *__b_argvb __attribute__((common));\n"
+        "word b_argv_vector __attribute__((common));\n"
         "\n"
         "static void __b_setargs(int argc, char **argv);\n"
         "static word b_argc(void);\n"
@@ -1520,21 +1903,20 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
         "static word b_xor_assign(word *p, word v) { return (*p = WXOR(*p, v)); }\n"
         "\n"
         "static word b_alloc(word nwords){\n"
-        "    size_t bytes = (size_t)nwords * sizeof(word);\n"
+        "    nwords = WVAL(nwords);\n"
+        "    if (nwords < 0 || (uword)nwords > SIZE_MAX / sizeof(word)) {\n"
+        "        fprintf(stderr, \"alloc: invalid size\\n\"); exit(1);\n"
+        "    }\n"
+        "    size_t bytes = nwords ? (size_t)nwords * sizeof(word) : sizeof(word);\n"
         "    void *p = malloc(bytes);\n"
         "    if (!p) { fprintf(stderr, \"alloc: out of memory\\n\"); exit(1); }\n"
-        "    return B_PTR(p);\n"
+        "    return B_PTR_N(p, bytes);\n"
         "}\n"
         "\n"
-        "/* B library functions - compatible with Thompson's /etc/libb.a */\n"
+        "/* Host B runtime functions and compatibility helpers */\n"
         "/* String manipulation functions */\n"
         "static inline word b_load(word addr){ return B_DEREF(addr); }\n"
-        "static inline void b_store(word addr, word v){\n"
-        "#if B_BYTEPTR\n"
-        "    *(word*)(uword)addr = v;\n"
-        "#else\n"
-        "    *(word*)(uword)((uword)addr * sizeof(word)) = v;\n"
-        "#endif\n"
+        "static inline void b_store(word addr, word v){ B_DEREF(addr) = WVAL(v);\n"
         "}\n"
         "\n"
         "/* B string access - byte packing within words.\n"
@@ -1550,35 +1932,39 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
         " * give different results on big-endian hosts.\n"
         " */\n"
         "static word b_char(word s, word i){\n"
-        "#if B_BYTEPTR\n"
+        "#if B_BYTEPTR && WORD_BITS != 16\n"
         "    const unsigned char *p = (const unsigned char*)B_CPTR(s);\n"
         "    return (word)p[(size_t)i];\n"
         "#else\n"
-        "    const uword W = (uword)sizeof(word);\n"
+        "    const uword W = (uword)B_WORD_BYTES;\n"
         "    uword wi = (uword)i / W;\n"
         "    uword bi = (uword)i % W;\n"
-        "    uword w  = (uword)b_load((word)(s + (word)wi));\n"
+        "    uword w  = (uword)B_INDEX(s, wi);\n"
         "    return (word)((w >> (bi * 8)) & 0xFF);\n"
         "#endif\n"
         "}\n"
         "\n"
         "static word b_lchar(word s, word i, word c){\n"
-        "#if B_BYTEPTR\n"
+        "#if B_BYTEPTR && WORD_BITS != 16\n"
         "    unsigned char *p = (unsigned char*)B_CPTR(s);\n"
         "    p[(size_t)i] = (unsigned char)(c & 0xFF);\n"
         "    return c;\n"
         "#else\n"
-        "    const uword W = (uword)sizeof(word);\n"
+        "    const uword W = (uword)B_WORD_BYTES;\n"
         "    uword wi = (uword)i / W;\n"
         "    uword bi = (uword)i % W;\n"
         "\n"
-        "    word addr = (word)(s + (word)wi);\n"
+        "    word addr = B_ADDR(B_INDEX(s, wi));\n"
         "    uword w   = (uword)b_load(addr);\n"
         "\n"
         "    uword mask = (uword)0xFF << (bi * 8);\n"
         "    w = (w & ~mask) | (((uword)c & 0xFF) << (bi * 8));\n"
         "\n"
+        "#if WORD_BITS == 32\n"
+        "    B_DEREF(addr) = (word)w;\n"
+        "#else\n"
         "    b_store(addr, (word)w);\n"
+        "#endif\n"
         "    return c;\n"
         "#endif\n"
         "}\n"
@@ -1586,7 +1972,7 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
         "/* Command line argument support implementation */\n"
 "static word __b_pack_cstr(const char *s){\n"
 "    size_t n = strlen(s);                 /* bytes, excluding NUL */\n"
-"    size_t W = sizeof(word);              /* bytes per word */\n"
+"    size_t W = B_WORD_BYTES;              /* bytes per word */\n"
 "    size_t total = n + 1;                 /* +1 for 004 terminator */\n"
 "    size_t words = (total + W - 1) / W;\n"
         "\n"
@@ -1668,12 +2054,21 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
         "    __b_argc = argc;\n"
         "    __b_argv = argv;\n"
         "\n"
-        "    __b_argvb = (word*)malloc(sizeof(word) * (size_t)argc);\n"
+        "    __b_argvb = (word*)malloc(sizeof(word) * ((size_t)argc + 1));\n"
         "    if (!__b_argvb) { fprintf(stderr, \"argv: out of memory\\n\"); exit(1); }\n"
         "\n"
+        "    word *vector = (word*)malloc(sizeof(word) * ((size_t)argc + 1));\n"
+        "    if (!vector) { fprintf(stderr, \"argv: out of memory\\n\"); exit(1); }\n"
+        "    vector[0] = WVAL(argc);\n"
         "    for (int i = 0; i < argc; i++){\n"
         "        __b_argvb[i] = __b_pack_cstr(argv[i]);\n"
+        "        vector[i+1] = __b_pack_cstr(argv[i]);\n"
+        "        b_lchar(vector[i+1], (word)strlen(argv[i]), 0);\n"
         "    }\n"
+        "    b_argv_vector = B_PTR_N(vector, sizeof(word) * ((size_t)argc + 1));\n"
+        "}\n"
+        "static word __b_argvalues(void) {\n"
+        "    return __b_argc ? B_PTR_N(__b_argvb, sizeof(word) * (size_t)__b_argc) : 0;\n"
         "}\n"
         "\n"
         "static word b_argc(void) { return (word)__b_argc; }\n"
@@ -1685,46 +2080,37 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
 "}\n"
 "\n"
 "static word b_reread(void) {\n"
-"    /* If no args, nothing to reread */\n"
-"    if (__b_argc <= 1) {\n"
-"        return 0;\n"
-"    }\n"
+"    if (__b_argc <= 1) return 0;\n"
 "\n"
-"    /* Compute total length of joined argv[0..] with spaces + newline */\n"
-"    size_t total = 1; /* for trailing newline */\n"
-"    for (int i = 0; i < __b_argc; i++) {\n"
-"        total += strlen(__b_argv[i]);\n"
-"        if (i + 1 < __b_argc) total += 1; /* space */\n"
+"    /* A pipe can block before its reader starts. Stage the replay in an\n"
+"       anonymous seekable file instead, preserving empty argument fields. */\n"
+"    FILE *stream = tmpfile();\n"
+"    if (!stream) {\n"
+"        fprintf(stderr, \"reread: cannot create replay file\\n\");\n"
+"        exit(1);\n"
 "    }\n"
-"    \n"
-"    char *buf = (char*)malloc(total + 1);\n"
-"    if (!buf) { fprintf(stderr, \"reread: out of memory\\n\"); exit(1); }\n"
-"    \n"
-"    size_t pos = 0;\n"
-"    for (int i = 0; i < __b_argc; i++) {\n"
-"        size_t len = strlen(__b_argv[i]);\n"
-"        memcpy(buf + pos, __b_argv[i], len);\n"
-"        pos += len;\n"
-"        if (i + 1 < __b_argc) buf[pos++] = ' ';\n"
+"    for (int i = 0; i < __b_argc; ++i) {\n"
+"        size_t length = strlen(__b_argv[i]);\n"
+"        if (fwrite(__b_argv[i], 1, length, stream) != length ||\n"
+"            fputc(i + 1 < __b_argc ? ' ' : '\\n', stream) == EOF)\n"
+"            goto failed;\n"
 "    }\n"
-"    buf[pos++] = '\\n';\n"
-"    buf[pos] = '\\0';\n"
-"    \n"
-"    int p[2];\n"
-"    if (pipe(p) != 0) { free(buf); fprintf(stderr, \"reread: pipe failed\\n\"); exit(1); }\n"
-"    ssize_t wn = write(p[1], buf, pos);\n"
-"    (void)wn;\n"
-"    close(p[1]);\n"
-"    free(buf);\n"
-"    \n"
-"    /* Close previous rd fd if it wasn't the terminal */\n"
-"    if (rd_fd != 0 && rd_fd != p[0]) close(rd_fd);\n"
-"    rd_fd = p[0];\n"
-"    rd_unit = (word)0;\n"
+"    if (fflush(stream) != 0 || fseek(stream, 0, SEEK_SET) != 0) goto failed;\n"
+"    int descriptor = dup(fileno(stream));\n"
+"    if (descriptor < 0) goto failed;\n"
+"    fclose(stream);\n"
 "    __b_sync_rd();\n"
+"    if (rd_fd != 0) close(rd_fd);\n"
+"    rd_fd = descriptor;\n"
+"    rd_unit = (word)descriptor;\n"
 "    return 0;\n"
+"\n"
+"failed:\n"
+"    fclose(stream);\n"
+"    fprintf(stderr, \"reread: cannot stage command line\\n\");\n"
+"    exit(1);\n"
 "}\n"
-        "\n"
+"\n"
         "/* I/O functions */\n"
 "static word b_getchr(void) {\n"
 "    __b_sync_rd();\n"
@@ -1749,34 +2135,21 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
 "    __b_sync_wr();\n"
 "    word i = 0;\n"
 "    for (;;) {\n"
-"        word ch = b_char(s, i++);\n"
-"        if (ch == 004 || ch == 0) break;\n"
-"        b_putchar(ch);\n"
+"        word ch = __bcc_library_call2(\"char\", b_char, s, i++);\n"
+"        if (ch == 004 || (!__bcc_strict_runtime && ch == 0)) break;\n"
+"        __bcc_library_call1(\"putchar\", b_putchar, ch);\n"
         "    }\n"
         "    return s;\n"
         "}\n"
 "static word b_getstr(word buf) {\n"
-"    __b_sync_rd();\n"
-"    size_t i = 0;\n"
-"    unsigned char c;\n"
+"    word i = 0;\n"
 "    for (;;) {\n"
-"        ssize_t n = read(rd_fd, &c, 1);\n"
-"        if (n == 1 && c != '\\n' && c != '\\r') {\n"
-"            b_lchar(buf, (word)i, (word)c);\n"
-"            i++;\n"
-"            continue;\n"
-"        }\n"
-"        if (n == 1) break; /* newline */\n"
-"        if (rd_fd != 0) {\n"
-"            close(rd_fd);\n"
-"            rd_fd = 0;\n"
-"            rd_unit = -1;\n"
-"            continue; /* retry on terminal */\n"
-"        }\n"
-"        break; /* EOF */\n"
+"        word c = __bcc_library_call0(\"getchar\", b_getchar);\n"
+"        if (c == 004 || c == '\\n' || (!__bcc_strict_runtime && c == '\\r')) break;\n"
+"        __bcc_library_call3(\"lchar\", b_lchar, buf, i++, c);\n"
 "    }\n"
-"    b_lchar(buf, (word)i, (word)004);\n"
-"    return buf;\n"
+"    __bcc_library_call3(\"lchar\", b_lchar, buf, i, 004);\n"
+"    return __bcc_strict_runtime ? i : buf;\n"
 "}\n"
 "static word b_flush(void){\n"
 "    __b_sync_wr();\n"
@@ -1790,121 +2163,22 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
         "\n"
         "#include <stdarg.h>\n"
         "\n"
-        "/* Print number in specified base (from B manual) */\n"
-        "static void b_printn_u(word n, word base) {\n"
-        "    // recursion like old implementations\n"
-        "    word a = (word)((uword)n / (uword)base);\n"
-        "    if (a) b_printn_u(a, base);\n"
-        "    b_putchar((word)((uword)n % (uword)base) + '0');\n"
-        "}\n"
-        "\n"
-        "static word b_printf(word fmt, ...){\n"
-        "    va_list ap;\n"
-        "    va_start(ap, fmt);\n"
-        "\n"
-        "    word i = 0;\n"
-        "    for (;;){\n"
-        "        word ch = b_char(fmt, i++);\n"
-        "        if (ch == 004 || ch == 0) break;  /* '*e' or NUL terminator */\n"
-        "        if (ch != '%'){ b_putchar(ch); continue; }\n"
-        "\n"
-        "        word code = b_char(fmt, i++);\n"
-        "        if (code == 004) break;\n"
-        "\n"
-        "        word arg = va_arg(ap, word);\n"
-        "\n"
-        "        switch ((int)code){\n"
-        "        case 'd': {\n"
-        "#if WORD_BITS == 16\n"
-        "            int16_t v = (int16_t)arg;\n"
-        "            if (v < 0){ b_putchar('-'); v = (int16_t)-v; }\n"
-        "            if (v) b_printn_u((word)(uword)(uint16_t)v, 10);\n"
-        "#elif WORD_BITS == 32\n"
-        "            int32_t v = (int32_t)arg;\n"
-        "            if (v < 0){ b_putchar('-'); v = -v; }\n"
-        "            if (v) b_printn_u((word)(uword)(uint32_t)v, 10);\n"
-        "#else\n"
-        "            word v = arg;\n"
-        "            if (v < 0){ b_putchar('-'); v = -v; }\n"
-        "            if (v) b_printn_u((word)(uword)v, 10);\n"
-        "#endif\n"
-        "            else b_putchar('0');\n"
-        "            break;\n"
-        "        }\n"
-        "        case 'o': {\n"
-        "#if WORD_BITS == 16\n"
-        "            uint16_t v = (uint16_t)arg;\n"
-        "#elif WORD_BITS == 32\n"
-        "            uint32_t v = (uint32_t)arg;\n"
-        "#else\n"
-        "            uword v = (uword)arg;\n"
-        "#endif\n"
-        "            if (v) b_printn_u((word)(uword)v, 8);\n"
-        "            else b_putchar('0');\n"
-        "            break;\n"
-        "        }\n"
-        "        case 'u': {\n"
-        "            uword v = (uword)arg;\n"
-        "            if (v) b_printn_u((word)v, 10);\n"
-        "            else b_putchar('0');\n"
-        "            break;\n"
-        "        }\n"
-        "        case 'p': {\n"
-        "            uword v = (uword)arg;\n"
-        "            b_putchar('0'); b_putchar('x');\n"
-        "            int started = 0;\n"
-        "            for (int shift = (int)(sizeof(uword)*8 - 4); shift >= 0; shift -= 4) {\n"
-        "                int nib = (int)((v >> shift) & 0xF);\n"
-        "                if (!started && nib == 0 && shift > 0) continue;\n"
-        "                started = 1;\n"
-        "                b_putchar((word)(nib < 10 ? ('0' + nib) : ('a' + nib - 10)));\n"
-        "            }\n"
-        "            if (!started) b_putchar('0');\n"
-        "            break;\n"
-        "        }\n"
-        "        case 'z': {\n"
-        "            word mod = b_char(fmt, i++);\n"
-        "            if (mod == 'u') {\n"
-        "                uword v = (uword)arg;\n"
-        "                if (v) b_printn_u((word)v, 10);\n"
-        "                else b_putchar('0');\n"
-        "            } else if (mod == 'd') {\n"
-        "                long v = (long)arg;\n"
-        "                if (v < 0) { b_putchar('-'); v = -v; }\n"
-        "                if (v) b_printn_u((word)(uword)v, 10);\n"
-        "                else b_putchar('0');\n"
-        "            } else {\n"
-        "                b_putchar('%'); b_putchar('z'); b_putchar(mod);\n"
-        "            }\n"
-        "            break;\n"
-        "        }\n"
-        "        case 'c':\n"
-        "            b_putchar(arg);\n"
-        "            break;\n"
-        "        case 's': {\n"
-        "            word j = 0;\n"
-        "            for (;;){\n"
-        "                word sc = b_char(arg, j++);\n"
-        "                if (sc == 004 || sc == 0) break;  /* Handle both *e and NUL termination */\n"
-        "                b_putchar(sc);\n"
-        "            }\n"
-        "            break;\n"
-        "        }\n"
-        "        default:\n"
-        "            b_putchar('%'); b_putchar(code);\n"
-        "            break;\n"
-        "        }\n"
-        "    }\n"
-        "\n"
-        "    va_end(ap);\n"
-        "    return 0;\n"
-        "}\n"
-        "\n"
+        "", out);
+    {
+        char *path = fmt("%s/bformat.h", g_libb_path);
+        size_t length;
+        char *header = read_file_all(path, &length);
+        fputs("#define __bcc_format_linkage static\n", out);
+        fwrite(header, 1, length, out);
+        fputc('\n', out);
+        free(header);
+    }
+    fputs(
         "/* File I/O functions - with actual implementations */\n"
         "#include <fcntl.h>\n"
 "static word b_open(word name, word mode){\n"
-"    const char *p = (const char*)B_CPTR(name);\n"
-"    int flags = ((int)mode == 0) ? O_RDONLY : O_WRONLY;\n"
+"    const char *p = __b_cstr(name);\n"
+"    int flags = (mode == 0) ? O_RDONLY : O_WRONLY;\n"
 "    return (word)open(p, flags);\n"
 "}\n"
 "static word b_openr(word fd, word name){\n"
@@ -1955,21 +2229,38 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
 "    return r;\n"
 "}\n"
 "static word b_read(word fd, word buf, word n) {\n"
+"#if WORD_BITS == 16\n"
+"    if (n < 0) return -1;\n"
+"    unsigned char *bytes = malloc(n ? (size_t)n : 1);\n"
+"    if (!bytes) return -1;\n"
+"    ssize_t count = read((int)fd, bytes, (size_t)n);\n"
+"    for (ssize_t i = 0; i < count; i++) b_lchar(buf, (word)i, bytes[i]);\n"
+"    free(bytes);\n"
+"    return WVAL(count);\n"
+"#else\n"
 "    char *p = (char*)B_CPTR(buf);\n"
-"    if ((size_t)n < sizeof(word)) memset(p, 0, sizeof(word));\n"
 "    return (word)read((int)fd, p, (size_t)n);\n"
+"#endif\n"
 "}\n"
-        "static word b_write(word fd, word buf, word n) {\n"
-        "    const char *p = (const char*)B_CPTR(buf);\n"
-        "    return (word)write((int)fd, p, (size_t)n);\n"
-        "}\n"
+"static word b_write(word fd, word buf, word n) {\n"
+"#if WORD_BITS == 16\n"
+"    if (n < 0) return -1;\n"
+"    unsigned char *bytes = malloc(n ? (size_t)n : 1);\n"
+"    if (!bytes) return -1;\n"
+"    for (word i = 0; i < n; i++) bytes[i] = (unsigned char)b_char(buf, i);\n"
+"    ssize_t count = write((int)fd, bytes, (size_t)n);\n"
+"    free(bytes);\n"
+"    return WVAL(count);\n"
+"#else\n"
+"    return (word)write((int)fd, B_CPTR(buf), (size_t)n);\n"
+"#endif\n"
+"}\n"
         "static word b_creat(word name, word mode) {\n"
-        "    const char *p = (const char*)B_CPTR(name);\n"
-        "    return (word)creat(p, (mode_t)mode);\n"
+        "    const char *p = __b_cstr(name);\n"
+        "    return (word)creat(p, __bcc_unix_mode(mode, 0));\n"
         "}\n"
         "static word b_seek(word fd, word offset, word whence) {\n"
-        "    off_t r = lseek((int)fd, (off_t)offset, (int)whence);\n"
-        "    return (r < 0) ? (word)-1 : (word)0;\n"
+        "    return __bcc_unix_seek(fd, offset, whence);\n"
         "}\n"
         "\n"
         "/* Process control functions - with actual implementations */\n"
@@ -1984,72 +2275,92 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
         "    __b_wait_status = (word)st;\n"
         "    return (word)pid;\n"
         "}\n"
-        "static word b_execl(word path, ...) {\n"
-        "    const char *p = (const char*)B_CPTR(path);\n"
-        "\n"
-        "    char *argv[64];\n"
-        "    int i = 0;\n"
-        "    argv[i++] = (char*)p;\n"
-        "\n"
-        "    va_list ap;\n"
-        "    va_start(ap, path);\n"
-        "    for (; i < 63; ) {\n"
-        "        word w = va_arg(ap, word);\n"
-        "        if (w == 0) break;\n"
-        "        argv[i++] = (char*)B_CPTR(w);\n"
-        "    }\n"
-        "    va_end(ap);\n"
-        "\n"
-        "    argv[i] = NULL;\n"
-        "    execv(p, argv);\n"
-        "    return -1; /* Only reached on error */\n"
-        "}\n"
-        "\n"
-"static word b_execv(word path, word argv) {\n"
-"    /* Note: Manual specifies execv(path, argv, count) with counted vector */\n"
-"    /* Current implementation uses null-terminated vector for compatibility */\n"
-"    const char *p = (const char*)B_CPTR(path);\n"
-"    word *av = (word*)B_CPTR(argv);\n"
-        "\n"
-        "    char *cargv[256];\n"
-        "    int i = 0;\n"
-        "    for (; i < 255 && av[i] != 0; i++) cargv[i] = (char*)B_CPTR(av[i]);\n"
-"    cargv[i] = NULL;\n"
+"/* B72 section 8 passes exactly count argument strings, including arg0. */\n"
+"static word b_execv(word path, word argv, word count) {\n"
+"    if (count < 0 || count > 255 || (count && !argv)) return -1;\n"
+"    char *name = __b_dup_bstr(path);\n"
+"    if (!name) return -1;\n"
+"    char *arguments[256];\n"
+"    word *values = count ? (word*)B_CPTR(argv) : NULL;\n"
+"    size_t n = (size_t)count, i = 0;\n"
+"    for (; i < n; i++) {\n"
+"        if (!values[i]) break;\n"
+"        arguments[i] = __b_dup_bstr(values[i]);\n"
+"        if (!arguments[i]) break;\n"
+"    }\n"
+"    if (i == n) {\n"
+"        arguments[n] = NULL;\n"
+"        execv(name, arguments);\n"
+"    }\n"
+"    while (i) free(arguments[--i]);\n"
+"    free(name);\n"
+"    return -1;\n"
+"}\n"
 "\n"
-"    execv(p, cargv);\n"
-"    return -1; /* Only reached on error */\n"
+"static word b_execl(word path, ...) {\n"
+"    char *name = __b_dup_bstr(path);\n"
+"    if (!name) return -1;\n"
+"    char *arguments[256];\n"
+"    size_t n = 0;\n"
+"    int complete = 0;\n"
+"    va_list ap;\n"
+"    va_start(ap, path);\n"
+"    while (n < 255) {\n"
+"        word value = va_arg(ap, word);\n"
+"        if (!value) { complete = 1; break; }\n"
+"        arguments[n] = __b_dup_bstr(value);\n"
+"        if (!arguments[n]) break;\n"
+"        n++;\n"
+"    }\n"
+"    va_end(ap);\n"
+"    if (complete) {\n"
+"        arguments[n] = NULL;\n"
+"        execv(name, arguments);\n"
+"    }\n"
+"    while (n) free(arguments[--n]);\n"
+"    free(name);\n"
+"    return -1;\n"
 "}\n"
 "\n"
 "static word b_system(word cmd) {\n"
-"    /* TSS-style: treat the string as a literal command line (no shell expansion) */\n"
+"    /* Split arguments without invoking a shell or expanding their contents. */\n"
 "    char *line = __b_dup_bstr(cmd);\n"
 "    if (!line) return -1;\n"
-"\n"
 "    char *argv[128];\n"
 "    size_t argc = 0;\n"
-"    char *p = line;\n"
-"\n"
+"    char *p = line, *q = line;\n"
 "    while (*p) {\n"
 "        while (*p && isspace((unsigned char)*p)) p++;\n"
 "        if (!*p) break;\n"
 "        if (argc + 1 >= sizeof(argv)/sizeof(argv[0])) { free(line); return -1; }\n"
-"        argv[argc++] = p;\n"
-"        while (*p && !isspace((unsigned char)*p)) p++;\n"
-"        if (*p) { *p = 0; p++; }\n"
+"        argv[argc++] = q;\n"
+"        int quote = 0;\n"
+"        while (*p && (quote || !isspace((unsigned char)*p))) {\n"
+"            unsigned char c = (unsigned char)*p++;\n"
+"            if (c == '\\\\' && quote != '\\'') {\n"
+"                if (!*p) { free(line); return -1; }\n"
+"                *q++ = *p++;\n"
+"            } else if (c == '\\'' || c == '\"') {\n"
+"                if (!quote) quote = c;\n"
+"                else if (quote == c) quote = 0;\n"
+"                else *q++ = (char)c;\n"
+"            } else *q++ = (char)c;\n"
+"        }\n"
+"        if (quote) { free(line); return -1; }\n"
+"        if (*p) p++;\n"
+"        *q++ = 0;\n"
 "    }\n"
-"\n"
 "    if (argc == 0) { free(line); return -1; }\n"
 "    argv[argc] = NULL;\n"
-"\n"
 "    pid_t pid = fork();\n"
 "    if (pid == 0) {\n"
 "        execvp(argv[0], argv);\n"
 "        _exit(127);\n"
 "    }\n"
 "    if (pid < 0) { free(line); return -1; }\n"
-"\n"
 "    int st = 0;\n"
-"    pid_t w = waitpid(pid, &st, 0);\n"
+"    pid_t w;\n"
+"    do { w = waitpid(pid, &st, 0); } while (w < 0 && errno == EINTR);\n"
 "    free(line);\n"
 "    if (w < 0) return -1;\n"
 "    return (word)st;\n"
@@ -2129,113 +2440,105 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
 "}\n"
 "\n"
 "/* System functions - with actual implementations where possible */\n"
+"/* Unix V1 counts 60 Hz ticks since 1971, high word first (time(II)). */\n"
 "static word b_time(word tvp) {\n"
-"    time_t now = time(NULL);\n"
+"    struct timespec now;\n"
+"    if (clock_gettime(CLOCK_REALTIME, &now) != 0) return -1;\n"
 "    if (tvp) {\n"
-        "        uint16_t lo = (uint16_t)(now & 0xFFFF);\n"
-        "        uint16_t hi = (uint16_t)((now >> 16) & 0xFFFF);\n"
-        "        word *tv = (word*)B_CPTR(tvp);\n"
-        "        tv[0] = (word)(uword)lo;\n"
-        "        tv[1] = (word)(uword)hi;\n"
-        "    }\n"
-        "    return 0;\n"
-        "}\n"
-        "\n"
-        "static word b_ctime(word tvp) {\n"
-        "    static word bufw[32];               // 32 words = 64 bytes worth of chars\n"
-        "    word *tv = (word*)B_CPTR(tvp);\n"
-        "    time_t t = (time_t)((uint16_t)tv[0]) | ((time_t)((uint16_t)tv[1]) << 16);\n"
-        "\n"
-        "    const char *cs = ctime(&t);\n"
-        "    if (!cs) return 0;\n"
-        "\n"
-        "    size_t i = 0;\n"
-        "    while (cs[i] && cs[i] != '\\n' && i < 63) {\n"
-        "        b_lchar(B_PTR(bufw), (word)i, (word)(unsigned char)cs[i]);\n"
-        "        i++;\n"
-        "    }\n"
-        "    b_lchar(B_PTR(bufw), (word)i, 004);\n"
-        "    return B_PTR(bufw);\n"
-        "}\n"
+"        uint64_t elapsed = (uint64_t)now.tv_sec - UINT64_C(31536000);\n"
+"        uint32_t ticks = (uint32_t)(elapsed * 60 + (uint64_t)now.tv_nsec * 60 / 1000000000);\n"
+"        word *tv = (word*)B_CPTR(tvp);\n"
+"        tv[0] = WVAL(ticks >> 16);\n"
+"        tv[1] = WVAL(ticks & 65535);\n"
+"    }\n"
+"    return 0;\n"
+"}\n"
+"\n"
+"/* B72 section 8 specifies a caller-owned, 16-byte date buffer. */\n"
+"static word b_ctime(word tvp, word date) {\n"
+"    if (!tvp || !date) return -1;\n"
+"    word *tv = (word*)B_CPTR(tvp);\n"
+"    uint32_t ticks = ((uint32_t)(uint16_t)tv[0] << 16) | (uint16_t)tv[1];\n"
+"    unsigned days = ticks / 5184000U;\n"
+"    unsigned seconds = ticks / 60U % 86400U;\n"
+"    unsigned year = 1971, month = 0;\n"
+"    while (days >= (year % 4 == 0 ? 366U : 365U)) {\n"
+"        days -= year % 4 == 0 ? 366U : 365U;\n"
+"        year++;\n"
+"    }\n"
+"    static const unsigned lengths[] = {31,28,31,30,31,30,31,31,30,31,30,31};\n"
+"    static const char *months[] = {\"Jan\",\"Feb\",\"Mar\",\"Apr\",\"May\",\"Jun\",\"Jul\",\"Aug\",\"Sep\",\"Oct\",\"Nov\",\"Dec\"};\n"
+"    for (;;) {\n"
+"        unsigned length = lengths[month] + (month == 1 && year % 4 == 0);\n"
+"        if (days < length) break;\n"
+"        days -= length;\n"
+"        month++;\n"
+"    }\n"
+"    char text[16];\n"
+"    snprintf(text, sizeof(text), \"%s %2u %02u:%02u:%02u\", months[month], days + 1,\n"
+"             seconds / 3600, seconds / 60 % 60, seconds % 60);\n"
+"    for (size_t i = 0; i < sizeof(text); i++) b_lchar(date, (word)i, (word)(unsigned char)text[i]);\n"
+"    return 0;\n"
+"}\n"
+"\n"
         "static word b_getuid(void) {\n"
         "    return (word)getuid();\n"
         "}\n"
         "static word b_chdir(word path) {\n"
-        "    const char *p = (const char*)B_CPTR(path);\n"
+        "    const char *p = __b_cstr(path);\n"
         "    return (word)chdir(p);\n"
         "}\n"
         "static word b_unlink(word path) {\n"
-        "    const char *p = (const char*)B_CPTR(path);\n"
+        "    const char *p = __b_cstr(path);\n"
         "    return (word)unlink(p);\n"
         "}\n"
         "\n"
         "/* System functions with actual implementations */\n"
         "static word b_chmod(word path, word mode) {\n"
-        "    const char *p = (const char*)B_CPTR(path);\n"
-        "    return (word)chmod(p, (mode_t)mode);\n"
+        "    const char *p = __b_cstr(path);\n"
+        "    return (word)chmod(p, __bcc_unix_mode(mode, 0));\n"
         "}\n"
         "static word b_chown(word path, word owner) {\n"
-        "    const char *p = (const char*)B_CPTR(path);\n"
+        "    const char *p = __b_cstr(path);\n"
         "    return (word)chown(p, (uid_t)owner, (gid_t)-1);\n"
         "}\n"
         "static word b_link(word old, word new) {\n"
-        "    const char *o = (const char*)B_CPTR(old);\n"
-        "    const char *n = (const char*)B_CPTR(new);\n"
+        "    const char *o = __b_cstr(old);\n"
+        "    const char *n = __b_cstr(new);\n"
         "    return (word)link(o, n);\n"
         "}\n"
         "static word b_stat(word path, word bufp) {\n"
-        "    const char *p = (const char*)B_CPTR(path);\n"
+        "    if (!bufp) { errno = EFAULT; return -1; }\n"
+        "    const char *p = __b_cstr(path);\n"
         "    struct stat st;\n"
         "    if (stat(p, &st) != 0) return -1;\n"
-        "    if (bufp) {\n"
-        "        unsigned char *b = (unsigned char*)B_CPTR(bufp);\n"
-        "        for (int i = 0; i < 20*sizeof(word); i++) b[i] = 0;\n"
-        "        size_t n = sizeof(st);\n"
-        "        if (n > 20*sizeof(word)) n = 20*sizeof(word);\n"
-        "        memcpy(b, &st, n);\n"
-        "    }\n"
+        "    __bcc_unix_stat((word*)B_CPTR(bufp), &st);\n"
         "    return 0;\n"
         "}\n"
         "\n"
         "static word b_fstat(word fd, word bufp) {\n"
+        "    if (!bufp) { errno = EFAULT; return -1; }\n"
         "    struct stat st;\n"
         "    if (fstat((int)fd, &st) != 0) return -1;\n"
-        "    if (bufp) {\n"
-        "        unsigned char *b = (unsigned char*)B_CPTR(bufp);\n"
-        "        for (int i = 0; i < 20*sizeof(word); i++) b[i] = 0;\n"
-        "        size_t n = sizeof(st);\n"
-        "        if (n > 20*sizeof(word)) n = 20*sizeof(word);\n"
-        "        memcpy(b, &st, n);\n"
-        "    }\n"
+        "    __bcc_unix_stat((word*)B_CPTR(bufp), &st);\n"
         "    return 0;\n"
         "}\n"
+        "\n"
         "static word b_setuid(word uid) {\n"
         "    return (word)setuid((uid_t)uid);\n"
         "}\n"
         "static word b_makdir(word path, word mode) {\n"
-        "    const char *p = (const char*)B_CPTR(path);\n"
-        "    return (word)mkdir(p, (mode_t)mode);\n"
+        "    const char *p = __b_cstr(path);\n"
+        "    return (word)mkdir(p, __bcc_unix_mode(mode, 1));\n"
         "}\n"
         "\n"
-        "/* printn(number, base) - print number in specified base (from B manual) */\n"
-        "static word b_printn(word n, word base) {\n"
-        "    // Handle negative numbers for decimal only\n"
-        "    if (base == 10 && (int16_t)n < 0) {\n"
-        "        b_putchar('-');\n"
-        "        n = (word)(-(int16_t)n);\n"
-        "    }\n"
-        "    b_printn_u(n, base);\n"
-        "    return n;\n"
-        "}\n"
+        "static word b_mkdir(word path, word mode) { return b_makdir(path, mode); }\n"
         "static word b_putnum(word n) {\n"
-        "    b_printn(n, (word)10);\n"
+        "    __bcc_library_call2(\"printn\", b_printn, n, (word)10);\n"
         "    return n;\n"
         "}\n"
-        "static volatile sig_atomic_t __b_got_intr = 0;\n"
-        "\n"
-        "static void __b_sigint(int sig){ (void)sig; __b_got_intr = 1; }\n"
-        "\n"
         "static word b_gtty(word fd, word ttstat){\n"
+        "    if (!ttstat) { errno = EFAULT; return -1; }\n"
         "    struct termios t;\n"
         "    if (tcgetattr((int)fd, &t) < 0) return -1;\n"
         "\n"
@@ -2247,6 +2550,7 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
         "}\n"
         "\n"
         "static word b_stty(word fd, word ttstat){\n"
+        "    if (!ttstat) { errno = EFAULT; return -1; }\n"
         "    struct termios t;\n"
         "    if (tcgetattr((int)fd, &t) < 0) return -1;\n"
         "\n"
@@ -2256,15 +2560,9 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
         "    t.c_lflag = (tcflag_t)vec[2];\n"
         "    return (word)tcsetattr((int)fd, TCSANOW, &t);\n"
         "}\n"
-        "static word b_intr(word on) {\n"
-        "    /* Set up interrupt handling */\n"
-        "    /* on != 0: catch interrupts, on == 0: restore default */\n"
-        "    if (on) {\n"
-        "        __b_got_intr = 0;\n"
-        "        if (signal(SIGINT, __b_sigint) == SIG_ERR) return -1;\n"
-        "    } else {\n"
-        "        if (signal(SIGINT, SIG_DFL) == SIG_ERR) return -1;\n"
-        "    }\n"
+        "static word b_intr(word mode) {\n"
+        "    if (mode != 0 && mode != 1) { errno = ENOSYS; return -1; }\n"
+        "    if (signal(SIGINT, mode == 0 ? SIG_IGN : SIG_DFL) == SIG_ERR) return -1;\n"
         "    return 0;\n"
         "}\n"
         "\n"
@@ -2273,187 +2571,26 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
         out
     );
 
+    {
+        char *path = fmt("%s/bprimitives.h", g_libb_path);
+        size_t length;
+        char *header = read_file_all(path, &length);
+        fputs("#define B_BUILTIN_STORAGE __attribute__((weak))\n", out);
+        fwrite(header, 1, length, out);
+        fputc('\n', out);
+        free(header);
+        if (!g_compilation_arena) free(path);
+    }
+
     // Emit Thompson B packed strings (works for both pointer modes)
     if (string_pool.len > 0) {
         emit_string_pool(out);
         fputc('\n', out);
     }
 
-    // First pass: emit all global declarations and storage
-    for (size_t i = 0; i < prog->tops.len; i++) {
-        Top *t = (Top*)prog->tops.data[i];
-
-        if (t->kind == TOP_GAUTO) {
-            emit_stmt(out, t->as.gauto, 0, 0, filename); // not a function body
-            fputc('\n', out);
-            continue;
-        }
-
-        if (t->kind == TOP_EXTERN_DECL) {
-            ExternItem *item = t->as.ext_decl;
-            fputs("extern word ", out);
-            emit_name(out, item->name);
-            fputs(";\n", out);
-            continue;
-        }
-
-        if (t->kind == TOP_EXTERN_DEF) {
-            ExternItem *item = t->as.ext_def;
-            const char *mname = get_mangled_name(item->name);
-            if (item->as.var.vkind == EXTVAR_BLOB) {
-                int is_single_str =
-                    item->as.var.init &&
-                    item->as.var.init->kind == INIT_LIST &&
-                    item->as.var.init->as.list.len == 1 &&
-                    ((Init*)item->as.var.init->as.list.data[0])->kind == INIT_EXPR &&
-                    ((Init*)item->as.var.init->as.list.data[0])->as.expr &&
-                    ((Init*)item->as.var.init->as.list.data[0])->as.expr->kind == EX_STR;
-
-                if (is_single_str) {
-                    fprintf(out, "word %s;\n", mname);
-                    continue;
-                }
-
-                // Blob external: contiguous words at &name
-                size_t base_len = (item->as.var.init && item->as.var.init->kind == INIT_LIST) ? init_list_length(item->as.var.init) : 1;
-                size_t tail     = (item->as.var.init && item->as.var.init->kind == INIT_LIST) ? edge_tail_words_top(item->as.var.init) : 0;
-                size_t total    = base_len + tail;
-                if (total == 0) total = 1;
-                fprintf(out, "static word __%s_blob[%zu];\n", mname, total);
-                fprintf(out, "word %s;\n", mname);
-            } else if (item->as.var.vkind == EXTVAR_VECTOR) {
-                // Vector external: pointer + backing store
-                size_t init_len = (item->as.var.init && item->as.var.init->kind == INIT_LIST) ? init_list_length(item->as.var.init) : 0;
-                size_t outer_len = 1;
-
-                if (item->as.var.has_empty) {
-                    outer_len = init_len ? init_len : 1;
-                } else if (item->as.var.bound) {
-                    long bv = 0;
-                    if (try_eval_const_expr(item->as.var.bound, &bv)) {
-                        if (bv < 0) bv = 0;
-                        outer_len = (size_t)(bv + 1);
-                    } else {
-                        outer_len = init_len ? init_len : 1;
-                    }
-                    if (init_len > outer_len) outer_len = init_len;
-                } else {
-                    outer_len = init_len ? init_len : 1;
-                }
-
-                size_t tail = (item->as.var.init && item->as.var.init->kind == INIT_LIST) ? edge_tail_words_top(item->as.var.init) : 0;
-                size_t total = outer_len + tail;
-                if (total == 0) total = 1;
-
-                fprintf(out, "static word __%s_store[%zu];\n", mname, total);
-                fprintf(out, "word %s;\n", mname);
-            } else {
-                // Scalar external
-                if (item->is_implicit_static) {
-                    fprintf(out, "static word %s;\n", mname);
-                } else {
-                    fprintf(out, "word %s;\n", mname);
-                }
-            }
-            continue;
-        }
-    }
-
-    // Emit __b_init function
-    fputs("static void __b_init(void) {\n", out);
-    fputs("    setvbuf(stdout, NULL, _IONBF, 0);\n", out);
-    for (size_t i = 0; i < prog->tops.len; i++) {
-        Top *t = (Top*)prog->tops.data[i];
-        if (t->kind == TOP_EXTERN_DEF) {
-            ExternItem *item = t->as.ext_def;
-            const char *mname = get_mangled_name(item->name);
-
-            if (item->as.var.vkind == EXTVAR_SCALAR && item->as.var.init && item->as.var.init->kind == INIT_EXPR) {
-                fprintf(out, "    %s = ", mname);
-                emit_ival_expr(out, item->as.var.init->as.expr, filename);
-                fputs(";\n", out);
-            } else if (item->as.var.vkind == EXTVAR_BLOB) {
-                int is_single_str =
-                    item->as.var.init &&
-                    item->as.var.init->kind == INIT_LIST &&
-                    item->as.var.init->as.list.len == 1 &&
-                    ((Init*)item->as.var.init->as.list.data[0])->kind == INIT_EXPR &&
-                    ((Init*)item->as.var.init->as.list.data[0])->as.expr &&
-                    ((Init*)item->as.var.init->as.list.data[0])->as.expr->kind == EX_STR;
-                if (is_single_str) {
-                    fprintf(out, "    %s = ", mname);
-                    emit_ival_expr(out, ((Init*)item->as.var.init->as.list.data[0])->as.expr, filename);
-                    fputs(";\n", out);
-                    continue;
-                }
-                // Set blob pointer to backing store (or scalar if size 1)
-                size_t base_len = (item->as.var.init && item->as.var.init->kind == INIT_LIST) ? init_list_length(item->as.var.init) : 1;
-                size_t tail     = (item->as.var.init && item->as.var.init->kind == INIT_LIST) ? edge_tail_words_top(item->as.var.init) : 0;
-                size_t total    = base_len + tail;
-                // Initialize blob elements + edge subvectors in tail if present
-                if (item->as.var.init && item->as.var.init->kind == INIT_LIST) {
-                    char buf[256];
-                    snprintf(buf, sizeof(buf), "__%s_blob", mname);
-                    (void)emit_edge_list_init(out, buf, 0, item->as.var.init, base_len, 2, filename);
-                }
-                if (total == 1 || (base_len <= 1 && tail == 0)) {
-                    fprintf(out, "    %s = __%s_blob[0];\n", mname, mname);
-                } else {
-                    fprintf(out, "    %s = B_ADDR(__%s_blob[0]);\n", mname, mname);
-                }
-            } else if (item->as.var.vkind == EXTVAR_VECTOR) {
-                // Set vector pointer
-                fprintf(out, "    %s = B_ADDR(__%s_store[0]);\n", mname, mname);
-                // Initialize vector elements if present
-                if (item->as.var.init && item->as.var.init->kind == INIT_LIST) {
-                    // outer_len is where the tail cursor starts (reserved outer slots)
-                    size_t init_len = init_list_length(item->as.var.init);
-                    size_t outer_len = 1;
-                    if (item->as.var.has_empty) outer_len = init_len ? init_len : 1;
-                    else if (item->as.var.bound) {
-                        long bv = 0;
-                        if (try_eval_const_expr(item->as.var.bound, &bv)) {
-                            if (bv < 0) bv = 0;
-                            outer_len = (size_t)(bv + 1);
-                        } else outer_len = init_len ? init_len : 1;
-                        if (init_len > outer_len) outer_len = init_len;
-                    } else outer_len = init_len ? init_len : 1;
-
-                    {
-                        char buf[256];
-                        snprintf(buf, sizeof(buf), "__%s_store", mname);
-                        (void)emit_edge_list_init(out, buf, 0, item->as.var.init, outer_len, 2, filename);
-                    }
-                }
-            }
-        }
-    }
-
-    fputs("}\n\n", out);
-
-    emit_known_external_function_prototypes(out, prog);
-
-    // Emit function prototypes for C99 compatibility
-    for (size_t i = 0; i < prog->tops.len; i++) {
-        Top *t = (Top*)prog->tops.data[i];
-        if (t->kind == TOP_FUNC) {
-            Func *f = t->as.fn;
-            if (strcmp(f->name, "main") == 0 || strcmp(f->name, "b_main") == 0) {
-                fprintf(out, "static word __b_user_main(");
-            } else {
-                /* No 'static' - functions need external linkage for multi-file */
-                fputs("word ", out);
-                emit_name(out, f->name);
-                fputc('(', out);
-            }
-            for (size_t p = 0; p < f->params.len; p++) {
-                if (p) fputs(", ", out);
-                fputs("word", out);
-            }
-            fputs(");\n", out);
-        }
-    }
-    fputc('\n', out);
+    emit_function_prototypes(out, prog);
+    emit_global_declarations(out, prog, filename);
+    emit_global_initializers(out, prog, filename);
 
     // Second pass: emit all functions
     int has_main = 0;
@@ -2463,23 +2600,18 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
 
         if (t->kind == TOP_FUNC) {
             Func *f = t->as.fn;
-            if (strcmp(f->name, "main") == 0 || strcmp(f->name, "b_main") == 0) {
+            if (strcmp(f->name, "main") == 0) {
                 has_main = 1;
                 main_param_count = f->params.len;
                 // Rename main to __b_user_main
                 fprintf(out, "word __b_user_main(");
             } else {
-                fputs("word ", out);
-                emit_name(out, f->name);
+                fputs("static word ", out);
+                emit_function_body_name(out, f->name);
                 fputc('(', out);
             }
-            for (size_t p = 0; p < f->params.len; p++) {
-                if (p) fputs(", ", out);
-                fputs("word ", out);
-                emit_name(out, (char*)f->params.data[p]);
-            }
-            fputs(")\n", out);
-            emit_stmt(out, f->body, 0, 1, filename); // function body
+            fputs("void)\n", out);
+            emit_function_body(out, f, filename);
             fputc('\n', out);
             continue;
         }
@@ -2490,16 +2622,11 @@ void emit_program_c(FILE *out, Program *prog, const char *filename, int byteptr,
         fputs("int main(int argc, char **argv){\n", out);
         fputs("    __b_setargs(argc, argv);\n", out);
         fputs("    __b_init();\n", out);
-        if (main_param_count == 0) {
-            fputs("    return (int)__b_user_main();\n", out);
-        } else if (main_param_count == 1) {
-            fputs("    return (int)__b_user_main((word)argc);\n", out);
-        } else if (main_param_count == 2) {
-            fputs("    return (int)__b_user_main((word)argc, B_PTR(__b_argvb));\n", out);
-        } else {
-            // For more parameters, we don't support yet
-            fputs("    return (int)__b_user_main();\n", out);
-        }
+        fprintf(out, "    return (int)__bcc_call%zu(", main_param_count > 2 ? 2 : main_param_count);
+        emit_function_cell(out, "main");
+        if (main_param_count >= 1) fputs(", (word)argc", out);
+        if (main_param_count >= 2) fputs(", __b_argvalues()", out);
+        fputs(");\n", out);
         fputs("}\n", out);
     }
 }
@@ -2516,8 +2643,10 @@ void emit_program_c_ext(FILE *out, Program *prog, const char *filename, int byte
         return;
     }
 
+    current_program = prog;
     current_byteptr = byteptr;
     current_word_bits = word_bits;
+    external_calls = (Vec){0};
     string_pool.data = NULL;
     string_pool.len = 0;
     string_pool.cap = 0;
@@ -2529,13 +2658,14 @@ void emit_program_c_ext(FILE *out, Program *prog, const char *filename, int byte
 
     // Emit minimal preamble - configuration defines before including libb.h
     fprintf(out, "/* Generated by BCC - B Compiler */\n");
+    fprintf(out, "#define __bcc_strict_runtime %d\n", g_strict ? 1 : 0);
     fprintf(out, "#define B_BYTEPTR %d\n", byteptr ? 1 : 0);
     fprintf(out, "#define WORD_BITS %d\n", word_bits);
     fprintf(out, "#include \"libb.h\"\n\n");
 
-    // Emit ncurses/panel if needed (libb.h doesn't include these heavy deps)
-    fputs("#include <ncurses.h>\n", out);
-    fputs("#include <panel.h>\n\n", out);
+    if (g_use_curses) {
+        fputs("#include <ncurses.h>\n#include <panel.h>\n\n", out);
+    }
 
     // Emit Thompson B packed strings (still per-file)
     if (string_pool.len > 0) {
@@ -2543,169 +2673,9 @@ void emit_program_c_ext(FILE *out, Program *prog, const char *filename, int byte
         fputc('\n', out);
     }
 
-    // First pass: emit all global declarations and storage
-    for (size_t i = 0; i < prog->tops.len; i++) {
-        Top *t = (Top*)prog->tops.data[i];
-
-        if (t->kind == TOP_GAUTO) {
-            emit_stmt(out, t->as.gauto, 0, 0, filename);
-            fputc('\n', out);
-            continue;
-        }
-
-        if (t->kind == TOP_EXTERN_DECL) {
-            ExternItem *item = t->as.ext_decl;
-            fputs("extern word ", out);
-            emit_name(out, item->name);
-            fputs(";\n", out);
-            continue;
-        }
-
-        if (t->kind == TOP_EXTERN_DEF) {
-            ExternItem *item = t->as.ext_def;
-            const char *mname = get_mangled_name(item->name);
-            if (item->as.var.vkind == EXTVAR_BLOB) {
-                int is_single_str =
-                    item->as.var.init &&
-                    item->as.var.init->kind == INIT_LIST &&
-                    item->as.var.init->as.list.len == 1 &&
-                    ((Init*)item->as.var.init->as.list.data[0])->kind == INIT_EXPR &&
-                    ((Init*)item->as.var.init->as.list.data[0])->as.expr &&
-                    ((Init*)item->as.var.init->as.list.data[0])->as.expr->kind == EX_STR;
-
-                if (is_single_str) {
-                    fprintf(out, "word %s;\n", mname);
-                    continue;
-                }
-
-                size_t base_len = (item->as.var.init && item->as.var.init->kind == INIT_LIST) ? init_list_length(item->as.var.init) : 1;
-                size_t tail     = (item->as.var.init && item->as.var.init->kind == INIT_LIST) ? edge_tail_words_top(item->as.var.init) : 0;
-                size_t total    = base_len + tail;
-                if (total == 0) total = 1;
-                fprintf(out, "static word __%s_blob[%zu];\n", mname, total);
-                fprintf(out, "word %s;\n", mname);
-            } else if (item->as.var.vkind == EXTVAR_VECTOR) {
-                size_t init_len = (item->as.var.init && item->as.var.init->kind == INIT_LIST) ? init_list_length(item->as.var.init) : 0;
-                size_t outer_len = 1;
-
-                if (item->as.var.has_empty) {
-                    outer_len = init_len ? init_len : 1;
-                } else if (item->as.var.bound) {
-                    long bv = 0;
-                    if (try_eval_const_expr(item->as.var.bound, &bv)) {
-                        if (bv < 0) bv = 0;
-                        outer_len = (size_t)(bv + 1);
-                    } else {
-                        outer_len = init_len ? init_len : 1;
-                    }
-                    if (init_len > outer_len) outer_len = init_len;
-                } else {
-                    outer_len = init_len ? init_len : 1;
-                }
-
-                size_t tail = (item->as.var.init && item->as.var.init->kind == INIT_LIST) ? edge_tail_words_top(item->as.var.init) : 0;
-                size_t total = outer_len + tail;
-                if (total == 0) total = 1;
-
-                fprintf(out, "static word __%s_store[%zu];\n", mname, total);
-                fprintf(out, "word %s;\n", mname);
-            } else {
-                if (item->is_implicit_static) {
-                    fprintf(out, "static word %s;\n", mname);
-                } else {
-                    fprintf(out, "word %s;\n", mname);
-                }
-            }
-            continue;
-        }
-    }
-
-    // Emit per-file __b_init_file function for this file's globals
-    // Create a safe init function name from program pointer (unique per compilation)
-    fprintf(out, "\nstatic void __b_init_file_%p(void) {\n", (void*)prog);
-    for (size_t i = 0; i < prog->tops.len; i++) {
-        Top *t = (Top*)prog->tops.data[i];
-        if (t->kind == TOP_EXTERN_DEF) {
-            ExternItem *item = t->as.ext_def;
-            const char *mname = get_mangled_name(item->name);
-
-            if (item->as.var.vkind == EXTVAR_SCALAR && item->as.var.init && item->as.var.init->kind == INIT_EXPR) {
-                fprintf(out, "    %s = ", mname);
-                emit_ival_expr(out, item->as.var.init->as.expr, filename);
-                fputs(";\n", out);
-            } else if (item->as.var.vkind == EXTVAR_BLOB) {
-                int is_single_str =
-                    item->as.var.init &&
-                    item->as.var.init->kind == INIT_LIST &&
-                    item->as.var.init->as.list.len == 1 &&
-                    ((Init*)item->as.var.init->as.list.data[0])->kind == INIT_EXPR &&
-                    ((Init*)item->as.var.init->as.list.data[0])->as.expr &&
-                    ((Init*)item->as.var.init->as.list.data[0])->as.expr->kind == EX_STR;
-                if (is_single_str) {
-                    fprintf(out, "    %s = ", mname);
-                    emit_ival_expr(out, ((Init*)item->as.var.init->as.list.data[0])->as.expr, filename);
-                    fputs(";\n", out);
-                    continue;
-                }
-                size_t base_len = (item->as.var.init && item->as.var.init->kind == INIT_LIST) ? init_list_length(item->as.var.init) : 1;
-                size_t tail     = (item->as.var.init && item->as.var.init->kind == INIT_LIST) ? edge_tail_words_top(item->as.var.init) : 0;
-                size_t total    = base_len + tail;
-                if (item->as.var.init && item->as.var.init->kind == INIT_LIST) {
-                    char buf[256];
-                    snprintf(buf, sizeof(buf), "__%s_blob", mname);
-                    (void)emit_edge_list_init(out, buf, 0, item->as.var.init, base_len, 2, filename);
-                }
-                if (total == 1 || (base_len <= 1 && tail == 0)) {
-                    fprintf(out, "    %s = __%s_blob[0];\n", mname, mname);
-                } else {
-                    fprintf(out, "    %s = B_ADDR(__%s_blob[0]);\n", mname, mname);
-                }
-            } else if (item->as.var.vkind == EXTVAR_VECTOR) {
-                fprintf(out, "    %s = B_ADDR(__%s_store[0]);\n", mname, mname);
-                if (item->as.var.init && item->as.var.init->kind == INIT_LIST) {
-                    size_t init_len = init_list_length(item->as.var.init);
-                    size_t outer_len = 1;
-                    if (item->as.var.has_empty) outer_len = init_len ? init_len : 1;
-                    else if (item->as.var.bound) {
-                        long bv = 0;
-                        if (try_eval_const_expr(item->as.var.bound, &bv)) {
-                            if (bv < 0) bv = 0;
-                            outer_len = (size_t)(bv + 1);
-                        } else outer_len = init_len ? init_len : 1;
-                        if (init_len > outer_len) outer_len = init_len;
-                    } else outer_len = init_len ? init_len : 1;
-
-                    char buf[256];
-                    snprintf(buf, sizeof(buf), "__%s_store", mname);
-                    (void)emit_edge_list_init(out, buf, 0, item->as.var.init, outer_len, 2, filename);
-                }
-            }
-        }
-    }
-    fputs("}\n\n", out);
-
-    emit_known_external_function_prototypes(out, prog);
-
-    // Emit function prototypes for C99 compatibility
-    for (size_t i = 0; i < prog->tops.len; i++) {
-        Top *t = (Top*)prog->tops.data[i];
-        if (t->kind == TOP_FUNC) {
-            Func *f = t->as.fn;
-            if (strcmp(f->name, "main") == 0 || strcmp(f->name, "b_main") == 0) {
-                fprintf(out, "static word __b_user_main(");
-            } else {
-                fputs("word ", out);
-                emit_name(out, f->name);
-                fputc('(', out);
-            }
-            for (size_t p = 0; p < f->params.len; p++) {
-                if (p) fputs(", ", out);
-                fputs("word", out);
-            }
-            fputs(");\n", out);
-        }
-    }
-    fputc('\n', out);
+    emit_function_prototypes(out, prog);
+    emit_global_declarations(out, prog, filename);
+    emit_global_initializers(out, prog, filename);
 
     // Second pass: emit all functions
     int has_main = 0;
@@ -2715,22 +2685,17 @@ void emit_program_c_ext(FILE *out, Program *prog, const char *filename, int byte
 
         if (t->kind == TOP_FUNC) {
             Func *f = t->as.fn;
-            if (strcmp(f->name, "main") == 0 || strcmp(f->name, "b_main") == 0) {
+            if (strcmp(f->name, "main") == 0) {
                 has_main = 1;
                 main_param_count = f->params.len;
                 fprintf(out, "word __b_user_main(");
             } else {
-                fputs("word ", out);
-                emit_name(out, f->name);
+                fputs("static word ", out);
+                emit_function_body_name(out, f->name);
                 fputc('(', out);
             }
-            for (size_t p = 0; p < f->params.len; p++) {
-                if (p) fputs(", ", out);
-                fputs("word ", out);
-                emit_name(out, (char*)f->params.data[p]);
-            }
-            fputs(")\n", out);
-            emit_stmt(out, f->body, 0, 1, filename);
+            fputs("void)\n", out);
+            emit_function_body(out, f, filename);
             fputc('\n', out);
             continue;
         }
@@ -2741,84 +2706,11 @@ void emit_program_c_ext(FILE *out, Program *prog, const char *filename, int byte
         fputs("int main(int argc, char **argv){\n", out);
         fputs("    __b_setargs(argc, argv);\n", out);
         fputs("    __b_init();\n", out);
-        fprintf(out, "    __b_init_file_%p();\n", (void*)prog);
-        if (main_param_count == 0) {
-            fputs("    return (int)__b_user_main();\n", out);
-        } else if (main_param_count == 1) {
-            fputs("    return (int)__b_user_main((word)argc);\n", out);
-        } else if (main_param_count == 2) {
-            fputs("    word *__b_argvb_ptr = (word*)B_CPTR(b_argv(0));\n", out);
-            fputs("    return (int)__b_user_main((word)argc, B_PTR(__b_argvb_ptr - 1));\n", out);
-        } else {
-            fputs("    return (int)__b_user_main();\n", out);
-        }
+        fprintf(out, "    return (int)__bcc_call%zu(", main_param_count > 2 ? 2 : main_param_count);
+        emit_function_cell(out, "main");
+        if (main_param_count >= 1) fputs(", (word)argc", out);
+        if (main_param_count >= 2) fputs(", __b_argvalues()", out);
+        fputs(");\n", out);
         fputs("}\n", out);
-    } else {
-        // If no main in this file, we still need to call the per-file init
-        // This will be called from the file that has main()
-        // Export the init function for linking
-        fprintf(out, "void __b_init_file_%p_export(void) __attribute__((constructor));\n", (void*)prog);
-        fprintf(out, "void __b_init_file_%p_export(void) { __b_init_file_%p(); }\n", (void*)prog, (void*)prog);
-    }
-}
-
-// Assembly Emitter (experimental)
-
-static int asm_label_id = 0;
-
-static void emit_asm_label(FILE *out, const char *prefix) {
-    fprintf(out, ".L%s%d:\n", prefix, asm_label_id++);
-}
-
-void emit_program_asm(FILE *out, Program *prog) {
-    // Generate x86_64 assembly in GAS syntax
-    fprintf(out, "# B compiler - generated assembly\n");
-    fprintf(out, ".intel_syntax noprefix\n");
-    fprintf(out, ".data\n");
-
-    // Global variables would go here, but for now we skip them
-
-    fprintf(out, ".text\n");
-    fprintf(out, ".global main\n");
-
-    // Find and emit functions
-    for (size_t i = 0; i < prog->tops.len; i++) {
-        Top *t = prog->tops.data[i];
-        if (t->kind == TOP_FUNC) {
-            Func *f = t->as.fn;
-
-            // Function label
-            if (strcmp(f->name, "main") == 0) {
-                fprintf(out, "main:\n");
-            } else {
-                emit_name(out, f->name);
-                fputs(":\n", out);
-            }
-
-            // Function prologue
-            fprintf(out, "    push rbp\n");
-            fprintf(out, "    mov rbp, rsp\n");
-
-            // Allocate space for locals (simplified - assume 8 bytes per local)
-            // In a real implementation, we'd track local variables properly
-            fprintf(out, "    sub rsp, 8\n");
-
-            // Emit function body (very basic)
-            if (f->body && f->body->kind == ST_BLOCK) {
-                for (size_t j = 0; j < f->body->as.block.items.len; j++) {
-                    Stmt *stmt = f->body->as.block.items.data[j];
-                    if (stmt->kind == ST_RETURN && stmt->as.ret.val) {
-                        // Very basic return handling
-                        fprintf(out, "    mov rax, %ld\n", stmt->as.ret.val->as.num);
-                        break; // For now, just handle the first return
-                    }
-                }
-            }
-
-            // Function epilogue
-            fprintf(out, "    leave\n");
-            fprintf(out, "    ret\n");
-            fprintf(out, "\n");
-        }
     }
 }

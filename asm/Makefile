@@ -1,24 +1,22 @@
 CC ?= gcc
 AS ?= as
+PYTHON ?= python3
 CFLAGS ?= -O2
 LDFLAGS ?= -lm
-
 TARGET = bccasm
-ASM_SOURCES = \
-	generated/util.s \
-	generated/lexer.s \
-	generated/parser.s \
-	generated/sem.s \
-	generated/arena.s \
-	generated/emitter.s \
-	generated/main.s
+ASM_SOURCES = $(addprefix generated/,$(addsuffix .s,util lexer parser sem arena emitter runtime_cache main))
 OBJECTS = $(ASM_SOURCES:.s=.o)
-RUNTIME = runtime.o
 
-all: $(TARGET) lib/runtime.o
+all: check-snapshots $(TARGET) runtime
+
+check-snapshots:
+	$(PYTHON) regenerate.py --check
+
+regenerate:
+	$(PYTHON) regenerate.py --cc "$(CC)"
 
 check: all
-	./check.sh
+	bash check.sh
 
 bootstrap:
 	$(MAKE) -C bootstrap bootstrap
@@ -26,15 +24,10 @@ bootstrap:
 $(TARGET): $(OBJECTS)
 	$(CC) $(CFLAGS) -o $@ $(OBJECTS) $(LDFLAGS)
 
-lib/runtime.o: $(RUNTIME) | lib
-	cp $(RUNTIME) $@
-
-$(RUNTIME): runtime.s
-	$(AS) -o $@ $<
-
-lib:
+# Generated programs use the same runtime as the C-source compiler.
+runtime:
 	mkdir -p lib
-	ln -sf ../../lib/libb.h lib/libb.h
+	cp --remove-destination ../lib/libb.c ../lib/libb.h ../lib/btarget.h ../lib/binit.h ../lib/bcall.h ../lib/bunix.h ../lib/bformat.h ../lib/bprimitives.h lib/
 
 %.o: %.s
 	$(AS) -o $@ $<
@@ -42,4 +35,4 @@ lib:
 clean:
 	rm -f $(TARGET) $(OBJECTS) bccasm.o runtime.o lib/runtime.o
 
-.PHONY: all check bootstrap clean
+.PHONY: all check bootstrap clean regenerate check-snapshots runtime

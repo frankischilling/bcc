@@ -1,4 +1,4 @@
-/* blex.c -- lexer.  Strict 1972 kbman conformance.
+/* blex.c -- lexer for the selected January 1972 B dialect.
  *
  * Tokens (all defined as literal ints in switches below):
  *   0   T_EOF
@@ -18,9 +18,8 @@
  *   keywords break, continue
  *   operators ~ ^ && || =^
  *
- * Identifier limit NAMELEN = 8.  V1 as truncates linker symbols to 7
- * chars after the _ prefix, so all globals here use unique 6-char-stable
- * prefixes.
+ * Identifier limit NAMELEN = 8. V1 as keeps seven characters including
+ * the prefix and folds case. cgsym handles B names that need a mapping.
  *
  * Builtin globals visible to other passes:
  *   tok      -- current token id
@@ -33,7 +32,7 @@
 tok 0;
 tval 0;
 tstr 0;
-tstrbuf[260];      /* current string literal bytes, terminated by *e=4 */
+tstrbuf[130];      /* 260 bytes: V1 C global array bounds count words. */
 tstrlen 0;         /* number of bytes in tstrbuf */
 tnam[5];           /* 5 ints = 10 bytes -- 8 chars + null + slack */
 
@@ -49,6 +48,39 @@ inpfd 0;
 kwn[20];          /* int pointers to keyword strings */
 kwt[20];          /* int tokens */
 kwc 0;
+
+/* These five buffers account for b00's BSS. The stack test compares this
+ * boundary with the linked image, so adding storage requires updating it. */
+stkend 0;
+
+stkmax(p) {
+    extern stkend;
+    int stkend;
+    if (p < 0) fatal("compiler image too large");
+    if (p > stkend) stkend = p;
+}
+
+stkini() {
+    extern stkend, tstrbuf, tnam, savnam, kwn, kwt;
+    int stkend, tstrbuf[], tnam[], savnam[], kwn[], kwt[];
+    stkend = 0;
+    stkmax(&tstrbuf[130]); stkmax(&tnam[5]); stkmax(&savnam[5]);
+    stkmax(&kwn[20]); stkmax(&kwt[20]);
+    if (stkend > 32639) fatal("compiler image too large");
+}
+
+stkuse(p) {
+    extern stkend;
+    int stkend;
+    /* The fast observer has a larger high-address stack than real V1. */
+    if (p < 0) return;
+    if (p < stkend + 128) fatal("compiler stack exhausted");
+}
+
+stkchk() {
+    int probe;
+    stkuse(&probe);
+}
 
 lexini(fd) {
 	extern inpfd, peekc, pushd, savtok, lineno;
@@ -70,8 +102,8 @@ kwadd(s, t) char s[]; {
 }
 
 kwinit() {
-	extern kwc;
-	int kwc;
+	extern kwc, extflg;
+	int kwc, extflg;
 	if (kwc) return;
 	kwadd("auto",     10);   /* T_AUTO   */
 	kwadd("extrn",    11);   /* T_EXTRN  */
@@ -80,8 +112,11 @@ kwinit() {
 	kwadd("while",    14);   /* T_WHILE  */
 	kwadd("return",   15);   /* T_RET    */
 	kwadd("goto",     16);   /* T_GOTO   */
-	kwadd("break",    17);   /* T_BREAK  */
-	kwadd("continue", 18);   /* T_CONT   */
+    /* These names are ordinary identifiers in the January 1972 dialect. */
+    if (extflg) {
+        kwadd("break", 17);
+        kwadd("continue", 18);
+    }
 	kwadd("switch",   19);   /* T_SWITCH */
 	kwadd("case",     20);   /* T_CASE   */
 }
@@ -94,10 +129,14 @@ gtch() {
 	if (peekc >= 0) {
 		c = peekc;
 		peekc = -1;
-		return (c);
+		goto gotc;
 	}
-	if (read(inpfd, b, 1) <= 0) return (-1);
+	c = read(inpfd, b, 1);
+	if (c < 0) fatal("cannot read source");
+	if (c == 0) return (-1);
 	c = b[0] & 0377;
+ gotc:
+	/* unch rolls a newline back; consuming it must restore the line. */
 	if (c == '\n') lineno = lineno + 1;
 	return (c);
 }
@@ -112,7 +151,7 @@ unch(c) {
 isltr(c) {
 	if (c >= 'a') if (c <= 'z') return (1);
 	if (c >= 'A') if (c <= 'Z') return (1);
-	if (c == '_') return (1);
+	if (c == '_' | c == 8) return (1);
 	return (0);
 }
 
@@ -198,10 +237,9 @@ lexnam(c) {
 	int i;
 	i = 0;
 	while (isaln(c)) {
-		if (i < 8) {
-			tnam[i] = c;
-			i = i + 1;
-		}
+        if (i >= 8) fatal("identifier too long");
+        tnam[i] = c;
+        i = i + 1;
 		c = gtch();
 	}
 	tnam[i] = 0;
@@ -239,17 +277,22 @@ lexnum(c) {
 lexchr(endc) {
 	extern tval;
 	int tval;
-	int c, endc;
+	int c, endc, n;
 	tval = 0;
+	n = 0;
 	c = gtch();
 	while (1) {
 		if (c == '\'') break;
 		if (c == endc) break;
-		if (c < 0) break;
+		if (c < 0) fatal("unterminated character constant");
 		if (c == '*') c = rdesc();
+		if (c < 0) fatal("unterminated character constant");
+		if (n >= 2) fatal("character constant too long");
 		tval = (tval << 8) | (c & 0377);
+		n = n + 1;
 		c = gtch();
 	}
+	if (n == 0) fatal("empty character constant");
 }
 
 /* Read string literal, leave raw bytes in tstrbuf/tstrlen. */
@@ -262,8 +305,10 @@ lexstr() {
 	c = gtch();
 	while (1) {
 		if (c == '"') break;
-		if (c < 0) break;
+		if (c < 0) fatal("unterminated string literal");
 		if (c == '*') c = rdesc();
+		if (c < 0) fatal("unterminated string literal");
+		if (n >= 255) fatal("string literal too long");
 		tstrbuf[n] = c;
 		n = n + 1;
 		c = gtch();

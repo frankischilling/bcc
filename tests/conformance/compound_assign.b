@@ -24,13 +24,13 @@ main() {
     x =- 10;
     if (x != -5) return(4);
 
-    /* Test 5-6: Multiplication (=* is ambiguous with =*ptr, use explicit) */
+    /* Test 5-6: Adjacent =* is multiplication assignment (kbman 4.11). */
     x = 6;
-    x = x * 7;
+    x =* 7;
     if (x != 42) return(5);
 
     x = -3;
-    x = x * 4;
+    x =* 4;
     if (x != -12) return(6);
 
     /* Test 7-8: Division assignment =/ */

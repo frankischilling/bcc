@@ -1,159 +1,78 @@
 # File I/O
 
-BCC's runtime exposes Unix-style descriptor I/O plus Thompson-style unit redirection for `getchar`, `getstr`, `putchar`, `putstr`, and `printf`.
+Descriptor operations use byte counts, even though B pointers count words
+in strict mode. A successful short read or write is possible; callers that
+need an entire block must loop until the requested bytes are transferred or
+an error/end-of-file occurs.
 
----
+- `open(name,mode)` opens an existing file. Use 0 for reading; every nonzero
+  B word requests write-only access. Mode 2 is not a read/write extension.
+  Opening does not create or truncate the file, and starts at offset zero.
+- `creat(name,mode)` creates or truncates a file and returns its descriptor.
+- `close(fd)` closes a descriptor.
+- `read(fd,buf,count)` returns the bytes read, zero at EOF, or -1 on error.
+- `write(fd,buf,count)` returns the bytes written or -1 on error.
+- `seek(fd,offset,whence)` returns zero or -1. Origins 0, 1, and 2 mean the
+  beginning, current position, and end of the file. In the 16-bit model,
+  absolute offsets use all 16 bits: values from 32768 through 65535 remain
+  usable, and the bit pattern of -1 means 65535. Relative displacements are
+  signed. Wider word models keep the host's offset representation.
 
-## Current API
+The host wrapper does not emulate the V1 kernel's 16-bit file-position wrap
+or block-device addressing units. File sizes and other host behavior still
+come from `lseek`. The [June 1972 seek page](https://www.tuhs.org/Archive/Distributions/Research/Dennis_v2/v2man.pdf)
+describes the three origins and the historical 16-bit absolute address range.
 
-| Function | Signature | Description |
-|----------|-----------|-------------|
-| `open` | `(name, mode) -> fd/-1` | Open a file descriptor |
-| `creat` | `(name, mode) -> fd/-1` | Create or truncate a file |
-| `close` | `(fd) -> 0/-1` | Close a file descriptor |
-| `read` | `(fd, buffer, count) -> count/-1` | Read bytes into a buffer |
-| `write` | `(fd, buffer, count) -> count/-1` | Write bytes from a buffer |
-| `seek` | `(fd, offset, whence) -> 0/-1` | Reposition a descriptor |
-| `openr` | `(unit, name) -> unit/-1` | Redirect the current input unit |
-| `openw` | `(unit, name) -> unit/-1` | Redirect the current output unit |
-| `flush` | `() -> 0` | Flush the current output unit |
-| `reread` | `() -> 0` | Read command-line text on the next input operation |
+`read` does not append a terminator. It leaves bytes beyond the returned
+count unchanged, including after EOF, a zero-length request, or an error.
+`write` does not stop at NUL or 004. Allocate enough packed storage for the
+byte count and check errors before using the buffer.
 
-Current BCC does not provide separate `getc`, `putc`, `getw`, `putw`, `fopen`, `fcreat`, or `fclose` runtime functions.
-
----
-
-## Descriptor I/O
-
-Use descriptor I/O when you need explicit file handles.
-
+<!-- bcc-example {"stdout":"OK\n","native":true,"bootstrap":true} -->
 ```b
 main() {
-    auto fd;
-    fd = open("input.txt", 0);
-    if (fd < 0) {
-        printf("cannot open input.txt*n");
-        return 1;
-    }
-
-    auto buffer 256;
-    auto n;
-    n = read(fd, buffer, 256);
-    if (n < 0) {
-        printf("read failed*n");
-        close(fd);
-        return 1;
-    }
-
-    printf("read %d bytes*n", n);
+    extrn creat, write, close, open, read, char, unlink, printf;
+    auto fd, buf 2;
+    fd=creat("iotest",016);
+    if(fd<0) return(1);
+    if(write(fd,"ABC",3)!=3) return(2);
+    if(close(fd)<0) return(3);
+    fd=open("iotest",0);
+    if(fd<0) return(4);
+    if(read(fd,buf,3)!=3) return(5);
+    if(char(buf,0)!='A' | char(buf,1)!='B' | char(buf,2)!='C') return(6);
     close(fd);
-    return 0;
+    if(unlink("iotest")!=0) return(7);
+    printf("OK*n");
+    return(0);
 }
 ```
 
-### Modes
+## Permission modes
 
-| Mode | Meaning |
-|------|---------|
-| `0` | Read-only |
-| `1` | Write-only |
-| `2` | Read/write, where supported by the host |
+For host `creat`, `chmod`, and `mkdir`/`makdir`, values through octal 077 use the V1
+permission layout: 040 set-user-ID, 020 execute, 010 owner-read, 004
+owner-write, 002 other-read, and 001 other-write. For example, 016 maps to
+host file permissions 0644, subject to the host umask. Directory read access
+also maps to search access. Larger modes retain POSIX-mode compatibility;
+that extension is not a historical PDP-11 permission encoding.
 
-`creat(name, mode)` uses Unix permission bits such as `0666` or `0644`.
+Native operations use the restored kernel's own permission checks. Host
+user identities, umask, ownership rules, and filesystem semantics still
+apply to host programs.
 
----
+## Host unit redirection
 
-## Writing
+`openr(unit,name)` and `openw(unit,name)` redirect the host character-input
+and character-output helpers using descriptor duplication. They are host
+compatibility facilities, not a claim that every historical B environment
+used this interface. Opening output truncates the named file. `flush()`
+requests output synchronization. See the runtime source for error handling;
+these helpers are not interchangeable with buffered C `FILE` streams.
 
-```b
-main() {
-    auto fd;
-    fd = creat("output.txt", 0666);
-    if (fd < 0) {
-        printf("cannot create output.txt*n");
-        return 1;
-    }
+The runtime does not supply `fopen`, `fclose`, `getc`, `putc`, `getw`, or
+`putw` as B library functions. Host interoperability is a separate facility,
+not implicit access to arbitrary C APIs.
 
-    auto text;
-    text = "hello from B*n";
-    write(fd, text, 13);
-    close(fd);
-    return 0;
-}
-```
-
-B strings are terminated by `*e`, but `write` takes an explicit byte count and does not stop at the terminator.
-
----
-
-## Unit Redirection
-
-`openr` and `openw` redirect the implicit units used by character and string I/O.
-
-```b
-main() {
-    if (openr(3, "input.txt") < 0) {
-        printf("cannot open input.txt*n");
-        return 1;
-    }
-
-    if (openw(4, "upper.txt") < 0) {
-        printf("cannot create upper.txt*n");
-        return 1;
-    }
-
-    auto c;
-    while ((c = getchar()) != '*e') {
-        if (c >= 'a' & c <= 'z') {
-            c =+ 'A' - 'a';
-        }
-        putchar(c);
-    }
-
-    flush();
-    openr(-1, "");
-    openw(-1, "");
-    return 0;
-}
-```
-
-Passing a negative unit or an empty filename restores terminal input or output.
-
----
-
-## Seeking
-
-```b
-auto fd;
-fd = open("data.bin", 0);
-
-seek(fd, 0, 0);    // beginning
-seek(fd, 10, 0);   // byte offset 10
-seek(fd, 0, 2);    // end
-
-close(fd);
-```
-
-`whence` follows Unix `lseek`: `0` for beginning, `1` for current position, and `2` for end.
-
----
-
-## EOF
-
-Descriptor reads return `0` at EOF and `-1` on error:
-
-```b
-auto n;
-while ((n = read(fd, buffer, 256)) > 0) {
-    process(buffer, n);
-}
-```
-
-Unit character input returns `*e` at EOF:
-
-```b
-auto c;
-while ((c = getchar()) != '*e') {
-    putchar(c);
-}
-```
+See [runtime boundaries](WIKI_RUNTIME_LIBRARY.md) and the
+[V1 system-call manual](https://www.tuhs.org/cgi-bin/utree.pl?file=V1/man/man2).

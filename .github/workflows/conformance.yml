@@ -1,0 +1,520 @@
+name: Compiler conformance
+on:
+  push:
+    branches: [main]
+    tags: ['**']
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  host_tests:
+    name: host tests (${{ matrix.cc }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        cc: [gcc, clang]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check CI result gates
+        run: python3 tests/test_ci_gate.py
+      - name: Build the host compiler
+        run: make CC=${{ matrix.cc }}
+      - name: Run host and emitted-assembly tests
+        run: BCC_TEST_JOBS=4 make test
+      - name: Check installed runtime lookup
+        run: make test-install
+      - name: Reject delayed compiler output failures
+        run: python3 tests/test_output_errors.py --compiler ./bcc --close-faults
+  b_bootstrap_checks:
+    name: B bootstrap regressions (${{ matrix.cc }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        cc: [gcc, clang]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the seed compiler
+        run: make CC=${{ matrix.cc }}
+      - name: Check the B-written bootstrap
+        run: make -C bootstrap test
+      - name: Reject delayed bootstrap output failures
+        run: |
+          for stage in 1 2 3; do
+            python3 tests/test_output_errors.py --bootstrap --compiler bootstrap/build/stage$stage/bbc --close-faults
+          done
+  b_native:
+    name: B native construction (${{ matrix.cc }}, ${{ matrix.stage }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        cc: [gcc, clang]
+        stage: [host, 1, 2, 3]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the seed compiler
+        run: make CC=${{ matrix.cc }}
+      - name: Build the selected B bootstrap stage
+        if: matrix.stage != 'host'
+        run: make -C bootstrap stage${{ matrix.stage }}
+      - name: Check B-written host-native construction
+        run: |
+          if [ "${{ matrix.stage }}" = host ]; then
+            make -C bootstrap native-stage-test NATIVE_COMPILER=../bcc
+            python3 bootstrap/native/test_elfimage.py --close-faults
+            python3 bootstrap/native/test_x64.py --close-faults
+          else
+            make -C bootstrap native-stage-test NATIVE_COMPILER=build/stage${{ matrix.stage }}/bbc NATIVE_FLAGS=--bootstrap
+          fi
+  b_native_rebuild:
+    name: B native rebuild (${{ matrix.cc }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        cc: [gcc, clang]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the seed compiler
+        run: make CC=${{ matrix.cc }}
+      - name: Rebuild the native tools without the seed toolchain
+        run: make -C bootstrap native-rebuild-test
+  b_bootstrap:
+    name: B bootstrap (${{ matrix.cc }})
+    needs: [b_bootstrap_checks, b_native, b_native_rebuild]
+    if: ${{ always() }}
+    runs-on: ubuntu-slim
+    timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      matrix:
+        cc: [gcc, clang]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Require bootstrap and native construction checks
+        env:
+          BOOTSTRAP_RESULT: ${{ needs.b_bootstrap_checks.result }}
+          NATIVE_RESULT: ${{ needs.b_native.result }}
+          REBUILD_RESULT: ${{ needs.b_native_rebuild.result }}
+        run: sh .github/scripts/require-success.sh 3 "$BOOTSTRAP_RESULT" "$NATIVE_RESULT" "$REBUILD_RESULT"
+  assembly:
+    name: assembly (${{ matrix.mode }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - mode: normal
+            target: check
+            compiler: asm/bccasm
+          - mode: staged
+            target: bootstrap
+            compiler: asm/bootstrap/stage1/bccasm
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the comparison compiler
+        run: make CC=gcc
+      - name: Check assembly-source build and runtime
+        run: |
+          python3 tests/test_staged_runtime.py
+          BCC_TEST_JOBS=4 make -C asm "${{ matrix.target }}"
+      - name: Check B-written native construction through this build
+        run: |
+          python3 bootstrap/native/test_elfimage.py --compiler "${{ matrix.compiler }}" --close-faults
+          python3 bootstrap/native/test_x64.py --compiler "${{ matrix.compiler }}" --close-faults
+          python3 bootstrap/native/test_labels.py --compiler "${{ matrix.compiler }}"
+          python3 bootstrap/native/test_ops.py --compiler "${{ matrix.compiler }}"
+          python3 bootstrap/native/test_frontend.py --compiler "${{ matrix.compiler }}"
+          python3 bootstrap/native/test_arity.py --compiler "${{ matrix.compiler }}"
+          python3 bootstrap/native/test_scalar.py --compiler "${{ matrix.compiler }}"
+          python3 bootstrap/native/test_memory.py --compiler "${{ matrix.compiler }}"
+          python3 bootstrap/native/test_control.py --compiler "${{ matrix.compiler }}"
+          python3 bootstrap/native/test_calls.py --compiler "${{ matrix.compiler }}"
+          python3 bootstrap/native/test_data.py --compiler "${{ matrix.compiler }}"
+          python3 bootstrap/native/test_resolver.py --compiler "${{ matrix.compiler }}"
+          python3 bootstrap/native/test_runtime.py --compiler "${{ matrix.compiler }}"
+          python3 bootstrap/native/test_argv.py --compiler "${{ matrix.compiler }}"
+          python3 pdp-11/bcc-pdp/bootstrap/test_source_reader.py --compiler "${{ matrix.compiler }}"
+  host:
+    name: host (${{ matrix.cc }})
+    needs: [host_tests, b_bootstrap, assembly]
+    if: always()
+    runs-on: ubuntu-slim
+    timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      matrix:
+        cc: [gcc, clang]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Require every host lane to pass
+        env:
+          HOST_RESULT: ${{ needs.host_tests.result }}
+          BOOTSTRAP_RESULT: ${{ needs.b_bootstrap.result }}
+          ASSEMBLY_RESULT: ${{ needs.assembly.result }}
+        run: sh .github/scripts/require-success.sh 3 "$HOST_RESULT" "$BOOTSTRAP_RESULT" "$ASSEMBLY_RESULT"
+  sanitizer_compiler:
+    name: sanitizer compiler
+    runs-on: ubuntu-24.04
+    env:
+      ASAN_OPTIONS: detect_leaks=0
+      UBSAN_OPTIONS: halt_on_error=1
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build with address and undefined-behavior checks
+        run: make CFLAGS="-std=c99 -g -O1 -fsanitize=address,undefined -fno-omit-frame-pointer"
+      - name: Check the instrumented compiler
+        run: BCC_TEST_JOBS=4 make test
+  sanitizer_generated:
+    name: sanitizer generated programs
+    runs-on: ubuntu-24.04
+    env:
+      ASAN_OPTIONS: detect_leaks=0
+      UBSAN_OPTIONS: halt_on_error=1
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build with address and undefined-behavior checks
+        run: make CFLAGS="-std=c99 -g -O1 -fsanitize=address,undefined -fno-omit-frame-pointer"
+      - name: Check generated arithmetic and inline runtime code
+        run: |
+          printf '#!/bin/sh\nexec "%s/bcc" -X -fsanitize=address,undefined "$@"\n' "$PWD" > "$RUNNER_TEMP/bcc-instrumented"
+          chmod +x "$RUNNER_TEMP/bcc-instrumented"
+          python3 tests/test_word_arithmetic.py --compiler "$RUNNER_TEMP/bcc-instrumented"
+          python3 tests/test_case_constants.py --compiler "$RUNNER_TEMP/bcc-instrumented"
+          python3 tests/test_char_storage.py --compiler "$RUNNER_TEMP/bcc-instrumented"
+          python3 tests/test_seek_runtime.py --compiler "$RUNNER_TEMP/bcc-instrumented"
+          python3 tests/test_argv_runtime.py --compiler "$RUNNER_TEMP/bcc-instrumented"
+          python3 tests/test_call_frames.py --compiler "$RUNNER_TEMP/bcc-instrumented"
+          python3 tests/test_library_bindings.py --compiler "$RUNNER_TEMP/bcc-instrumented"
+          python3 tests/test_identifier_bytes.py --compiler "$RUNNER_TEMP/bcc-instrumented"
+          python3 tests/test_open_runtime.py --compiler "$RUNNER_TEMP/bcc-instrumented"
+          python3 bootstrap/native/test_x64.py --compiler "$RUNNER_TEMP/bcc-instrumented"
+          python3 bootstrap/native/test_labels.py --compiler "$RUNNER_TEMP/bcc-instrumented"
+          python3 bootstrap/native/test_ops.py --compiler "$RUNNER_TEMP/bcc-instrumented"
+          python3 bootstrap/native/test_frontend.py --compiler "$RUNNER_TEMP/bcc-instrumented"
+          python3 bootstrap/native/test_arity.py --compiler "$RUNNER_TEMP/bcc-instrumented"
+          python3 bootstrap/native/test_scalar.py --compiler "$RUNNER_TEMP/bcc-instrumented"
+          python3 bootstrap/native/test_memory.py --compiler "$RUNNER_TEMP/bcc-instrumented"
+          python3 bootstrap/native/test_control.py --compiler "$RUNNER_TEMP/bcc-instrumented"
+          python3 bootstrap/native/test_calls.py --compiler "$RUNNER_TEMP/bcc-instrumented"
+          python3 bootstrap/native/test_data.py --compiler "$RUNNER_TEMP/bcc-instrumented"
+          python3 bootstrap/native/test_resolver.py --compiler "$RUNNER_TEMP/bcc-instrumented"
+          python3 bootstrap/native/test_runtime.py --compiler "$RUNNER_TEMP/bcc-instrumented"
+          python3 bootstrap/native/test_argv.py --compiler "$RUNNER_TEMP/bcc-instrumented"
+          python3 pdp-11/bcc-pdp/bootstrap/test_source_reader.py --compiler "$RUNNER_TEMP/bcc-instrumented"
+  sanitizers:
+    name: sanitizers
+    needs: [sanitizer_compiler, sanitizer_generated]
+    if: ${{ always() }}
+    runs-on: ubuntu-slim
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Require both sanitizer lanes
+        env:
+          COMPILER_RESULT: ${{ needs.sanitizer_compiler.result }}
+          GENERATED_RESULT: ${{ needs.sanitizer_generated.result }}
+        run: sh .github/scripts/require-success.sh 2 "$COMPILER_RESULT" "$GENERATED_RESULT"
+  pdp11:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Build with the historical toolchain
+        run: make -C pdp-11/bcc-pdp
+      - name: Check native output and binary limits
+        run: |
+          bash pdp-11/bcc-pdp/tests/run/run.sh
+          bash pdp-11/bcc-pdp/tests/ext/run.sh
+          bash pdp-11/bcc-pdp/tests/check_v1_binaries.sh
+          python3 pdp-11/bcc-pdp/tests/driver_cases.py
+          python3 pdp-11/bcc-pdp/tests/ic_cases.py
+          python3 pdp-11/bcc-pdp/tests/direct_loads.py
+          python3 pdp-11/bcc-pdp/tests/zero_storage.py
+          python3 pdp-11/bcc-pdp/tests/compact_push.py
+          python3 pdp-11/bcc-pdp/tests/read_errors.py
+          python3 pdp-11/bcc-pdp/tests/source_lines.py
+          python3 pdp-11/bcc-pdp/tests/compiler_stack.py
+          python3 pdp-11/bcc-pdp/tests/native_build.py
+          python3 pdp-11/bcc-pdp/tests/argv_storage.py
+          python3 tests/test_external_scope.py --native
+          python3 tests/test_switch_runtime.py --native
+          python3 pdp-11/bcc-pdp/tests/image_tools.py
+          python3 pdp-11/bcc-pdp/tests/assembler_diagnostics.py
+          python3 pdp-11/bcc-pdp/tests/emit_image.py
+          python3 pdp-11/bcc-pdp/tests/file_verification.py
+          python3 pdp-11/bcc-pdp/tests/console_protocol.py
+          python3 pdp-11/bcc-pdp/tests/golden.py
+          python3 pdp-11/bcc-pdp/tests/runtime_selection.py
+          python3 pdp-11/bcc-pdp/tests/library_elision.py
+          python3 pdp-11/bcc-pdp/tests/exec_selection.py
+          python3 pdp-11/bcc-pdp/tests/build_lock.py
+          python3 tests/test_docs_examples.py --native
+          python3 tests/test_identifier_bytes.py --native
+      - name: Compare the B-written resolver
+        run: |
+          make
+          python3 pdp-11/bcc-pdp/bootstrap/test_resolver.py
+          python3 pdp-11/bcc-pdp/bootstrap/test_ic_reader.py
+          python3 pdp-11/bcc-pdp/bootstrap/test_source_reader.py
+          python3 pdp-11/bcc-pdp/tests/output_close.py --bcc ./bcc
+
+  b-vm:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Build the seed compilers
+        run: |
+          make
+          make -C pdp-11/bcc-pdp
+      - name: Check experimental B execution and resolver
+        run: |
+          python3 pdp-11/bcc-pdp/bootstrap/test_vm.py
+          python3 pdp-11/bcc-pdp/bootstrap/test_vm_reentry.py
+          python3 pdp-11/bcc-pdp/bootstrap/test_vm_encoder.py
+          python3 pdp-11/bcc-pdp/bootstrap/test_vm_resolver.py
+          python3 pdp-11/bcc-pdp/bootstrap/test_passes.py --vm
+          python3 pdp-11/bcc-pdp/bootstrap/test_codegen.py --vm
+          python3 pdp-11/bcc-pdp/bootstrap/test_native_rebuild.py
+
+  b-image:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Build the seed compilers
+        run: |
+          make
+          make -C pdp-11/bcc-pdp
+      - name: Compare B-written native executable images
+        run: python3 pdp-11/bcc-pdp/bootstrap/test_image.py --vm
+
+  b-toolchain:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Check seed-directory and guest-file limits
+        run: |
+          python3 pdp-11/bcc-pdp/bootstrap/test_toolchain_seed.py
+          python3 pdp-11/bcc-pdp/bootstrap/test_seed_snapshot.py
+      - name: Build the seed compilers
+        run: |
+          make
+          make -C pdp-11/bcc-pdp
+      - name: Check full guest rebuild comparisons
+        run: python3 pdp-11/bcc-pdp/bootstrap/test_rebuild_harness.py
+      - name: Check B-written runtime selection and templates
+        run: |
+          python3 pdp-11/bcc-pdp/bootstrap/test_selector.py --vm
+          python3 pdp-11/bcc-pdp/bootstrap/test_runtime.py --vm
+      - name: Check B-driven native construction and failure handling
+        run: python3 pdp-11/bcc-pdp/bootstrap/test_toolchain.py
+
+  b-toolchain-v1:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install console test dependency
+        run: python3 -m pip install pexpect==4.9.0
+      - name: Check staging and build the seed
+        run: |
+          python3 pdp-11/bcc-pdp/bootstrap/test_kernel_staging.py
+          make -C pdp-11/bcc-pdp
+      - name: Regenerate runtimes and build with B inside Unix V1
+        run: python3 pdp-11/bcc-pdp/bootstrap/test_toolchain_v1.py
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: b-toolchain-v1-failures
+          path: pdp-11/bcc-pdp/build/toolchain-v1-failures
+          if-no-files-found: ignore
+
+  unix_v1_seed:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install console test dependency
+        run: python3 -m pip install pexpect==4.9.0
+      - name: Rebuild the compiler inside Unix V1
+        run: make -C pdp-11/bcc-pdp v1-selfhost B=tests/run/t26_postfix_index.b
+
+  unix_v1_runtime:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install console test dependency
+        run: python3 -m pip install pexpect==4.9.0
+      - name: Check real-kernel runtime behavior
+        run: |
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t27_ctime_check.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t32_time_registers.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t33_files.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t99_open_modes.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t34_fork.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t35_execv.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t111_exec_override.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t112_seek_offsets.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t113_lchar_result.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t114_dialect_names.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t115_literal_backslash.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t116_many_literals.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/v1/tty.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/v1/argv_many.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/v1/console_prompt.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/v1/console_no_newline.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t103_switch_nested.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t104_switch_far.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t105_switch_escape.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t106_switch_capacity.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t107_nested_parentheses.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t108_nested_parentheses32.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t109_switch_flow.b
+          pdp-11/bcc-pdp/tools/v1-run.sh pdp-11/bcc-pdp/tests/v1/stack_exhaustion.b --expect-compile-error --expect-diagnostic 'compiler stack exhausted'
+          pdp-11/bcc-pdp/tools/v1-run.sh pdp-11/bcc-pdp/tests/v1/stack_unary.b --expect-compile-error --expect-diagnostic 'compiler stack exhausted'
+          pdp-11/bcc-pdp/tools/v1-run.sh pdp-11/bcc-pdp/tests/v1/stack_blocks.b --expect-compile-error --expect-diagnostic 'compiler stack exhausted'
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t100_exit_no_argument.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t39_signed_math.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t40_print_min.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t41_eight_names.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t43_forward_labels.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t47_putchar_pair.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t52_argv_program.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t55_global_cells.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t56_statement_functions.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t57_character_vectors.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t61_keyword_names.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t62_function_values.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t63_function_cells.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t64_library_cells.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t65_call_stack.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t66_global_strings.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t67_global_string_limits.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t69_literal_storage.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t70_declaration_bodies.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t71_late_auto_vectors.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t72_auto_function_scope.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t82_many_vectors.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t83_word_pointer_steps.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t84_word_static_addresses.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t85_word_io_offsets.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t87_word_exec_offset.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t89_format_capture.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t90_label_cells.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t91_call_index_lvalue.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t92_source_library.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t93_source_printf.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t94_source_library_data.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t95_parameter_cells.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t96_word_arithmetic.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t97_call_arguments.b
+          make -C pdp-11/bcc-pdp v1-run B=tests/run/t98_library_callbacks.b
+          python3 tests/test_identifier_bytes.py --write-fixture "$RUNNER_TEMP/bcc-identifiers.b"
+          bash pdp-11/bcc-pdp/tools/v1-run.sh "$RUNNER_TEMP/bcc-identifiers.b"
+          bash pdp-11/bcc-pdp/tools/v1-run.sh pdp-11/bcc-pdp/tests/run/t86_word_argv_alignment.b --argument a --argument bb --argument ccc --argument dddd
+          bash pdp-11/bcc-pdp/tools/v1-run.sh pdp-11/bcc-pdp/tests/run/t19a_tilde.b --expect-compile-error
+          bash pdp-11/bcc-pdp/tools/v1-run.sh pdp-11/bcc-pdp/tests/run/t44_missing_label.b --expect-compile-error
+          bash pdp-11/bcc-pdp/tools/v1-run.sh pdp-11/bcc-pdp/tests/run/t49_empty_char.b --expect-compile-error
+          bash pdp-11/bcc-pdp/tools/v1-run.sh pdp-11/bcc-pdp/tests/run/t60_large_frame.b --expect-compile-error
+          bash pdp-11/bcc-pdp/tools/v1-run.sh pdp-11/bcc-pdp/tests/run/t68_global_literal_pool.b
+          bash pdp-11/bcc-pdp/tools/v1-run.sh pdp-11/bcc-pdp/tests/run/t78_duplicate_local.b --expect-compile-error
+          bash pdp-11/bcc-pdp/tools/v1-run.sh pdp-11/bcc-pdp/tests/run/t31_program_size.b --expect-compile-error
+
+
+  unix_v1_bootstrap:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install console test dependency
+        run: python3 -m pip install pexpect==4.9.0
+      - name: Run the B-written record reader in Unix V1
+        run: bash pdp-11/bcc-pdp/bootstrap/test_v1.sh
+      - name: Run the B-written resolver inside Unix V1
+        run: python3 pdp-11/bcc-pdp/bootstrap/test_vm_v1.py
+
+  unix-v1:
+    needs: [unix_v1_seed, unix_v1_runtime, unix_v1_bootstrap]
+    if: ${{ always() }}
+    runs-on: ubuntu-slim
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Require every Unix V1 lane to pass
+        env:
+          SEED_RESULT: ${{ needs.unix_v1_seed.result }}
+          RUNTIME_RESULT: ${{ needs.unix_v1_runtime.result }}
+          RESOLVER_RESULT: ${{ needs.unix_v1_bootstrap.result }}
+        run: sh .github/scripts/require-success.sh 3 "$SEED_RESULT" "$RUNTIME_RESULT" "$RESOLVER_RESULT"
+
+  b-passes-v1:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install console test dependency
+        run: python3 -m pip install pexpect==4.9.0
+      - name: Check clean kernel-test staging
+        run: |
+          python3 pdp-11/bcc-pdp/bootstrap/test_kernel_staging.py
+          python3 pdp-11/bcc-pdp/tests/v1_prerequisites.py
+      - name: Build the historical seed
+        run: make -C pdp-11/bcc-pdp
+      - name: Run the B-written pipeline inside Unix V1
+        run: python3 pdp-11/bcc-pdp/bootstrap/test_passes_v1.py --failure-dir .cache/b-passes-v1
+      - name: Check B-written native assembly generation
+        run: python3 pdp-11/bcc-pdp/bootstrap/test_codegen_v1.py
+      - name: B-written native image construction and execution
+        run: python3 pdp-11/bcc-pdp/bootstrap/test_image_v1.py
+      - name: Check large instruction offsets inside Unix V1
+        run: python3 pdp-11/bcc-pdp/bootstrap/test_vm_v1_limits.py
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: b-passes-v1-failures
+          path: |
+            .cache/b-passes-v1
+            pdp-11/bcc-pdp/build/image-v1-failures
+          if-no-files-found: ignore

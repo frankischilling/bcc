@@ -1,7 +1,7 @@
 /* bcg.c -- codegen primitives.  Emits V1 as syntax.
  *
- * Naming: V1 as truncates linker symbols to 7 chars after _ prefix, so
- * every function name here is <=5 chars with unique 5-char prefix.
+ * V1 as keeps seven characters including the prefix and folds case.
+ * cgsym maps B names that cannot use the short lowercase ABI.
  *
  * Stack-machine convention: lvalue = address in R0; rvalue = value in R0.
  * TOS holds an address or saved operand; binops pop TOS and produce R0.
@@ -27,13 +27,9 @@ cgnst(n) {
 	outs("., r0\n");
 }
 
-asnum(n) {
-	outd(n);
-	outc('.');
-}
-
 cgpsh() {
-	eop("mov\tr0, -(sp)");
+	/* mov r0,-(sp), encoded to keep the V1 assembler token file small. */
+	eop("10046");
 }
 
 /* runtime call helper: stack = [LHS]; R0 = RHS.  Pushes R0, then jsr. */
@@ -111,19 +107,15 @@ cgbinc(op, lfa, lend) {
 	fatal("cgbinc: unhandled op");
 }
 
-/* Return 1 if op is a compare op (needs 2 labels). */
-iscmp(op) {
-	if (op == 100) return (1);
-	if (op == 101) return (1);
-	if (op == '<')  return (1);
-	if (op == '>')  return (1);
-	if (op == 102) return (1);
-	if (op == 103) return (1);
-	return (0);
-}
-
-cgcll(name, nargs) char name[]; {
+cgcll(nargs) {
 	int i;
+	if (nargs < 0 | nargs > 8190) fatal("bad argument count");
+	/* exit() has no historical argument; its optional status must not read
+	 * the saved callee value. An unused zero slot keeps that call safe. */
+	if (nargs == 0) {
+		eop("clr\t-(sp)");
+		nargs = 1;
+	}
 	/* Caller pushed args left-to-right (so rightmost arg is TOS).
 	 * Reverse the top N stack words so leftmost arg ends up at TOS.
 	 * After this, callee sees arg i at 2*(i+2)(r5) regardless of
@@ -145,18 +137,14 @@ cgcll(name, nargs) char name[]; {
 		outs(".(sp)\n");
 		i = i + 1;
 	}
-	outs("\tjsr\tpc, _");
-	outs(name);
-	outc('\n');
-	if (nargs == 1) {
-		eop("tst\t(sp)+");
-		return;
-	}
-	if (nargs > 1) {
-		outs("\tadd\t$");
-		outd(2 * nargs);
-		outs("., sp\n");
-	}
+	/* The callee value was saved below the arguments. */
+	outs("\tmov\t");
+	outd(2 * nargs);
+	outs(".(sp), r0\n");
+	eop("jsr\tpc, (r0)");
+	outs("\tadd\t$");
+	outd(2 * (nargs + 1));
+	outs("., sp\n");
 }
 
 cgpro(name, nlocals, retlbl) char name[]; {
@@ -164,19 +152,15 @@ cgpro(name, nlocals, retlbl) char name[]; {
 	int retl;
 	retl = retlbl;
 	outs("\n.text\n");
-	outs("\t.globl\t_");
-	outs(name);
+	outs("\t.globl\t");
+	cgsym(name);
 	outc('\n');
-	outc('_');
-	outs(name);
-	outs(":\n");
+	cgsym(name);
+	outs(":\n\t.+2\n");
 	eop("mov\tr5, -(sp)");
 	eop("mov\tsp, r5");
-	if (nlocals > 0) {
-		outs("\tsub\t$");
-		outd(2 * nlocals);
-		outs("., sp\n");
-	}
+    /* The final frame size is defined after the entire body is parsed. */
+    outs("\tsub\t$L"); outd(retlbl); outs("f, sp\n");
 }
 
 /* vector-auto init: write &data[0] into v's slot.
@@ -188,6 +172,7 @@ cgvini(slot, dataoff) {
 	outs("\tsub\t$");
 	outd(2 * (dataoff + 1));
 	outs("., r0\n");
+    cgword();
 	eop("mov\tr5, r1");
 	outs("\tsub\t$");
 	outd(2 * (slot + 1));
@@ -195,65 +180,18 @@ cgvini(slot, dataoff) {
 	eop("mov\tr0, (r1)");
 }
 
-cggwd(name, val) char name[]; {
-	outs("\n.text\n\t.globl\t_");
-	outs(name);
-	outc('\n');
-	outc('_');
-	outs(name);
-	outs(":\n\t");
-	asnum(val);
-	outc('\n');
-	outs("\t.even\n");
-}
-
-cggar(name, n, ninit, vals) char name[]; int vals[]; {
-	int i;
-	outs("\n.text\n\t.globl\t_");
-	outs(name);
-	outc('\n');
-	outc('_');
-	outs(name);
-	outs(":\n");
-	i = 0;
-	while (i < n) {
-		outc('\t');
-		if (i < ninit) asnum(vals[i]);
-		else           asnum(0);
-		outc('\n');
-		i = i + 1;
-	}
-	outs("\t.even\n");
-}
-
-cggab(name, n, ninit, buf) char name[]; char buf[]; {
-	int i;
-	outs("\n.text\n\t.globl\t_");
-	outs(name);
-	outc('\n');
-	outc('_');
-	outs(name);
-	outs(":\n");
-	i = 0;
-	while (i < n) {
-		outc('\t');
-		if (i < ninit) asnum(nxti(buf));
-		else           asnum(0);
-		outc('\n');
-		i = i + 1;
-	}
-	outs("\t.even\n");
-}
-
-cgepi() {
+cgepi(nlocals) {
 	extern retl;
 	int retl;
+    if (nlocals < 0 | nlocals > 8191) fatal("bad frame size");
 	outs("L");
 	outd(retl);
 	outs(":\n");
 	eop("mov\tr5, sp");
 	eop("mov\t(sp)+, r5");
 	eop("rts\tpc");
+    outs("L"); outd(retl); outs("f = ");
+    outd(2 * nlocals); outs(".\n");
 }
 
 cgret() {
@@ -270,6 +208,7 @@ cglca(off) {
 	outs("\tsub\t$");
 	outd(2 * (off + 1));
 	outs("., r0\n");
+    cgword();
 }
 
 cgara(off) {
@@ -278,15 +217,33 @@ cgara(off) {
 	outs("\tadd\t$");
 	outd(2 * (off + 2));
 	outs("., r0\n");
+    cgword();
 }
 
+/* Adjacent address/load records need no B-pointer round trip. */
+cglod(kind, off, name) char name[]; {
+    outs("\tmov\t");
+    if (kind == 3) cgsym(name);
+    else {
+        if (kind == 1) off = -2 * (off + 1);
+        else off = 2 * (off + 2);
+        outd(off); outs(".(r5)");
+    }
+    outs(", r0\n");
+}
+
+cgword() { eop("asr\tr0"); }
+cgbyte() { eop("asl\tr0"); }
+
 cgdrf() {
+    cgbyte();
 	eop("mov\t(r0), r0");
 }
 
 cgasn() {
 	/* TOS = addr, R0 = value.  *addr = value; R0 stays. */
 	eop("mov\t(sp)+, r1");
+    eop("asl\tr1");
 	eop("mov\tr0, (r1)");
 }
 
@@ -312,15 +269,17 @@ cglab(l) {
 }
 
 cgext(name) char name[]; {
-	outs("\tmov\t$_");
-	outs(name);
+	outs("\tmov\t$");
+	cgsym(name);
 	outs(", r0\n");
+    cgword();
 }
 
 cgsta(id) {
 	outs("\tmov\t$S");
 	outd(id);
 	outs(", r0\n");
+    cgword();
 }
 
 /* Non-! unary only.  ! uses cguopn (caller-supplied labels). */
@@ -394,8 +353,7 @@ cgtne(le) {
 }
 
 cgidx() {
-	/* TOS = base, R0 = idx.  R0 = base + 2*idx. */
-	eop("asl\tr0");
+	/* Both the base and index use B word units. */
 	eop("mov\t(sp)+, r1");
 	eop("add\tr1, r0");
 }
@@ -405,13 +363,12 @@ cgcae(op) {
 	 * For non-compare op only (compares go through cgcaec). */
 	eop("mov\tr0, -(sp)");         /* save rhs   -> [addr, rhs]     */
 	eop("mov\t2(sp), r0");         /* r0 = addr (peek 2 below TOS)  */
-	eop("mov\t(r0), r0");          /* r0 = *addr (LHS for binop)    */
+	cgdrf();          /* r0 = *addr (LHS for binop)    */
 	eop("mov\tr0, -(sp)");         /* push LHS  -> [addr, rhs, LHS] */
 	eop("mov\t2(sp), r0");         /* r0 = rhs (RHS for binop)      */
 	cgbin(op);                      /* pops LHS; r0 = result         */
 	eop("tst\t(sp)+");             /* discard rhs                    */
-	eop("mov\t(sp)+, r1");         /* pop addr                       */
-	eop("mov\tr0, (r1)");          /* *addr = result                 */
+    cgasn();
 }
 
 /* Compound assign with comparison op.  Same shape as cgcae but uses
@@ -419,17 +376,17 @@ cgcae(op) {
 cgcaec(op, lfa, lend) {
 	eop("mov\tr0, -(sp)");
 	eop("mov\t2(sp), r0");
-	eop("mov\t(r0), r0");
+	cgdrf();
 	eop("mov\tr0, -(sp)");
 	eop("mov\t2(sp), r0");
 	cgbinc(op, lfa, lend);          /* pops LHS; r0 = 0 or 1 */
 	eop("tst\t(sp)+");
-	eop("mov\t(sp)+, r1");
-	eop("mov\tr0, (r1)");
+    cgasn();
 }
 
 cgpoi(isinc) {
 	/* post-inc/dec: R0 = address.  After: R0 = old *addr; *addr += 1. */
+    cgbyte();
 	eop("mov\tr0, r1");
 	eop("mov\t(r1), r0");
 	if (isinc) eop("inc\t(r1)");
@@ -438,15 +395,11 @@ cgpoi(isinc) {
 
 cgpri(isinc) {
 	/* pre-inc/dec: R0 = address.  After: *addr += 1; R0 = new value. */
+    cgbyte();
 	eop("mov\tr0, r1");
 	if (isinc) eop("inc\t(r1)");
 	else       eop("dec\t(r1)");
 	eop("mov\t(r1), r0");
 }
-
-/* unused placeholders; kept for forward compatibility */
-cgrtz() {}
-cginc(o) {}
-cgdec(o) {}
 
 /* 1972-strict additions live in bcgnew.c (split for V1 cc throughput). */

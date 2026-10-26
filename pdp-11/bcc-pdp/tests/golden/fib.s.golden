@@ -2,12 +2,12 @@
 .text
 	.globl	_fib
 _fib:
+	.+2
 	mov	r5, -(sp)
 	mov	sp, r5
-	mov	r5, r0
-	add	$4., r0
-	mov	(r0), r0
-	mov	r0, -(sp)
+	sub	$L30000f, sp
+	mov	4.(r5), r0
+	10046
 	mov	$2., r0
 	cmp	(sp)+, r0
 	bge	L0
@@ -20,34 +20,34 @@ L1:
 	bne	1f
 	jmp	L2
 1:
-	mov	r5, r0
-	add	$4., r0
-	mov	(r0), r0
+	mov	4.(r5), r0
 	jmp	L30000
 L2:
-	mov	r5, r0
-	add	$4., r0
-	mov	(r0), r0
-	mov	r0, -(sp)
+	mov	_fib, r0
+	10046
+	mov	4.(r5), r0
+	10046
 	mov	$1., r0
 	mov	(sp)+, r1
 	sub	r0, r1
 	mov	r1, r0
-	mov	r0, -(sp)
-	jsr	pc, _fib
-	tst	(sp)+
-	mov	r0, -(sp)
-	mov	r5, r0
-	add	$4., r0
-	mov	(r0), r0
-	mov	r0, -(sp)
+	10046
+	mov	2.(sp), r0
+	jsr	pc, (r0)
+	add	$4., sp
+	10046
+	mov	_fib, r0
+	10046
+	mov	4.(r5), r0
+	10046
 	mov	$2., r0
 	mov	(sp)+, r1
 	sub	r0, r1
 	mov	r1, r0
-	mov	r0, -(sp)
-	jsr	pc, _fib
-	tst	(sp)+
+	10046
+	mov	2.(sp), r0
+	jsr	pc, (r0)
+	add	$4., sp
 	mov	(sp)+, r1
 	add	r1, r0
 	jmp	L30000
@@ -55,24 +55,26 @@ L30000:
 	mov	r5, sp
 	mov	(sp)+, r5
 	rts	pc
+L30000f = 0.
 
 .text
 	.globl	_main
 _main:
+	.+2
 	mov	r5, -(sp)
 	mov	sp, r5
-	sub	$2., sp
+	sub	$L30001f, sp
 	mov	r5, r0
 	sub	$2., r0
-	mov	r0, -(sp)
+	asr	r0
+	10046
 	mov	$0., r0
 	mov	(sp)+, r1
+	asl	r1
 	mov	r0, (r1)
 L3:
-	mov	r5, r0
-	sub	$2., r0
-	mov	(r0), r0
-	mov	r0, -(sp)
+	mov	-2.(r5), r0
+	10046
 	mov	$15., r0
 	cmp	(sp)+, r0
 	bgt	L5
@@ -85,44 +87,58 @@ L6:
 	bne	1f
 	jmp	L4
 1:
-	mov	r5, r0
-	sub	$2., r0
-	mov	(r0), r0
-	mov	r0, -(sp)
-	jsr	pc, _fib
-	tst	(sp)+
-	mov	r0, -(sp)
+	mov	_printn, r0
+	10046
+	mov	_fib, r0
+	10046
+	mov	-2.(r5), r0
+	10046
+	mov	2.(sp), r0
+	jsr	pc, (r0)
+	add	$4., sp
+	10046
 	mov	$10., r0
-	mov	r0, -(sp)
+	10046
 	mov	0.(sp), r0
 	mov	2.(sp), r1
 	mov	r0, 2.(sp)
 	mov	r1, 0.(sp)
-	jsr	pc, _printn
-	add	$4., sp
+	mov	4.(sp), r0
+	jsr	pc, (r0)
+	add	$6., sp
+	mov	_putchar, r0
+	10046
 	mov	$32., r0
-	mov	r0, -(sp)
-	jsr	pc, _putchar
-	tst	(sp)+
+	10046
+	mov	2.(sp), r0
+	jsr	pc, (r0)
+	add	$4., sp
 	mov	r5, r0
 	sub	$2., r0
-	mov	r0, -(sp)
-	mov	r5, r0
-	sub	$2., r0
-	mov	(r0), r0
-	mov	r0, -(sp)
+	asr	r0
+	10046
+	mov	-2.(r5), r0
+	10046
 	mov	$1., r0
 	mov	(sp)+, r1
 	add	r1, r0
 	mov	(sp)+, r1
+	asl	r1
 	mov	r0, (r1)
 	jmp	L3
 L4:
+	mov	_putchar, r0
+	10046
 	mov	$10., r0
-	mov	r0, -(sp)
-	jsr	pc, _putchar
-	tst	(sp)+
+	10046
+	mov	2.(sp), r0
+	jsr	pc, (r0)
+	add	$4., sp
 L30001:
 	mov	r5, sp
 	mov	(sp)+, r5
 	rts	pc
+L30001f = 2.
+
+.globl .bend
+.bend:

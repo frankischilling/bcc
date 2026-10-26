@@ -8,6 +8,10 @@
 #ifndef LIBB_H
 #define LIBB_H
 
+#ifndef __bcc_strict_runtime
+#define __bcc_strict_runtime 0
+#endif
+
 #define _DEFAULT_SOURCE 1
 #define _XOPEN_SOURCE 700
 #define _POSIX_C_SOURCE 200809L
@@ -28,6 +32,7 @@
 #include <termios.h>
 #include <sys/ioctl.h>
 #include <ctype.h>
+#include <errno.h>
 #include <dlfcn.h>
 #include <math.h>
 #include <stddef.h>
@@ -55,7 +60,7 @@ typedef uintptr_t uword;
 
 /*
  * Word size emulation:
- *   WORD_BITS=0   -> host native (no wrapping)
+ *   WORD_BITS=0   -> wrap at the host pointer width
  *   WORD_BITS=16  -> wrap arithmetic like PDP-11 16-bit words
  *   WORD_BITS=32  -> wrap arithmetic at 32 bits
  */
@@ -73,7 +78,7 @@ typedef uintptr_t uword;
   #define SHIFT_MASK 31
 #else
   #define WORD_MASK (~(uword)0)
-  #define WVAL(x) (x)
+  #define WVAL(x) ((word)(x))
   #define SHIFT_MASK ((int)(sizeof(word)*8 - 1))
 #endif
 
@@ -86,39 +91,21 @@ typedef uintptr_t uword;
 #define WADD(a,b) WVAL((uword)(a) + (uword)(b))
 #define WSUB(a,b) WVAL((uword)(a) - (uword)(b))
 #define WMUL(a,b) WVAL((uword)(a) * (uword)(b))
-#define WDIV(a,b) WVAL((uword)(a) / (uword)(b))
-#define WMOD(a,b) WVAL((uword)(a) % (uword)(b))
-#define WSHL(a,n) WVAL(((uword)(a) & WORD_MASK) << ((uword)(n) & SHIFT_MASK))
-#define WSHR(a,n) WVAL(((uword)(a) & WORD_MASK) >> ((uword)(n) & SHIFT_MASK))
+#define WDIV(a,b) __b_word_div((a),(b))
+#define WMOD(a,b) __b_word_mod((a),(b))
+#define WSHL(a,n) __b_word_shl((a),(n))
+#define WSHR(a,n) __b_word_shr((a),(n))
 #define WAND(a,b) WVAL((uword)(a) & (uword)(b))
 #define WOR(a,b)  WVAL((uword)(a) | (uword)(b))
 #define WXOR(a,b) WVAL((uword)(a) ^ (uword)(b))
 #define WNEG(a)   WVAL(-(uword)(a))
 
-/*
- * Pointer model macros:
- *   B_BYTEPTR=1  -> pointers are byte addresses
- *   B_BYTEPTR=0  -> pointers are word addresses (Thompson B)
- */
 #ifndef B_BYTEPTR
 #define B_BYTEPTR 1
 #endif
-
-#if B_BYTEPTR
-  #define B_DEREF(p)   (*(word*)(uword)(p))
-  #define B_ADDR(x)    B_PTR(&(x))
-  #define B_INDEX(a,i) (*(word*)((uword)(a) + (uword)(i) * sizeof(word)))
-  #define B_PTR(p)     ((word)(uword)(p))
-  #define B_CPTR(p)    ((void*)(uword)(p))
-#else
-  #define B_DEREF(p)   (*(word*)(uword)((uword)(p) * sizeof(word)))
-  #define B_ADDR(x)    B_PTR(&(x))
-  #define B_INDEX(a,i) B_DEREF((a) + (i))
-  #define B_PTR(p)     ((word)((uword)(p) / sizeof(word)))
-  #define B_CPTR(p)    ((void*)((uword)(p) * sizeof(word)))
-#endif
-
-#define B_STR(s)     B_PTR((const char*)(s))
+#include "btarget.h"
+#include "binit.h"
+#include "bcall.h"
 
 /* Runtime Library Function Declarations */
 
@@ -163,6 +150,8 @@ word b_putnum(word n);
 void __b_setargs(int argc, char **argv);
 word b_argc(void);
 word b_argv(word i);
+extern word b_argv_vector;
+word __b_argvalues(void); /* Internal bridge for generated main wrappers. */
 word b_reread(void);
 
 /* File I/O */
@@ -179,13 +168,13 @@ word b_seek(word fd, word offset, word whence);
 word b_fork(void);
 word b_wait(void);
 word b_execl(word path, ...);
-word b_execv(word path, word argv);
+word b_execv(word path, word argv, word count);
 word b_system(word cmd);
 
 /* Time/delay */
 word b_usleep(word usec);
 word b_time(word tvp);
-word b_ctime(word tvp);
+word b_ctime(word tvp, word date);
 
 /* System functions */
 word b_getuid(void);
@@ -198,11 +187,12 @@ word b_unlink(word path);
 word b_stat(word path, word bufp);
 word b_fstat(word fd, word bufp);
 word b_makdir(word path, word mode);
+word b_mkdir(word path, word mode);
 
 /* Terminal I/O */
 word b_gtty(word fd, word ttstat);
 word b_stty(word fd, word ttstat);
-word b_intr(word on);
+word b_intr(word mode);
 
 /* Dynamic function calls */
 word b_callf_dispatch(int nargs, word name, ...);

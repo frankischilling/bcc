@@ -1,4 +1,4 @@
-/* bstmt.c -- statements & definitions.  Strict 1972 kbman conformance.
+/* bstmt.c -- statements and definitions for the selected B72 dialect.
  *
  * Grammar (kbman §2 canonical):
  *   program     := { defn }
@@ -25,14 +25,13 @@
  * Symbol classes: 1 C_AUTO 2 C_ARG 3 C_EXTRN 4 C_INTERN 5 C_LABEL
  *                 6 C_VECT 7 C_GVECT
  *
- * Per-switch case table (alternating const, label).  Outer switches save
- * + restore via swsav stack.  kbman §13: case overflow is fatal `>c`.
+ * kbman §13: each switch accepts at most 32 cases (`>c` on overflow).
  */
 
-swc[64];          /* current switch's (const, label) pairs, 32 max */
+/* Each switch streams a forward-linked dispatch chain. */
 nswc 0;
-swsav[16];        /* saved nswc for nested switches */
 swdpt 0;
+swdisp 0;
 brkl 0;
 contl 0;
 hasbrk 0;
@@ -83,11 +82,24 @@ gconst() {
 	return (v);
 }
 
+/* Include the pointer cell when budgeting an automatic vector. */
+vsize() {
+	extern tval;
+	int tval;
+	if (tval < 0 | tval > 8190) fatal("bad vector size");
+	return (tval + 1);
+}
+
 /* Emit one ival (kbman §7.0): constant OR name (address-of). */
 gival() {
-	extern tok, tnam;
-	int tok;
-	char tnam[];
+	extern tok, tnam, tstrbuf, tstrlen;
+	int tok, tstrlen;
+	char tnam[], tstrbuf[];
+	if (tok == 3) {
+		cgslt(tstrbuf, tstrlen, 1);
+		gettok();
+		return;
+	}
 	if (tok == 1) {                     /* T_NAME */
 		cggvn(tnam);
 		gettok();
@@ -104,15 +116,15 @@ gdef(name) char name[]; {
 	if (tok == '[') {
 		gettok();
 		n = 0;                          /* kbman §7.2: missing size -> 0 */
-		if (tok == 2) {
-			n = tval;
+		if (tok == 2 | tok == 4) {
+			n = vsize() - 1;
 			gettok();
 		}
 		if (tok != ']') fatal("expected ] in global vector");
 		gettok();
 
 		cgagvec(name);
-		cggvb(name, n);
+		cggvp(name, n);
 		ninit = 0;
 		while (tok != ';') {
 			if (tok == 0) fatal("unexpected EOF in global vector");
@@ -149,102 +161,83 @@ gdef(name) char name[]; {
 	gettok();
 }
 
+nlocal 0;
+
+/* Declarations are statements, not just a function-body prefix. */
+decl() {
+    extern tok, tval, tnam, extflg, nlocal;
+    int tok, tval, extflg, nlocal;
+    char tnam[];
+    char saved[10];
+    int kind, sz;
+    kind = tok;
+    gettok();
+    while (1) {
+        if (tok != 1) fatal("expected declaration name");
+        cpname(saved, tnam);
+        gettok();
+        if (kind == 11) cgaextrn(saved);
+        else {
+            cgaauto(saved);
+            sz = 1;
+            if (tok == '[') {
+                if (!extflg) fatal("auto [] requires -x");
+                gettok();
+                if (tok != 2) if (tok != 4) fatal("expected vector size");
+                sz = vsize(); gettok();
+                if (tok != ']') fatal("expected ] after vector size");
+                gettok(); cgavecsz(saved, sz);
+            } else if (tok == 2 | tok == 4) {
+                sz = vsize(); gettok(); cgavecsz(saved, sz);
+            }
+            if (nlocal > 8191 - sz) fatal("auto frame too large");
+            nlocal = nlocal + sz;
+        }
+        if (tok != ',') break;
+        gettok();
+    }
+    if (tok != ';') fatal("expected ; after declaration");
+    gettok();
+}
+
 fdef(name) char name[]; {
-	extern tok, tval, tnam, extflg;
-	int  tok, tval, extflg;
-	char tnam[];
-	int nargs, nlocals, sz;
-	char saved[10];
-
-	if (tok != '(') fatal("expected ( after function name");
-	gettok();
-
-	outs("Adef ");
-	outs(name);
-	outc('\n');
-
-	nargs = 0;
-	while (tok == 1) {                       /* T_NAME */
-		cgaarg(tnam, nargs);
-		nargs = nargs + 1;
-		gettok();
-		if (tok == ',') gettok();
-	}
-	if (tok != ')') fatal("expected ) in arg list");
-	gettok();
-
-	if (tok != '{') {
-		stmt();
-		cgepi();
-		return;
-	}
-	gettok();
-
-	nlocals = 0;
-	while (1) {
-		if (tok == 10) {                     /* T_AUTO */
-			gettok();
-			while (tok == 1) {
-				cpname(saved, tnam);
-				sz = 1;
-				cgaauto(saved);
-				gettok();
-				if (tok == '[') {
-					if (!extflg) fatal("auto [] requires -x");
-					gettok();
-					if (tok != 2) fatal("expected vector size");
-					sz = tval + 1;
-					gettok();
-					if (tok != ']') fatal("expected ] after vector size");
-					gettok();
-					cgavecsz(saved, sz);
-				}
-				if (tok == 2) {              /* T_NUM */
-					sz = tval + 1;
-					gettok();
-					cgavecsz(saved, sz);
-				}
-				nlocals = nlocals + sz;
-				if (tok == ',') gettok();
-			}
-			if (tok != ';') fatal("expected ; after auto");
-			gettok();
-			continue;
-		}
-		if (tok == 11) {                     /* T_EXTRN */
-			gettok();
-			while (tok == 1) {
-				cgaextrn(tnam);
-				gettok();
-				if (tok == ',') gettok();
-			}
-			if (tok != ';') fatal("expected ; after extrn");
-			gettok();
-			continue;
-		}
-		break;
-	}
-
-	while (tok != '}') {
-		if (tok == 0) fatal("unexpected EOF in function body");
-		stmt();
-	}
-	gettok();                                /* consume } */
-
-	cgepi();
+    extern tok, tnam, nlocal;
+    int tok, nlocal;
+    char tnam[];
+    int nargs;
+    if (tok != '(') fatal("expected ( after function name");
+    gettok();
+    outs("Adef "); outs(name); outc('\n');
+    nargs = 0;
+    if (tok != ')') {
+        while (1) {
+            if (tok != 1) fatal("expected parameter name");
+            cgaarg(tnam, nargs); nargs = nargs + 1;
+            gettok();
+            if (tok != ',') break;
+            gettok();
+        }
+    }
+    if (tok != ')') fatal("expected ) in arg list");
+    gettok();
+    nlocal = 0;
+    stmt();
+    cgepi();
 }
 
 stmt() {
-	extern tok, tnam, tval, tstr, swc, nswc, swsav, swdpt;
+	extern tok, tnam, tval, tstr, nswc, swdpt, swdisp;
 	extern extflg, brkl, contl, hasbrk, hascont;
-	int  tok, tval, tstr, nswc, swdpt, extflg, brkl, contl, hasbrk, hascont;
+	int  tok, tval, tstr, nswc, swdpt, swdisp, extflg, brkl, contl, hasbrk, hascont;
 	char tnam[];
-	int  swc[], swsav[];
-	int lel, laf, ltp, len;
-	int ldisp, lpop, lend, konst, lcase, savn, i;
-	int ob, oc, ohb, ohc;
+    /* Branches share six local words. Separate locals for every arm would
+     * consume the small V1 stack at every nested statement. */
+    int first, second, save1, save2, save3, save4;
 	char saved[10];
-	int svval, svstr;
+
+    stkchk();
+again:
+    while (tok == 10 | tok == 11) decl();
 
 	if (tok == '{') {
 		gettok();
@@ -264,18 +257,18 @@ stmt() {
 		expr();
 		if (tok != ')') fatal("expected )");
 		gettok();
-		lel = newl();
-		cgbrf(lel);
+		first = newl();
+		cgbrf(first);
 		stmt();
 		if (tok == 13) {                     /* T_ELSE */
 			gettok();
-			laf = newl();
-			cgjmp(laf);
-			cglab(lel);
+			second = newl();
+			cgjmp(second);
+			cglab(first);
 			stmt();
-			cglab(laf);
+			cglab(second);
 		} else {
-			cglab(lel);
+			cglab(first);
 		}
 		return;
 	}
@@ -284,60 +277,54 @@ stmt() {
 		gettok();
 		if (tok != '(') fatal("expected ( after while");
 		gettok();
-		ltp = newl();
-		len = newl();
-		cglab(ltp);
+		first = newl();
+		second = newl();
+		cglab(first);
 		expr();
 		if (tok != ')') fatal("expected )");
 		gettok();
-		cgbrf(len);
-		ob = brkl; oc = contl; ohb = hasbrk; ohc = hascont;
-		brkl = len; contl = ltp; hasbrk = 1; hascont = 1;
+		cgbrf(second);
+		save1 = brkl; save2 = contl; save3 = hasbrk; save4 = hascont;
+		brkl = second; contl = first; hasbrk = 1; hascont = 1;
 		stmt();
-		brkl = ob; contl = oc; hasbrk = ohb; hascont = ohc;
-		cgjmp(ltp);
-		cglab(len);
+		brkl = save1; contl = save2; hasbrk = save3; hascont = save4;
+		cgjmp(first);
+		cglab(second);
 		return;
 	}
 
-	if (tok == 19) {                         /* T_SWITCH (kbman §5.4) */
+	if (tok == 19) {                         /* T_SWITCH */
 		gettok();
-		ldisp = newl();
-		lpop  = newl();
-		lend  = newl();
-		expr();                          /* switch rvalue (no parens!) */
-		cgswb(ldisp);
-		/* push outer switch table state */
+		first = newl();
+		second = newl();
+		expr();
+		cgswb(first);
 		if (swdpt >= 16) fatal("switch nesting too deep");
-		swsav[swdpt] = nswc;
 		swdpt = swdpt + 1;
-		savn = nswc;
-		nswc = 0;
-		ob = brkl; ohb = hasbrk;
-		brkl = lpop; hasbrk = 1;
-		stmt();                          /* body; cases emit labels + table entries */
-		brkl = ob; hasbrk = ohb;
-		cgswe(ldisp, lpop, lend, nswc, swc);
+		save1 = nswc; save2 = swdisp;
+		nswc = 0; swdisp = first;
+		save3 = brkl; save4 = hasbrk;
+		brkl = second; hasbrk = 1;
+		stmt();
+		cgswe(swdisp, second);
+		brkl = save3; hasbrk = save4;
+		nswc = save1; swdisp = save2;
 		swdpt = swdpt - 1;
-		nswc = swsav[swdpt];
-		/* shift swc entries back is unnecessary -- nested switches always
-		 * complete cgswe before outer parsing resumes. */
 		return;
 	}
 
-	if (tok == 20) {                         /* T_CASE (kbman §5.4) */
+	if (tok == 20) {                         /* T_CASE */
+		if (swdpt == 0) fatal("case outside switch");
 		gettok();
-		konst = gconst();
+		first = gconst();
 		if (tok != ':') fatal("expected : after case constant");
 		gettok();
-		if (nswc >= 32) fatal(">c");     /* kbman case overflow */
-		lcase = newl();
-		swc[2 * nswc]     = konst;
-		swc[2 * nswc + 1] = lcase;
+		if (nswc >= 32) fatal(">c");
+		second = newl(); save1 = newl();
+		cgswc(swdisp, second, first, save1);
+		swdisp = second;
 		nswc = nswc + 1;
-		cglab(lcase);
-		stmt();
-		return;
+		goto again;
 	}
 
 	if (tok == 15) {                         /* T_RET */
@@ -380,8 +367,8 @@ stmt() {
 		gettok();
 		if (tok == 1) {
 			cpname(saved, tnam);
-			svval = tval;
-			svstr = tstr;
+			save1 = tval;
+			save2 = tstr;
 			gettok();
 			if (tok == ';') {
 				cgrlbl(saved);
@@ -391,8 +378,8 @@ stmt() {
 			pushtok();
 			tok = 1;
 			cpname(tnam, saved);
-			tval = svval;
-			tstr = svstr;
+			tval = save1;
+			tstr = save2;
 		}
 		expr();                          /* eval addr to r0 */
 		if (tok != ';') fatal("expected ; after goto");
@@ -404,21 +391,20 @@ stmt() {
 	/* NAME ':' stmt  vs  expr starting with NAME.  Peek via pushtok. */
 	if (tok == 1) {                          /* T_NAME */
 		cpname(saved, tnam);
-		svval = tval;
-		svstr = tstr;
+		save1 = tval;
+		save2 = tstr;
 		gettok();
 		if (tok == ':') {
 			cgrdef(saved);
 			gettok();
-			stmt();
-			return;
+			goto again;
 		}
 		/* Not a label: rewind one token and restore NAME state. */
 		pushtok();
 		tok = 1;
 		cpname(tnam, saved);
-		tval = svval;
-		tstr = svstr;
+		tval = save1;
+		tstr = save2;
 	}
 
 	expr();

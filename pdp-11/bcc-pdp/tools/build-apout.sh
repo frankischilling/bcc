@@ -1,4 +1,6 @@
 #!/bin/sh
 set -eu
-cd "$(dirname "$0")/../../unix-v1/tools/apout"
+HERE="$(cd "$(dirname "$0")/.." && pwd)"
+. "$HERE/tools/native-lock.sh"
+cd "$HERE/../unix-v1/tools/apout"
 make

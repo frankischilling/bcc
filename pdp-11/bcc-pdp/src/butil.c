@@ -5,18 +5,26 @@
 
 lineno 1;
 outfd 1;
+outdiag 0;
 extflg 0;       /* b00: nonzero enables post-1972 compatibility extensions */
 
 outinit(fd) {
-	extern outfd;
+	extern outfd, outdiag;
 	outfd = fd;
+	outdiag = 0;
 }
 
 outc(c) {
-	extern outfd;
+	extern outfd, outdiag;
+    int outdiag;
 	char b[2];
 	b[0] = c;
-	write(outfd, b, 1);
+    if (write(outfd, b, 1) != 1) {
+        if (outdiag) {
+            if (write(1, b, 1) == 1) return;
+        }
+        exit(1);
+    }
 }
 
 outs(s) char s[]; {
@@ -32,6 +40,7 @@ outd(n) {
 	char buf[8];
 	int i;
 	if (n == 0) { outc('0'); return; }
+	if (n == 0100000) { outs("-32768"); return; }
 	if (n < 0) { outc('-'); n = -n; }
 	i = 0;
 	while (n) {
@@ -47,32 +56,28 @@ outd(n) {
 
 outln() { outc('\n'); }
 
+errhead(s) char s[]; {
+    extern lineno;
+    errinit();
+    outc('\n');
+    outs("bcc: line ");
+    outd(lineno);
+    outs(": ");
+    outs(s);
+}
+
 fatal(s) char s[]; {
-	extern lineno, outfd;
-	int outfd;
-	outfd = 2;
-	outc('\n');
-	outs("bcc: line ");
-	outd(lineno);
-	outs(": ");
-	outs(s);
-	outc('\n');
-	exit(1);
+    errhead(s);
+    outc('\n');
+    exit(1);
 }
 
 fatalst(s, a) char s[]; char a[]; {
-	extern lineno, outfd;
-	int outfd;
-	outfd = 2;
-	outc('\n');
-	outs("bcc: line ");
-	outd(lineno);
-	outs(": ");
-	outs(s);
-	outs(" ");
-	outs(a);
-	outc('\n');
-	exit(1);
+    errhead(s);
+    outc(' ');
+    outs(a);
+    outc('\n');
+    exit(1);
 }
 
 nlab 0;
@@ -84,4 +89,19 @@ newl() {
 	id = nlab;
 	nlab = nlab + 1;
 	return (id);
+}
+
+errinit() {
+    extern outfd, outdiag;
+    outfd = 2;
+    outdiag = 1;
+}
+
+/* Explicit completion works even when V1 wait has no child status. */
+markok(path) char path[]; {
+    int fd;
+    fd = creat(path, 016);
+    if (fd < 0) exit(1);
+    if (write(fd, "ok", 2) != 2) exit(1);
+    if (close(fd)) { unlink(path); exit(1); }
 }
