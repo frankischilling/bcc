@@ -18,7 +18,7 @@ replace the separate native PDP-11 compiler. See the
 and the checks needed for a self-contained rebuild.
 
 A separate [native tool test](native/README.md#native-tool-fixed-point) builds
-four B-maintained components as Linux x86-64 executables and checks two further
+five B-maintained components, including a command driver, as Linux x86-64 executables and checks two further
 byte-identical rebuilds without the seed C toolchain. It is not the C-output
 `bbc` above, an installed compiler replacement, or a completed PDP-11 rebuild.
 

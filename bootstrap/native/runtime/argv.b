@@ -20,5 +20,5 @@ xargvec(limit){
     xbin(6,0,0);xcond(5,base+1);
     xlea(15,15,7);xmovim(0,-8);xbin(2,15,0);
     xlea(12,12,8);xlea(14,14,8);xmovim(0,1);xbin(3,3,0);xbranch(1,base);
-    xmark(base+3);xmov(0,5);xshift(1,0,3);xmov(2,13);xrvalid=1;
+    xmark(base+3);xlea(8,12,8);xmov(0,5);xshift(1,0,3);xmov(2,13);xrvalid=1;
 }

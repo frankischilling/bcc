@@ -510,7 +510,7 @@ argument instead exits with the return value from `main`. It binds the initial r
 entry parameters. It does
 not supply a general installed compiler command, multi-file linking, or the
 remaining library. A separate rebuild test below checks a fixed point for
-this restricted tool set. Tests run instruction construction with an empty
+this restricted tool set, including its B-written command driver. Tests run instruction construction with an empty
 tool-search path after seeding, but the seed-built tools still use the existing
 host runtime.
 
@@ -577,9 +577,10 @@ configuration remains at 200 symbols and 2,047 bytes. Names still have eight
 characters, and local counts and record indices retain their existing bounds.
 The host configuration rejects 16-bit and 32-bit word modes before reading input.
 
-This is enough to resolve the expanded test constructor's own source and a
-128-element initializer list of full-width integers. It does not establish
-native self-compilation: the constructor still lacks normal startup and a complete runtime. Its separate function-metadata table still has 200 slots.
+This is enough to resolve the expanded constructor's own source and a
+128-element initializer list of full-width integers. The native rebuild test
+below checks self-compilation separately. The runtime remains incomplete,
+and the constructor's separate function-metadata table still has 200 slots.
 
 ```sh
 python3 bootstrap/native/resolver/build.py /tmp/bcc-resolver
@@ -625,12 +626,15 @@ not provide a complete native host runtime or normal program startup.
 
 `runtime/emit.b` and `runtime/path.b` emit Linux x86-64 implementations of
 `char`, `lchar`, `read`, `write`, `close`, `seek`, `exit`, `open`, `creat`,
-`chmod`, and `unlink`. The emitted functions use the counted-argument B call
+`chmod`, `unlink`, `fork`, and `wait`. The emitted functions use the counted-argument B call
 frame from `calls.b`, not the C calling convention. They make Linux system
 calls directly and do not link a C runtime.
 
 Call `xfpro(id, xbicnt(op), 0)`, then `xbuiltin(op)`, then `xfend()`.
-Operation IDs 0 through 10 follow the order above. The emitter rejects an
+Operation IDs 0 through 10 cover `char` through `unlink`; 12 and 13 select
+`fork` and `wait`. ID 11 is reserved for the `argv` data provider and is not
+a valid `xbuiltin` operation. ID 14 is the private raw `__sys` bridge described
+below. The emitter rejects an
 unknown operation, a mismatched declared argument count, a missing function
 frame, or a nonempty expression stack. Private branches consume the label
 budget supplied to `xrinit`. At execution time, too few actual arguments
@@ -654,6 +658,16 @@ The syscall numbers come from the
 [Linux x86-64 syscall table](https://github.com/torvalds/linux/blob/master/arch/x86/entry/syscalls/syscall_64.tbl).
 These are host implementations of selected runtime operations, not PDP-11
 instruction sequences or a complete historical runtime.
+
+The process primitives follow the [B72 library interface](https://www.nokia.com/bell-labs/about/dennis-m-ritchie/kbman.html):
+`fork()` returns zero in the child and its process ID in the parent, while
+`wait()` returns a completed child's process ID rather than its exit status.
+Both map kernel errors to -1. The native implementation uses Linux `fork` and
+`wait4`, without a shell. It does not add a status-output argument to the
+historical `wait` interface. Tests check no-child failure, reaping, a nonzero
+child exit status, process-local memory changes, saved function values, and
+source-defined replacements.
+
 
 ```sh
 python3 bootstrap/native/test_runtime.py
@@ -688,7 +702,9 @@ input for the second pass. The latter copies the records and appends empty
 function records for the selected providers. The callback receives the
 NUL-terminated name, operation ID, and declared argument count. ID 11 denotes
 the predefined `argv` data cell, with count zero, rather than a function; it
-is emitted as a zero-initialized scalar record. The caller
+is emitted as a zero-initialized scalar record. ID 15 similarly supplies the
+private `__env` cell; it holds the inherited Linux environment-vector byte
+address, not a word pointer or a historical B external. The caller
 must supply distinct input and output files and close both descriptors;
 `xbicopy` flushes but does not close its output. These are internal compiler
 interfaces, not a general linker or a parser for untrusted object formats.
@@ -718,7 +734,8 @@ empty strings and bytes equal to EOT. This is the predefined B `argv` vector,
 not the host compatibility function `argv(index)` that returns EOT strings.
 
 At completion, RAX contains the vector's word pointer and RDX contains the
-argument count. RSP is unchanged; the other working registers may be clobbered.
+argument count. R8 contains the original environment-vector byte address for the private
+runtime bridge. RSP is unchanged; the other working registers may be clobbered.
 The emitter requires no active function frame or stacked expression operands.
 It uses the configured fault label for an invalid initial count, a null
 argument pointer, an allocation failure, or insufficient copy space.
@@ -740,8 +757,8 @@ without changing the kernel's original argument bytes. The call constructor
 connects this vector to source-level `argv` references while preserving source
 definitions, local shadows, address initializers, and assignment to the global
 cell. It still uses a binary-result test entry point and rejects parameters
-on `main`. Normal startup, the compatibility argument functions, and a general installed
-compiler remain unfinished.
+on `main`. The compatibility argument functions and a general installed compiler
+remain unfinished.
 
 
 ## Native tool fixed point
@@ -753,8 +770,9 @@ make -C bootstrap native-rebuild-test
 
 The rebuild test seeds four tools through the existing C-output compiler:
 the wide frontend, host resolver, call-test constructor, and ELF image writer.
-It then uses those tools to build native versions of all four from their B
-sources. Those native tools rebuild the same sources twice more. Raw records,
+It then builds native versions of those tools and a fifth B-written command
+driver. The driver is compiled through the native passes, not the C backend.
+The native tools rebuild all five sources twice more. Raw records,
 resolved records, instruction bytes, static data, and complete executables must
 match at every native stage. The test also checks the ELF segment layout,
 executes the source-program cases through the final native tools, rejects
@@ -763,11 +781,12 @@ malformed input, and prints source and artifact hashes.
 After seeding, every compiler pass runs as a native executable with an empty
 tool-search path. No GCC, assembler, or linker is invoked. The native programs
 use the B-maintained instruction and runtime modules, with direct Linux
-syscalls rather than a linked C runtime. Python still coordinates the test,
-owns the temporary files, and compares the output; it is not a B-written build
-driver. Native execution requires Linux x86-64.
+syscalls rather than a linked C runtime. Python coordinates the regression test and compares its output. A separate
+check invokes the B-written driver to rebuild each tool, including itself,
+and requires the same executable bytes. The driver runs the passes without
+Python or a shell. Native execution requires Linux x86-64.
 
-This is a fixed point for the experimental four-tool subset, not a claim that
+This is a fixed point for the experimental five-tool subset, not a claim that
 the installed `bcc`, `bccasm`, or PDP-11 commands have been replaced. The
 constructor remains a fixture with bounded tables and incomplete library
 coverage. A matching rebuild also cannot prove the seed trustworthy or the
@@ -776,6 +795,10 @@ language implementation complete. The separate conformance tests still matter.
 CI runs this rebuild in its own GCC/Clang seed lanes, alongside rather than
 after the longer native-construction suites. The existing B-bootstrap gate
 requires both sets of checks and the bootstrap regressions to succeed.
+Native-construction checks run in independent host/stage-1/stage-2/stage-3
+jobs for each seed compiler. They share the `native-stage-test` Make target;
+`native-test` still runs every stage locally. This separates the work without
+removing a seed, test command, or close-failure check.
 
 
 ### Try the verified native tools
@@ -794,17 +817,57 @@ tools="$repo/bootstrap/build/native-verified"
 python3 bootstrap/native/test_rebuild.py --output "$tools"
 work=$(mktemp -d)
 cd "$work"
-"$tools/front" "$repo/examples/native-hello.b" > raw.ic
-"$tools/resolve" -i raw.ic > resolved.ic
-"$tools/construct" raw.ic resolved.ic data run > code
-"$tools/image" code data 0 0 > hello
+"$tools/driver" "$repo/examples/native-hello.b" > hello
 chmod +x hello
 ./hello
 ```
 
 The example writes `hello from native B` and a newline using the native `write`
 primitive. No C compiler, assembler, or linker is used after the export.
-Python and the shell still manage this demonstration. The constructor writes
-`imports` and `layout` in its working directory, so use a fresh directory, not
-one containing files you need. Keep output paths separate from source files;
+Python is needed to seed and check this bundle, not to invoke the exported
+driver. Its compiler passes are B-maintained native executables. Keep the
+executables and `sources/execv.b` together. If you invoke the constructor
+directly, use a fresh directory: it writes `imports` and `layout` in its working
+directory. Keep output paths separate from source files;
 shell redirection truncates its destination before a tool can check it.
+
+
+## B-written command driver
+
+`driver/main.b` accepts one source path and writes a Linux x86-64 executable to
+standard output. It locates its sibling tools through `/proc/self/exe`, freezes
+the input in a newly created mode-0700 scratch directory, and runs the frontend,
+resolver, constructor, and image writer. It uses `fork`, counted `execv`, and
+direct wait calls, not a shell or an external command launcher. Failed passes
+stop the build; final image-write failures reach the driver exit status.
+
+Scratch files belong to that invocation. Parallel invocations do not share the
+constructor's fixed filenames or overwrite files in the caller's directory.
+Ordinary success and failure paths remove the private files and directory.
+An interrupted or killed process can leave its directory under
+`/tmp/bcc-native-PID-N`; there is no signal-cleanup handler yet. The driver
+requires Linux procfs, writable `/tmp`, and source/tool paths within its
+4 KiB pathname buffers.
+
+An unresolved `execv` reference causes the driver to append the bundled
+`lib/execv.b` source and rerun the frontend and resolver. A source function,
+scalar, or vector of that name prevents the addition. The library implements
+B's explicit argument count, converts EOT/NUL strings without changing them,
+and inherits the current process environment. It accepts at most 255 arguments,
+a pathname of at most 4,095 bytes, and 62,400 total copied pathname/argument
+bytes including terminators. Failure returns -1; success replaces the process.
+These bounds are native implementation limits, not promises from B72.
+
+`__sys(number,a,b,c,d,e,f)` is a private host bridge for this B-maintained
+runtime and driver. It takes raw Linux argument values, including byte
+addresses, and returns the raw kernel result, including negative error numbers.
+It is not a portable or historical B library function. Ordinary B-facing
+wrappers still translate errors to their documented results. `__env` supplies
+the inherited environment pointer for the exec wrapper.
+
+Tests cover process replacement, argument and environment preservation, invalid
+counts and strings, source overrides, missing tools and runtime sources,
+parallel invocations, preserved caller files, and a full output device. The
+same B driver rebuilds all five native tools byte-for-byte. It is still an
+experimental single-input compiler, not a replacement for all installed
+`bcc` options, word models, runtime functions, or the PDP-11 compiler.

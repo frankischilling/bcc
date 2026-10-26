@@ -6,7 +6,7 @@ STAGE2 := $(BUILD)/stage2/bbc
 STAGE3 := $(BUILD)/stage3/bbc
 
 .SUFFIXES:
-.PHONY: all stage1 stage2 stage3 test native-test native-rebuild-test clean
+.PHONY: all stage1 stage2 stage3 test native-test native-stage-test native-rebuild-test clean
 
 all: stage3
 
@@ -77,23 +77,30 @@ test: stage3
 	@set -e; for stage in 1 2 3; do python3 ../tests/test_library_bindings.py --bootstrap --compiler build/stage$$stage/bbc; done
 	@set -e; for stage in 1 2 3; do python3 ../tests/test_identifier_bytes.py --bootstrap --compiler build/stage$$stage/bbc; done
 
+NATIVE_COMPILER ?= $(STAGE0)
+NATIVE_FLAGS ?=
+NATIVE_TESTS := native/test_elfimage.py \
+	native/test_x64.py \
+	native/test_labels.py \
+	native/test_ops.py \
+	native/test_calls.py \
+	native/test_data.py \
+	native/test_resolver.py \
+	native/test_runtime.py \
+	native/test_argv.py \
+	native/test_control.py \
+	native/test_memory.py \
+	native/test_scalar.py \
+	native/test_arity.py \
+	native/test_frontend.py \
+	../pdp-11/bcc-pdp/bootstrap/test_source_reader.py
+
+native-stage-test:
+	@set -e; for test in $(NATIVE_TESTS); do python3 "$$test" $(NATIVE_FLAGS) --compiler "$(NATIVE_COMPILER)"; done
+
 native-test: stage3
-	python3 native/test_elfimage.py --compiler $(STAGE0)
-	python3 native/test_x64.py --compiler $(STAGE0)
-	python3 native/test_labels.py --compiler $(STAGE0)
-	python3 native/test_ops.py --compiler $(STAGE0)
-	python3 native/test_calls.py --compiler $(STAGE0)
-	python3 native/test_data.py --compiler $(STAGE0)
-	python3 native/test_resolver.py --compiler $(STAGE0)
-	python3 native/test_runtime.py --compiler $(STAGE0)
-	python3 native/test_argv.py --compiler $(STAGE0)
-	python3 native/test_control.py --compiler $(STAGE0)
-	python3 native/test_memory.py --compiler $(STAGE0)
-	python3 native/test_scalar.py --compiler $(STAGE0)
-	python3 native/test_arity.py --compiler $(STAGE0)
-	python3 native/test_frontend.py --compiler $(STAGE0)
-	python3 ../pdp-11/bcc-pdp/bootstrap/test_source_reader.py --compiler $(STAGE0)
-	@set -e; for stage in 1 2 3; do python3 native/test_elfimage.py --bootstrap --compiler build/stage$$stage/bbc; python3 native/test_x64.py --bootstrap --compiler build/stage$$stage/bbc; python3 native/test_labels.py --bootstrap --compiler build/stage$$stage/bbc; python3 native/test_ops.py --bootstrap --compiler build/stage$$stage/bbc; python3 native/test_frontend.py --bootstrap --compiler build/stage$$stage/bbc; python3 native/test_arity.py --bootstrap --compiler build/stage$$stage/bbc; python3 native/test_scalar.py --bootstrap --compiler build/stage$$stage/bbc; python3 native/test_memory.py --bootstrap --compiler build/stage$$stage/bbc; python3 native/test_control.py --bootstrap --compiler build/stage$$stage/bbc; python3 native/test_calls.py --bootstrap --compiler build/stage$$stage/bbc; python3 native/test_data.py --bootstrap --compiler build/stage$$stage/bbc; python3 native/test_resolver.py --bootstrap --compiler build/stage$$stage/bbc; python3 native/test_runtime.py --bootstrap --compiler build/stage$$stage/bbc; python3 native/test_argv.py --bootstrap --compiler build/stage$$stage/bbc; python3 ../pdp-11/bcc-pdp/bootstrap/test_source_reader.py --bootstrap --compiler build/stage$$stage/bbc; done
+	$(MAKE) native-stage-test NATIVE_COMPILER="$(STAGE0)"
+	@set -e; for stage in 1 2 3; do $(MAKE) native-stage-test NATIVE_COMPILER="build/stage$$stage/bbc" NATIVE_FLAGS=--bootstrap; done
 
 native-rebuild-test: stage3
 	python3 native/test_rebuild.py --compiler $(STAGE0)

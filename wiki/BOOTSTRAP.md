@@ -35,11 +35,13 @@ separate trust question.
 ## Experimental native fixed point
 
 The [native rebuild test](../bootstrap/native/README.md#native-tool-fixed-point)
-now seeds four B-maintained tools and rebuilds all four twice with their native
-versions: frontend, resolver, code constructor, and ELF image writer. The
+now seeds the native passes and rebuilds five B-maintained tools twice:
+frontend, resolver, code constructor, ELF image writer, and command driver. The
 native stages match in raw and resolved records, code, data, and complete
 executable bytes. They run without a C runtime or external compiler, assembler,
-or linker after seeding. Python still coordinates the test and compares files.
+or linker after seeding. Python coordinates the regression test and compares
+files. The B-written driver also rebuilds every tool, including itself, to the
+same executable bytes without Python or a shell.
 
 This is a restricted Linux x86-64 tool set, not a replacement for the installed
 host compiler, assembly snapshots, or PDP-11 compiler. The constructor remains
@@ -79,8 +81,8 @@ and rejects undefined labels. An integer-operation selector handles 64-bit
 arithmetic, comparisons, shifts, and unary operations while preserving the
 host's word behavior. Tests compare the bytes and execute the resulting images
 on Linux x86-64. Building these components still uses the C-output toolchain.
-The full runtime, remaining source constructs, normal startup, and independent
-build driver remain necessary.
+Full runtime coverage and installed-command parity remain necessary; the
+experimental native driver and rebuild are described above.
 
 The [wide record frontend](../bootstrap/native/frontend/README.md) shares the
 B parser while selecting 64-bit numeric helpers. The PDP-11 configuration
@@ -119,8 +121,9 @@ source does not define the name, preserving writable function cells and
 user-defined replacements. An [entry argument packer](../bootstrap/native/README.md#entry-argument-vector)
 now initializes the predefined `argv` vector from Linux process arguments,
 with separate aligned copies of the NUL-terminated strings. The constructor can also exit with `main`'s return value for native tool
-rebuilds. Compatibility argument functions, a general installed driver,
-allocation, and formatted I/O are still missing. These primitives do not
+rebuilds. The experimental B-written driver now chains the passes and supplies
+the counted exec library when needed. Compatibility argument functions, full
+installed-command parity, allocation, and formatted I/O are still missing. These primitives do not
 change the normal compiler's C-toolchain dependency.
 
 A separate [host resolver storage module](../bootstrap/native/README.md#host-resolver-storage)

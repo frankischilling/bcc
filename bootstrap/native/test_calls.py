@@ -147,6 +147,17 @@ SOURCE_CASES += [
  ('main(){auto argv 1;argv[0]=42;return(argv[0]);}',42),
 ]
 
+SOURCE_CASES += [
+ ('main(){extrn wait;return(wait());}',-1),
+ ('main(){extrn fork,wait,exit;auto p;p=fork();if(p<0)return(1);if(!p)exit();return(wait()!=p);}',0),
+ ('value 7;main(){extrn value,fork,wait,exit;auto p;p=fork();if(p<0)return(1);if(!p){value=99;exit();}if(wait()!=p)return(2);return(value);}',7),
+ ('fork(){return(42);}main(){return(fork());}',42),
+ ('wait 42;main(){extrn wait;return(wait);}',42),
+ ('main(){extrn wait;auto saved;saved=wait;return(saved());}',-1),
+ ('main(){extrn fork,wait,exit;auto p;p=fork();if(p<0)return(1);if(!p)exit(42);return(wait()!=p);}',0),
+]
+
+
 ABI_CASES=[(0,0,2,0),(0,1,2,1),(0,2,2,3),(0,5,2,3),(1,8,2,8),
            (2,0,0,0),(2,8,0,8),(3,15,1,120),(4,1,1,141),(5,1,1,15),
            (6,0,0,None),(7,0,0,None),(8,0,0,None),(9,0,32767,0),
@@ -177,7 +188,7 @@ def main():
         build('front',frontend.source_text());build('resolver',resolver.source_text())
         build('image',(ROOT/'elfimage.b').read_text());(work/'empty').write_bytes(b'')
 
-        def image_check(name,code,data,value,status=0,prefix=b'',stderr=b'',arguments=()):
+        def image_check(name,code,data,value,status=0,prefix=b'',stderr=b'',arguments=(),environment=None):
             nonlocal passed
             (work/'code').write_bytes(code)
             image=subprocess.run([str(work/'image'),'code',data,'0','0'],cwd=work,
@@ -185,7 +196,7 @@ def main():
             assert(image.returncode,image.stderr)==(0,b''),(name,image)
             if execute:
                 (work/'result').write_bytes(image.stdout);(work/'result').chmod(0o700)
-                run=subprocess.run([str(work/'result'),*arguments],cwd=work,stdin=subprocess.DEVNULL,capture_output=True,timeout=10,env=tool_free)
+                run=subprocess.run([str(work/'result'),*arguments],cwd=work,stdin=subprocess.DEVNULL,capture_output=True,timeout=10,env=tool_free if environment is None else environment)
                 expected=prefix+(b'' if value is None else struct.pack('<q',value))
                 assert(run.returncode,run.stdout,run.stderr)==(status,expected,stderr),(name,run,expected)
             passed+=1
@@ -236,7 +247,15 @@ def main():
             assert(run.returncode,run.stderr)==(0,b''),(index,text,run)
             image_check('source/'+str(index),run.stdout,'data',value)
 
+        (work/'map-input').write_bytes(bytes(4096)+b'M'+bytes(4095))
         runtime_cases = [
+            ('main(){extrn __sys;auto p,v,x;p=__sys(9,0,4096,3,34,-1,0);if(p<0)return(1);v=p>>3;*v=42;x= *v;if(__sys(11,p,4096,0,0,0,0))return(2);return(x);}',42,0,b'',b''),
+            ('main(){extrn __sys,open,close,char;auto fd,p,x;fd=open("map-input",0);if(fd<0)return(1);p=__sys(9,0,4096,1,2,fd,4096);if(p<0)return(2);x=char(p>>3,0);if(__sys(11,p,4096,0,0,0,0))return(3);close(fd);return(x);}',77,0,b'',b''),
+            ('main(){extrn __sys;return(__sys(39,0,0,0,0,0,0)>0);}',1,0,b'',b''),
+            ('main(){extrn __sys;return(__sys(3,-1,0,0,0,0,0));}',-9,0,b'',b''),
+            ('main(){extrn __sys;auto p;p="S";return(__sys(1,1,p<<3,1,0,0,0));}',1,0,b'S',b''),
+            ('main(){extrn __sys;return(__sys(39,0,0,0,0,0));}',None,77,b'',b''),
+            ('__sys(a,b,c,d,e,f,g){return(42);}main(){return(__sys(0,0,0,0,0,0,0));}',42,0,b'',b''),
             ('main(){extrn write;return(write(1,"A",1));}', 1, 0, b'A', b''),
             ('main(){extrn write;return(write(2,"B",1));}', 1, 0, b'', b'B'),
             ('main(){extrn exit;exit();return(99);}', None, 0, b'', b''),
@@ -269,6 +288,50 @@ def main():
         (work/'resolved.ic').write_bytes(b'Glit 1 4\npr main 0 30000\nst 0\ndr\nrt\nep 0\n')
         run=construct();assert(run.returncode,run.stderr)==(0,b''),run
         image_check('preassigned-literal',run.stdout,'data',4)
+
+        exec_environment = {'BCC_EXEC_TEST': 'kept', 'PATH': ''}
+        helper = ('main(){extrn argv,char,__env,__sys;auto p;'
+                  'if(argv[0]!=3)return(1);'
+                  'if(char(argv[2],0)!=0 | char(argv[3],0)!=65)return(2);'
+                  'p=__env>>3;if(__sys(1,1,p[0],18,0,0,0)!=18)return(3);return(37);}')
+        records(helper);run=construct(mode='run')
+        assert (run.returncode,run.stderr)==(0,b''),run
+        image_check('exec-helper',run.stdout,'data',None,37,prefix=b'BCC_EXEC_TEST=kept',
+                    arguments=[b'',b'A'],environment=exec_environment)
+        (work/'helper').write_bytes((work/'result').read_bytes())
+        (work/'helper').chmod(0o700)
+        exec_library = (ROOT/'lib/execv.b').read_text()
+        text = exec_library + ('main(){extrn execv;auto v 3;v[0]="custom";v[1]="";'
+                               'v[2]="A";execv("./helper",v,3);return(99);}')
+        records(text);run=construct()
+        assert (run.returncode,run.stderr)==(0,b''),run
+        image_check('execv-replacement',run.stdout,'data',None,37,prefix=b'BCC_EXEC_TEST=kept',
+                    environment=exec_environment)
+        records(exec_library+'main(){extrn execv,lchar;auto p 7800,v 1,i;'
+                'i=0;while(i<62392)lchar(p,i++,65);lchar(p,62392,4);v[0]=p;'
+                'execv("helper",v,1);return(99);}')
+        run=construct()
+        assert (run.returncode,run.stderr)==(0,b''),run
+        image_check('execv-exact-copy-bound',run.stdout,'data',None,1)
+        exec_errors = [
+            'return(execv());',
+            'return(execv("helper"));',
+            'return(execv("helper",0));',
+            'return(execv(0,0,0));',
+            'return(execv("missing",0,2));',
+            'return(execv("missing",0,-1));',
+            'return(execv("missing",0,256));',
+            'return(execv("missing",0,0));',
+            'auto v 2;v[0]="helper";v[1]=0;return(execv("helper",v,2));',
+            'auto v 1,p;p="missing";v[0]=p;if(execv(p,v,1)!=-1)return(1);return(char(p,7)==4?-1:2);',
+            'auto p 513,i;i=0;while(i<4096)lchar(p,i++,47);lchar(p,4096,4);return(execv(p,0,0));',
+            'auto p 7800,v 1,i;i=0;while(i<62399)lchar(p,i++,65);lchar(p,62399,4);v[0]=p;return(execv("helper",v,1));',
+        ]
+        for index, body in enumerate(exec_errors):
+            records(exec_library+'main(){extrn execv,char,lchar;'+body+'}')
+            run=construct()
+            assert (run.returncode,run.stderr)==(0,b''),(index,run)
+            image_check('execv-error/'+str(index),run.stdout,'data',-1)
 
         records('main(){return(37);}');run=construct(mode='run')
         assert (run.returncode,run.stderr)==(0,b''),run

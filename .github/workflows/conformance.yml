@@ -49,21 +49,29 @@ jobs:
             python3 tests/test_output_errors.py --bootstrap --compiler bootstrap/build/stage$stage/bbc --close-faults
           done
   b_native:
-    name: B native construction (${{ matrix.cc }})
+    name: B native construction (${{ matrix.cc }}, ${{ matrix.stage }})
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
         cc: [gcc, clang]
+        stage: [host, 1, 2, 3]
     steps:
       - uses: actions/checkout@v4
       - name: Build the seed compiler
         run: make CC=${{ matrix.cc }}
+      - name: Build the selected B bootstrap stage
+        if: matrix.stage != 'host'
+        run: make -C bootstrap stage${{ matrix.stage }}
       - name: Check B-written host-native construction
         run: |
-          make -C bootstrap native-test
-          python3 bootstrap/native/test_elfimage.py --close-faults
-          python3 bootstrap/native/test_x64.py --close-faults
+          if [ "${{ matrix.stage }}" = host ]; then
+            make -C bootstrap native-stage-test NATIVE_COMPILER=../bcc
+            python3 bootstrap/native/test_elfimage.py --close-faults
+            python3 bootstrap/native/test_x64.py --close-faults
+          else
+            make -C bootstrap native-stage-test NATIVE_COMPILER=build/stage${{ matrix.stage }}/bbc NATIVE_FLAGS=--bootstrap
+          fi
   b_native_rebuild:
     name: B native rebuild (${{ matrix.cc }})
     runs-on: ubuntu-24.04

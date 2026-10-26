@@ -1,6 +1,6 @@
 /* Linux x86-64 primitives using the native B counted-argument call frame. */
-xbiarity[] 2,3,3,3,1,3,1,2,2,2,1;
-xbicnt(op){extrn xbiarity;if(op<0 | op>10)xrfail();return(xbiarity[op]);}
+xbiarity[] 2,3,3,3,1,3,1,2,2,2,1,-1,0,0,7;
+xbicnt(op){extrn xbiarity;if(op<0 | op>14 | op==11)xrfail();return(xbiarity[op]);}
 xbilabs(n){
     extrn xrnext,xrlimit;auto base;
     if(n<1 | xrnext<0 | xrnext>xrlimit | n>xrlimit-xrnext)xrfail();
@@ -29,6 +29,15 @@ xbuiltin(op){
         xbin(6,0,0);xcmpout(12);xunary(1,0);goto done;
     }
     if(op==6){xload(7,5,24);xmovim(0,60);xsys();xbyte(15);xbyte(11);goto done;}
+    if(op==12){xmovim(0,57);xsys();xbierr();goto done;}
+    if(op==13){
+        xmovim(7,-1);xmovim(6,0);xmovim(2,0);xmovim(10,0);
+        xmovim(0,61);xsys();xbierr();goto done;
+    }
+    if(op==14){
+        xload(0,5,24);xload(7,5,32);xload(6,5,40);xload(2,5,48);
+        xload(10,5,56);xload(8,5,64);xload(9,5,72);xsys();goto done;
+    }
     xbipath(op);
  done:xrvalid=1;
 }

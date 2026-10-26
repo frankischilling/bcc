@@ -42,6 +42,23 @@ class Gate(unittest.TestCase):
         self.assertIn('REBUILD_RESULT: ${{ needs.b_native_rebuild.result }}', gate)
         self.assertIn('require-success.sh 3 "$BOOTSTRAP_RESULT" "$NATIVE_RESULT" "$REBUILD_RESULT"', gate)
 
+    def test_native_matrix_preserves_every_seed(self):
+        workflow = (GATE.parents[1] / 'workflows/conformance.yml').read_text()
+        lane = workflow.split('  b_native:\n', 1)[1].split('  b_native_rebuild:\n', 1)[0]
+        self.assertIn('cc: [gcc, clang]', lane)
+        self.assertIn('stage: [host, 1, 2, 3]', lane)
+        self.assertIn('NATIVE_COMPILER=../bcc', lane)
+        self.assertIn('NATIVE_COMPILER=build/stage${{ matrix.stage }}/bbc NATIVE_FLAGS=--bootstrap', lane)
+        self.assertIn('test_elfimage.py --close-faults', lane)
+        self.assertIn('test_x64.py --close-faults', lane)
+        makefile = (GATE.parents[2] / 'bootstrap/Makefile').read_text()
+        tests = makefile.split('NATIVE_TESTS :=', 1)[1].split('native-stage-test:', 1)[0]
+        expected = ('elfimage', 'x64', 'labels', 'ops', 'calls', 'data', 'resolver',
+                    'runtime', 'argv', 'control', 'memory', 'scalar', 'arity', 'frontend')
+        for name in expected:
+            self.assertEqual(tests.count('native/test_' + name + '.py'), 1)
+        self.assertIn('../pdp-11/bcc-pdp/bootstrap/test_source_reader.py', tests)
+
     def test_unix_v1_gate_covers_all_lanes(self):
         workflow = (GATE.parents[1] / 'workflows/conformance.yml').read_text()
         gate = workflow.split('  unix-v1:\n', 1)[1].split('\n  b-passes-v1:', 1)[0]
