@@ -30,8 +30,8 @@ jobs:
         run: make test-install
       - name: Reject delayed compiler output failures
         run: python3 tests/test_output_errors.py --compiler ./bcc --close-faults
-  b_bootstrap:
-    name: B bootstrap (${{ matrix.cc }})
+  b_bootstrap_checks:
+    name: B bootstrap regressions (${{ matrix.cc }})
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
@@ -43,16 +43,43 @@ jobs:
         run: make CC=${{ matrix.cc }}
       - name: Check the B-written bootstrap
         run: make -C bootstrap test
-      - name: Check B-written host-native construction
-        run: |
-          make -C bootstrap native-test
-          python3 bootstrap/native/test_elfimage.py --close-faults
-          python3 bootstrap/native/test_x64.py --close-faults
       - name: Reject delayed bootstrap output failures
         run: |
           for stage in 1 2 3; do
             python3 tests/test_output_errors.py --bootstrap --compiler bootstrap/build/stage$stage/bbc --close-faults
           done
+  b_native:
+    name: B native construction (${{ matrix.cc }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        cc: [gcc, clang]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the seed compiler
+        run: make CC=${{ matrix.cc }}
+      - name: Check B-written host-native construction
+        run: |
+          make -C bootstrap native-test
+          python3 bootstrap/native/test_elfimage.py --close-faults
+          python3 bootstrap/native/test_x64.py --close-faults
+  b_bootstrap:
+    name: B bootstrap (${{ matrix.cc }})
+    needs: [b_bootstrap_checks, b_native]
+    if: ${{ always() }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        cc: [gcc, clang]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Require bootstrap and native construction checks
+        env:
+          BOOTSTRAP_RESULT: ${{ needs.b_bootstrap_checks.result }}
+          NATIVE_RESULT: ${{ needs.b_native.result }}
+        run: sh .github/scripts/require-success.sh 2 "$BOOTSTRAP_RESULT" "$NATIVE_RESULT"
   assembly:
     name: assembly (${{ matrix.mode }})
     runs-on: ubuntu-24.04

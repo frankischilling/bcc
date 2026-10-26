@@ -49,6 +49,12 @@ checks. Both assembly executables still run the full host suite; their native
 image, instruction-encoder, label-resolution, and word-operation checks run
 separately too.
 
+B-bootstrap regressions and native construction also run in separate jobs.
+Each builds its own seed and B stages. The stable `B bootstrap (gcc)` and
+`B bootstrap (clang)` gates require both groups, including both seed compilers,
+to succeed. This removes the dependency between two long suites without
+sharing mutable build files or reusing a cached test result.
+
 The existing `host (gcc)` and `host (clang)` check names are retained as final
 gates. They pass only when every host, B-bootstrap, and assembly lane succeeds.
 A failure, cancellation, skipped lane, or missing result cannot make a gate

@@ -32,6 +32,15 @@ class Gate(unittest.TestCase):
                 with self.subTest(count=count, value=value):
                     self.assertEqual(self.run_gate([value] + ['success'] * (count - 1), count).returncode, 1)
 
+    def test_bootstrap_gate_covers_both_lanes(self):
+        workflow = (GATE.parents[1] / 'workflows/conformance.yml').read_text()
+        gate = workflow.split('  b_bootstrap:\n', 1)[1].split('\n  assembly:', 1)[0]
+        self.assertIn('needs: [b_bootstrap_checks, b_native]', gate)
+        self.assertIn('if: ${{ always() }}', gate)
+        self.assertIn('BOOTSTRAP_RESULT: ${{ needs.b_bootstrap_checks.result }}', gate)
+        self.assertIn('NATIVE_RESULT: ${{ needs.b_native.result }}', gate)
+        self.assertIn('require-success.sh 2 "$BOOTSTRAP_RESULT" "$NATIVE_RESULT"', gate)
+
     def test_unix_v1_gate_covers_all_lanes(self):
         workflow = (GATE.parents[1] / 'workflows/conformance.yml').read_text()
         gate = workflow.split('  unix-v1:\n', 1)[1].split('\n  b-passes-v1:', 1)[0]
