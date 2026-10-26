@@ -490,6 +490,8 @@ size_t emit_edge_list_init(FILE *out, const char *arr,
 
 // Main/File I/O
 
+char *compile_libb(const char *directory, int verbose, int byteptr, int word_bits);
+
 char *read_file_all(const char *path, size_t *out_len);
 char *resolve_include_path(const char *include_name, const char *current_file);
 void dump_token_stream(Parser *P);

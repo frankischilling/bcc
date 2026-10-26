@@ -9,7 +9,7 @@ import subprocess
 import tempfile
 
 ROOT = Path(__file__).resolve().parent.parent
-SOURCES = ['util', 'lexer', 'parser', 'sem', 'arena', 'emitter', 'main']
+SOURCES = ['util', 'lexer', 'parser', 'sem', 'arena', 'emitter', 'runtime_cache', 'main']
 FLAGS = ['-std=c99', '-O2', '-fno-ident', '-S']
 
 

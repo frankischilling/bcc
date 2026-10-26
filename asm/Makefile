@@ -4,7 +4,7 @@ PYTHON ?= python3
 CFLAGS ?= -O2
 LDFLAGS ?= -lm
 TARGET = bccasm
-ASM_SOURCES = $(addprefix generated/,$(addsuffix .s,util lexer parser sem arena emitter main))
+ASM_SOURCES = $(addprefix generated/,$(addsuffix .s,util lexer parser sem arena emitter runtime_cache main))
 OBJECTS = $(ASM_SOURCES:.s=.o)
 
 all: check-snapshots $(TARGET) runtime

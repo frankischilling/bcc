@@ -30,6 +30,11 @@ make
 make test
 ```
 
+Use `BCC_TEST_JOBS=4 make test` to run independent host suites concurrently;
+the default is one at a time. Host runtime objects are cached in a private
+per-user directory. See the [architecture guide](docs/architecture.md#host-compiler)
+for cache validation and `BCC_CACHE_DIR`.
+
 A small B program looks like this:
 
 <!-- bcc-example {"stdout":"hello\n","native":true,"bootstrap":true} -->

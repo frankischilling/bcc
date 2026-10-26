@@ -7,9 +7,11 @@ from pathlib import Path
 import shutil
 import tempfile
 import subprocess
+import sys
 import unittest
+import threading
 from unittest.mock import patch
-from run_suite import checked_run
+from run_suite import checked_run, run_suites
 
 
 class SuiteResults(unittest.TestCase):
@@ -35,6 +37,69 @@ class SuiteResults(unittest.TestCase):
 
     def test_last_summary(self):
         self.assertFalse(self.check('Results: 3 passed, 0 failed\nResults: 0 passed, 2 failed\n'))
+
+
+class ParallelSuites(unittest.TestCase):
+    def test_all_suites_run_after_failure(self):
+        seen = []
+        lock = threading.Lock()
+        def run(command, label):
+            with lock:
+                seen.append(label)
+            if label == 'crash':
+                raise RuntimeError('fixture')
+            return label != 'failed'
+        suites = [(['fixture'], name) for name in ('failed', 'crash', 'passed', 'last')]
+        with patch('run_suite.checked_run', side_effect=run), contextlib.redirect_stdout(io.StringIO()):
+            self.assertFalse(run_suites(suites, 2))
+        self.assertCountEqual(seen, [name for _, name in suites])
+
+    def test_concurrency_is_bounded(self):
+        lock = threading.Lock()
+        barrier = threading.Barrier(2, timeout=5)
+        active = peak = 0
+        def run(command, label):
+            nonlocal active, peak
+            with lock:
+                active += 1
+                peak = max(peak, active)
+            barrier.wait()
+            with lock:
+                active -= 1
+            return True
+        with patch('run_suite.checked_run', side_effect=run):
+            self.assertTrue(run_suites([(['fixture'], str(i)) for i in range(4)], 2))
+        self.assertEqual(peak, 2)
+        self.assertEqual(active, 0)
+
+    def test_sequential_order(self):
+        seen = []
+        def run(command, label):
+            seen.append(label)
+            return True
+        with patch('run_suite.checked_run', side_effect=run):
+            self.assertTrue(run_suites([([], str(i)) for i in range(4)], 1))
+        self.assertEqual(seen, ['0', '1', '2', '3'])
+
+    def test_real_subprocess_results(self):
+        with tempfile.TemporaryDirectory(prefix='bcc-runner-workers-') as directory:
+            marker = Path(directory) / 'last'
+            suites = [
+                ([sys.executable, '-c', "print('Results: 2 passed, 0 failed')"], 'good'),
+                ([sys.executable, '-c', "print('Results: 0 passed, 1 failed')"], 'bad'),
+                ([sys.executable, '-c', 'from pathlib import Path; '
+                  + f'Path({str(marker)!r}).write_text("ran"); '
+                  + "print('Results: 1 passed, 0 failed')"], 'last'),
+            ]
+            with contextlib.redirect_stdout(io.StringIO()):
+                self.assertFalse(run_suites(suites, 2))
+            self.assertEqual(marker.read_text(), 'ran')
+
+    def test_invalid_jobs_and_empty_batch(self):
+        for jobs in (0, -1):
+            with self.assertRaises(ValueError):
+                run_suites([([], 'fixture')], jobs)
+        self.assertFalse(run_suites([], 1))
 
 
 class ShellIsolation(unittest.TestCase):

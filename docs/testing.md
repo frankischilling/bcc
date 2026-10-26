@@ -28,12 +28,23 @@ cross-file initialization order, contiguous simple definitions, cycles,
 mutations, duplicate definitions, and statement-bodied functions. Host-only
 compatibility cases check argument-dependent global initializers and ensure
 that invoking initialization twice does not reset globals. Tests of the runner guard against
-false-green reports.
+false-green reports. Runtime-cache tests cover old shared objects, directory
+ownership and permissions, symbolic and hard links, empty objects, failed
+publication, concurrent compiles, alternate word sizes, and temporary-object
+cleanup. Run them separately with `python3 tests/test_runtime_cache.py`; use
+`--compiler asm/bccasm` to check the assembly-source executable.
 
 `bccasm` runs the same host suite. The B-written compiler runs lexical and
 expression cases at each of its three stages, separately from the generated-C
 fixed-point check. The installation test uses a temporary prefix containing
 spaces and checks both runtime layouts.
+
+The default runner uses one suite at a time. Use `BCC_TEST_JOBS=4 make test`
+or `python3 tests/run_suite.py --jobs 4` to run up to four independent suites
+concurrently. Each suite keeps its own timeout and temporary files; output
+is printed in whole-suite groups as suites finish. A failed or crashed suite
+does not skip the others. The quick option still omits only the word-semantics
+shell suite.
 
 ## CI scheduling
 
@@ -43,6 +54,7 @@ request rather than launching a duplicate push workflow. Keep a draft pull
 request open while working; manual dispatch is available once the workflow
 is on the default branch.
 
+Host and assembly host-suite runners use four workers in CI.
 Host tests, B-bootstrap checks, and the normal and staged assembly builds run
 in parallel jobs. Both GCC and Clang still seed the host and B-bootstrap
 checks. Both assembly executables still run the full host suite; their native

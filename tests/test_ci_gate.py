@@ -88,6 +88,13 @@ class Gate(unittest.TestCase):
                 self.assertNotIn('run: make', body)
         self.assertEqual(set(slim), {'b_bootstrap', 'host', 'sanitizers', 'unix-v1'})
 
+    def test_host_suite_concurrency_is_explicit(self):
+        workflow = (GATE.parents[1] / 'workflows/conformance.yml').read_text()
+        self.assertEqual(workflow.count('BCC_TEST_JOBS=4 make test\n'), 2)
+        self.assertIn('BCC_TEST_JOBS=4 make -C asm "${{ matrix.target }}"', workflow)
+        runner = GATE.parents[2] / 'tests/run_suite.py'
+        self.assertIn("os.environ.get('BCC_TEST_JOBS', '1')", runner.read_text())
+
     def test_workflow_supplies_explicit_counts(self):
         workflow = (GATE.parents[1] / 'workflows/conformance.yml').read_text()
         self.assertIn('require-success.sh 3 "$HOST_RESULT" "$BOOTSTRAP_RESULT" "$ASSEMBLY_RESULT"', workflow)

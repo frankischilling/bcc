@@ -7,14 +7,15 @@
     "-S"
   ],
   "sources": {
-    "src/bcc.h": "44389b384789a79d11af5dd37d28b8690d95c6ad504ebf0ce4b4949f3fd99ddb",
+    "src/bcc.h": "b41c80e0800de27fe78763ef3ef9b52a3aac1089d8bf3ec9455cf73d9ca81dca",
     "src/util.c": "66c1b7dc05d120fe1e83ada133e673fbbf82583cf12b0bc477baf3300b954fd5",
     "src/lexer.c": "2066b027efa1ec130d07bd50a30775ff2f66b5e5718cef605351e53ed8733f49",
     "src/parser.c": "7aad4fdff128ffb56b9c821bf79d78967b406f9eec7ea8fe1bbfe448360b0c06",
     "src/sem.c": "13ad5c28cfc840ea5b606bc89e8a4a9dd2a152a95a31683145ddfbab0729a3b2",
     "src/arena.c": "d1a7a80e10ff280099623fda246ea1af316d0a1e76607db40820a48ca3799a76",
     "src/emitter.c": "e9f437c4479d725fa39ceaabf854efb51bad70d17fbdd53fe939d985b378a52d",
-    "src/main.c": "f8fc543919c945bb3c837a344747e27e95ab8378708f6cd10b8b1c010095d900"
+    "src/runtime_cache.c": "d5abfd994955809406331605d7a9cd766bad89d3bae0cee3940d0e7936c40522",
+    "src/main.c": "c479d118ef318472b8c12761985f2b4bc18370bf94a9c44583224f1ca3cb4385"
   },
   "assembly": {
     "util.s": "5292b857f50682f6f5a4adcee98fc9ba98059a7bb7c24524d88a2d6c4491cf3f",
@@ -23,6 +24,7 @@
     "sem.s": "db35f051d708eb56c123f5dae14ca03dcf31bc5aadd9b23e130c6a3a327a65af",
     "arena.s": "01ec3c3805064581f6daea98a1607b24ae2fc14900d058761f516f272c129665",
     "emitter.s": "728fa3d350daa31fbe67f0bfb8b60ac3700b5f34761cf052dace473fc8cd9ad9",
-    "main.s": "4b3d91cdd4f1805082b0670fc8f8bb4e5e8faaa662f03395eb48165c266fa739"
+    "runtime_cache.s": "557cf08963f7015425e54874541dc8e1d09dcf460e17d15b4758d974a00ea0ec",
+    "main.s": "32fc5625e88b4823e84782858cbb3a1141ff6759aefcb8e2efc444b8a117617a"
   }
 }

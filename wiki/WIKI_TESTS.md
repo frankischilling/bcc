@@ -50,6 +50,12 @@ The full-system checks exercise a restored kernel and compare rebuilt
 compiler binaries and B library assembly. The fast emulator alone cannot
 establish historical syscall behavior.
 
+The host runner accepts `--jobs N`, or `BCC_TEST_JOBS=N` through Make, to
+run independent suites concurrently. It still runs every selected suite after
+a failure and keeps each suite's output together. CI uses four workers; local
+runs default to one. Cache regressions check ownership, modes, links, failed
+publication, concurrent builds, and cleanup of uncached temporary objects.
+
 The test runner rejects missing summaries and runs with no executed tests.
 A green test run is evidence for those cases, not proof that every language
 feature or arbitrary program is bug-free. Keep new failures as regressions

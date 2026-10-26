@@ -13,6 +13,7 @@ ASM_SOURCES = \
 	../generated/sem.s \
 	../generated/arena.s \
 	../generated/emitter.s \
+	../generated/runtime_cache.s \
 	../generated/main.s
 
 OBJECTS = \
@@ -22,6 +23,7 @@ OBJECTS = \
 	$(STAGE)/obj/sem.o \
 	$(STAGE)/obj/arena.o \
 	$(STAGE)/obj/emitter.o \
+	$(STAGE)/obj/runtime_cache.o \
 	$(STAGE)/obj/main.o
 
 all: check-snapshots $(TARGET) runtime

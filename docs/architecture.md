@@ -12,6 +12,22 @@ tree. `src/sem.c` resolves declarations, function/label scope, and strict-mode
 checks. `src/emitter.c` lowers the checked tree to C. `src/arena.c` owns
 compiler allocations; `src/util.c` contains shared helpers and diagnostics.
 
+`src/runtime_cache.c` builds and reuses host runtime objects. The default
+cache is `/tmp/bcc-libb-<effective-user-id>`; `BCC_CACHE_DIR` selects another
+location under directories you control. The cache directory must belong to the current effective user, have mode
+0700, and not be a symbolic link. Reused objects must be nonempty regular
+files owned by that user, with no group/other permissions and one hard link.
+The cache key includes runtime sources and headers plus the selected word,
+pointer, and strictness modes. It is a reuse key, not an authenticity check;
+files written by the same user and the host toolchain remain trusted.
+
+Runtime compilation writes a private temporary object and publishes it with
+an atomic rename. An unavailable or unsafe cache falls back to a unique
+object removed when the compiler exits normally. It does not read the old
+shared `/tmp/bcc_libb_*.o` names or change an existing unsafe directory's
+permissions. This cache belongs to the C-backed host path, not the B-native
+compiler's toolchain-free rebuild.
+
 Executable, object, and host-assembly output use the same C representation.
 Assembly emission asks the host compiler to lower that C with `-S`; it is
 not an independent handwritten B backend.

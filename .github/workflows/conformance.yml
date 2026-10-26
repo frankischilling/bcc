@@ -25,7 +25,7 @@ jobs:
       - name: Build the host compiler
         run: make CC=${{ matrix.cc }}
       - name: Run host and emitted-assembly tests
-        run: make test
+        run: BCC_TEST_JOBS=4 make test
       - name: Check installed runtime lookup
         run: make test-install
       - name: Reject delayed compiler output failures
@@ -123,7 +123,7 @@ jobs:
       - name: Check assembly-source build and runtime
         run: |
           python3 tests/test_staged_runtime.py
-          make -C asm "${{ matrix.target }}"
+          BCC_TEST_JOBS=4 make -C asm "${{ matrix.target }}"
       - name: Check B-written native construction through this build
         run: |
           python3 bootstrap/native/test_elfimage.py --compiler "${{ matrix.compiler }}" --close-faults
@@ -170,7 +170,7 @@ jobs:
       - name: Build with address and undefined-behavior checks
         run: make CFLAGS="-std=c99 -g -O1 -fsanitize=address,undefined -fno-omit-frame-pointer"
       - name: Check the instrumented compiler
-        run: make test
+        run: BCC_TEST_JOBS=4 make test
   sanitizer_generated:
     name: sanitizer generated programs
     runs-on: ubuntu-24.04

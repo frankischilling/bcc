@@ -129,87 +129,13 @@ static void collect_known_symbols_from_file(const char *path, int word_bits) {
     free(src);
 }
 
-/* Compile libb.c to libb.o if needed, returns path to libb.o */
-static char *compile_libb(int verbose, int byteptr, int word_bits) {
-    static char libb_o_path[4096];
-    char libb_c_path[4096];
-    
-    snprintf(libb_c_path, sizeof(libb_c_path), "%s/libb.c", g_libb_dir);
-    /* Include headers in the cache key so the compiler and runtime use the
-     * same address model, including when multiple checkouts share /tmp. */
-    uint64_t key = UINT64_C(14695981039346656037);
-    const char *dependencies[] = {"libb.c", "libb.h", "btarget.h", "binit.h", "bcall.h", "bunix.h", "bformat.h", "bprimitives.h"};
-    for (size_t i = 0; i < sizeof(dependencies) / sizeof(dependencies[0]); i++) {
-        char path[8192];
-        snprintf(path, sizeof(path), "%s/%s", g_libb_dir, dependencies[i]);
-        FILE *input = fopen(path, "rb");
-        if (!input) dief("cannot read runtime dependency %s", path);
-        int c;
-        while ((c = fgetc(input)) != EOF) {
-            key ^= (unsigned char)c;
-            key *= UINT64_C(1099511628211);
-        }
-        if (ferror(input)) dief("cannot read runtime dependency %s", path);
-        fclose(input);
-    }
-    snprintf(libb_o_path, sizeof(libb_o_path), "/tmp/bcc_libb_%016" PRIx64 "_%d_%d_%d.o", key, byteptr, word_bits, g_strict ? 1 : 0);
-    
-    /* Check if libb.c exists */
-    if (access(libb_c_path, R_OK) != 0) {
-        dief("libb.c not found at %s", libb_c_path);
-    }
-    
-    int need_compile = access(libb_o_path, R_OK) != 0;
-    
-    if (need_compile) {
-        if (verbose) fprintf(stderr, "Compiling runtime library...\n");
-        
-        char include_flag[8192];
-        char byteptr_flag[64];
-        char wordbits_flag[64];
-        char strict_flag[64];
-        
-        snprintf(include_flag, sizeof(include_flag), "-I%s", g_libb_dir);
-        snprintf(byteptr_flag, sizeof(byteptr_flag), "-DB_BYTEPTR=%d", byteptr ? 1 : 0);
-        snprintf(wordbits_flag, sizeof(wordbits_flag), "-DWORD_BITS=%d", word_bits);
-        snprintf(strict_flag, sizeof(strict_flag), "-D__bcc_strict_runtime=%d", g_strict ? 1 : 0);
-        
-        char temporary[8192];
-        snprintf(temporary, sizeof(temporary), "%s.XXXXXX", libb_o_path);
-        int fd = mkstemp(temporary);
-        if (fd < 0) dief("cannot create runtime object");
-        close(fd);
-        const char *argv[] = {
-            "gcc", "-std=c99", "-O2", "-c",
-            include_flag, byteptr_flag, wordbits_flag, strict_flag,
-            libb_c_path, "-o", temporary, NULL
-        };
-        
-        pid_t pid = fork();
-        if (pid < 0) dief("fork failed");
-        if (pid == 0) { execvp("gcc", (char *const*)argv); _exit(127); }
-        
-        int st = 0;
-        if (waitpid(pid, &st, 0) < 0 || !WIFEXITED(st) || WEXITSTATUS(st) != 0) {
-            unlink(temporary);
-            dief("Failed to compile libb.c");
-        }
-        if (rename(temporary, libb_o_path) != 0) {
-            unlink(temporary);
-            dief("cannot cache runtime object");
-        }
-    }
-    
-    return libb_o_path;
-}
-
 /* Run gcc with multiple C files for linking */
 int run_gcc_multi(Vec *cfiles, const char *out_exe, int compile_only, int debug, int wall, int wextra, int werror, Vec *extra_args, int use_libb, int byteptr, int word_bits, int verbose) {
     char *libb_o = NULL;
-    char include_flag[4096];
+    char include_flag[sizeof(g_libb_dir) + 3];
     
     if (use_libb && !compile_only) {
-        libb_o = compile_libb(verbose, byteptr, word_bits);
+        libb_o = compile_libb(g_libb_dir, verbose, byteptr, word_bits);
     }
     
     snprintf(include_flag, sizeof(include_flag), "-I%s", g_libb_dir);
