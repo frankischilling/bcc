@@ -287,7 +287,7 @@ jobs:
           path: pdp-11/bcc-pdp/build/toolchain-v1-failures
           if-no-files-found: ignore
 
-  unix-v1:
+  unix_v1_seed:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -301,6 +301,19 @@ jobs:
         run: python3 -m pip install pexpect==4.9.0
       - name: Rebuild the compiler inside Unix V1
         run: make -C pdp-11/bcc-pdp v1-selfhost B=tests/run/t26_postfix_index.b
+
+  unix_v1_runtime:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install console test dependency
+        run: python3 -m pip install pexpect==4.9.0
       - name: Check real-kernel runtime behavior
         run: |
           make -C pdp-11/bcc-pdp v1-run B=tests/run/t27_ctime_check.b
@@ -376,10 +389,36 @@ jobs:
           bash pdp-11/bcc-pdp/tools/v1-run.sh pdp-11/bcc-pdp/tests/run/t78_duplicate_local.b --expect-compile-error
           bash pdp-11/bcc-pdp/tools/v1-run.sh pdp-11/bcc-pdp/tests/run/t31_program_size.b --expect-compile-error
 
+
+  unix_v1_bootstrap:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install console test dependency
+        run: python3 -m pip install pexpect==4.9.0
       - name: Run the B-written record reader in Unix V1
         run: bash pdp-11/bcc-pdp/bootstrap/test_v1.sh
       - name: Run the B-written resolver inside Unix V1
         run: python3 pdp-11/bcc-pdp/bootstrap/test_vm_v1.py
+
+  unix-v1:
+    needs: [unix_v1_seed, unix_v1_runtime, unix_v1_bootstrap]
+    if: ${{ always() }}
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Require every Unix V1 lane to pass
+        env:
+          SEED_RESULT: ${{ needs.unix_v1_seed.result }}
+          RUNTIME_RESULT: ${{ needs.unix_v1_runtime.result }}
+          RESOLVER_RESULT: ${{ needs.unix_v1_bootstrap.result }}
+        run: sh .github/scripts/require-success.sh 3 "$SEED_RESULT" "$RUNTIME_RESULT" "$RESOLVER_RESULT"
 
   b-passes-v1:
     runs-on: ubuntu-24.04

@@ -58,6 +58,12 @@ run in parallel. Each starts from a fresh instrumented compiler build; neither
 depends on test artifacts from the other. The stable `sanitizers` check requires
 both lanes to succeed. Native PDP-11, kernel, and image jobs remain independent.
 
+Unix V1 seed rebuilding, runtime cases, and B-written reader/resolver checks
+run in three separate jobs, each with its own checkout and disk images. The
+stable `unix-v1` check requires all three jobs to succeed. This avoids putting
+the whole sequence under one 20-minute deadline; each lane retains that limit.
+The separate B-pass kernel job is unchanged.
+
 Native word-operation fixtures batch each operator's operand cases into one
 executable image. Every case still checks its result and preserved registers,
 but the harness avoids thousands of separate instrumented emitter and image

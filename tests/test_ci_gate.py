@@ -32,6 +32,15 @@ class Gate(unittest.TestCase):
                 with self.subTest(count=count, value=value):
                     self.assertEqual(self.run_gate([value] + ['success'] * (count - 1), count).returncode, 1)
 
+    def test_unix_v1_gate_covers_all_lanes(self):
+        workflow = (GATE.parents[1] / 'workflows/conformance.yml').read_text()
+        gate = workflow.split('  unix-v1:\n', 1)[1].split('\n  b-passes-v1:', 1)[0]
+        self.assertIn('needs: [unix_v1_seed, unix_v1_runtime, unix_v1_bootstrap]', gate)
+        self.assertIn('if: ${{ always() }}', gate)
+        for variable, lane in (('SEED', 'seed'), ('RUNTIME', 'runtime'), ('RESOLVER', 'bootstrap')):
+            self.assertIn(variable + '_RESULT: ${{ needs.unix_v1_' + lane + '.result }}', gate)
+        self.assertIn('require-success.sh 3 "$SEED_RESULT" "$RUNTIME_RESULT" "$RESOLVER_RESULT"', gate)
+
     def test_invalid_lane_count(self):
         for count in ('', '0', '1', '4', '-1', 'two', '--pair'):
             with self.subTest(count=count):
