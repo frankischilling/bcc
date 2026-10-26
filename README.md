@@ -90,8 +90,10 @@ now runs the passes and regenerates the target runtime files from B-maintained
 sources after its seed. It is not installed as the normal compiler. Complete
 in-guest source bootstrapping and a host native-output backend remain separate
 work; the existing host builds still depend on C. An experimental
-[B-written ELF image writer](bootstrap/native/README.md) can package existing
-x86-64 instruction bytes, but it is not yet a B-to-native compiler.
+[B-written ELF image writer](bootstrap/native/README.md) can package x86-64
+instruction bytes. B-written instruction and label encoders can construct
+calls, loops, and branches for those images, but they are not yet a B-to-native
+compiler.
 
 ## Dialect and word modes
 

@@ -1,23 +1,26 @@
 /* The compiler records use ASCII fields and NUL-terminated work buffers. */
 bcur 0;
-icfd 0;
+/* Read ahead one block; icini discards it when selecting a new input. */
+icfd 0; ibuf[64]; ipos 0; ilen 0;
 getln(buf,max) {
-    extrn icfd,read,char,lchar;
-    auto b 1,i,n,c;
+    extrn icfd,ibuf,ipos,ilen,read,char,lchar;
+    auto i,c;
     i=0;
     while(1) {
-        n=read(icfd,b,1);
-        if(n<0) fatal("cannot read IC");
-        if(n==0) {lchar(buf,i,0);return(i!=0);}
-        c=char(b,0);
+        if(ipos>=ilen) {
+            ilen=read(icfd,ibuf,128);ipos=0;
+            if(ilen<0) fatal("cannot read IC");
+        }
+        if(ilen==0) {lchar(buf,i,0);return(i!=0);}
+        c=char(ibuf,ipos++);
         if(c=='*n') {lchar(buf,i,0);return(1);}
         if(i>=max-1) fatal("IC line too long");
         lchar(buf,i++,c);
     }
 }
 icini(fd) {
-    extrn icfd,bcur;
-    icfd=fd;bcur=0;
+    extrn icfd,bcur,ipos,ilen;
+    icfd=fd;bcur=0;ipos=0;ilen=0;
 }
 icrst() {extrn bcur;bcur=0;}
 skpws(buf) {

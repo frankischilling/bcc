@@ -76,6 +76,7 @@ jobs:
         run: |
           python3 bootstrap/native/test_elfimage.py --compiler "${{ matrix.compiler }}" --close-faults
           python3 bootstrap/native/test_x64.py --compiler "${{ matrix.compiler }}" --close-faults
+          python3 bootstrap/native/test_labels.py --compiler "${{ matrix.compiler }}"
   host:
     name: host (${{ matrix.cc }})
     needs: [host_tests, b_bootstrap, assembly]
@@ -117,6 +118,7 @@ jobs:
           python3 tests/test_identifier_bytes.py --compiler "$RUNNER_TEMP/bcc-instrumented"
           python3 tests/test_open_runtime.py --compiler "$RUNNER_TEMP/bcc-instrumented"
           python3 bootstrap/native/test_x64.py --compiler "$RUNNER_TEMP/bcc-instrumented"
+          python3 bootstrap/native/test_labels.py --compiler "$RUNNER_TEMP/bcc-instrumented"
   pdp11:
     runs-on: ubuntu-24.04
     steps:
@@ -158,6 +160,7 @@ jobs:
         run: |
           make
           python3 pdp-11/bcc-pdp/bootstrap/test_resolver.py
+          python3 pdp-11/bcc-pdp/bootstrap/test_ic_reader.py
           python3 pdp-11/bcc-pdp/tests/output_close.py --bcc ./bcc
 
   b-vm:

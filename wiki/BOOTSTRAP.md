@@ -58,10 +58,12 @@ A self-contained host path needs:
 A [B-written ELF image writer](../bootstrap/native/README.md) now packages
 already-generated x86-64 instruction and data bytes without invoking an
 assembler or linker. A B-written encoding library also emits selected integer,
-branch, memory, and syscall instructions directly. Tests check its headers and execute its output on Linux
-x86-64. It is not an instruction selector, and building the writer still uses
-the C-output toolchain. The native frontend, runtime, and source-to-instruction
-path listed above remain necessary.
+branch, memory, and syscall instructions directly. Its separate two-pass label
+resolver handles forward and backward calls and jumps, checks layout consistency,
+and rejects undefined labels. Tests compare the bytes and execute the resulting
+images on Linux x86-64. These are not an instruction selector, and building the
+components still uses the C-output toolchain. The native frontend, runtime, and
+source-to-instruction path listed above remain necessary.
 
 The existing C and assembly-source builds remain useful seeds and comparison
 implementations during this work. A native-output prototype that cannot yet
@@ -112,9 +114,11 @@ the 16-bit, 32-bit, and host-word models. The frontend rejects another 21
 fixtures before they reach the resolver; those are reported separately.
 
 The shared B-written record reader and I/O helpers also compile and run
-inside Unix V1. Their kernel test checks file creation, record parsing,
-`-32768`, EOF, and exact output. This establishes that those components run
-on the target, not that the complete resolver fits there.
+inside Unix V1. Their kernel tests check file creation, record parsing,
+`-32768`, EOF, block boundaries, reopening an input, and exact output. The
+reader buffers 128 bytes at a time and preserves short-read and error handling.
+These checks establish that those components run on the target, not that the
+complete resolver fits there.
 
 Direct native code still exceeds the memory budget. One reduced-runtime
 assembly experiment occupied 24,808 bytes before allowing for its stack,

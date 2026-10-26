@@ -22,7 +22,8 @@ independent toolchain.
   record fields, and writes completion markers after successful output.
   Diagnostics remain immediate. `src/io.b` is the smaller unbuffered variant
   used where only diagnostics and markers need those helpers.
-- `src/ic.b` reads bounded records and checks signed 16-bit decimal fields.
+- `src/ic.b` reads bounded records in 128-byte input blocks and checks signed
+  16-bit decimal fields. Selecting a new input discards unread buffered bytes.
 - `src/symbols.b` stores symbol names as packed bytes, with separate B-cell
   arrays for their classes and offsets.
 - `src/b01.b` resolves declarations, names, and labels, and reorders global
@@ -41,6 +42,7 @@ From the repository root:
 make
 make -C pdp-11/bcc-pdp
 python3 pdp-11/bcc-pdp/bootstrap/test_resolver.py
+python3 pdp-11/bcc-pdp/bootstrap/test_ic_reader.py
 ```
 
 The harness builds the B source for the host compiler's 16-bit, 32-bit, and
@@ -48,6 +50,18 @@ host-word models. Each version runs on the modern host. The reference C
 resolver runs under the native application emulator. Their output bytes,
 diagnostics, and success/failure results must agree on the native test corpus
 and additional malformed-record cases.
+
+The record-reader checks exercise both the shared pass reader and the encoder
+reader in all three word models. They cover short reads, block boundaries,
+final records without newlines, reopening an input, and read errors after
+buffered data. A read-count check guards against returning to byte-at-a-time
+input. These checks use host-built programs; the kernel checks below cover
+native execution separately.
+
+The reader uses the returned byte count, not the requested block size. This
+follows the `read` contract in [Thompson's library description](https://cm-bell-labs.github.io/who/dmr/kbman.html):
+a successful call reports the actual bytes read, while a negative result is
+an error. Input buffering is an implementation choice, not a language rule.
 
 Fixtures rejected by the frontend do not exercise the resolver and are
 reported separately. These comparisons do not establish that the B resolver
@@ -63,8 +77,10 @@ bash pdp-11/bcc-pdp/bootstrap/test_v1.sh
 This boots the restored kernel, compiles the B-written I/O and record-reader
 modules with the installed seed compiler, and runs the result. The program
 creates a record file, reads its tag and signed minimum value, checks EOF,
-and prints `-32768`. The harness checks the exact output. It does not run the
-full resolver or replace any installed compiler pass.
+and prints `-32768`. A second reader fixture crosses input-block boundaries,
+reopens a file while buffered bytes remain, and reads a final record without
+a newline. The harness checks the exact output. It does not run the full
+resolver or replace any installed compiler pass.
 
 ## Compact-code experiment
 

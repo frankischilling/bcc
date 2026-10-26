@@ -145,3 +145,44 @@ forms, conditions, shifts, and branches with the reference assembler. Separate
 fixtures use the B encoder and B ELF writer to build executables that exercise
 arithmetic, memory, calls, conditions, stack operations, and Linux syscalls.
 The assembler is used only for the comparison, not to construct those fixtures.
+
+## Code labels
+
+`labels.b` adds two-pass numeric label resolution to `x64.b`. Concatenate both
+files with the emitter's source. Labels range from 0 through 4095; label zero
+and a label at byte offset zero are both valid. Different labels may name the
+same offset.
+
+For each pass, open a fresh output, call `xstart(fd)`, then `xlblbeg(pass)`.
+Emit the program, call `xlblend()`, and finish with `xfinish()`. Pass 1 records
+label positions and writes placeholder branch displacements. Discard that
+output. Pass 2 emits the resolved instructions. Only a successful second-pass
+output is a candidate for the ELF writer.
+
+- `xmark(id)` defines a label at the current byte offset.
+- `xbranch(kind,id)` emits a relative call (0) or jump (1).
+- `xcond(condition,id)` emits a conditional jump using the encoder's condition
+  numbers. Calls and jumps occupy five bytes; conditional jumps occupy six.
+
+Forward and backward references use the same interface. Undefined or duplicate
+labels, invalid pass ordering, changed label positions, and a changed total
+size are errors. After finishing both passes, another pass 1 starts a fresh
+layout and clears the old labels. As with the instruction encoder, discard
+output after any error.
+
+The emitter must supply the same program in both passes. These checks validate
+its layout, not every instruction or operand: changing an instruction without
+changing its size may not be detected. There is no branch shortening, named
+symbol table, data relocation, register allocator, or B calling convention in
+this module. It is not a source-language compiler or a general linker.
+
+```sh
+python3 bootstrap/native/test_labels.py
+```
+
+The checks compare forward and backward branch bytes, use every condition code
+and all 4,096 label IDs, reject inconsistent layouts, and reuse the resolver
+for a second program. Linux x86-64 checks also execute a forward call, a backward
+loop, and a jump across more than one output-buffer block. Construction uses
+the B encoder and ELF writer with an empty tool-search path. `native-test`
+runs these checks through the host seed and all three B bootstrap stages.
