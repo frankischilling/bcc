@@ -1,4 +1,4 @@
-/* Test constructor metadata; ordinary globals and runtime imports are unsupported. */
+/* Test constructor metadata; runtime imports are unsupported. */
 fnames[1000];fpars[200];flocals[200];fseen[200];nfunc 0;nlabels;dbase 0;mainidx;
 pbuf[520];
 findfn(name){extrn fnames,nfunc;auto i;i=0;while(i<nfunc){if(tageq(fnames+i*5,name))return(i);i++;}return(-1);}
@@ -22,7 +22,7 @@ metas(fd){
    if(cur<0)fatal("function end outside body");n=nxti(pbuf);xrend(pbuf);
    if(n<0|n>8191)fatal("invalid local count");flocals[cur]=n;cur= -1;goto next;
   }
-  if(cur<0)fatal("unsupported top-level record");
+  /* xdscan checks static records before this function metadata pass. */
  next:;
  }
  if(cur>=0)fatal("unfinished function");i=0;

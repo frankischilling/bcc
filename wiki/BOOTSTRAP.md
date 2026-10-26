@@ -90,8 +90,10 @@ adds statement branches, loops, conditional expressions, and early returns.
 The [call builder](../bootstrap/native/README.md#native-function-calls) supplies
 argument blocks and function entries. Integration fixtures now construct
 native images from restricted multi-function source programs, including
-recursion and writable function cells. Ordinary globals, strings, runtime
-imports, switch, computed goto, and normal startup remain separate work.
+recursion and writable function cells. [Static data construction](../bootstrap/native/README.md#static-data)
+adds global cells, vectors, named-address initializers, and separate writable
+storage for each string occurrence. Runtime imports, switch, computed goto,
+and normal startup remain separate work.
 The result-reporting test constructor is not a general source compiler.
 
 The existing C and assembly-source builds remain useful seeds and comparison

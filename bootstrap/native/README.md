@@ -503,9 +503,60 @@ by-value isolation. Focused instruction fixtures also test maximum call blocks,
 actual-count metadata, invalid headers, and API errors.
 
 That constructor is test code, not an installed compiler command. Its entry
-point reports binary results for comparison. It rejects ordinary global data,
-strings, runtime imports, entry parameters, switch, and computed goto. It does
+point reports binary results for comparison. It rejects runtime imports, entry
+parameters, switch, and computed goto. It does
 not supply normal startup, multi-file linking, the remaining library, or a
 native compiler fixed point. Tests run instruction construction with an empty
 tool-search path after seeding, but the seed-built tools still use the existing
 host runtime.
+
+
+## Static data
+
+`data/layout.b` assigns eight-byte cells to global definitions, function
+variables, and string occurrences. `data/output.b` writes the initial bytes.
+These are host-native components, not changes to PDP-11 word sizes.
+
+The rules follow sections 7.1 through 7.3 of
+[Thompson's manual](https://www.nokia.com/bell-labs/about/dennis-m-ritchie/kbman.html):
+a named initializer holds the address of that symbol's cell, not its value;
+a vector has a writable pointer cell followed by the larger of its declared
+size and initializer list; a function variable holds its callable value.
+Forward references and cycles are resolved after layout. This implements the
+specified address-initializer semantics rather than preserving the loader
+limitation noted in the manual's implementation appendix.
+
+Each string occurrence gets its own writable, word-aligned storage, including
+embedded zero bytes and the final EOT byte. Padding bytes and uninitialized
+cells are zeroed. Function entry values remain byte addresses; data addresses
+are divided by eight for B pointer arithmetic.
+
+- `xdscan(fd)` resets and collects layout from resolved records. It returns
+  the total word count and leaves the descriptor open.
+- `xdfind(name)` returns a symbol index or minus one. `xdoffs`, `xdsizes`,
+  and `xdkinds` contain its word offset, allocated words, and kind (scalar,
+  vector, or function). `xdladdr` and `xdlens` describe literal occurrences.
+- `xdemit(fd,out,base,entry)` rereads the same unchanged record stream and
+  writes data at the supplied aligned byte base. The callback returns the
+  callable byte address for a function name. Both descriptors remain open.
+- `xdaddr(name)` and `xdlit(index)` return word addresses using `xdbase`.
+  Code emission sets that base after its first layout pass.
+
+The caller must retain the input between scans and discard partial output on
+failure. Output is buffered in 4 KB blocks; short or failed writes are errors.
+Limits are 1,024 named objects, 512 string occurrences, 128 initializers per
+definition, 8,190 declared vector elements, and 16 MiB of total data. These
+module bounds do not enlarge the shared frontend or resolver tables.
+
+`test_data.py` checks exact bytes, forward and cyclic references, literal
+separation, numeric boundaries, table limits, and write failures. The
+whole-program fixtures in `test_calls.py` also execute globals, pointer-cell
+mutation, packed strings, and function-address initializers. Construction runs
+with an empty tool-search path after the tools have been seeded. The existing
+C-backed host runtime still runs those tools; this is not a native compiler
+fixed point.
+
+```sh
+python3 bootstrap/native/test_data.py
+python3 bootstrap/native/test_calls.py
+```

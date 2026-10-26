@@ -430,3 +430,12 @@ python3 tests/test_word_arithmetic.py --compiler ./bcc --individual
 Both modes report the same case names and expected results. A failed combined
 build fails that group; the runner does not silently skip it or replace it with
 individual results.
+
+
+The host-native static-data tests check exact cell and literal bytes separately
+from executable program results. They include cyclic address initializers,
+function-cell addresses, empty and enlarged vectors, distinct writable strings,
+wide integer boundaries, storage limits, and buffered output failures. The
+call-construction fixtures also execute source programs using those objects.
+Run them with `python3 bootstrap/native/test_data.py` and
+`python3 bootstrap/native/test_calls.py`, or as part of `make -C bootstrap native-test`.

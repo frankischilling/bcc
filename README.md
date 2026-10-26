@@ -101,7 +101,8 @@ adds local variables, vectors, pointers, and assignments.
 handles if/else, while loops, conditional expressions, and returns.
 [Call construction](bootstrap/native/README.md#native-function-calls) adds
 argument blocks and function entries; the integration tests compile restricted
-multi-function programs. Ordinary global data, strings, runtime imports, switch,
+multi-function programs. [Static data construction](bootstrap/native/README.md#static-data)
+adds globals, vectors, address initializers, and writable strings. Runtime imports, switch,
 computed goto, and normal startup remain unfinished. This is not yet a general
 B-to-native compiler.
 

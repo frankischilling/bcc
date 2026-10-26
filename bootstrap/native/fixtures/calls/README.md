@@ -9,11 +9,12 @@ working directory containing files you need to keep.
 - `metadata.b` collects declared parameter counts and local-frame sizes.
 - `emission.b` resolves source-function symbols to writable cells and lowers
   their bodies with the native libraries.
-- `driver.b` coordinates two code-layout passes and function-cell data output.
+- `driver.b` coordinates two code-layout passes and static data output.
 
 The whole-function constructor emits a binary-result reporting entry point for
 comparison, not normal startup or command-line argument handling. It rejects
-ordinary global data and runtime imports. It is useful evidence that the
+runtime imports, switch, and computed goto. Globals, vectors, address
+initializers, and writable string storage use the static-data modules. It is useful evidence that the
 libraries work together, but it is not a general B compiler or a completed
 self-hosting path.
 

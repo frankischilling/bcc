@@ -1,4 +1,4 @@
-fvalue(index){extrn dbase,xrvalid;xmovim(0,dbase/8+index);xrvalid=1;}
+fvalue(index){extrn fnames,xrvalid;xmovim(0,xdaddr(fnames+index*5));xrvalid=1;}
 record(s){extrn char,lchar;auto b 16,i,c;i=0;while((c=char(s,i))!=4&c!=0){lchar(b,i,c);i++;}lchar(b,i,0);if(!xfline(b))if(!xmline(b))xrline(b);}
 guard(){auto p;xjcc(4,22);p=xtell();xmovim(0,60);xmovim(7,78);xsys();if(xtell()!=p+22)xfail();}
 entry(){
@@ -11,8 +11,8 @@ entry(){
  xmark(4095);xmovim(0,60);xmovim(7,77);xsys();
 }
 body(fd){
- extrn pbuf,flocals,fpars,nlabels,nfunc;auto cur,tag 5,name 5,i,n;
- cur= -1;icini(fd);
+ extrn pbuf,flocals,fpars,nlabels,nfunc,xrvalid;auto cur,tag 5,name 5,i,n,lit;
+ cur= -1;lit=0;icini(fd);
  while(getln(pbuf,1040)){
   icrst();nxtnam(pbuf,tag);
   if(tageq(tag,"pr")){
@@ -24,14 +24,23 @@ body(fd){
    if(cur<0)fatal("emitted end outside function");n=nxti(pbuf);xrend(pbuf);
    if(n!=flocals[cur])fatal("local count changed");xcfend();xfend();cur= -1;goto next;
   }
-  if(cur<0)fatal("emitted record outside function");
+  if(tageq(tag,"Slit") | tageq(tag,"Glit")){
+   if(tageq(tag,"Slit")){xmovim(0,xdlit(lit));xrvalid=1;}lit++;goto next;
+  }
+  if(cur<0)goto next;
+  if(tageq(tag,"st")){i=nxti(pbuf);xrend(pbuf);xmovim(0,xdlit(i));xrvalid=1;goto next;}
   if(tageq(tag,"ex")){
-   nxtnam(pbuf,name);xrend(pbuf);i=findfn(name);if(i<0)fatal("unsupported external symbol");fvalue(i);goto next;
+   nxtnam(pbuf,name);xrend(pbuf);xmovim(0,xdaddr(name));xrvalid=1;goto next;
   }
   if(!xcfline(pbuf))if(!xfline(pbuf))if(!xmline(pbuf))xrline(pbuf);
  next:;
  }
  if(cur>=0)fatal("unfinished emitted function");
 }
-putword(fd,v){extrn lchar,write;auto b 4,i;i=0;while(i<8){lchar(b,i,v&255);v=v>>8;i++;}if(write(fd,b,8)!=8)fatal("function data write");}
-datafile(path){extrn creat,close,nfunc,nlabels;auto fd,i;fd=creat(path,0600);if(fd<0)fatal("function data open");i=0;while(i<nfunc){putword(fd,4198400+xlref(nlabels+i));i++;}if(close(fd)<0)fatal("function data close");}
+fnentry(name){extrn nlabels;auto i;i=findfn(name);if(i<0)fatal("unknown data function");return(4198400+xlref(nlabels+i));}
+datafile(input,path){
+ extrn open,creat,close,fnentry,dbase;auto fd,out;
+ fd=open(input,0);out=creat(path,0600);if(fd<0 | out<0)fatal("static data open");
+ xdemit(fd,out,dbase,fnentry);
+ if(close(fd)<0 | close(out)<0)fatal("static data close");
+}

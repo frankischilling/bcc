@@ -59,6 +59,23 @@ SOURCE_CASES=[('main(){return(42);}', 42),
  ('f(){return(7);}main(){return(f(1,2,3,4,5,6,7,8));}', 7),
  ('main(){auto a 8190;a[0]=7;a[8189]=9;return(a[0]+a[8189]);}', 16)]
 
+SOURCE_CASES += [
+ ('data 7;main(){extrn data;data=+35;return(data);}',42),
+ ('x y;y x;main(){extrn x,y;return(x==&y & y==&x);}',1),
+ ('v[1] 7,9;main(){extrn v;return(v[0]+v[1]);}',16),
+ ('v[4] 7,9;main(){extrn v;return(v[0]+v[1]+v[2]+v[3]);}',16),
+ ('cell f;f(){return(42);}main(){extrn cell;return((*cell)());}',42),
+ ('v[2] 7,9;main(){extrn v;auto p;p=v;v=v+1;return(*v+*p);}',16),
+ ('x 9223372036854775808;main(){extrn x;return(x);}',-(1<<63)),
+ ('text "A*0B";main(){extrn text;return(*text);}',0x04420041),
+ ('main(){auto p,q;p="A";q="A";*p=7;return(p!=q & *q==0101+4*256);}',1),
+ ('main(){auto p;p="";return(*p);}',4),
+ ('v[8190];main(){extrn v;v[8189]=42;return(v[0]+v[8189]);}',42),
+ ('x 1,2,3;main(){extrn x;return((&x)[0]+(&x)[1]+(&x)[2]);}',6),
+ ('f(){return("A");}g(){return("A");}main(){auto p,q;p=f();q=g();*p=42;return(*f()+(*g()==0101+4*256));}',43),
+ ('peek(s,i){return((s[i/8]>>((i%8)*8))&255);}main(){return(peek("123456789*0AB",9)+peek("123456789*0AB",11));}',66),
+]
+
 ABI_CASES=[(0,0,2,0),(0,1,2,1),(0,2,2,3),(0,5,2,3),(1,8,2,8),
            (2,0,0,0),(2,8,0,8),(3,15,1,120),(4,1,1,141),(5,1,1,15),
            (6,0,0,None),(7,0,0,None),(8,0,0,None),(9,0,32767,0),
@@ -82,7 +99,7 @@ def main():
             run=subprocess.run([*command,str(path),'-o',str(work/name)],capture_output=True,timeout=180)
             assert run.returncode==0,(name,run.stderr)
         parts=[NATIVE/'src'/name for name in ('buffered_io.b','decimal16.b','diagnostics.b','ic.b')]
-        parts += [ROOT/name for name in ('x64.b','labels.b','ops.b','scalar.b','memory.b','control.b','arity.b','calls.b')]
+        parts += [ROOT/name for name in ('x64.b','labels.b','ops.b','scalar.b','memory.b','control.b','arity.b','calls.b','data/layout.b','data/output.b')]
         common='\n'.join(path.read_text() for path in parts)
         build('abi',common+(FIXTURES/'abi.b').read_text())
         build('constructor',common+'\n'.join((FIXTURES/name).read_text() for name in ('metadata.b','emission.b','driver.b')))
@@ -146,9 +163,14 @@ def main():
             assert(run.returncode,run.stderr)==(0,b''),(index,text,run)
             image_check('source/'+str(index),run.stdout,'data',value)
 
+        (work/'raw.ic').write_bytes(b'Adef main\nAend\n')
+        (work/'resolved.ic').write_bytes(b'Glit 1 4\npr main 0 30000\nst 0\ndr\nrt\nep 0\n')
+        run=construct();assert(run.returncode,run.stderr)==(0,b''),run
+        image_check('preassigned-literal',run.stdout,'data',4)
+
         unsupported=['main(x){return(x);}', 'f(){return(0);}',
-                     'data 7;main(){extrn data;return(data);}',
-                     'main(){return(unknown());}', 'main(){return("hello");}',
+
+                     'main(){return(unknown());}',
                      'main(){switch 1 {case 1:return(7);}return(0);}',
                      'main(){goto done;done:return(0);}']
         for text in unsupported:
@@ -169,7 +191,7 @@ def main():
             run=construct();assert run.returncode!=0 and run.stderr,(index,run);passed+=1
         records('main(){return(0);}')
         (work/'directory').mkdir()
-        run=construct('directory');assert run.returncode!=0 and b'function data open' in run.stderr,run
+        run=construct('directory');assert run.returncode!=0 and b'static data open' in run.stderr,run
         passed+=1
         print(f'{passed} native-call checks passed')
         if not execute:print('SKIP: native image execution requires Linux x86-64')
