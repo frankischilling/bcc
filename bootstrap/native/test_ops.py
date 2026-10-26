@@ -16,7 +16,7 @@ VALUES = [-(1 << 63), -(1 << 63) + 1, -123456789, -65, -64, -63, -1,
           0, 1, 2, 7, 63, 64, 65, 123456789, (1 << 63) - 1]
 OPS = [43, 45, 42, 47, 37, 38, 124, 94, 60, 62, 100, 101, 102, 103, 104, 105]
 HARNESS = r'''
-op;left;right;unary;base;fail;
+op;left;right;unary;base;fail;bulk;
 num(s) {
     extrn char;
     auto i,n,c,neg;
@@ -30,29 +30,51 @@ save() {
     r=0;while(r<16) {if(keptreg(r)) xmovim(r,123456789+r);r++;}
     xmov(11,4);
 }
-check() {
+check(bad) {
     auto r;
     r=0;while(r<16) {
-        if(keptreg(r)) {xmovim(2,123456789+r);xbin(5,r,2);xcond(5,3);}
+        if(keptreg(r)) {xmovim(2,123456789+r);xbin(5,r,2);xcond(5,bad);}
         r++;
     }
-    xbin(5,4,11);xcond(5,3);
+    xbin(5,4,11);xcond(5,bad);
 }
-emit() {
-    extrn op,left,right,unary,base,fail;
+report(status) {
+    /* Write a status/result pair, then restore the case's stack pointer. */
+    xstack(0,0);xmovim(0,status);xstack(0,0);
+    xmov(6,4);xmovim(0,1);xmovim(7,1);xmovim(2,16);xsys();
+    xmovim(2,16);xbin(0,4,2);
+}
+one(b,f,bad,done) {
+    extrn op,left,right,unary;
     save();
     if(unary) {xmovim(0,left);xunop(op);}
-    else {xmovim(1,left);xmovim(0,right);xbinary(op,base,fail);}
-    check();
-    xstack(0,0);xmov(6,4);xmovim(0,1);xmovim(7,1);xmovim(2,8);xsys();
+    else {xmovim(1,left);xmovim(0,right);xbinary(op,b,f);}
+    check(bad);report(0);xbranch(1,done);
+    xmark(f);check(bad);xmovim(0,0);report(77);xbranch(1,done);
+    xmark(bad);xmovim(0,60);xmovim(7,78);xsys();xmark(done);
+}
+emit() {
+    extrn bulk,unary,vals,left,right,base,fail;
+    auto i,j,index;
+    if(bulk) {
+        i=0;index=0;
+        while(i<16) {
+            j=0;
+            while(j<16) {
+                left=vals[i];right=vals[j];
+                one(index*5,index*5+2,index*5+3,index*5+4);
+                index++;j++;
+                if(unary) j=16;
+            }
+            i++;
+        }
+    } else one(base,fail,3,4);
     xmovim(0,60);xmovim(7,0);xsys();
-    xmark(fail);check();xmovim(0,60);xmovim(7,77);xsys();
-    xmark(3);xmovim(0,60);xmovim(7,78);xsys();
 }
 main() {
-    extrn argv,vals,op,left,right,unary,base,fail,creat;
+    extrn argv,vals,op,left,right,unary,base,fail,bulk,creat;
     op=num(argv[2]);left=vals[num(argv[3])];right=vals[num(argv[4])];
-    unary=num(argv[5]);base=num(argv[6]);fail=num(argv[7]);
+    unary=num(argv[5]);base=num(argv[6]);fail=num(argv[7]);bulk=num(argv[8]);
     xstart(creat("layout",0600));xlblbeg(1);emit();xlblend();xfinish();
     xstart(1);xlblbeg(2);emit();xlblend();xfinish();return(0);
 }
@@ -178,13 +200,14 @@ def main():
         assert reference.stdout == reference_bytes, 'ordinary B reference differs from arithmetic oracle'
         passed += 1
 
-        def generate(op, i, j, unary=0, base=0, fail=2):
-            return subprocess.run([str(emitter), *map(str, (op, i, j, unary, base, fail))],
+        def generate(op, i, j, unary=0, base=0, fail=2, bulk=0):
+            return subprocess.run([str(emitter), *map(str, (op, i, j, unary, base, fail, bulk))],
                                   cwd=work, env=env, capture_output=True, timeout=30)
 
-        def check(op, i, j, unary=0, base=0, fail=2):
+        def check(op, pairs, unary=0, base=0, fail=2, bulk=0):
             nonlocal passed
-            result = generate(op, i, j, unary, base, fail)
+            i, j = pairs[0]
+            result = generate(op, i, j, unary, base, fail, bulk)
             assert (result.returncode, result.stderr) == (0, b''), (op, i, j, result)
             (work / 'code').write_bytes(result.stdout)
             image = subprocess.run([str(writer), 'code', 'data', '0', '0'], cwd=work,
@@ -195,21 +218,26 @@ def main():
                 binary.write_bytes(image.stdout)
                 binary.chmod(0o700)
                 result = subprocess.run([str(binary)], capture_output=True, timeout=5)
-                x, y = VALUES[i], VALUES[j]
-                reference = ((77, b'', b'') if not unary and op in (47, 37) and y == 0
-                             else (0, struct.pack('<Q', expected(op, x, y, unary) & ((1 << 64) - 1)), b''))
-                assert (result.returncode, result.stdout, result.stderr) == reference, (op, x, y, unary, result)
-            passed += 1
+                assert result.returncode == 0 and not result.stderr, (op, unary, result)
+                assert len(result.stdout) == len(pairs) * 16, (op, len(result.stdout), len(pairs))
+                for index, (i, j) in enumerate(pairs):
+                    x, y = VALUES[i], VALUES[j]
+                    reference = ((77, 0) if not unary and op in (47, 37) and y == 0 else
+                                 (0, expected(op, x, y, unary) & ((1 << 64) - 1)))
+                    actual = struct.unpack_from('<QQ', result.stdout, index * 16)
+                    assert actual == reference, (op, x, y, unary, actual, reference)
+            passed += len(pairs)
 
+        # Batch one operator per image instead of starting thousands of
+        # instrumented emitters and ELF writers. Every operand pair still runs.
+        pairs = list(itertools.product(range(len(VALUES)), repeat=2))
         for op in OPS:
-            for i, j in itertools.product(range(len(VALUES)), repeat=2):
-                check(op, i, j)
+            check(op, pairs, bulk=1)
             print(f'PASS: binary operation {op}', flush=True)
         for op in (45, 33, 126):
-            for i in range(len(VALUES)):
-                check(op, i, 0, unary=1)
+            check(op, [(i, 0) for i in range(len(VALUES))], unary=1, bulk=1)
         for op in (47, 37, 104, 105):
-            check(op, 0, 6, base=4094, fail=4093)
+            check(op, [(0, 6)], base=4094, fail=4093)
         invalid = [(999, 0, 0, 0, 0, 2), (0, 0, 0, 1, 0, 2)]
         invalid += [(op, 0, 0, 0, base, 2) for op in (47, 37, 104, 105) for base in (-1, 4095)]
         invalid += [(op, 0, 0, 0, 0, fail) for op in (47, 37) for fail in (-1, 4096, 0, 1)]

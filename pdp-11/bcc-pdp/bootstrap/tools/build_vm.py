@@ -43,7 +43,7 @@ def resolver_image(work):
             shutil.copy2(NATIVE / 'build' / name, work / name)
         shutil.copy2(NATIVE.parent / 'unix-v1/tools/apout/apout', work / 'apout')
     source = '\n'.join((BOOTSTRAP / 'src' / name).read_text()
-                       for name in ('buffered_io.b', 'ic.b', 'symbols.b', 'b01.b'))
+                       for name in ('buffered_io.b', 'decimal16.b', 'diagnostics.b', 'ic.b', 'symbols.b', 'b01.b'))
     (work / 'b01.b').write_text(source)
     env = dict(os.environ, APOUT_ROOT=str(work))
     for binary, args in [('b00', ['-o', 'b01.ic', 'b01.b']),

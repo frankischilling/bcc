@@ -11,10 +11,10 @@ import tempfile
 BOOTSTRAP = Path(__file__).resolve().parents[1]
 NATIVE = BOOTSTRAP.parent
 MODULES = {
-    'frontend': ('src/buffered_io.b', 'frontend/lex.b', 'frontend/bstmt.b',
+    'frontend': ('src/buffered_io.b', 'src/decimal16.b', 'src/diagnostics.b', 'frontend/lex.b', 'frontend/word16.b', 'frontend/bstmt.b',
                  'frontend/bexpr.b', 'frontend/bemit0.b', 'frontend/driver.b'),
-    'resolver': ('src/buffered_io.b', 'src/ic.b', 'src/symbols.b', 'src/b01.b'),
-    'codegen': ('src/buffered_io.b', 'src/ic.b', 'codegen/bcg.b', 'codegen/bcgnew.b',
+    'resolver': ('src/buffered_io.b', 'src/decimal16.b', 'src/diagnostics.b', 'src/ic.b', 'src/symbols.b', 'src/b01.b'),
+    'codegen': ('src/buffered_io.b', 'src/decimal16.b', 'src/diagnostics.b', 'src/ic.b', 'codegen/bcg.b', 'codegen/bcgnew.b',
                 'codegen/blit.b', 'codegen/b1drv.b', 'codegen/driver.b'),
     'selector': ('src/io.b', 'selector/select.b'),
     'runtime': ('runtime/io.b', 'runtime/startup.b', 'runtime/prims.b'),

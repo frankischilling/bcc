@@ -73,7 +73,9 @@ def main():
             assert reader.count('read(') == 1 and reader.count(',read,') == 1
             reader = reader.replace('read(', 'tread(').replace(',read,', ',tread,')
             source = work / 'reader.b'
-            source.write_text((ROOT / 'src/buffered_io.b').read_text() + reader + HARNESS)
+            source.write_text((ROOT / 'src/buffered_io.b').read_text() +
+                              (ROOT / 'src/decimal16.b').read_text() +
+                              (ROOT / 'src/diagnostics.b').read_text() + reader + HARNESS)
             for word in ('16', '32', 'host'):
                 binary = work / 'reader'
                 subprocess.run([str(args.bcc.resolve()), '--strict', '--pedantic',

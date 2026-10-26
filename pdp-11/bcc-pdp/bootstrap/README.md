@@ -18,10 +18,14 @@ independent toolchain.
 
 ## Source layout
 
-- `src/buffered_io.b` buffers compiler output in 256-byte blocks, formats
-  record fields, and writes completion markers after successful output.
-  Diagnostics remain immediate. `src/io.b` is the smaller unbuffered variant
-  used where only diagnostics and markers need those helpers.
+- `src/buffered_io.b` buffers compiler output in 256-byte blocks.
+  `src/decimal16.b` formats signed record fields, and `src/diagnostics.b` writes
+  diagnostics and completion markers. Diagnostics remain immediate. The module
+  order preserves the resolver and code generator's instruction-image layout.
+  `src/io.b` is the smaller standalone variant used by other passes.
+- `frontend/word16.b` keeps literal normalization at 16 bits. The experimental
+  [wide frontend](../../../bootstrap/native/frontend/README.md) selects separate
+  numeric helpers without changing this target.
 - `src/ic.b` reads bounded records in 128-byte input blocks and checks signed
   16-bit decimal fields. Selecting a new input discards unread buffered bytes.
 - `src/symbols.b` stores symbol names as packed bytes, with separate B-cell

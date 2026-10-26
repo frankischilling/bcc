@@ -185,22 +185,22 @@ lexnum(c) {
     extrn tval;
 
     auto base;
-    tval = norm16(0);
+    tval = wordval(0);
     base = 10;
     if (c == '0') base = 8;
     if (base == 8) {
         c = gtch();
         while (isdig(c)) {
-            tval = norm16(tval * 8 + (c - '0'));
+            tval = wordval(tval * 8 + (c - '0'));
             c = gtch();
         }
         unch(c);
         return;
     }
-    tval = norm16(c - '0');
+    tval = wordval(c - '0');
     c = gtch();
     while (isdig(c)) {
-        tval = norm16(tval * 10 + (c - '0'));
+        tval = wordval(tval * 10 + (c - '0'));
         c = gtch();
     }
     unch(c);
@@ -210,7 +210,7 @@ lexchr(endc) {
     extrn tval;
 
     auto c, n;
-    tval = norm16(0);
+    tval = wordval(0);
     n = 0;
     c = gtch();
     while (1) {
@@ -220,7 +220,7 @@ lexchr(endc) {
         if (c == '**') c = rdesc();
         if (c < 0) fatal("unterminated character constant");
         if (n >= 2) fatal("character constant too long");
-        tval = norm16((tval << 8) | (c & 0377));
+        tval = wordval((tval << 8) | (c & 0377));
         n = n + 1;
         c = gtch();
     }
@@ -298,7 +298,7 @@ lexeq() {
 gettok() {
     extrn tok, tval, tstr, tnam, savtok, savval, savstr, savnam, pushd, extflg;
 
-    auto c, i, n;
+    auto c, i;
 
     if (pushd) {
         pushd = 0;
@@ -453,10 +453,4 @@ gettok() {
     if (c == '%') { tok = c; return; }
 
     fatal("lexer: unexpected character");
-}
-
-norm16(v) {
-    v=v&65535;
-    if (v&32768) v=v|(-32768);
-    return(v);
 }

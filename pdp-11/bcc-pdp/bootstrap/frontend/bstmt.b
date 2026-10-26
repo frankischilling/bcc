@@ -51,7 +51,7 @@ gconst() {
     if (tok != 2) if (tok != 4) fatal("expected constant");
     v = tval;
     gettok();
-    if (neg) v = norm16(- v);
+    if (neg) v = wordval(- v);
     return(v);
 }
 

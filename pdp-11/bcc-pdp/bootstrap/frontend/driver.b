@@ -7,6 +7,7 @@ usage() {
 main() {
     extrn argv,char,open,creat,close,extflg;
     auto i,in,out,done,p,fdin,fdout;
+    frontini();
     i=2;in=0;out=0;done=0;
     while (i<=argv[0]) {
         p=argv[i];

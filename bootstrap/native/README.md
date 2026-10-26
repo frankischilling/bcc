@@ -234,3 +234,11 @@ They also check register and stack preservation, division overflow and zero-divi
 label limits, and rejected operators. The normal native test target repeats
 them through all three B bootstrap stages. These checks do not establish a
 complete expression compiler or runtime.
+
+
+## Source frontend
+
+An experimental [64-bit record frontend](frontend/README.md) reuses the
+B-written parser with target-specific numeric helpers. It emits unresolved
+records, not native code, and retains the parser's short-name and storage
+limits. The complete host source-to-native pipeline remains unfinished.

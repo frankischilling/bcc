@@ -53,7 +53,15 @@ The existing `host (gcc)` and `host (clang)` check names are retained as final
 gates. They pass only when every host, B-bootstrap, and assembly lane succeeds.
 A failure, cancellation, skipped lane, or missing result cannot make a gate
 green. `python3 tests/test_ci_gate.py` exercises those status combinations.
-Native PDP-11, kernel, image, and sanitizer jobs remain independent.
+The instrumented compiler suite and generated-program sanitizer checks also
+run in parallel. Each starts from a fresh instrumented compiler build; neither
+depends on test artifacts from the other. The stable `sanitizers` check requires
+both lanes to succeed. Native PDP-11, kernel, and image jobs remain independent.
+
+Native word-operation fixtures batch each operator's operand cases into one
+executable image. Every case still checks its result and preserved registers,
+but the harness avoids thousands of separate instrumented emitter and image
+writer launches. The ordinary-B reference comparison remains separate.
 
 In a completed baseline run at `2385bfe`, the GCC job spent about 24 minutes on
 host tests, 20 on B-bootstrap checks, and 48 on the two assembly runs. Those

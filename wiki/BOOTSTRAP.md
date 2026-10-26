@@ -67,6 +67,13 @@ on Linux x86-64. Building these components still uses the C-output toolchain.
 The native frontend, full expression lowering, runtime, and source-to-instruction
 path listed above remain necessary.
 
+The [wide record frontend](../bootstrap/native/frontend/README.md) shares the
+B parser while selecting 64-bit numeric helpers. The PDP-11 configuration
+continues to normalize literals to 16 bits. The wide configuration still has
+eight-character identifiers and bounded parser storage, so it is not a drop-in
+replacement for the existing host frontend. It emits records rather than an
+executable.
+
 The existing C and assembly-source builds remain useful seeds and comparison
 implementations during this work. A native-output prototype that cannot yet
 compile its own source is not a completed bootstrap.

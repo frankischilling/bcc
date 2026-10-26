@@ -78,6 +78,7 @@ jobs:
           python3 bootstrap/native/test_x64.py --compiler "${{ matrix.compiler }}" --close-faults
           python3 bootstrap/native/test_labels.py --compiler "${{ matrix.compiler }}"
           python3 bootstrap/native/test_ops.py --compiler "${{ matrix.compiler }}"
+          python3 bootstrap/native/test_frontend.py --compiler "${{ matrix.compiler }}"
   host:
     name: host (${{ matrix.cc }})
     needs: [host_tests, b_bootstrap, assembly]
@@ -94,8 +95,9 @@ jobs:
           HOST_RESULT: ${{ needs.host_tests.result }}
           BOOTSTRAP_RESULT: ${{ needs.b_bootstrap.result }}
           ASSEMBLY_RESULT: ${{ needs.assembly.result }}
-        run: sh .github/scripts/require-success.sh "$HOST_RESULT" "$BOOTSTRAP_RESULT" "$ASSEMBLY_RESULT"
-  sanitizers:
+        run: sh .github/scripts/require-success.sh 3 "$HOST_RESULT" "$BOOTSTRAP_RESULT" "$ASSEMBLY_RESULT"
+  sanitizer_compiler:
+    name: sanitizer compiler
     runs-on: ubuntu-24.04
     env:
       ASAN_OPTIONS: detect_leaks=0
@@ -106,6 +108,16 @@ jobs:
         run: make CFLAGS="-std=c99 -g -O1 -fsanitize=address,undefined -fno-omit-frame-pointer"
       - name: Check the instrumented compiler
         run: make test
+  sanitizer_generated:
+    name: sanitizer generated programs
+    runs-on: ubuntu-24.04
+    env:
+      ASAN_OPTIONS: detect_leaks=0
+      UBSAN_OPTIONS: halt_on_error=1
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build with address and undefined-behavior checks
+        run: make CFLAGS="-std=c99 -g -O1 -fsanitize=address,undefined -fno-omit-frame-pointer"
       - name: Check generated arithmetic and inline runtime code
         run: |
           printf '#!/bin/sh\nexec "%s/bcc" -X -fsanitize=address,undefined "$@"\n' "$PWD" > "$RUNNER_TEMP/bcc-instrumented"
@@ -121,6 +133,19 @@ jobs:
           python3 bootstrap/native/test_x64.py --compiler "$RUNNER_TEMP/bcc-instrumented"
           python3 bootstrap/native/test_labels.py --compiler "$RUNNER_TEMP/bcc-instrumented"
           python3 bootstrap/native/test_ops.py --compiler "$RUNNER_TEMP/bcc-instrumented"
+          python3 bootstrap/native/test_frontend.py --compiler "$RUNNER_TEMP/bcc-instrumented"
+  sanitizers:
+    name: sanitizers
+    needs: [sanitizer_compiler, sanitizer_generated]
+    if: ${{ always() }}
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Require both sanitizer lanes
+        env:
+          COMPILER_RESULT: ${{ needs.sanitizer_compiler.result }}
+          GENERATED_RESULT: ${{ needs.sanitizer_generated.result }}
+        run: sh .github/scripts/require-success.sh 2 "$COMPILER_RESULT" "$GENERATED_RESULT"
   pdp11:
     runs-on: ubuntu-24.04
     steps:

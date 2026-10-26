@@ -1,14 +1,18 @@
 #!/bin/sh
-# Keep the existing host check names as gates for all parallel host lanes.
+# Keep stable check names as fail-closed gates for parallel test lanes.
 set -eu
-if [ "$#" -ne 3 ]; then
-    echo 'expected host, B-bootstrap, and assembly results' >&2
+case "${1-}" in
+    2|3) expected=$1; shift ;;
+    *) echo 'expected a lane count of 2 or 3, followed by results' >&2; exit 2 ;;
+esac
+if [ "$#" -ne "$expected" ]; then
+    printf 'expected %s lane results\n' "$expected" >&2
     exit 2
 fi
-printf 'host=%s B-bootstrap=%s assembly=%s\n' "$1" "$2" "$3"
 for result in "$@"; do
     if [ "$result" != success ]; then
-        echo 'all host lanes must finish successfully' >&2
+        printf 'lane did not finish successfully: %s\n' "$result" >&2
         exit 1
     fi
 done
+printf 'all %s lanes succeeded\n' "$expected"
