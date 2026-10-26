@@ -504,7 +504,7 @@ by-value isolation. Focused instruction fixtures also test maximum call blocks,
 actual-count metadata, invalid headers, and API errors.
 
 That constructor is test code, not an installed compiler command. Its entry
-point reports binary results for comparison. It rejects runtime imports and
+point reports binary results for comparison. It binds the initial runtime primitives and predefined `argv` vector, but rejects
 entry parameters. It does
 not supply normal startup, multi-file linking, the remaining library, or a
 native compiler fixed point. Tests run instruction construction with an empty
@@ -665,8 +665,8 @@ Other platforms build the images but report native execution as skipped.
 
 The focused runtime fixture calls these primitives by numeric ID. The
 whole-program constructor also binds source-level imports for this initial
-set, as described below. It does not initialize process arguments or supply
-allocation and formatted I/O. The emitters themselves still run through the
+set, as described below. A separate entry module packs the predefined
+argument vector. General allocation and formatted I/O remain missing. The emitters themselves still run through the
 seed's C-backed runtime. This is groundwork for native self-compilation, not
 a completed self-hosting compiler.
 
@@ -683,7 +683,9 @@ are not added. Unknown names remain unresolved and fail in the data/code pass.
 Call `xbiscan(fd)` before `xbicopy(fd,out,visit)`, reopening the same unchanged
 input for the second pass. The latter copies the records and appends empty
 function records for the selected providers. The callback receives the
-NUL-terminated name, operation ID, and declared argument count. The caller
+NUL-terminated name, operation ID, and declared argument count. ID 11 denotes
+the predefined `argv` data cell, with count zero, rather than a function; it
+is emitted as a zero-initialized scalar record. The caller
 must supply distinct input and output files and close both descriptors;
 `xbicopy` flushes but does not close its output. These are internal compiler
 interfaces, not a general linker or a parser for untrusted object formats.
@@ -696,7 +698,44 @@ same behavior as source functions. A source function named `char` is never
 replaced just because its name matches a primitive.
 
 `test_calls.py` checks these cases, real file I/O through source-level calls,
-stdout and stderr writes, exit status, and argument-count faults. It still uses
+stdout and stderr writes, exit status, and argument-count faults. It also
+initializes an imported `argv` cell with the entry module below. It still uses
 a result-reporting entry point rather than normal process startup. Import
 selection does not remove the seed's C dependency or establish native
 self-compilation.
+
+
+## Entry argument vector
+
+`runtime/argv.b` emits `xargvec(limit)` for the Linux x86-64 process-entry
+stack, before a B function frame is created. The emitted code copies the
+kernel's argument strings into independent, word-aligned storage and builds
+`[argc, arg0, arg1, ...]`. Strings retain their NUL terminators, including
+empty strings and bytes equal to EOT. This is the predefined B `argv` vector,
+not the host compatibility function `argv(index)` that returns EOT strings.
+
+At completion, RAX contains the vector's word pointer and RDX contains the
+argument count. RSP is unchanged; the other working registers may be clobbered.
+The emitter requires no active function frame or stacked expression operands.
+It uses the configured fault label for an invalid initial count, a null
+argument pointer, an allocation failure, or insufficient copy space.
+
+The count limit is 4,095 arguments, including the executable name. The
+allocation budget includes the vector, terminators, and per-string alignment.
+It must be a multiple of eight between 16 bytes and 16 MiB. The call-test
+constructor uses 1 MiB. Storage is an anonymous read/write mapping retained
+until process exit, not a general allocator. Mapping constants follow the
+[Linux memory-mapping interface](https://github.com/torvalds/linux/blob/master/include/uapi/asm-generic/mman-common.h).
+
+```sh
+python3 bootstrap/native/test_argv.py
+```
+
+Tests check empty arguments, embedded EOT and high bytes, word boundaries,
+long strings, many arguments, exact allocation limits, and independent storage
+without changing the kernel's original argument bytes. The call constructor
+connects this vector to source-level `argv` references while preserving source
+definitions, local shadows, address initializers, and assignment to the global
+cell. It still uses a binary-result test entry point and rejects parameters
+on `main`. Normal startup, the compatibility argument functions, and native
+compiler self-rebuilding remain unfinished.

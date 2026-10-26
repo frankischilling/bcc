@@ -1,10 +1,10 @@
 /* Select providers only after seeing every source definition. */
-xbinames[] "char","lchar","read","write","close","seek","exit","open","creat","chmod","unlink";
-xbidefs[11]; xbirefs[11]; xbibuf[520];
-xbiwhich(name){extrn xbinames;auto i;i=0;while(i<11){if(tageq(name,xbinames[i]))return(i);i++;}return(-1);}
+xbinames[] "char","lchar","read","write","close","seek","exit","open","creat","chmod","unlink","argv";
+xbidefs[12]; xbirefs[12]; xbibuf[520];
+xbiwhich(name){extrn xbinames;auto i;i=0;while(i<12){if(tageq(name,xbinames[i]))return(i);i++;}return(-1);}
 xbiscan(fd){
     extrn xbidefs,xbirefs,xbibuf;auto i,tag 5,name 5,def,ref;
-    i=0;while(i<11){xbidefs[i]=0;xbirefs[i]=0;i++;}icini(fd);
+    i=0;while(i<12){xbidefs[i]=0;xbirefs[i]=0;i++;}icini(fd);
     while(getln(xbibuf,1040)){
         icrst();nxtnam(xbibuf,tag);
         def=tageq(tag,"pr") | tageq(tag,"gvb") | tageq(tag,"gvp");
@@ -21,11 +21,16 @@ xbicopy(fd,out,visit){
     auto i,j,c,name 5;
     outinit(out);icini(fd);
     while(getln(xbibuf,1040)){outs(xbibuf);outln();}
-    i=0;while(i<11){
+    i=0;while(i<12){
         if(xbirefs[i] & !xbidefs[i]){
             j=0;while((c=char(xbinames[i],j))!=4 & c!=0){lchar(name,j++,c);}lchar(name,j,0);
-            if(visit(name,i,xbicnt(i)))xrfail();
-            bouts("pr ");outs(name);bouts(" 0 0*nep 0*n");
+            if(i==11){
+                if(visit(name,i,0))xrfail();
+                bouts("gvb argv 1*ngvc 0*ngve*n");
+            }else{
+                if(visit(name,i,xbicnt(i)))xrfail();
+                bouts("pr ");outs(name);bouts(" 0 0*nep 0*n");
+            }
         }
         i++;
     }

@@ -2,7 +2,8 @@ fvalue(index){extrn fnames,xrvalid;xmovim(0,xdaddr(fnames+index*5));xrvalid=1;}
 record(s){extrn char,lchar;auto b 16,i,c;i=0;while((c=char(s,i))!=4&c!=0){lchar(b,i,c);i++;}lchar(b,i,0);if(!xfline(b))if(!xmline(b))xrline(b);}
 guard(){auto p;xjcc(4,22);p=xtell();xmovim(0,60);xmovim(7,78);xsys();if(xtell()!=p+22)xfail();}
 entry(){
- extrn mainidx;
+ extrn mainidx,haveargv;
+ if(haveargv){xargvec(1048576);xmovim(1,xdaddr("argv")*8);xstore(1,0,0);}
  xmov(3,4);xmovim(5,123456789);xmframe(0);
  fvalue(mainidx);record("dr");record("ps");xcall(0);xmleave();
  xbin(5,4,3);guard();xmovim(2,123456789);xbin(5,5,2);guard();

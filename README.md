@@ -108,7 +108,8 @@ argument blocks and function entries; the integration tests compile restricted
 multi-function programs. [Static data construction](bootstrap/native/README.md#static-data)
 adds globals, vectors, address initializers, and writable strings.
 [Switch and computed-goto lowering](bootstrap/native/README.md#switch-dispatch-and-computed-goto)
-also supports mutable label cells. Runtime imports and normal startup remain unfinished. This is not yet a general
+also supports mutable label cells, initial runtime imports, and the predefined
+argument vector. Normal startup and the full runtime remain unfinished. This is not yet a general
 B-to-native compiler.
 
 ## Dialect and word modes

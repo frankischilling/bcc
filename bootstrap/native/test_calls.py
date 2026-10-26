@@ -137,6 +137,16 @@ SOURCE_CASES += [
  ('f(p){return(p("ABC",2));}main(){extrn char;return(f(char));}',67),
 ]
 
+SOURCE_CASES += [
+ ('main(){extrn argv;return(argv[0]);}',1),
+ ('main(){extrn argv,char;return(char(argv[1],0));}',47),
+ ('saved argv;main(){extrn argv,saved;return(*saved==argv);}',1),
+ ('main(){extrn argv;auto old,v 1;old=argv;v[0]=42;argv=v;if(argv[0]!=42)return(1);*(&argv)=old;return(argv[0]);}',1),
+ ('argv[1] 42;main(){extrn argv;return(argv[0]);}',42),
+ ('argv(){return(42);}main(){return(argv());}',42),
+ ('main(){auto argv 1;argv[0]=42;return(argv[0]);}',42),
+]
+
 ABI_CASES=[(0,0,2,0),(0,1,2,1),(0,2,2,3),(0,5,2,3),(1,8,2,8),
            (2,0,0,0),(2,8,0,8),(3,15,1,120),(4,1,1,141),(5,1,1,15),
            (6,0,0,None),(7,0,0,None),(8,0,0,None),(9,0,32767,0),
@@ -160,14 +170,14 @@ def main():
             run=subprocess.run([*command,str(path),'-o',str(work/name)],capture_output=True,timeout=180)
             assert run.returncode==0,(name,run.stderr)
         parts=[NATIVE/'src'/name for name in ('buffered_io.b','decimal16.b','diagnostics.b','ic.b')]
-        parts += [ROOT/name for name in ('x64.b','labels.b','ops.b','scalar.b','memory.b','control.b', 'switch.b','arity.b','calls.b','runtime/emit.b','runtime/path.b','runtime/imports.b','data/layout.b','data/labels.b','data/output.b')]
+        parts += [ROOT/name for name in ('x64.b','labels.b','ops.b','scalar.b','memory.b','control.b', 'switch.b','arity.b','calls.b','runtime/emit.b','runtime/path.b','runtime/argv.b','runtime/imports.b','data/layout.b','data/labels.b','data/output.b')]
         common='\n'.join(path.read_text() for path in parts)
         build('abi',common+(FIXTURES/'abi.b').read_text())
         build('constructor',common+'\n'.join((FIXTURES/name).read_text() for name in ('metadata.b','emission.b','driver.b')))
         build('front',frontend.source_text());build('resolver',resolver.source_text())
         build('image',(ROOT/'elfimage.b').read_text());(work/'empty').write_bytes(b'')
 
-        def image_check(name,code,data,value,status=0,prefix=b'',stderr=b''):
+        def image_check(name,code,data,value,status=0,prefix=b'',stderr=b'',arguments=()):
             nonlocal passed
             (work/'code').write_bytes(code)
             image=subprocess.run([str(work/'image'),'code',data,'0','0'],cwd=work,
@@ -175,7 +185,7 @@ def main():
             assert(image.returncode,image.stderr)==(0,b''),(name,image)
             if execute:
                 (work/'result').write_bytes(image.stdout);(work/'result').chmod(0o700)
-                run=subprocess.run([str(work/'result')],cwd=work,stdin=subprocess.DEVNULL,capture_output=True,timeout=10,env=tool_free)
+                run=subprocess.run([str(work/'result'),*arguments],cwd=work,stdin=subprocess.DEVNULL,capture_output=True,timeout=10,env=tool_free)
                 expected=prefix+(b'' if value is None else struct.pack('<q',value))
                 assert(run.returncode,run.stdout,run.stderr)==(status,expected,stderr),(name,run,expected)
             passed+=1
@@ -245,6 +255,13 @@ def main():
             assert (run.returncode,run.stderr)==(0,b''),(index,text,run)
             image_check('runtime/'+str(index),run.stdout,'data',value,status,prefix,stderr)
         assert not (work/'runtime-file').exists()
+        records('main(){extrn argv,char;if(argv[0]!=4)return(1);'
+                'if(char(argv[2],0)!=0 | char(argv[3],0)!=255)return(2);'
+                'if(char(argv[3],1)!=4 | char(argv[3],2)!=0)return(3);'
+                'return(char(argv[4],3));}')
+        run=construct()
+        assert (run.returncode,run.stderr)==(0,b''),run
+        image_check('argument-vector',run.stdout,'data',32,arguments=[b'',b'\xff\x04',b'two words'])
 
         (work/'raw.ic').write_bytes(b'Adef main\nAend\n')
         (work/'resolved.ic').write_bytes(b'Glit 1 4\npr main 0 30000\nst 0\ndr\nrt\nep 0\n')

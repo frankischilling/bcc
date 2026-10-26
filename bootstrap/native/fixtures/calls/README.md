@@ -13,7 +13,9 @@ working directory containing files you need to keep.
   and static data output.
 
 The whole-function constructor emits a binary-result reporting entry point for
-comparison, not normal startup or command-line argument handling. It binds the initial Linux runtime primitives when a referenced name has no
+comparison, not normal startup. Imported `argv` data uses the native entry
+argument packer, but `main` parameters and compatibility argument functions
+remain unsupported. It binds the initial Linux runtime primitives when a referenced name has no
 source definition. Other unresolved symbols are rejected. Globals, vectors, address initializers, writable strings,
 and label cells use the static-data modules. Control lowering handles switches
 and computed goto. It is useful evidence that the

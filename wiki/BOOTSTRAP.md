@@ -101,8 +101,10 @@ now generate direct Linux x86-64 implementations of packed-byte access, basic
 file I/O, path operations, and process exit. They use the B call frame and
 need no linked C runtime in the resulting image. The whole-program test constructor now binds these imports only when the
 source does not define the name, preserving writable function cells and
-user-defined replacements. Process-argument startup, allocation, and
-formatted I/O are still missing. These primitives do not
+user-defined replacements. An [entry argument packer](../bootstrap/native/README.md#entry-argument-vector)
+now initializes the predefined `argv` vector from Linux process arguments,
+with separate aligned copies of the NUL-terminated strings. Normal startup,
+compatibility argument functions, allocation, and formatted I/O are still missing. These primitives do not
 change the normal compiler's C-toolchain dependency.
 
 A separate [host resolver storage module](../bootstrap/native/README.md#host-resolver-storage)
