@@ -25,6 +25,13 @@ undefined. Keep implementation choices for those cases separate from
 conformance requirements. Section 4.1 leaves function argument evaluation
 order unspecified.
 
+BCC captures an assignment destination once, before evaluating its right-hand
+side. Its C-output builds make that sequence explicit rather than relying on
+C argument or assignment evaluation order. This matches the native record
+pipeline and keeps indexed updates consistent across builds. It is an
+implementation choice: section 4.11 defines the assignment result but does
+not establish a general left-to-right rule for every expression.
+
 ## Other primary sources
 
 [Kernighan's tutorial][btut] describes H6070/MH-TSS B, as its introduction

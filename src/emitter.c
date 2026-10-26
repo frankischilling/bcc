@@ -1081,43 +1081,31 @@ void emit_expr(FILE *out, Expr *e, const char *filename) {
                 return;
             }
 
-            /* Update the lvalue once and wrap at the selected word width. */
-            if (op != TK_ASSIGN) {
-                const char *helper_name = NULL;
-                switch (op) {
-                case TK_PLUSEQ: helper_name = "add_assign"; break;
-                case TK_MINUSEQ: helper_name = "sub_assign"; break;
-                case TK_STAREQ: helper_name = "mul_assign"; break;
-                case TK_SLASHEQ: helper_name = "div_assign"; break;
-                case TK_PERCENTEQ: helper_name = "mod_assign"; break;
-                case TK_LSHIFTEQ: helper_name = "lsh_assign"; break;
-                case TK_RSHIFTEQ: helper_name = "rsh_assign"; break;
-                case TK_ANDEQ: helper_name = "and_assign"; break;
-                case TK_OREQ: helper_name = "or_assign"; break;
-                default: break;
-                }
-                if (helper_name) {
-                    fputs("b_", out);
-                    fputs(helper_name, out);
-                    fputs("(&(", out);
-                    emit_expr(out, lhs, filename);
-                    fputs("), ", out);
-                    emit_expr(out, rhs, filename);
-                    fputc(')', out);
-                } else {
-                    // Fallback for any missing helpers
-                    fputc('(', out);
-                    emit_expr(out, lhs, filename);
-                    fprintf(out, " %s ", assignment_op_to_c(op));
-                    emit_expr(out, rhs, filename);
-                    fputc(')', out);
-                }
+            /* Capture the destination before the RHS, as the native records do. */
+            unsigned id = ++expression_id;
+            fprintf(out, "({ word *__b_dest_%u = &(", id);
+            emit_expr(out, lhs, filename);
+            fprintf(out, "); word __b_rhs_%u = (", id);
+            emit_expr(out, rhs, filename);
+            fputs("); ", out);
+            const char *helper_name = NULL;
+            switch (op) {
+            case TK_PLUSEQ: helper_name = "add_assign"; break;
+            case TK_MINUSEQ: helper_name = "sub_assign"; break;
+            case TK_STAREQ: helper_name = "mul_assign"; break;
+            case TK_SLASHEQ: helper_name = "div_assign"; break;
+            case TK_PERCENTEQ: helper_name = "mod_assign"; break;
+            case TK_LSHIFTEQ: helper_name = "lsh_assign"; break;
+            case TK_RSHIFTEQ: helper_name = "rsh_assign"; break;
+            case TK_ANDEQ: helper_name = "and_assign"; break;
+            case TK_OREQ: helper_name = "or_assign"; break;
+            default: break;
+            }
+            if (helper_name) {
+                fprintf(out, "b_%s(__b_dest_%u, __b_rhs_%u); })", helper_name, id, id);
             } else {
-                fputc('(', out);
-                emit_expr(out, lhs, filename);
-                fprintf(out, " %s ", assignment_op_to_c(op));
-                emit_expr(out, rhs, filename);
-                fputc(')', out);
+                fprintf(out, "*__b_dest_%u %s __b_rhs_%u; })", id,
+                        assignment_op_to_c(op), id);
             }
             return;
         }

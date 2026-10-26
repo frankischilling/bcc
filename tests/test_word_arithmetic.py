@@ -10,7 +10,7 @@ import tempfile
 def cases(bits):
     maximum = str((1 << (bits - 1)) - 1)
     minimum = f'(-{maximum}-1)'
-    return {
+    result = {
         'update-<': 'x=0; v[0]=7; v[1]=9; v[x++]=<8; return(x!=1 | v[0]!=1 | v[1]!=9);',
         'update-<=': 'x=0; v[0]=7; v[1]=9; v[x++]=<=8; return(x!=1 | v[0]!=1 | v[1]!=9);',
         'update->': 'x=0; v[0]=7; v[1]=9; v[x++]=>8; return(x!=1 | v[0]!=0 | v[1]!=9);',
@@ -49,6 +49,15 @@ def cases(bits):
         'signed-result': 'x= -2; return(!(x+1<0) | !(x-1<0) | !(x*2<0));',
         'indexed-update': f'x=0; v[0]={maximum}; v[1]=7; v[x++]=+1; return(x!=1 | v[0]!={minimum} | v[1]!=7);',
     }
+    # This is BCC's explicit ordering policy, not a new historical guarantee.
+    updates = [('',1), ('+',6), ('-',4), ('*',5), ('/',5), ('%',0),
+               ('&',1), ('|',5), ('<',0), ('>',1), ('==',0), ('!=',1),
+               ('<=',0), ('>=',1), ('<<',10), ('>>',2)]
+    for op, value in updates:
+        result['assignment-order-' + (op or 'plain')] = (
+            'x=0;v[0]=5;v[1]=10;v[x++]=' + op + '(x=1);'
+            f'return(x!=1 | v[0]!={value} | v[1]!=10);')
+    return result
 
 
 def main():

@@ -330,3 +330,56 @@ path. Their existing host runtime dependency has not been removed. They also
 check stack restoration, division faults, malformed records, numeric bounds,
 label exhaustion, and wrong-width builds. Other hosts skip native execution
 rather than treating it as verified.
+
+## Local storage and pointer records
+
+`memory.b` extends scalar lowering with local cells, automatic vectors,
+word-addressed pointers, assignment, compound updates, and prefix/postfix
+increments. Include it after `scalar.b` and use the same instruction emitter,
+label range, and diagnostic helpers.
+
+Call `xmframe(count)` to emit a frame with 0 through 8191 local cells. It saves
+RBP, uses RBP as the frame base, allocates eight bytes per cell below it, and
+zeroes those cells. This initialization is a host-backend choice, not a promise
+about historical automatic storage. `xmleave()` restores RSP and RBP without
+changing the result in RAX; the caller supplies any return instruction.
+
+For each record, call `xmline(buf)`. It returns one for a handled record and
+zero for another tag. A caller can pass unhandled lines to `xrline`, which
+rejects unsupported records. The memory records are:
+
+- `lc offset`: form the word address of a local cell.
+- `vi slot dataoffset`: initialize a vector pointer cell. Offsets use the
+  resolver's downward-counting layout; elements themselves have increasing
+  addresses.
+- `dr`: load a word through the address in RAX.
+- `ix`: add the index in RAX to a saved word address.
+- `as`: store RAX through a saved word address, retaining the assigned value.
+- `po flag` and `pi flag`: postfix and prefix updates. Zero decrements; one
+  increments. Other flags are rejected.
+- `ca op` and `cac op label label`: compound updates. The captured destination
+  remains on the evaluation stack while the operation is performed. Boolean
+  label fields follow the scalar lowerer's rules.
+
+The module shares scalar operand tracking. Call `xrendex()` when an expression
+is complete. Frame offsets and record fields are checked, but runtime pointers
+are not bounds-checked. The caller must provide valid storage. Memory operations
+may change RAX, RCX, RDX, R8, and flags; frame entry and exit also manipulate RBP
+and RSP. Arithmetic faults branch to the caller's fault label. That handler
+must terminate or unwind the frame, not resume inside the failed expression.
+
+These records cover local storage only. Arguments, global symbols, strings,
+function calls, labels, and general control flow still need surrounding
+lowering and runtime support. The tests supply a frame and reporting harness;
+there is still no general native source compiler command.
+
+```sh
+python3 bootstrap/native/test_memory.py
+```
+
+Tests pass real source through the B frontend, resolver, memory lowerer, and
+image writer, then compare native results with compiled B and independent
+expected values. They cover captured indexed lvalues, vector addressing,
+compound operators, word boundaries, frame restoration, maximum frame size,
+and malformed records. The instruction-building steps run with an empty
+tool-search path after their seeded build.

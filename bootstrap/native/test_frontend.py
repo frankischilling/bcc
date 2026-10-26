@@ -80,7 +80,7 @@ def main():
         check('string-overflow', 'main(){return("' + 'a'*256 + '");}', error=b'string literal too long')
         check('missing-input-terminator', 'main(){return(1)', error=b'expected')
         check('self-parse', source.read_text())
-        for name in ('x64.b', 'labels.b', 'ops.b', 'elfimage.b'):
+        for name in ('x64.b', 'labels.b', 'ops.b', 'elfimage.b', 'arity.b', 'scalar.b', 'memory.b'):
             check('backend/' + name, (ROOT / name).read_text())
         (work / 'input.b').write_text('main(){return(9223372036854775808);}')
         result = subprocess.run([str(binary), '-o', 'records', '-s', 'done', 'input.b'], cwd=work,

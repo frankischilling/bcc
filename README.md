@@ -94,9 +94,11 @@ work; the existing host builds still depend on C. An experimental
 instruction bytes. B-written instruction and label encoders can construct
 calls, loops, branches, and integer operations for those images. A shared
 64-bit record frontend and [scalar lowerer](bootstrap/native/README.md#scalar-record-lowering)
-connect arithmetic expressions to those encoders. Source-level calls, variable
-storage, and control flow still need lowering, so this is not yet a general
-B-to-native compiler.
+connect arithmetic expressions to those encoders. A
+[local-memory lowerer](bootstrap/native/README.md#local-storage-and-pointer-records)
+adds local variables, vectors, pointers, and assignments. Source-level calls,
+global storage, and control flow still need lowering, so this is not yet a
+general B-to-native compiler.
 
 ## Dialect and word modes
 

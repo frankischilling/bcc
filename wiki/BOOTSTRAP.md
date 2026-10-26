@@ -82,8 +82,11 @@ calls or provide the native host runtime.
 The [scalar record lowerer](../bootstrap/native/README.md#scalar-record-lowering)
 turns straight-line arithmetic records into x86-64 instructions, with checked
 operand-stack balance and division-fault branches. It does not yet lower
-function calls, variable storage, or control flow. Tests execute isolated
-expressions with a small surrounding harness, not a general source compiler.
+function calls or control flow. A separate
+[local-memory lowerer](../bootstrap/native/README.md#local-storage-and-pointer-records)
+adds local cells, automatic vectors, word-addressed pointers, and assignments.
+Arguments and global storage remain separate work. Tests execute isolated
+program bodies with a surrounding harness, not a general source compiler.
 
 The existing C and assembly-source builds remain useful seeds and comparison
 implementations during this work. A native-output prototype that cannot yet

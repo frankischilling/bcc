@@ -27,9 +27,19 @@ xrnum(buf) {
     if(neg) return(n);return(-n);
 }
 xrend(buf) {if(skpws(buf)!=0) xrfail();}
+xrapply(op) {
+    extrn xrnext,xrlimit,xrfault;
+    auto base;
+    base=0;
+    if(op=='/' | op=='%' | op==104 | op==105) {
+        if(xrnext+1>=xrlimit) xrfail();
+        base=xrnext;xrnext=xrnext+2;
+    }
+    xbinary(op,base,xrfault);
+}
 xrline(buf) {
-    extrn xrdepth,xrvalid,xrnext,xrlimit,xrfault;
-    auto tag 5,op,base,a,b;
+    extrn xrdepth,xrvalid;
+    auto tag 5,op,a,b;
     icrst();nxtnam(buf,tag);
     if(tageq(tag,"n")) {
         op=xrnum(buf);xrend(buf);xmovim(0,op);xrvalid=1;return;
@@ -46,12 +56,7 @@ xrline(buf) {
             if(op!=100 & op!=101 & op!=102 & op!=103 & op!='<' & op!='>') xrfail();
         }
         xrend(buf);if(!xrvalid | xrdepth<=0) xrfail();
-        base=0;
-        if(op=='/' | op=='%' | op==104 | op==105) {
-            if(xrnext+1>=xrlimit) xrfail();
-            base=xrnext;xrnext=xrnext+2;
-        }
-        xstack(1,1);xrdepth--;xbinary(op,base,xrfault);return;
+        xstack(1,1);xrdepth--;xrapply(op);return;
     }
     if(tageq(tag,"uo") | tageq(tag,"uon")) {
         if(tageq(tag,"uo")) op=nxti(buf);

@@ -1243,14 +1243,21 @@ expr(minp) {
             buf_str(b, "); __left ");
             buf_str(b, c_op(op));
             buf_str(b, " __right;})");
-        } else if (word_op(op) | update_op(op)) {
-            if (update_op(op)) {
-                buf_str(b, update_op(op)); buf_str(b, "(&(");
-                buf_str(b, lhs); buf_str(b, "), ");
-            } else {
-                buf_str(b, word_op(op)); buf_ch(b, '(');
-                buf_str(b, lhs); buf_str(b, ", ");
+        } else if ((op == 70) | update_op(op)) {
+            buf_str(b, "({word **__dest=&(");
+            buf_str(b, lhs);
+            buf_str(b, "); word __rhs=(");
+            buf_str(b, rhs);
+            buf_str(b, "); ");
+            if (op == 70) buf_str(b, "**__dest=__rhs;");
+            else {
+                buf_str(b, update_op(op));
+                buf_str(b, "(__dest,__rhs);");
             }
+            buf_str(b, "})");
+        } else if (word_op(op)) {
+            buf_str(b, word_op(op)); buf_ch(b, '(');
+            buf_str(b, lhs); buf_str(b, ", ");
             buf_str(b, rhs); buf_ch(b, ')');
         } else if (rel) {
             buf_str(b, "({word **__dest=&(");

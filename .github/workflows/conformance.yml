@@ -83,6 +83,7 @@ jobs:
           python3 bootstrap/native/test_frontend.py --compiler "${{ matrix.compiler }}"
           python3 bootstrap/native/test_arity.py --compiler "${{ matrix.compiler }}"
           python3 bootstrap/native/test_scalar.py --compiler "${{ matrix.compiler }}"
+          python3 bootstrap/native/test_memory.py --compiler "${{ matrix.compiler }}"
   host:
     name: host (${{ matrix.cc }})
     needs: [host_tests, b_bootstrap, assembly]
@@ -140,6 +141,7 @@ jobs:
           python3 bootstrap/native/test_frontend.py --compiler "$RUNNER_TEMP/bcc-instrumented"
           python3 bootstrap/native/test_arity.py --compiler "$RUNNER_TEMP/bcc-instrumented"
           python3 bootstrap/native/test_scalar.py --compiler "$RUNNER_TEMP/bcc-instrumented"
+          python3 bootstrap/native/test_memory.py --compiler "$RUNNER_TEMP/bcc-instrumented"
   sanitizers:
     name: sanitizers
     needs: [sanitizer_compiler, sanitizer_generated]

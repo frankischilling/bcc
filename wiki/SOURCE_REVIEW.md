@@ -1342,3 +1342,22 @@ zero for negative or overlarge counts instead. The 64-bit native selector
 follows the host policy; its tests compare ordinary B expressions as well as
 an independent arithmetic model. Neither extension is presented as a universal
 historical rule.
+
+### Assignment destinations and C-output sequencing
+
+Thompson's section 4.11 defines assignment and compound-update results, but
+it does not establish a general evaluation order for all operands. BCC's
+native record pipeline captures the left destination before evaluating the
+right operand. The inspected `genxpr` routine in the contemporary
+[aap/b implementation](https://github.com/aap/b/blob/8779d9e8684d1daaa47c6fab1705194d732863bb/b.c) also emits
+its left subtree before its right subtree for these operations. That code
+is corroborating implementation evidence, not an additional rule in the
+1972 manual.
+
+The C-output builds now make BCC's destination-first policy explicit for
+ordinary and compound assignments. An indexed destination is evaluated
+once, and a right-side change to its index cannot redirect the store. The
+regressions use a two-element vector with valid indices under either order,
+so a differing result is observable without relying on an out-of-bounds
+access. The native corpus checks the same policy across all sixteen
+assignment forms.
