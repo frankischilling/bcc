@@ -20,7 +20,7 @@ main() {
     if (10 % 3 + 2 != 3) return(7);
 
     /* Test 8-9: Shift precedence (same as + in B, left-to-right) */
-    if (1 << 2 + 1 != 5) return(8);    /* (1 << 2) + 1 = 5 */
+    if (1 << 2 + 1 != 8) return(8);    /* 1 << (2 + 1) = 8 */
     if (1 << (2 + 1) != 8) return(9);  /* 1 << 3 = 8 */
 
     /* Test 10-11: Bitwise AND/OR precedence */

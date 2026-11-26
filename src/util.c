@@ -16,12 +16,14 @@ Vec g_parsing_files;
 
 // Top-level function names collected across all input files
 Vec g_known_functions;
+Vec g_known_variables;
 
 // Developer flags
 int g_no_line = 0;
 int g_verbose_errors = 0;
 
 // Dialect and extension flags
+int g_use_curses = 0;
 int g_strict = 0;                     // Default: modern mode (extensions allowed)
 unsigned g_extensions = EXT_ALL;      // Default: all extensions enabled
 int g_pedantic = 0;                   // Default: don't error on extensions
@@ -384,14 +386,9 @@ char *fmt(const char *fmt_s, ...) {
     va_end(ap);
     if (n < 0) dief("fmt: vsnprintf failed");
 
-    if (g_compilation_arena) {
-        va_start(ap, fmt_s);
-        char *buf = arena_fmt(g_compilation_arena, fmt_s, ap);
-        va_end(ap);
-        return buf;
-    }
-
-    char *buf = (char*)malloc((size_t)n + 1);
+    char *buf = g_compilation_arena
+        ? arena_alloc(g_compilation_arena, (size_t)n + 1)
+        : (char*)malloc((size_t)n + 1);
     if (!buf) dief("out of memory");
     vsnprintf(buf, (size_t)n + 1, fmt_s, ap2);
     va_end(ap2);
@@ -478,4 +475,19 @@ const char *get_error_message(ErrorCode code) {
         case ERR_EXTERNAL_SYNTAX:   return "external syntax";
         default:                    return "unknown error";
     }
+}
+
+int b_library_function(const char *name) {
+    static const char *names[] = {
+        "char", "lchar", "getchar", "getchr", "putchr", "getstr", "putstr",
+        "flush", "reread", "printf", "printn", "putnum", "print", "putchar",
+        "exit", "abort", "free", "alloc", "open", "close", "read", "write",
+        "creat", "seek", "openr", "openw", "fork", "wait", "execl", "execv",
+        "chdir", "chmod", "chown", "link", "unlink", "stat", "fstat", "time",
+        "ctime", "getuid", "setuid", "makdir", "mkdir", "intr", "gtty", "stty",
+        "system", "usleep", "callf", "argc", "argv", NULL
+    };
+    for (size_t i = 0; names[i]; i++)
+        if (strcmp(name, names[i]) == 0) return 1;
+    return 0;
 }

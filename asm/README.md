@@ -1,46 +1,39 @@
-# bccasm
+# Assembly-source compiler
 
-`bccasm` is an assembly-source build of the full BCC compiler.
-
-The files under `generated/` are x86-64 assembly lowered from the current
-compiler implementation. The resulting binary is linked from assembly objects,
-not from C compiler objects, and preserves the existing BCC CLI and behavior.
-
-Generated B programs link against `asm/lib/runtime.o`, an assembly runtime
-object. The runtime header is linked from `../lib/libb.h` so generated C keeps
-the same ABI contract. The assembly runtime exports the public `libb.h` runtime
-surface, including core I/O, files, strings, printing, process/time wrappers,
-terminal wrappers, `callf`/`B_CALLF_LIB` dynamic lookup, word helpers, and
-assignment helpers.
-
-Build:
+`bccasm` builds the host compiler from checked-in x86-64 GNU assembler
+sources. It has the same command-line interface as `bcc`; it is not a
+separate B dialect or a PDP-11 compiler.
 
 ```sh
 make -C asm
-```
-
-Verify:
-
-```sh
 make -C asm check
-```
-
-Bootstrap a fresh staged compiler:
-
-```sh
 make -C asm bootstrap
 ```
 
-The build assembles `.s` sources with `as` and links the compiler executable
-with `gcc` for the host process startup and system libraries. Runtime allocation,
-process execution, `system`, sleep, time, and file operations are implemented
-with Linux syscalls; `ctime`, signal registration, and dynamic symbol loading use
-the platform C/dynamic-loader ABI because those are library facilities rather
-than raw B operations.
+The last command assembles a fresh staged executable and runs the host
+suite against it. This is a staged assembly build, not B self-hosting.
+The B-written compiler and its three-stage check live in `../bootstrap/`.
 
-Smoke test:
+## Keeping the snapshots current
+
+The maintained compiler sources are in `../src/`. After changing them, run:
 
 ```sh
-./asm/bccasm tests/run/exit_42.b -o /tmp/exit_42
-/tmp/exit_42
+make -C asm regenerate
 ```
+
+`regenerate.py` uses GCC to emit GNU assembler source. Its manifest records
+the compiler version, flags, and source/output hashes. Normal builds check
+those hashes and fail if the snapshots are stale. They assemble with `as`
+and link with the host C toolchain. Regeneration requires an x86-64 GCC
+host; these are not portable assembly sources or NASM input.
+
+B programs use the same C runtime as the main compiler. The build places
+`libb.c`, `libb.h`, `btarget.h`, `binit.h`, `bcall.h`, `bunix.h`, `bformat.h`, and `bprimitives.h` beside the executable so shared-runtime
+compilation works in every supported word mode. The older handwritten
+`runtime.s` is retained as historical project material but is not linked:
+it does not implement the current translated-address ABI.
+
+`--asm` emits a program's host assembly through the C backend. Assemble and
+link that output with the host compiler, including `-ldl -lm`. It does not
+emit PDP-11 assembly.

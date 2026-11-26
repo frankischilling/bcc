@@ -1,7 +1,4 @@
-/* Switch statement fallthrough conformance test
- * B switch statements fall through by default (no break statement in B)
- * This tests the critical fallthrough behavior
- */
+/* Cases fall through unless control leaves the switch body. */
 
 count;  /* global counter */
 
@@ -19,7 +16,7 @@ test_fallthrough(n) {
     return(count);
 }
 
-/* Test no-match case (default has a compiler bug, so test without it) */
+/* Check the no-match path without a compatibility-mode default. */
 test_nomatch(n) {
     auto result;
     result = -1;  /* default value */

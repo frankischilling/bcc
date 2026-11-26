@@ -49,21 +49,19 @@ test_mult_add() {
 test_shift() {
     auto a;
 
-    /* In B, shifts are at SAME level as +/- (unlike C!) */
-    /* This means: 1 + 2 << 3 parses as (1 + 2) << 3 in B */
-    /* But we follow left-to-right at same level */
+    /* kbman sections 4.4-4.5: addition binds more tightly than shifts. */
     a = 1 << 3;           /* 8 */
     check("1<<3", 8, a);
 
     a = 8 >> 2;           /* 2 */
     check("8>>2", 2, a);
 
-    /* Shifts at same level as add, left-to-right */
+    /* Additive operands are evaluated before the shift. */
     a = 1 + 1 << 2;       /* (1+1) << 2 = 8 */
     check("1+1<<2", 8, a);
 
-    a = 16 >> 2 - 1;      /* (16>>2) - 1 = 3 */
-    check("16>>2-1", 3, a);
+    a = 16 >> 2 - 1;      /* 16 >> (2-1) = 8 */
+    check("16>>2-1", 8, a);
 
     /* Multiple shifts: left-to-right */
     a = 1 << 2 << 1;      /* (1<<2)<<1 = 8 */

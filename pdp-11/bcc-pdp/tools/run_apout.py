@@ -1,0 +1,124 @@
+#!/usr/bin/env python3
+"""Compile a B program in an isolated V1 tool root, then run it with apout."""
+import argparse
+import contextlib
+import fcntl
+import os
+from pathlib import Path
+import shlex
+import shutil
+import subprocess
+import struct
+import sys
+import tempfile
+from apout_image import native_image, test_image, validate_assembler_output
+from runtime_selection import select_runtime, needs_b_library, select_primitive_runtime
+
+
+@contextlib.contextmanager
+def build_snapshot_lock(root):
+    if os.environ.get('_BCC_NATIVE_LOCKED') == '1':
+        yield
+        return
+    with (root/'.native-build.lock').open('a') as lock:
+        fcntl.flock(lock, fcntl.LOCK_SH)
+        yield
+
+
+def main():
+    root = Path(__file__).resolve().parents[1]
+    v1 = root.parent / 'unix-v1'
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--timeout', type=float, default=None)
+    parser.add_argument('--raw-v1', action='store_true', help="use the emulator's uninstrumented 0405 mode")
+    parser.add_argument('--emit-image', type=Path, help='save the validated image without running it')
+    parser.add_argument('source', type=Path)
+    parser.add_argument('arguments', nargs=argparse.REMAINDER)
+    args = parser.parse_args()
+    source = args.source.resolve(strict=True)
+    if args.emit_image and args.arguments:
+        parser.error('--emit-image does not accept program arguments')
+    if args.emit_image and args.emit_image.resolve() == source:
+        parser.error('image destination must differ from source')
+    apout = v1 / 'tools/apout/apout'
+    caller = Path.cwd()
+    with tempfile.TemporaryDirectory(prefix='bcc-v1-run-') as directory:
+        work = Path(directory)
+        with build_snapshot_lock(root):
+            required = [apout, root/'build/aroot/bin/as', root/'runtime/libb.s']
+            required += [root/'build'/name for name in ('b00','b01','b1')]
+            for path in required:
+                if not path.is_file():
+                    parser.error(f'missing {path}; run make -C {root} first')
+            if (root/'runtime/libb.s').stat().st_mtime < max(
+                    p.stat().st_mtime for p in required[-3:] + [root/'runtime/libb.b']):
+                parser.error('stale runtime/libb.s; rebuild the native compiler first')
+            shutil.copytree(root/'build/aroot',work,dirs_exist_ok=True)
+            for name in ('b00','b01','b1'):
+                shutil.copy2(root/'build'/name,work/name)
+            shutil.copy2(apout,work/'apout')
+            runtimes = {name:(root/'runtime'/name).read_bytes()
+                        for name in ('bmain.s','brt.s','libb.s')}
+        apout = work/'apout'
+        shutil.copyfile(source,work/'program.b')
+        env = dict(os.environ,APOUT_ROOT=str(work))
+        flags = shlex.split(os.environ.get('B00FLAGS', os.environ.get('B0FLAGS', '')))
+        commands = [
+            [str(apout), str(work/'b00'), *flags, '-o', 'program.ic', 'program.b'],
+            [str(apout), str(work/'b01'), '-i', 'program.ic', '-o', 'program.r2'],
+            [str(apout), str(work/'b1'), '-i', 'program.r2', '-o', 'program.s'],
+        ]
+        for command in commands:
+            result = subprocess.run(command, cwd=work, env=env, capture_output=True, timeout=60)
+            if result.stdout: sys.stderr.buffer.write(result.stdout)
+            if result.stderr: sys.stderr.buffer.write(result.stderr)
+            if result.returncode:
+                return result.returncode if result.returncode > 0 else 1
+        program = (work/'program.s').read_bytes()
+        for name in ('bmain.s', 'brt.s', 'libb.s'):
+            runtime = runtimes[name]
+            if name == 'brt.s':
+                library = runtimes['libb.s'] if needs_b_library(program) else b''
+                runtime = select_primitive_runtime(program, runtime, library)
+            elif name == 'libb.s':
+                runtime = select_runtime(program, runtime)
+            (work/name).write_bytes(runtime)
+        assembly = ['bmain.s', 'brt.s']
+        if needs_b_library(program):
+            assembly.append('libb.s')
+        assembly.append('program.s')
+        result = subprocess.run([str(apout), str(work / 'bin/as'), *assembly], cwd=work, env=env,
+                                capture_output=True, timeout=60)
+        if result.stdout: sys.stderr.buffer.write(result.stdout)
+        if result.stderr: sys.stderr.buffer.write(result.stderr)
+        if result.returncode:
+            return result.returncode if result.returncode > 0 else 1
+        validate_assembler_output(result.stdout, result.stderr)
+        header = (work / 'a.out').read_bytes()[:16]
+        if len(header) != 16:
+            raise ValueError('truncated assembler output')
+        magic, text, data, bss, *_ = struct.unpack('<8H', header)
+        if magic != 0o407:
+            raise ValueError('bad assembler output')
+        if text + data + bss + 12 > 16384:
+            raise ValueError('program exceeds 16 KB')
+        (work / 'a.out').write_bytes(native_image((work / 'a.out').read_bytes()))
+        executable = work / 'a.out'
+        if not args.raw_v1:
+            executable = work / 'test.out'
+            executable.write_bytes(test_image((work / 'a.out').read_bytes()))
+            env['APOUT_UNIX_VERSION'] = 'V2'
+        if args.emit_image:
+            args.emit_image.write_bytes(executable.read_bytes())
+            return 0
+        result = subprocess.run([str(apout), str(executable), *args.arguments],
+                                cwd=caller, env=env, timeout=args.timeout)
+        return result.returncode if result.returncode >= 0 else 128 - result.returncode
+
+
+if __name__ == '__main__':
+    try:
+        raise SystemExit(main())
+    except (OSError, ValueError, subprocess.SubprocessError) as error:
+        print(f'bcc-pdp: {error}', file=sys.stderr)
+        raise SystemExit(1)

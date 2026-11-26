@@ -1,0 +1,14 @@
+/bcc
+/src/*.o
+__pycache__/
+
+/asm/bccasm
+/asm/generated/*.o
+/asm/runtime.o
+/asm/lib/
+/asm/bootstrap/stage1/
+/bootstrap/build/
+/bootstrap/src/*.b.c
+/pdp-11/bcc-pdp/build/
+
+/pdp-11/bcc-pdp/.native-build.lock

@@ -5,7 +5,11 @@
  * It is compiled separately and linked with generated B code.
  */
 
+#define B_TARGET_DEFINE
+#define B_INIT_DEFINE
+#define B_CALL_DEFINE
 #include "libb.h"
+#include "bunix.h"
 
 /* Global I/O State */
 
@@ -44,8 +48,10 @@ word b_print(word x) {
 
 word b_putchar(word c) {
     __b_sync_wr();
-    unsigned char ch = (unsigned char)(c & 0xFF);
-    (void)write(b_wr_fd, &ch, 1);
+    /* Packed character pairs are written high byte first. */
+    unsigned char bytes[2] = {(unsigned char)((uword)c >> 8), (unsigned char)c};
+    size_t start = bytes[0] ? 0 : 1;
+    (void)write(b_wr_fd, bytes + start, 2 - start);
     return c;
 }
 
@@ -88,35 +94,22 @@ word b_putstr(word s) {
     __b_sync_wr();
     word i = 0;
     for (;;) {
-        word ch = b_char(s, i++);
-        if (ch == 004 || ch == 0) break;
-        b_putchar(ch);
+        word ch = __bcc_library_call2("char", b_char, s, i++);
+        if (ch == 004 || (!__bcc_strict_runtime && ch == 0)) break;
+        __bcc_library_call1("putchar", b_putchar, ch);
     }
     return s;
 }
 
 word b_getstr(word buf) {
-    __b_sync_rd();
-    size_t i = 0;
-    unsigned char c;
+    word i = 0;
     for (;;) {
-        ssize_t n = read(b_rd_fd, &c, 1);
-        if (n == 1 && c != '\n' && c != '\r') {
-            b_lchar(buf, (word)i, (word)c);
-            i++;
-            continue;
-        }
-        if (n == 1) break; /* newline */
-        if (b_rd_fd != 0) {
-            close(b_rd_fd);
-            b_rd_fd = 0;
-            b_rd_unit = -1;
-            continue; /* retry on terminal */
-        }
-        break; /* EOF */
+        word c = __bcc_library_call0("getchar", b_getchar);
+        if (c == 004 || c == '\n' || (!__bcc_strict_runtime && c == '\r')) break;
+        __bcc_library_call3("lchar", b_lchar, buf, i++, c);
     }
-    b_lchar(buf, (word)i, (word)004);
-    return buf;
+    __bcc_library_call3("lchar", b_lchar, buf, i, 004);
+    return __bcc_strict_runtime ? i : buf;
 }
 
 word b_flush(void) {
@@ -142,20 +135,27 @@ word b_abort(void) {
 }
 
 word b_free(word p) {
-    free(B_CPTR(p));
+    void *host = B_CPTR(p);
+    B_FORGET(host);
+    free(host);
     return 0;
 }
 
 /* Memory Allocation */
 
 word b_alloc(word nwords) {
-    size_t bytes = (size_t)nwords * sizeof(word);
+    nwords = WVAL(nwords);
+    if (nwords < 0 || (uword)nwords > SIZE_MAX / sizeof(word)) {
+        fprintf(stderr, "alloc: invalid size\n");
+        exit(1);
+    }
+    size_t bytes = nwords ? (size_t)nwords * sizeof(word) : sizeof(word);
     void *p = malloc(bytes);
     if (!p) {
         fprintf(stderr, "alloc: out of memory\n");
         exit(1);
     }
-    return B_PTR(p);
+    return B_PTR_N(p, bytes);
 }
 
 /* Low-Level Memory Operations */
@@ -164,13 +164,7 @@ word b_load(word addr) {
     return B_DEREF(addr);
 }
 
-void b_store(word addr, word v) {
-#if B_BYTEPTR
-    *(word*)(uword)addr = v;
-#else
-    *(word*)(uword)((uword)addr * sizeof(word)) = v;
-#endif
-}
+void b_store(word addr, word v) { B_DEREF(addr) = WVAL(v); }
 
 /* String/Character Operations */
 
@@ -179,35 +173,40 @@ void b_store(word addr, word v) {
  * In B_BYTEPTR=0 mode, bytes are packed into words with byte 0 at the LSB.
  */
 word b_char(word s, word i) {
-#if B_BYTEPTR
+#if B_BYTEPTR && WORD_BITS != 16
     const unsigned char *p = (const unsigned char*)B_CPTR(s);
     return (word)p[(size_t)i];
 #else
-    const uword W = (uword)sizeof(word);
+    const uword W = (uword)B_WORD_BYTES;
     uword wi = (uword)i / W;
     uword bi = (uword)i % W;
-    uword w  = (uword)b_load((word)(s + (word)wi));
+    uword w  = (uword)B_INDEX(s, wi);
     return (word)((w >> (bi * 8)) & 0xFF);
 #endif
 }
 
 word b_lchar(word s, word i, word c) {
-#if B_BYTEPTR
+#if B_BYTEPTR && WORD_BITS != 16
     unsigned char *p = (unsigned char*)B_CPTR(s);
     p[(size_t)i] = (unsigned char)(c & 0xFF);
     return c;
 #else
-    const uword W = (uword)sizeof(word);
+    const uword W = (uword)B_WORD_BYTES;
     uword wi = (uword)i / W;
     uword bi = (uword)i % W;
 
-    word addr = (word)(s + (word)wi);
+    word addr = B_ADDR(B_INDEX(s, wi));
     uword w   = (uword)b_load(addr);
 
     uword mask = (uword)0xFF << (bi * 8);
     w = (w & ~mask) | (((uword)c & 0xFF) << (bi * 8));
 
+#if WORD_BITS == 32
+    /* Arithmetic wraps at 32 bits; byte writes must retain the whole host cell. */
+    B_DEREF(addr) = (word)w;
+#else
     b_store(addr, (word)w);
+#endif
     return c;
 #endif
 }
@@ -289,7 +288,7 @@ void __b_bstr_to_cstr(word s, char *buf, size_t max) {
 
 word __b_pack_cstr(const char *s) {
     size_t n = strlen(s);
-    size_t W = sizeof(word);
+    size_t W = B_WORD_BYTES;
     size_t total = n + 1;  /* +1 for 004 terminator */
     size_t words = (total + W - 1) / W;
 
@@ -304,128 +303,10 @@ word __b_pack_cstr(const char *s) {
 
 /* Printf Family */
 
-static void b_printn_u(word n, word base) {
-    word a = (word)((uword)n / (uword)base);
-    if (a) b_printn_u(a, base);
-    b_putchar((word)((uword)n % (uword)base) + '0');
-}
-
-word b_printf(word fmt, ...) {
-    va_list ap;
-    va_start(ap, fmt);
-
-    word i = 0;
-    for (;;) {
-        word ch = b_char(fmt, i++);
-        if (ch == 004 || ch == 0) break;
-        if (ch != '%') {
-            b_putchar(ch);
-            continue;
-        }
-
-        word code = b_char(fmt, i++);
-        if (code == 004) break;
-
-        word arg = va_arg(ap, word);
-
-        switch ((int)code) {
-        case 'd': {
-#if WORD_BITS == 16
-            int16_t v = (int16_t)arg;
-            if (v < 0) { b_putchar('-'); v = (int16_t)-v; }
-            if (v) b_printn_u((word)(uword)(uint16_t)v, 10);
-#elif WORD_BITS == 32
-            int32_t v = (int32_t)arg;
-            if (v < 0) { b_putchar('-'); v = -v; }
-            if (v) b_printn_u((word)(uword)(uint32_t)v, 10);
-#else
-            word v = arg;
-            if (v < 0) { b_putchar('-'); v = -v; }
-            if (v) b_printn_u((word)(uword)v, 10);
-#endif
-            else b_putchar('0');
-            break;
-        }
-        case 'o': {
-#if WORD_BITS == 16
-            uint16_t v = (uint16_t)arg;
-#elif WORD_BITS == 32
-            uint32_t v = (uint32_t)arg;
-#else
-            uword v = (uword)arg;
-#endif
-            if (v) b_printn_u((word)(uword)v, 8);
-            else b_putchar('0');
-            break;
-        }
-        case 'u': {
-            uword v = (uword)arg;
-            if (v) b_printn_u((word)v, 10);
-            else b_putchar('0');
-            break;
-        }
-        case 'p': {
-            uword v = (uword)arg;
-            b_putchar('0'); b_putchar('x');
-            int started = 0;
-            for (int shift = (int)(sizeof(uword)*8 - 4); shift >= 0; shift -= 4) {
-                int nib = (int)((v >> shift) & 0xF);
-                if (!started && nib == 0 && shift > 0) continue;
-                started = 1;
-                b_putchar((word)(nib < 10 ? ('0' + nib) : ('a' + nib - 10)));
-            }
-            if (!started) b_putchar('0');
-            break;
-        }
-        case 'z': {
-            word mod = b_char(fmt, i++);
-            if (mod == 'u') {
-                uword v = (uword)arg;
-                if (v) b_printn_u((word)v, 10);
-                else b_putchar('0');
-            } else if (mod == 'd') {
-                long v = (long)arg;
-                if (v < 0) { b_putchar('-'); v = -v; }
-                if (v) b_printn_u((word)(uword)v, 10);
-                else b_putchar('0');
-            } else {
-                b_putchar('%'); b_putchar('z'); b_putchar(mod);
-            }
-            break;
-        }
-        case 'c':
-            b_putchar(arg);
-            break;
-        case 's': {
-            word j = 0;
-            for (;;) {
-                word sc = b_char(arg, j++);
-                if (sc == 004 || sc == 0) break;
-                b_putchar(sc);
-            }
-            break;
-        }
-        default:
-            b_putchar('%'); b_putchar(code);
-            break;
-        }
-    }
-
-    va_end(ap);
-    return 0;
-}
-
-word b_printn(word n, word base) {
-    if (base == 10 && (int16_t)n < 0) {
-        b_putchar('-');
-        n = (word)(-(int16_t)n);
-    }
-    b_printn_u(n, base);
-    return n;
-}
+#include "bformat.h"
 
 word b_putnum(word n) {
-    b_printn(n, (word)10);
+    __bcc_library_call2("printn", b_printn, n, (word)10);
     return n;
 }
 
@@ -434,20 +315,32 @@ word b_putnum(word n) {
 static int __b_argc;
 static char **__b_argv;
 static word *__b_argvb;
+word b_argv_vector;
 
 void __b_setargs(int argc, char **argv) {
     __b_argc = argc;
     __b_argv = argv;
 
-    __b_argvb = (word*)malloc(sizeof(word) * (size_t)argc);
+    __b_argvb = (word*)malloc(sizeof(word) * ((size_t)argc + 1));
     if (!__b_argvb) {
         fprintf(stderr, "argv: out of memory\n");
         exit(1);
     }
 
+    /* Keep argv(i) EOT strings separate from the native NUL-string vector. */
+    word *vector = (word*)malloc(sizeof(word) * ((size_t)argc + 1));
+    if (!vector) { fprintf(stderr, "argv: out of memory\n"); exit(1); }
+    vector[0] = WVAL(argc);
     for (int i = 0; i < argc; i++) {
         __b_argvb[i] = __b_pack_cstr(argv[i]);
+        vector[i + 1] = __b_pack_cstr(argv[i]);
+        b_lchar(vector[i + 1], (word)strlen(argv[i]), 0);
     }
+    b_argv_vector = B_PTR_N(vector, sizeof(word) * ((size_t)argc + 1));
+}
+
+word __b_argvalues(void) {
+    return __b_argc ? B_PTR_N(__b_argvb, sizeof(word) * (size_t)__b_argc) : 0;
 }
 
 word b_argc(void) {
@@ -461,55 +354,42 @@ word b_argv(word i) {
 }
 
 word b_reread(void) {
-    if (__b_argc <= 1) {
-        return 0;
-    }
+    if (__b_argc <= 1) return 0;
 
-    size_t total = 1;
-    for (int i = 0; i < __b_argc; i++) {
-        total += strlen(__b_argv[i]);
-        if (i + 1 < __b_argc) total += 1;
-    }
-    
-    char *buf = (char*)malloc(total + 1);
-    if (!buf) {
-        fprintf(stderr, "reread: out of memory\n");
+    /* A pipe can block before its reader starts. Stage the replay in an
+       anonymous seekable file instead, preserving empty argument fields. */
+    FILE *stream = tmpfile();
+    if (!stream) {
+        fprintf(stderr, "reread: cannot create replay file\n");
         exit(1);
     }
-    
-    size_t pos = 0;
-    for (int i = 0; i < __b_argc; i++) {
-        size_t len = strlen(__b_argv[i]);
-        memcpy(buf + pos, __b_argv[i], len);
-        pos += len;
-        if (i + 1 < __b_argc) buf[pos++] = ' ';
+    for (int i = 0; i < __b_argc; ++i) {
+        size_t length = strlen(__b_argv[i]);
+        if (fwrite(__b_argv[i], 1, length, stream) != length ||
+            fputc(i + 1 < __b_argc ? ' ' : '\n', stream) == EOF)
+            goto failed;
     }
-    buf[pos++] = '\n';
-    buf[pos] = '\0';
-    
-    int p[2];
-    if (pipe(p) != 0) {
-        free(buf);
-        fprintf(stderr, "reread: pipe failed\n");
-        exit(1);
-    }
-    ssize_t wn = write(p[1], buf, pos);
-    (void)wn;
-    close(p[1]);
-    free(buf);
-    
-    if (b_rd_fd != 0 && b_rd_fd != p[0]) close(b_rd_fd);
-    b_rd_fd = p[0];
-    b_rd_unit = (word)0;
+    if (fflush(stream) != 0 || fseek(stream, 0, SEEK_SET) != 0) goto failed;
+    int descriptor = dup(fileno(stream));
+    if (descriptor < 0) goto failed;
+    fclose(stream);
     __b_sync_rd();
+    if (b_rd_fd != 0) close(b_rd_fd);
+    b_rd_fd = descriptor;
+    b_rd_unit = (word)descriptor;
     return 0;
+
+failed:
+    fclose(stream);
+    fprintf(stderr, "reread: cannot stage command line\n");
+    exit(1);
 }
 
 /* File I/O */
 
 word b_open(word name, word mode) {
-    const char *p = (const char*)B_CPTR(name);
-    int flags = ((int)mode == 0) ? O_RDONLY : O_WRONLY;
+    const char *p = __b_cstr(name);
+    int flags = (mode == 0) ? O_RDONLY : O_WRONLY;
     return (word)open(p, flags);
 }
 
@@ -564,24 +444,41 @@ word b_close(word fd) {
 }
 
 word b_read(word fd, word buf, word n) {
+#if WORD_BITS == 16
+    if (n < 0) return -1;
+    unsigned char *bytes = malloc(n ? (size_t)n : 1);
+    if (!bytes) return -1;
+    ssize_t count = read((int)fd, bytes, (size_t)n);
+    for (ssize_t i = 0; i < count; i++) b_lchar(buf, (word)i, bytes[i]);
+    free(bytes);
+    return WVAL(count);
+#else
     char *p = (char*)B_CPTR(buf);
-    if ((size_t)n < sizeof(word)) memset(p, 0, sizeof(word));
     return (word)read((int)fd, p, (size_t)n);
+#endif
 }
 
 word b_write(word fd, word buf, word n) {
-    const char *p = (const char*)B_CPTR(buf);
-    return (word)write((int)fd, p, (size_t)n);
+#if WORD_BITS == 16
+    if (n < 0) return -1;
+    unsigned char *bytes = malloc(n ? (size_t)n : 1);
+    if (!bytes) return -1;
+    for (word i = 0; i < n; i++) bytes[i] = (unsigned char)b_char(buf, i);
+    ssize_t count = write((int)fd, bytes, (size_t)n);
+    free(bytes);
+    return WVAL(count);
+#else
+    return (word)write((int)fd, B_CPTR(buf), (size_t)n);
+#endif
 }
 
 word b_creat(word name, word mode) {
-    const char *p = (const char*)B_CPTR(name);
-    return (word)creat(p, (mode_t)mode);
+    const char *p = __b_cstr(name);
+    return (word)creat(p, __bcc_unix_mode(mode, 0));
 }
 
 word b_seek(word fd, word offset, word whence) {
-    off_t r = lseek((int)fd, (off_t)offset, (int)whence);
-    return (r < 0) ? (word)-1 : (word)0;
+    return __bcc_unix_seek(fd, offset, whence);
 }
 
 /* Process Control */
@@ -599,70 +496,92 @@ word b_wait(void) {
     return (word)pid;
 }
 
-word b_execl(word path, ...) {
-    const char *p = (const char*)B_CPTR(path);
-
-    char *argv[64];
-    int i = 0;
-    argv[i++] = (char*)p;
-
-    va_list ap;
-    va_start(ap, path);
-    for (; i < 63; ) {
-        word w = va_arg(ap, word);
-        if (w == 0) break;
-        argv[i++] = (char*)B_CPTR(w);
+/* B72 section 8 passes exactly count argument strings, including arg0. */
+word b_execv(word path, word argv, word count) {
+    if (count < 0 || count > 255 || (count && !argv)) return -1;
+    char *name = __b_dup_bstr(path);
+    if (!name) return -1;
+    char *arguments[256];
+    word *values = count ? (word*)B_CPTR(argv) : NULL;
+    size_t n = (size_t)count, i = 0;
+    for (; i < n; i++) {
+        if (!values[i]) break;
+        arguments[i] = __b_dup_bstr(values[i]);
+        if (!arguments[i]) break;
     }
-    va_end(ap);
-
-    argv[i] = NULL;
-    execv(p, argv);
+    if (i == n) {
+        arguments[n] = NULL;
+        execv(name, arguments);
+    }
+    while (i) free(arguments[--i]);
+    free(name);
     return -1;
 }
 
-word b_execv(word path, word argv) {
-    const char *p = (const char*)B_CPTR(path);
-    word *av = (word*)B_CPTR(argv);
-
-    char *cargv[256];
-    int i = 0;
-    for (; i < 255 && av[i] != 0; i++)
-        cargv[i] = (char*)B_CPTR(av[i]);
-    cargv[i] = NULL;
-
-    execv(p, cargv);
+word b_execl(word path, ...) {
+    char *name = __b_dup_bstr(path);
+    if (!name) return -1;
+    char *arguments[256];
+    size_t n = 0;
+    int complete = 0;
+    va_list ap;
+    va_start(ap, path);
+    while (n < 255) {
+        word value = va_arg(ap, word);
+        if (!value) { complete = 1; break; }
+        arguments[n] = __b_dup_bstr(value);
+        if (!arguments[n]) break;
+        n++;
+    }
+    va_end(ap);
+    if (complete) {
+        arguments[n] = NULL;
+        execv(name, arguments);
+    }
+    while (n) free(arguments[--n]);
+    free(name);
     return -1;
 }
 
 word b_system(word cmd) {
+    /* Split arguments without invoking a shell or expanding their contents. */
     char *line = __b_dup_bstr(cmd);
     if (!line) return -1;
-
     char *argv[128];
     size_t argc = 0;
-    char *p = line;
-
+    char *p = line, *q = line;
     while (*p) {
         while (*p && isspace((unsigned char)*p)) p++;
         if (!*p) break;
         if (argc + 1 >= sizeof(argv)/sizeof(argv[0])) { free(line); return -1; }
-        argv[argc++] = p;
-        while (*p && !isspace((unsigned char)*p)) p++;
-        if (*p) { *p = 0; p++; }
+        argv[argc++] = q;
+        int quote = 0;
+        while (*p && (quote || !isspace((unsigned char)*p))) {
+            unsigned char c = (unsigned char)*p++;
+            if (c == '\\' && quote != '\'') {
+                if (!*p) { free(line); return -1; }
+                *q++ = *p++;
+            } else if (c == '\'' || c == '"') {
+                if (!quote) quote = c;
+                else if (quote == c) quote = 0;
+                else *q++ = (char)c;
+            } else *q++ = (char)c;
+        }
+        if (quote) { free(line); return -1; }
+        if (*p) p++;
+        *q++ = 0;
     }
-
     if (argc == 0) { free(line); return -1; }
     argv[argc] = NULL;
-
     pid_t pid = fork();
     if (pid == 0) {
         execvp(argv[0], argv);
         _exit(127);
     }
     if (pid < 0) { free(line); return -1; }
-
     int st = 0;
-    pid_t w = waitpid(pid, &st, 0);
+    pid_t w;
+    do { w = waitpid(pid, &st, 0); } while (w < 0 && errno == EINTR);
     free(line);
     if (w < 0) return -1;
     return (word)st;
@@ -675,33 +594,45 @@ word b_usleep(word usec) {
     return 0;
 }
 
+/* Unix V1 counts 60 Hz ticks since 1971, high word first (time(II)). */
 word b_time(word tvp) {
-    time_t now = time(NULL);
+    struct timespec now;
+    if (clock_gettime(CLOCK_REALTIME, &now) != 0) return -1;
     if (tvp) {
-        uint16_t lo = (uint16_t)(now & 0xFFFF);
-        uint16_t hi = (uint16_t)((now >> 16) & 0xFFFF);
+        uint64_t elapsed = (uint64_t)now.tv_sec - UINT64_C(31536000);
+        uint32_t ticks = (uint32_t)(elapsed * 60 + (uint64_t)now.tv_nsec * 60 / 1000000000);
         word *tv = (word*)B_CPTR(tvp);
-        tv[0] = (word)(uword)lo;
-        tv[1] = (word)(uword)hi;
+        tv[0] = WVAL(ticks >> 16);
+        tv[1] = WVAL(ticks & 65535);
     }
     return 0;
 }
 
-word b_ctime(word tvp) {
-    static word bufw[32];
+/* B72 section 8 specifies a caller-owned, 16-byte date buffer. */
+word b_ctime(word tvp, word date) {
+    if (!tvp || !date) return -1;
     word *tv = (word*)B_CPTR(tvp);
-    time_t t = (time_t)((uint16_t)tv[0]) | ((time_t)((uint16_t)tv[1]) << 16);
-
-    const char *cs = ctime(&t);
-    if (!cs) return 0;
-
-    size_t i = 0;
-    while (cs[i] && cs[i] != '\n' && i < 63) {
-        b_lchar(B_PTR(bufw), (word)i, (word)(unsigned char)cs[i]);
-        i++;
+    uint32_t ticks = ((uint32_t)(uint16_t)tv[0] << 16) | (uint16_t)tv[1];
+    unsigned days = ticks / 5184000U;
+    unsigned seconds = ticks / 60U % 86400U;
+    unsigned year = 1971, month = 0;
+    while (days >= (year % 4 == 0 ? 366U : 365U)) {
+        days -= year % 4 == 0 ? 366U : 365U;
+        year++;
     }
-    b_lchar(B_PTR(bufw), (word)i, 004);
-    return B_PTR(bufw);
+    static const unsigned lengths[] = {31,28,31,30,31,30,31,31,30,31,30,31};
+    static const char *months[] = {"Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"};
+    for (;;) {
+        unsigned length = lengths[month] + (month == 1 && year % 4 == 0);
+        if (days < length) break;
+        days -= length;
+        month++;
+    }
+    char text[16];
+    snprintf(text, sizeof(text), "%s %2u %02u:%02u:%02u", months[month], days + 1,
+             seconds / 3600, seconds / 60 % 60, seconds % 60);
+    for (size_t i = 0; i < sizeof(text); i++) b_lchar(date, (word)i, (word)(unsigned char)text[i]);
+    return 0;
 }
 
 /* System Functions */
@@ -715,66 +646,59 @@ word b_setuid(word uid) {
 }
 
 word b_chdir(word path) {
-    const char *p = (const char*)B_CPTR(path);
+    const char *p = __b_cstr(path);
     return (word)chdir(p);
 }
 
 word b_chmod(word path, word mode) {
-    const char *p = (const char*)B_CPTR(path);
-    return (word)chmod(p, (mode_t)mode);
+    const char *p = __b_cstr(path);
+    return (word)chmod(p, __bcc_unix_mode(mode, 0));
 }
 
 word b_chown(word path, word owner) {
-    const char *p = (const char*)B_CPTR(path);
+    const char *p = __b_cstr(path);
     return (word)chown(p, (uid_t)owner, (gid_t)-1);
 }
 
 word b_link(word old, word new) {
-    const char *o = (const char*)B_CPTR(old);
-    const char *n = (const char*)B_CPTR(new);
+    const char *o = __b_cstr(old);
+    const char *n = __b_cstr(new);
     return (word)link(o, n);
 }
 
 word b_unlink(word path) {
-    const char *p = (const char*)B_CPTR(path);
+    const char *p = __b_cstr(path);
     return (word)unlink(p);
 }
 
 word b_stat(word path, word bufp) {
-    const char *p = (const char*)B_CPTR(path);
+    if (!bufp) { errno = EFAULT; return -1; }
+    const char *p = __b_cstr(path);
     struct stat st;
     if (stat(p, &st) != 0) return -1;
-    if (bufp) {
-        unsigned char *b = (unsigned char*)B_CPTR(bufp);
-        for (int i = 0; i < 20*(int)sizeof(word); i++) b[i] = 0;
-        size_t n = sizeof(st);
-        if (n > 20*sizeof(word)) n = 20*sizeof(word);
-        memcpy(b, &st, n);
-    }
+    __bcc_unix_stat((word*)B_CPTR(bufp), &st);
     return 0;
 }
 
 word b_fstat(word fd, word bufp) {
+    if (!bufp) { errno = EFAULT; return -1; }
     struct stat st;
     if (fstat((int)fd, &st) != 0) return -1;
-    if (bufp) {
-        unsigned char *b = (unsigned char*)B_CPTR(bufp);
-        for (int i = 0; i < 20*(int)sizeof(word); i++) b[i] = 0;
-        size_t n = sizeof(st);
-        if (n > 20*sizeof(word)) n = 20*sizeof(word);
-        memcpy(b, &st, n);
-    }
+    __bcc_unix_stat((word*)B_CPTR(bufp), &st);
     return 0;
 }
 
 word b_makdir(word path, word mode) {
-    const char *p = (const char*)B_CPTR(path);
-    return (word)mkdir(p, (mode_t)mode);
+    const char *p = __b_cstr(path);
+    return (word)mkdir(p, __bcc_unix_mode(mode, 1));
 }
+
+word b_mkdir(word path, word mode) { return b_makdir(path, mode); }
 
 /* Terminal I/O */
 
 word b_gtty(word fd, word ttstat) {
+    if (!ttstat) { errno = EFAULT; return -1; }
     struct termios t;
     if (tcgetattr((int)fd, &t) < 0) return -1;
 
@@ -786,6 +710,7 @@ word b_gtty(word fd, word ttstat) {
 }
 
 word b_stty(word fd, word ttstat) {
+    if (!ttstat) { errno = EFAULT; return -1; }
     struct termios t;
     if (tcgetattr((int)fd, &t) < 0) return -1;
 
@@ -796,16 +721,10 @@ word b_stty(word fd, word ttstat) {
     return (word)tcsetattr((int)fd, TCSANOW, &t);
 }
 
-static volatile sig_atomic_t __b_got_intr = 0;
-static void __b_sigint(int sig) { (void)sig; __b_got_intr = 1; }
-
-word b_intr(word on) {
-    if (on) {
-        __b_got_intr = 0;
-        if (signal(SIGINT, __b_sigint) == SIG_ERR) return -1;
-    } else {
-        if (signal(SIGINT, SIG_DFL) == SIG_ERR) return -1;
-    }
+word b_intr(word mode) {
+    /* Historical intr uses 0 for ignore and 1 for normal termination. */
+    if (mode != 0 && mode != 1) { errno = ENOSYS; return -1; }
+    if (signal(SIGINT, mode == 0 ? SIG_IGN : SIG_DFL) == SIG_ERR) return -1;
     return 0;
 }
 
@@ -906,6 +825,12 @@ word b_xor_assign(word *p, word v) { return (*p = WXOR(*p, v)); }
 /* Initialization */
 
 void __b_init(void) {
-    setvbuf(stdout, NULL, _IONBF, 0);
+    if (!__bcc_runtime_initialized) {
+        setvbuf(stdout, NULL, _IONBF, 0);
+        __bcc_runtime_initialized = 1;
+    }
+    __bcc_run_initializers();
 }
 
+
+#include "bprimitives.h"

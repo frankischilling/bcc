@@ -2,37 +2,57 @@
 .text
 	.globl	_main
 _main:
+	.+2
 	mov	r5, -(sp)
 	mov	sp, r5
+	sub	$L30000f, sp
+	mov	_printn, r0
+	10046
 	mov	$255., r0
-	mov	r0, -(sp)
+	10046
 	mov	$10., r0
-	mov	r0, -(sp)
+	10046
 	mov	0.(sp), r0
 	mov	2.(sp), r1
 	mov	r0, 2.(sp)
 	mov	r1, 0.(sp)
-	jsr	pc, _printn
-	add	$4., sp
+	mov	4.(sp), r0
+	jsr	pc, (r0)
+	add	$6., sp
+	mov	_putchar, r0
+	10046
 	mov	$10., r0
-	mov	r0, -(sp)
-	jsr	pc, _putchar
-	tst	(sp)+
+	10046
+	mov	2.(sp), r0
+	jsr	pc, (r0)
+	add	$4., sp
+	mov	_printn, r0
+	10046
 	mov	$255., r0
-	mov	r0, -(sp)
+	10046
 	mov	$8., r0
-	mov	r0, -(sp)
+	10046
 	mov	0.(sp), r0
 	mov	2.(sp), r1
 	mov	r0, 2.(sp)
 	mov	r1, 0.(sp)
-	jsr	pc, _printn
-	add	$4., sp
+	mov	4.(sp), r0
+	jsr	pc, (r0)
+	add	$6., sp
+	mov	_putchar, r0
+	10046
 	mov	$10., r0
-	mov	r0, -(sp)
-	jsr	pc, _putchar
-	tst	(sp)+
+	10046
+	mov	2.(sp), r0
+	jsr	pc, (r0)
+	add	$4., sp
+	mov	$0., r0
+	jmp	L30000
 L30000:
 	mov	r5, sp
 	mov	(sp)+, r5
 	rts	pc
+L30000f = 0.
+
+.globl .bend
+.bend:

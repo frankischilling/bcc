@@ -15,6 +15,8 @@
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 BCC="${SCRIPT_DIR}/../bcc"
+TEST_TMP="$(mktemp -d "${TMPDIR:-/tmp}/bcc-tests.XXXXXX")" || exit 1
+trap 'rm -rf -- "$TEST_TMP"' EXIT
 CONFORMANCE_DIR="${SCRIPT_DIR}/conformance"
 GOLDEN_DIR="${SCRIPT_DIR}/conformance/golden"
 
@@ -167,28 +169,28 @@ run_conformance_tests() {
         log "Testing: $name"
         
         # Compile
-        if ! "$BCC" $BCC_FLAGS "$f" -o /tmp/conf_test_$$ 2>/tmp/conf_err_$$; then
+        if ! "$BCC" $BCC_FLAGS "$f" -o "$TEST_TMP/conf_test" 2>"$TEST_TMP/conf_err"; then
             if [[ $VERBOSE -eq 1 ]]; then
                 fail "$name" "Compilation failed"
-                cat /tmp/conf_err_$$
+                cat "$TEST_TMP/conf_err"
             else
-                fail "$name" "Compilation failed: $(head -1 /tmp/conf_err_$$)"
+                fail "$name" "Compilation failed: $(head -1 "$TEST_TMP/conf_err")"
             fi
-            rm -f /tmp/conf_err_$$
+            rm -f "$TEST_TMP/conf_err"
             continue
         fi
-        rm -f /tmp/conf_err_$$
+        rm -f "$TEST_TMP/conf_err"
         
         # Run
-        /tmp/conf_test_$$ > /tmp/conf_out_$$ 2>&1
+        "$TEST_TMP/conf_test" > "$TEST_TMP/conf_out" 2>&1
         actual_exit=$?
         
         # Generate golden output if requested
         if [[ $GENERATE_GOLDEN -eq 1 ]]; then
-            cp /tmp/conf_out_$$ "$golden_out"
+            cp "$TEST_TMP/conf_out" "$golden_out"
             echo "$actual_exit" > "$golden_exit"
             echo -e "${BLUE}GENERATED${NC}: $name (exit: $actual_exit)"
-            rm -f /tmp/conf_test_$$ /tmp/conf_out_$$
+            rm -f "$TEST_TMP/conf_test" "$TEST_TMP/conf_out"
             continue
         fi
         
@@ -197,49 +199,49 @@ run_conformance_tests() {
             expected_exit_code=$(cat "$expected_exit")
             if [[ "$actual_exit" -ne "$expected_exit_code" ]]; then
                 fail "$name" "Exit code: expected $expected_exit_code, got $actual_exit"
-                rm -f /tmp/conf_test_$$ /tmp/conf_out_$$
+                rm -f "$TEST_TMP/conf_test" "$TEST_TMP/conf_out"
                 continue
             fi
         fi
         
         # Check output if expected file exists
         if [[ -f "$expected_out" ]]; then
-            if ! diff -q "$expected_out" /tmp/conf_out_$$ >/dev/null 2>&1; then
+            if ! diff -q "$expected_out" "$TEST_TMP/conf_out" >/dev/null 2>&1; then
                 fail "$name" "Output mismatch"
                 if [[ $VERBOSE -eq 1 ]]; then
                     echo "Expected:"
                     head -5 "$expected_out" | sed 's/^/  /'
                     echo "Got:"
-                    head -5 /tmp/conf_out_$$ | sed 's/^/  /'
+                    head -5 "$TEST_TMP/conf_out" | sed 's/^/  /'
                 fi
-                rm -f /tmp/conf_test_$$ /tmp/conf_out_$$
+                rm -f "$TEST_TMP/conf_test" "$TEST_TMP/conf_out"
                 continue
             fi
         fi
         
         # Differential testing against golden files
         if [[ $DIFF_TEST -eq 1 && -f "$golden_out" ]]; then
-            if ! diff -q "$golden_out" /tmp/conf_out_$$ >/dev/null 2>&1; then
+            if ! diff -q "$golden_out" "$TEST_TMP/conf_out" >/dev/null 2>&1; then
                 fail "$name" "Differs from golden output"
                 if [[ $VERBOSE -eq 1 ]]; then
                     echo "Diff:"
-                    diff "$golden_out" /tmp/conf_out_$$ | head -10
+                    diff "$golden_out" "$TEST_TMP/conf_out" | head -10
                 fi
-                rm -f /tmp/conf_test_$$ /tmp/conf_out_$$
+                rm -f "$TEST_TMP/conf_test" "$TEST_TMP/conf_out"
                 continue
             fi
             if [[ -f "$golden_exit" ]]; then
                 golden_exit_code=$(cat "$golden_exit")
                 if [[ "$actual_exit" -ne "$golden_exit_code" ]]; then
                     fail "$name" "Exit differs from golden: expected $golden_exit_code, got $actual_exit"
-                    rm -f /tmp/conf_test_$$ /tmp/conf_out_$$
+                    rm -f "$TEST_TMP/conf_test" "$TEST_TMP/conf_out"
                     continue
                 fi
             fi
         fi
         
         pass "$name"
-        rm -f /tmp/conf_test_$$ /tmp/conf_out_$$
+        rm -f "$TEST_TMP/conf_test" "$TEST_TMP/conf_out"
     done
 }
 

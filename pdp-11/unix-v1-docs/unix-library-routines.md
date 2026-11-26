@@ -1,76 +1,49 @@
-# UNIX Programmer's Manual - Section III: Subroutines
+# November 1971 Unix assembly library
 
-**Library Routines - UNIX First Edition (November 1971)**
+This is an editorial summary of section III of the first-edition *Unix
+Programmer's Manual*, not a verbatim transcription. The previous overview
+incorrectly described a later C library. Consult the [local scan](unix-library-routines.pdf)
+or [complete original manual](https://www.tuhs.org/Archive/Distributions/Research/Dennis_v1/UNIX_ProgrammersManual_Nov71.pdf#page=141)
+for the original calling sequences and limitations.
 
-## Overview
+## Library and calling conventions
 
-Section III documents the standard library routines - functions that provide higher-level interfaces to system calls and common programming utilities. These routines are typically found in `/lib/libc.a` (the C library archive).
+The routines are kept in `/etc/liba.a`. Their interfaces use registers and
+inline arguments, not C prototypes. For example, `atoi` takes a callback
+through an R5 calling sequence and returns its result in MQ. The callback
+supplies a character in R0; the first unused character remains there.
 
-## Major Library Categories
+The section covers:
 
-### String Manipulation
-- `strcmp` - compare strings
-- `strcpy` - copy strings
-- `strlen` - string length
-- `strcat` - concatenate strings
+- `atof`, `atoi`, `ftoa`, and `itoa`: numeric conversion using character
+  callbacks. The callback must preserve the other registers.
+- `ctime` and `ptime`: time conversion and printing, using the AC/MQ time
+  returned by the system. The `ctime` page documents a year-boundary bug.
+- `exp`, `log`, `sin`, and `cos`: floating-point calculations with the
+  simulator active. Their error behavior is described per routine.
+- `fptrap`: simulation of a subset of PDP-11/45 floating-point instructions.
+  Its presence does not make the host processor a PDP-11/45.
+- `getw`, `getc`, and `fopen`: buffered input.
+- `putc`, `putw`, `fcreat`, and `flush`: buffered output.
+- `mesg`: output of an inline NUL-terminated string.
+- `switch`: a value/label table dispatcher, terminated by a null label.
 
-### Character Classification
-- `isalpha` - alphabetic character test
-- `isdigit` - digit test
-- `isspace` - whitespace test
-- `toupper/tolower` - case conversion
+## Buffered I/O layout
 
-### Mathematical Functions
-- `sin`, `cos`, `tan` - trigonometric functions
-- `exp`, `log`, `pow` - exponential/logarithmic
-- `sqrt` - square root
-- `abs` - absolute value
+The caller supplies a word-aligned 134-byte buffer: three words for the file
+descriptor, remaining character count, and current character pointer, followed
+by 128 data bytes. This is not a C `FILE` object. The larger 518-byte buffer
+belongs to the June 1972 manual and must not be substituted here.
 
-### I/O and Formatting
-- `printf` - formatted output
-- `scanf` - formatted input
-- `sprintf` - string formatting
-- `fopen`, `fclose` - stream I/O
+`getc` reports EOF or a read error through the carry bit. `getw` and `getc`
+may be mixed without requiring an even file position. `flush` writes buffered
+output but does not close the file. The output routines do not all report
+errors: the manual specifies an error result for `fcreat`, but not for the
+other buffered-output calls.
 
-### Memory Management
-- `malloc`, `free` - dynamic memory allocation
-- `calloc`, `realloc` - memory utilities
+## Relationship to B
 
-## Implementation Notes
-
-- Library routines are typically written in assembly or C
-- Many wrap system calls with error handling
-- Some provide buffered I/O for efficiency
-- Routines follow K&R C calling conventions
-
-## Header Files
-
-Early UNIX used minimal header files:
-- `<stdio.h>` - I/O definitions
-- `<ctype.h>` - character classification
-- `<math.h>` - mathematical functions
-
-## Historical Development
-
-- Many routines were written by K. Thompson and D.M. Ritchie
-- Library evolved alongside the C language
-- Some functions were later standardized in ANSI C
-- Performance was critical due to limited PDP-11 resources
-
-## Usage Examples
-
-```c
-/* String manipulation example */
-char s1[100], s2[100];
-strcpy(s1, "hello");
-strcat(s1, " world");
-if (strcmp(s1, s2) == 0) {
-    printf("strings equal\n");
-}
-```
-
-## Related Sections
-
-- **Section II**: System calls that library routines often wrap
-- **Section I**: Commands that use these library functions
-- **Section VII**: Implementation details and algorithms
+B-callable library routines are described separately in the B manual and
+`/etc/libb.a` listing. A similar routine name does not imply the same ABI.
+BCC's native runtime has its own calling convention; see
+[the maintained runtime notes](../NOTES_RUNTIME.md).

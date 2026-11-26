@@ -3,4 +3,5 @@ main() {
 	extrn printn, putchar;
 	printn(09, 10);
 	putchar('*n');
+	return(0);
 }

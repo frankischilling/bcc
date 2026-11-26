@@ -1,16 +1,27 @@
-# Runtime and Linking Notes (Unix V1)
+# Native runtime and linking
 
-Target runtime strategy:
-- Prefer the system `libb.a` on Unix V1; avoid shipping our own runtime unless needed.
-- Use `ld -lb` to link against `libb.a`. Keep emitted symbols compatible.
-- Keep our compiler self-contained in C; minimize libc dependencies (V1 `cc` is minimal).
+The maintained compiler uses its own runtime under `bcc-pdp/runtime/`:
 
-If additional builtins are required (TODO):
-- Provide tiny wrappers in B or assembly for any builtins not in `libb.a`.
-- Keep them minimal and callable via standard PDP-11 calling conventions.
+- `bmain.s` sets up B's argument vector and calls the program's `main` cell.
+- `brt.s` provides arithmetic, character I/O, and system-call wrappers.
+- `libb.b` provides printing, line input, and date formatting. The native
+  compiler generates the checked-in `libb.s` from it.
 
-Link flow on V1:
-1) `cc bcc_v1.c` -> compiler `a.out`
-2) `./a.out prog.b > prog.s`
-3) `as prog.s`
-4) `ld -lb a.out` (plus extra objects if needed)
+The driver assembles startup, selected runtime definitions, and program
+assembly together. Program definitions can replace library bindings; runtime
+selection avoids duplicate definitions. See the [native compiler guide](bcc-pdp/README.md)
+for the build commands and current limits.
+
+This is not the historical threaded-code calling convention. The original
+`bilib`, `brt1`, `brt2`, and `libb.a` cannot be substituted just by adding
+`ld -lb`. The original runtime is useful comparison material, not a binary
+compatible library for BCC's native output.
+
+B data pointers count words, while character indices and read/write lengths
+count bytes. Filename and exec wrappers translate B's `004` terminator to
+Unix NUL termination. Public function names have writable cells containing
+code addresses; handwritten calls must load the cell's value.
+
+The [conformance notes](bcc-pdp/CONFORMANCE.md) distinguish implemented
+wrappers from their host and restored-system limitations. In particular,
+a fast emulator result does not establish terminal behavior in the kernel.

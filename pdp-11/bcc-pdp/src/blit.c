@@ -5,6 +5,7 @@
  * control flow cannot fall into literal bytes.
  */
 
+/* Literals stream directly to assembly; only the signed label counter is bounded. */
 nstr 0;
 
 litinl(len, bytes) char bytes[]; {
@@ -12,10 +13,10 @@ litinl(len, bytes) char bytes[]; {
 	int nstr;
 	int id, j, b;
 	id = nstr;
-	if (id >= 256) fatal("string pool full");
+	if (id >= 32767) fatal("string pool full");
 	nstr = nstr + 1;
 	outs("\n.text\n");
-	outs("\tbr\tLS");
+	outs("\tjmp\tLS");
 	outd(id);
 	outc('\n');
 	outs("S");
@@ -36,5 +37,3 @@ litinl(len, bytes) char bytes[]; {
 	outs(":\n");
 	return (id);
 }
-
-emitl() { }

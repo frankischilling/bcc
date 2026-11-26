@@ -1,85 +1,43 @@
-# UNIX V1 Documentation - Markdown Transcriptions
+# Historical Unix documents
 
-This directory contains markdown transcriptions of the original UNIX Programmer's Manual (First Edition, November 1971).
+This directory contains scanned manual sections, working Markdown
+transcriptions, and a later C manual. They are different kinds of evidence.
+The Markdown files are not a certified or complete transcription of the
+November 1971 manual; some contain omissions, transcription errors, or
+editorial additions.
 
-## Original Source
+Use the [original first-edition scan](https://www.tuhs.org/Archive/Distributions/Research/Dennis_v1/UNIX_ProgrammersManual_Nov71.pdf)
+by K. Thompson and D. M. Ritchie to check exact wording. The
+[source review](../../wiki/SOURCE_REVIEW.md) records review scope and known
+version differences. The first edition describes the PDP-11/20-era system,
+not a C-based PDP-11/45 Unix environment.
 
-These documents are transcriptions of the scanned PDFs from the original UNIX Programmer's Manual by K. Thompson and D.M. Ritchie. The manual was prepared using the `ed` text editor and `roff` formatting program.
+## Files
 
-## Manual Structure
+- `manintro.md` and `manintro.pdf`: manual introduction.
+- `unix-commands-p1` through `unix-commands-p4`: command sections.
+- `unix-sys-calls.md` and `unix-sys-calls-p2.md`: system-call transcriptions.
+- `unix-library-routines.pdf`: section III, assembly-language subroutines.
+  Its Markdown companion is a sourced summary, not a verbatim transcription.
+- `unix-special-files`, `unix-file-formats`, `unix-user-maintained-software`,
+  and `unix-miscellaneous`: the remaining manual sections. The file-format
+  PDF retains the filename `unix-file-foramts.pdf`.
+- `CMAN74.md`, `CMAN74_full.tex`, and `CMAN74.pdf`: local renditions of a
+  later C reference. Compare them with Ritchie's
+  [January 15, 1974 memorandum](https://cm-bell-labs.github.io/who/dmr/cman74.pdf).
+  They are not a description of the restored early C compiler's exact dialect.
 
-The manual is divided into seven sections:
+November 1971 section III describes routines in `/etc/liba.a` with assembly
+calling sequences. It does not document a K&R C standard library, `stdio.h`,
+or a `malloc`/`scanf` API. Nor does the first-edition syscall list contain
+`pipe`. The older overview incorrectly attributed those later facilities
+to this manual.
 
-### I. Commands (4 parts)
-- `unix-commands-p1.md` - Commands A-M (ar, as, B, bas, bcd, boot, cat, chdir, chmod, chown, cmp, cp, db, dbppt)
-- `unix-commands-p2.md` - Commands N-Z (dc, df, dsw, dtf, du, ed, find, for, form, hup, lbppt, ld, ln, ls, mail, mesg, mkdir, mkfs, mount, mv, nm, od, pr, rew, rkd, rkf, rkl, rm, rmdir, roff, sdate, sh, stat, strip, su, sum, tap, tm, tty, type, umount, un, wc, who, write)
-- `unix-commands-p3.md` - Additional commands (continued)
-- `unix-commands-p4.md` - Final commands (wc, who, write)
+The historical pages describe programs as they existed, including defects.
+Keep such defects distinct from BCC's intended behavior. Editorial corrections
+should be labeled rather than silently changing a quotation. For example,
+the file-format transcription retains the printed `0205` number but explains
+why the `br .+14` instruction is actually `0405`.
 
-### II. System Calls (2 parts)
-- `unix-sys-calls.md` - Basic system calls (break, cemt, chdir, chmod, chown, close, creat, exec, exit, fork, fstat, getuid, gtty, ilgins, intr, link, mkdir, mknod, open, pipe, read, rele, seek, setuid, stat, stime, stty, tell, time, umount, unlink, wait, write)
-- `unix-sys-calls-p2.md` - Advanced system calls (mount, open, quit, read, rele, seek, setuid, smdate, stat, stime, stty, tell, time, umount, unlink, wait, write)
-
-### III. Subroutines
-- `unix-library-routines.md` - Standard C library functions (atof, atoi, ctime, exp, fptrap, ftoa, getw/getc/fopen, itoa, log, mesg, ptime, putc/putw/fcreat/flush, sin/cos, switch)
-
-### IV. Special Files
-- `unix-special-files.md` - Device files and I/O (/dev/mem, /dev/ppt, /dev/rf0, /dev/rk0, /dev/tap0-7, /dev/tty, /dev/tty0-5)
-
-### V. File Formats
-- `unix-file-formats.md` - Data file structures
-
-### VI. User-Maintained Programs
-- `unix-user-maintained-software.md` - Contributed software
-
-### VII. Miscellaneous
-- `unix-miscellaneous.md` - System internals, boot procedures, libraries, init, login/logout
-
-## Additional Documents
-
-- `manintro.md` - Manual introduction and conventions
-- `CMAN74.md` - C Reference Manual (1974, K&R)
-- `CMAN74_full.tex` - LaTeX version of C Reference Manual
-- `CMAN74.pdf` - Compiled PDF of LaTeX C Manual
-- `pdpbcc.c` - Minimal B compiler skeleton (PDP-11 C)
-
-## Manual Conventions
-
-Each entry follows a standard format:
-
-- **NAME**: Brief description
-- **SYNOPSIS**: Usage syntax
-- **DESCRIPTION**: Detailed explanation
-- **FILES**: Related files
-- **SEE ALSO**: Related entries
-- **DIAGNOSTICS**: Error messages
-- **BUGS**: Known issues
-- **OWNER**: Responsible person
-
-## Historical Context
-
-This represents UNIX in its earliest documented form:
-- **Date**: November 3, 1971
-- **System**: UNIX Version 1
-- **Hardware**: PDP-11/45
-- **Authors**: K. Thompson, D.M. Ritchie
-
-## Related Materials
-
-- Original scanned PDFs in this directory
-- `pdpbcc.c` - Minimal B compiler skeleton
-- Modern C Reference Manual transcription
-
-## Transcription Notes
-
-- ✅ Content transcribed from scanned originals
-- ✅ Formatting converted to modern markdown
-- ✅ Historical code examples preserved
-- ✅ PDP-11 specific details maintained
-- ✅ Cross-references updated where possible
-- ✅ All seven manual sections completed
-- ✅ LaTeX version of C Reference Manual created
-- ✅ Historical B compiler skeleton included
-- ✅ Complete UNIX Version 1 documentation preserved
-
-This represents a comprehensive digital archive of the earliest UNIX documentation, covering the complete Programmer's Manual from November 3, 1971.
+For supported build steps and the compiler's current runtime, use
+[`bcc-pdp/README.md`](../bcc-pdp/README.md), not the historical command examples.

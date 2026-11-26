@@ -1,29 +1,45 @@
-# PDP-11 / Unix V1 B Compiler Plan
+# PDP-11 BCC
 
-Goal: Ship a B compiler written in C that runs on Unix V1 (PDP-11), emits PDP-11 assembly consumable by `as`, and links with `ld -lb` against the system `libb.a`. Keep the existing gcc/libc toolchain for modern hosts intact; this is an additional backend/target.
+The maintained native compiler is in [`bcc-pdp/`](bcc-pdp/README.md).
+It runs in the restored Unix V1 environment pinned by the `unix-v1`
+submodule and emits native PDP-11/20 code. This is a separate compiler,
+not a `--pdp11-v1` mode of the host C99 compiler.
 
-Pipeline (on V1):
-1) `.b` source → (our C compiler) → PDP-11 assembly (Unix V1 `as` syntax)
-2) `as program.s`
-3) `ld -lb a.out` (plus any extra objects)
+Three early-C passes parse B, resolve names, and emit assembler input.
+The native driver assembles that output with BCC's bundled startup and
+runtime. It does not link against the original threaded B `libb.a`.
+See [runtime notes](NOTES_RUNTIME.md), [assembly notes](NOTES_ASSEMBLY.md),
+and the [conformance matrix](bcc-pdp/CONFORMANCE.md).
 
-Key constraints:
-- Target: Unix V1, PDP-11, 16-bit words, word-addressed pointers, strings terminated with 004 (`*e`).
-- Tooling available: `/bin/cc`, `/bin/as`, `/bin/ld`, `/usr/lib/libb.a`.
-- No libc dependencies beyond what V1 `cc` provides; code should be K&R-friendly and small.
-- Rely on system `libb.a` for runtime; only add minimal builtins if strictly needed.
+## Build and check
 
-Implementation outline:
-- Front-end: Thompson B lexer/parser in C (K&R style), supporting classic tokens (`=+`, `=-`, etc.), `*e` strings, multi-char constants.
-- No preprocessor → lines starting with # (like #define) blow up.
-- No struct (in the earlier compiler) → struct token { ... } can’t parse.
-- Pointer declarations aren’t written with * yet → you must declare pointers in the old “array-style”: char s[];, int argv[];, etc.
-- Codegen: Emit V1 `as` syntax. Use r5 as frame pointer, jsr pc for calls, callee-save as needed (r2–r5). Data sections for globals and strings.
-- Output: Assembly only; leave assembling/linking to `as`/`ld`.
-- Integration: Add a `--pdp11-v1` (or similar) flag on the host compiler to emit V1 assembly, or provide a standalone C source (`pdp11/bcc_v1.c`) that can be built directly on V1.
+From the repository root:
 
-Next steps:
-- Define assembly templates (prologue/epilogue, label naming, string emission).
-- Implement lexer/parser skeleton in C (V1-compatible).
-- Wire minimal expr/stmt codegen to prove hello-world and simple loops.
-- Add tiny test B programs under `pdp11/tests/` to exercise I/O and arithmetic.
+```sh
+git submodule update --init --recursive pdp-11/unix-v1
+make -C pdp-11/bcc-pdp
+bash pdp-11/bcc-pdp/tests/run/run.sh
+```
+
+The native compiler README describes the additional dependencies and commands
+for full-system tests. Fast application-emulator tests and tests inside the
+restored kernel are separate checks, with different limitations.
+
+## Bootstrap boundary
+
+The current self-host test rebuilds the C-written compiler and driver using
+the restored C toolchain inside Unix V1. It also rebuilds the B-written part
+of the runtime. It does not rebuild a compiler written in B.
+
+The next bootstrap goal is a native B-written compiler that runs and rebuilds
+on the PDP-11. That requires a native B implementation, its runtime, and an
+executable-output path independent of the seed C compiler. It is separate
+from the host `bcc`, `bccasm`, and `bootstrap/` work. Neither goal is complete
+merely because generated C or assembler text reaches a fixed point.
+
+## Historical sources
+
+The [source review](../wiki/SOURCE_REVIEW.md) distinguishes January 1972
+PDP-11 B, November 1971 Unix, later Unix editions, and reconstructed systems.
+The files in [`unix-v1-docs/`](unix-v1-docs/README.md) include scans and
+working transcriptions; they are not all verified primary-source text.

@@ -4,20 +4,45 @@
  * references, and passes ordinary IC records through.
  */
 
-dbuf[300];
-dtag[10];
-dnm[10];
+dbuf[520]; /* 1040 bytes: enough for 256 decimal literal bytes. */
+dtag[5];
+dnm[5];
 pndcls 0;
+compat 0;
 
 fnsy[5];
 nlocs 0;
 hdrdn 1;
-nvini 0;
-vinis[16];
 infun 0;
 
+/* Delay only the short initializer records, not their literal bytes. */
+ghbuf[1024];
+ghlen 0;
+ghon 0;
+glits 0;
+
+ghchar(c) {
+	extern ghbuf, ghlen;
+	char ghbuf[];
+	int ghlen;
+	if (ghlen >= 2047) fatal("global records too large");
+	ghbuf[ghlen++] = c;
+	ghbuf[ghlen] = 0;
+}
+
+ghtext(s) char s[]; {
+	int i;
+	i = 0;
+	while (s[i]) ghchar(s[i++]);
+}
+
+ghnum(n) {
+	if (n >= 10) ghnum(n / 10);
+	ghchar(n % 10 + '0');
+}
+
 usage() {
-	outinit(2);
+	errinit();
 	outs("usage: b01 [-i raw.ic] [-o resolved.ic]\n");
 	exit(1);
 }
@@ -25,7 +50,7 @@ usage() {
 main(argc, argv) int argv[]; {
 	extern nlab;
 	int nlab;
-	int i, ifd, ofd, in, out;
+	int i, ifd, ofd, in, out, done;
 	char p[];
 
 	nlab = 30000;
@@ -33,8 +58,10 @@ main(argc, argv) int argv[]; {
 	i = 1;
 	in = 0;
 	out = 0;
+	done = 0;
 	while (i < argc) {
 		p = argv[i];
+		if (p[0] == '-') if (p[1] == 's') if (p[2] == 0) goto isdone;
 		if (p[0] == '-') if (p[1] == 'i') if (p[2] == 0) goto isi;
 		if (p[0] == '-') if (p[1] == 'o') if (p[2] == 0) goto iso;
 		usage();
@@ -47,19 +74,25 @@ main(argc, argv) int argv[]; {
 		i = i + 1;
 		if (i >= argc) usage();
 		out = argv[i];
+		goto nxt;
+		goto nxt;
+	isdone:
+		i = i + 1;
+		if (i >= argc) usage();
+		done = argv[i];
 	nxt:
 		i = i + 1;
 	}
 
 	if (in) {
 		ifd = open(in, 0);
-		if (ifd < 0) { outinit(2); outs("b01: open\n"); exit(1); }
+		if (ifd < 0) { errinit(); outs("b01: open\n"); exit(1); }
 	} else {
 		ifd = 0;
 	}
 	if (out) {
 		ofd = creat(out, 016);
-		if (ofd < 0) { outinit(2); outs("b01: creat\n"); exit(1); }
+		if (ofd < 0) { errinit(); outs("b01: creat\n"); exit(1); }
 	} else {
 		ofd = 1;
 	}
@@ -67,6 +100,9 @@ main(argc, argv) int argv[]; {
 	icini(ifd);
 	outinit(ofd);
 	rewrt();
+	/* A named output can reuse descriptor 1; the path records ownership. */
+	if (out) if (close(ofd)) exit(1);
+	if (done) markok(done);
 	exit(0);
 }
 
@@ -90,26 +126,16 @@ echoln(buf) char buf[]; {
 }
 
 emitpr() {
-	extern fnsy, nlocs, nvini, vinis, hdrdn, infun;
-	char fnsy[];
-	int nlocs, nvini, hdrdn, infun;
-	int vinis[];
-	int retl, i;
-	if (!infun) return;
-	if (hdrdn) return;
-	retl = newl();
-	outs("pr ");
-	outs(fnsy); outc(' ');
-	outd(nlocs); outc(' ');
-	outd(retl); outc('\n');
-	i = 0;
-	while (i < nvini) {
-		outs("vi ");
-		outd(vinis[2 * i]); outc(' ');
-		outd(vinis[2 * i + 1]); outc('\n');
-		i = i + 1;
-	}
-	hdrdn = 1;
+    extern fnsy, nlocs, hdrdn, infun;
+    char fnsy[];
+    int nlocs, hdrdn, infun;
+    int retl;
+    if (!infun) return;
+    if (hdrdn) return;
+    retl = newl();
+    outs("pr "); outs(fnsy); outc(' ');
+    outd(nlocs); outc(' '); outd(retl); outc('\n');
+    hdrdn = 1;
 }
 
 regsym(name, cls, off) char name[]; {
@@ -123,12 +149,27 @@ regsym(name, cls, off) char name[]; {
 	return (sid);
 }
 
+/* Keep linkage names out of strict function scope until declared. */
+symloc(name) char name[]; {
+    extern compat, infun, fnst, fnsy;
+    int compat, infun, fnst, sid;
+    char fnsy[];
+    sid = symfnd(name);
+    if (!compat) if (infun) if (sid < fnst)
+        if (!nameq(name, fnsy)) return(-1);
+    return(sid);
+}
+
 regext(name) char name[]; {
-	extern scls;
-	int scls[];
+	extern scls, compat, infun, fnst;
+	int scls[], compat, infun, fnst;
 	int sid, cls;
 	sid = symfnd(name);
 	if (sid < 0) return (symadd(name, 3, 0));
+    if (!compat) if (infun) {
+        if (sid < fnst) return(symadd(name, 3, 0));
+        if (scls[sid] != 3) fatal("external declaration follows internal use");
+    }
 	cls = scls[sid];
 	if (cls == 4) return (sid);
 	if (cls == 7) return (sid);
@@ -140,16 +181,16 @@ rrname(name) char name[]; {
 	extern scls, soff, pndcls;
 	int scls[], soff[], pndcls;
 	int sid;
-	sid = symfnd(name);
-	if (sid < 0) sid = symadd(name, 3, 0);
+	sid = symloc(name);
+	/* An undeclared internal name denotes a function-local label. */
+	if (sid < 0) sid = symadd(name, 5, newl());
 	pndcls = scls[sid];
-	if (pndcls == 5) {
+	if (pndcls == 5 | pndcls == 8) {
 		outs("la "); outd(soff[sid]); outc('\n');
 		return;
 	}
 	if (pndcls == 6) {
 		outs("lc "); outd(soff[sid]); outc('\n');
-		outs("dr\n");
 		return;
 	}
 	if (pndcls == 1) {
@@ -164,55 +205,66 @@ rrname(name) char name[]; {
 }
 
 rrderef() {
-	extern pndcls;
-	int pndcls;
-	if (pndcls == 5) return;
-	if (pndcls == 6) return;
-	if (pndcls == 7) return;
 	outs("dr\n");
 }
 
 rrlbl(name) char name[]; {
-	extern scls, soff;
-	int scls[], soff[];
-	int sid;
-	sid = symfnd(name);
-	if (sid < 0) sid = symadd(name, 5, newl());
-	if (scls[sid] != 5) {
-		rrname(name);
-		rrderef();
-		outs("gor\n");
-		return;
-	}
-	outs("jm ");
-	outd(soff[sid]);
-	outc('\n');
+	/* Even a bare goto reads the mutable internal label cell. */
+	rrname(name);
+	rrderef();
+	outs("gor\n");
 }
 
 rrdef(name) char name[]; {
 	extern scls, soff;
 	int scls[], soff[];
 	int sid;
-	sid = symfnd(name);
+	sid = symloc(name);
 	if (sid < 0) sid = symadd(name, 5, newl());
+	if (scls[sid] == 8) fatal("duplicate label");
 	if (scls[sid] != 5) fatal("label name collision");
+	scls[sid] = 8;
 	outs("lb ");
 	outd(soff[sid]);
 	outc('\n');
 }
 
 rewrt() {
-	extern dbuf, dtag, dnm, fnsy, nlocs, nvini, vinis, hdrdn, pndcls;
-	extern infun, fnst, nsy, scls, soff;
-	char dbuf[], dtag[], dnm[], fnsy[];
-	int nlocs, nvini, hdrdn, pndcls, infun, fnst, nsy;
-	int vinis[], scls[], soff[];
+	extern dbuf, dtag, dnm, fnsy, nlocs, hdrdn, pndcls;
+	extern infun, fnst, nsy, scls, soff, ghbuf, ghlen, ghon, glits, compat;
+	char dbuf[], dtag[], dnm[], fnsy[], ghbuf[];
+	int nlocs, hdrdn, pndcls, infun, fnst, nsy, ghlen, ghon, glits, compat;
+	int scls[], soff[];
 	int idx, sz, base, sid;
 
 	while (1) {
-		if (!getln(dbuf, 300)) return;
+		if (!getln(dbuf, 1040)) {
+			if (ghon) fatal("unfinished global definition");
+			return;
+		}
 		icrst();
 		nxtnam(dbuf, dtag);
+        if (tageq(dtag, "Acompat")) { compat = 1; continue; }
+
+		if (tageq(dtag, "Gstr")) {
+			if (!ghon) fatal("literal outside global definition");
+			outs("Glit"); outs(&dbuf[4]); outc('\n');
+			ghtext("gvl "); ghnum(glits); ghchar('\n');
+			glits = glits + 1;
+			continue;
+		}
+		if (tageq(dtag, "Slit")) glits = glits + 1;
+		if (tageq(dtag, "gvc") | tageq(dtag, "gvn")) {
+			if (!ghon) fatal("initializer outside definition");
+			ghtext(dbuf); ghchar('\n');
+			continue;
+		}
+		if (tageq(dtag, "gve")) {
+			if (!ghon) fatal("global end without definition");
+			outs(ghbuf); echoln(dbuf);
+			ghon = 0;
+			continue;
+		}
 
 		if (tageq(dtag, "Adef")) {
 			nxtnam(dbuf, dnm);
@@ -220,14 +272,16 @@ rewrt() {
 			regsym(dnm, 4, 0);
 			fnst = nsy;
 			nlocs = 0;
-			nvini = 0;
 			hdrdn = 0;
 			infun = 1;
 			pndcls = 0;
+			emitpr();
 			continue;
 		}
 		if (tageq(dtag, "Aauto")) {
 			nxtnam(dbuf, dnm);
+            if (symfnd(dnm) >= fnst) fatal("duplicate local name");
+			if (nlocs >= 8191) fatal("auto frame too large");
 			symadd(dnm, 1, nlocs);
 			nlocs = nlocs + 1;
 			continue;
@@ -239,16 +293,17 @@ rewrt() {
 			if (sid < 0) fatal("Avec without Aauto");
 			scls[sid] = 6;
 			base = soff[sid];
-			if (nvini >= 8) fatal("too many vector autos");
-			vinis[2 * nvini] = base;
-			vinis[2 * nvini + 1] = base + sz - 1;
-			nvini = nvini + 1;
-			nlocs = base + sz;
+            if (sz < 1 | sz > 8191) fatal("bad auto size");
+            if (base > 8191 - sz) fatal("auto frame too large");
+            nlocs = base + sz;
+            outs("vi "); outd(base); outc(' ');
+            outd(base + sz - 1); outc('\n');
 			continue;
 		}
 		if (tageq(dtag, "Aarg")) {
 			nxtnam(dbuf, dnm);
 			idx = nxti(dbuf);
+            if (symfnd(dnm) >= fnst) fatal("duplicate parameter");
 			symadd(dnm, 2, idx);
 			continue;
 		}
@@ -263,8 +318,21 @@ rewrt() {
 			continue;
 		}
 		if (tageq(dtag, "Aend")) {
+			sid = fnst;
+			while (sid < nsy) {
+				if (scls[sid] == 5) fatal("undefined internal label");
+				sid = sid + 1;
+			}
 			emitpr();
-			outs("ep\n");
+			outs("ep "); outd(nlocs); outc('\n');
+			/* Internal cells persist across invocations, outside the frame. */
+			sid = fnst;
+			while (sid < nsy) {
+				if (scls[sid] == 8) {
+					outs("lv "); outd(soff[sid]); outc('\n');
+				}
+				sid = sid + 1;
+			}
 			symtrn();
 			hdrdn = 1;
 			infun = 0;
@@ -274,8 +342,10 @@ rewrt() {
 
 		if (infun) emitpr();
 
-		if (tageq(dtag, "Rname")) {
+		if (tageq(dtag, "Rname") | tageq(dtag, "Rcall")) {
 			nxtnam(dbuf, dnm);
+			/* Preserve implicit external declarations for bare calls. */
+			if (tageq(dtag, "Rcall")) if (symloc(dnm) < 0) regext(dnm);
 			rrname(dnm);
 			continue;
 		}
@@ -296,13 +366,14 @@ rewrt() {
 			pndcls = 0;
 			continue;
 		}
-		if (tageq(dtag, "gvb")) {
+		if (tageq(dtag, "gvb") | tageq(dtag, "gvp")) {
 			nxtnam(dbuf, dnm);
 			idx = nxti(dbuf);
 			if (symfnd(dnm) < 0) symadd(dnm, 3, 0);
-			outs("gvb ");
-			outs(dnm); outc(' ');
-			outd(idx); outc('\n');
+			if (ghon) fatal("nested global definition");
+			ghon = 1;
+			ghlen = 0;
+			ghtext(dbuf); ghchar('\n');
 			pndcls = 0;
 			continue;
 		}

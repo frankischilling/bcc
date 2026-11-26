@@ -20,4 +20,5 @@ main() {
 	testfn(2);
 	testfn(3);
 	putchar('*n');
+	return(0);
 }

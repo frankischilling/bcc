@@ -32,4 +32,5 @@ main() {
 	x = 20; x =/ 4;    chk(x, 5);                /* =/         */
 
 	putchar('*n');
+	return(0);
 }

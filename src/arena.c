@@ -52,7 +52,7 @@ void arena_reset(Arena *arena) {
 void *arena_alloc(Arena *arena, size_t size) {
     if (!arena) dief("arena_alloc: NULL arena");
 
-    /* align to pointer size (good enough for your use) */
+    /* Round allocations to pointer alignment. */
     size = (size + sizeof(void*) - 1) & ~(sizeof(void*) - 1);
 
     if (!arena->current_chunk || arena->current_chunk->used + size > arena->current_chunk->cap) {

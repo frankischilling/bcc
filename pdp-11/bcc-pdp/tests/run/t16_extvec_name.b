@@ -3,9 +3,9 @@
  * Iterate strs[0..2] and print each pointed-to string.
  * Output: foo\nbar\nbaz\n
  */
-foo 'f','o','o','*n','*e';
-bar 'b','a','r','*n','*e';
-baz 'b','a','z','*n','*e';
+foo 067546,05157,004;
+bar 060542,05162,004;
+baz 060542,05172,004;
 
 strs[3] foo, bar, baz;
 

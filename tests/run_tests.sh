@@ -6,6 +6,8 @@
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 BCC="${SCRIPT_DIR}/../bcc"
+TEST_TMP="$(mktemp -d "${TMPDIR:-/tmp}/bcc-tests.XXXXXX")" || exit 1
+trap 'rm -rf -- "$TEST_TMP"' EXIT
 VERBOSE=0
 FILTER=""
 PASSED=0
@@ -73,21 +75,21 @@ run_compile_tests() {
         # Check for expected failure
         if [[ -f "${f%.b}.fail" ]]; then
             # Should fail to compile
-            if "$BCC" "$f" -o /tmp/test_$$ 2>/dev/null; then
-                rm -f /tmp/test_$$
+            if "$BCC" "$f" -o "$TEST_TMP/test" 2>/dev/null; then
+                rm -f "$TEST_TMP/test"
                 fail "compile/$name" "Expected compilation to fail"
             else
                 pass "compile/$name (expected fail)"
             fi
         else
             # Should succeed
-            if "$BCC" "$f" -o /tmp/test_$$ 2>/tmp/compile_err_$$; then
-                rm -f /tmp/test_$$
+            if "$BCC" "$f" -o "$TEST_TMP/test" 2>"$TEST_TMP/compile_err"; then
+                rm -f "$TEST_TMP/test"
                 pass "compile/$name"
             else
-                fail "compile/$name" "$(head -3 /tmp/compile_err_$$)"
+                fail "compile/$name" "$(head -3 "$TEST_TMP/compile_err")"
             fi
-            rm -f /tmp/compile_err_$$
+            rm -f "$TEST_TMP/compile_err"
         fi
     done
 }
@@ -108,18 +110,18 @@ run_run_tests() {
         input_file="${f%.b}.in"
 
         # Compile
-        if ! "$BCC" "$f" -o /tmp/test_$$ 2>/tmp/compile_err_$$; then
-            fail "run/$name" "Compilation failed: $(head -1 /tmp/compile_err_$$)"
-            rm -f /tmp/compile_err_$$
+        if ! "$BCC" "$f" -o "$TEST_TMP/test" 2>"$TEST_TMP/compile_err"; then
+            fail "run/$name" "Compilation failed: $(head -1 "$TEST_TMP/compile_err")"
+            rm -f "$TEST_TMP/compile_err"
             continue
         fi
-        rm -f /tmp/compile_err_$$
+        rm -f "$TEST_TMP/compile_err"
 
         # Run with optional input
         if [[ -f "$input_file" ]]; then
-            /tmp/test_$$ < "$input_file" > /tmp/actual_out_$$ 2>&1
+            "$TEST_TMP/test" < "$input_file" > "$TEST_TMP/actual_out" 2>&1
         else
-            /tmp/test_$$ > /tmp/actual_out_$$ 2>&1
+            "$TEST_TMP/test" > "$TEST_TMP/actual_out" 2>&1
         fi
         actual_exit=$?
 
@@ -128,28 +130,28 @@ run_run_tests() {
             expected_exit_code=$(cat "$expected_exit")
             if [[ "$actual_exit" -ne "$expected_exit_code" ]]; then
                 fail "run/$name" "Exit code: expected $expected_exit_code, got $actual_exit"
-                rm -f /tmp/test_$$ /tmp/actual_out_$$
+                rm -f "$TEST_TMP/test" "$TEST_TMP/actual_out"
                 continue
             fi
         fi
 
         # Check output
         if [[ -f "$expected_out" ]]; then
-            if ! diff -q "$expected_out" /tmp/actual_out_$$ >/dev/null 2>&1; then
+            if ! diff -q "$expected_out" "$TEST_TMP/actual_out" >/dev/null 2>&1; then
                 fail "run/$name" "Output mismatch"
                 if [[ $VERBOSE -eq 1 ]]; then
                     echo "  Expected:"
                     head -5 "$expected_out" | sed 's/^/    /'
                     echo "  Got:"
-                    head -5 /tmp/actual_out_$$ | sed 's/^/    /'
+                    head -5 "$TEST_TMP/actual_out" | sed 's/^/    /'
                 fi
-                rm -f /tmp/test_$$ /tmp/actual_out_$$
+                rm -f "$TEST_TMP/test" "$TEST_TMP/actual_out"
                 continue
             fi
         fi
 
         pass "run/$name"
-        rm -f /tmp/test_$$ /tmp/actual_out_$$
+        rm -f "$TEST_TMP/test" "$TEST_TMP/actual_out"
     done
 }
 
@@ -169,18 +171,18 @@ run_program_tests() {
         input_file="${f%.b}.in"
 
         # Compile
-        if ! "$BCC" "$f" -o /tmp/test_$$ 2>/tmp/compile_err_$$; then
-            fail "programs/$name" "Compilation failed: $(head -1 /tmp/compile_err_$$)"
-            rm -f /tmp/compile_err_$$
+        if ! "$BCC" "$f" -o "$TEST_TMP/test" 2>"$TEST_TMP/compile_err"; then
+            fail "programs/$name" "Compilation failed: $(head -1 "$TEST_TMP/compile_err")"
+            rm -f "$TEST_TMP/compile_err"
             continue
         fi
-        rm -f /tmp/compile_err_$$
+        rm -f "$TEST_TMP/compile_err"
 
         # Run with optional input
         if [[ -f "$input_file" ]]; then
-            timeout 5 /tmp/test_$$ < "$input_file" > /tmp/actual_out_$$ 2>&1
+            timeout 5 "$TEST_TMP/test" < "$input_file" > "$TEST_TMP/actual_out" 2>&1
         else
-            timeout 5 /tmp/test_$$ > /tmp/actual_out_$$ 2>&1
+            timeout 5 "$TEST_TMP/test" > "$TEST_TMP/actual_out" 2>&1
         fi
         actual_exit=$?
 
@@ -189,22 +191,22 @@ run_program_tests() {
             expected_exit_code=$(cat "$expected_exit")
             if [[ "$actual_exit" -ne "$expected_exit_code" ]]; then
                 fail "programs/$name" "Exit code: expected $expected_exit_code, got $actual_exit"
-                rm -f /tmp/test_$$ /tmp/actual_out_$$
+                rm -f "$TEST_TMP/test" "$TEST_TMP/actual_out"
                 continue
             fi
         fi
 
         # Check output
         if [[ -f "$expected_out" ]]; then
-            if ! diff -q "$expected_out" /tmp/actual_out_$$ >/dev/null 2>&1; then
+            if ! diff -q "$expected_out" "$TEST_TMP/actual_out" >/dev/null 2>&1; then
                 fail "programs/$name" "Output mismatch"
-                rm -f /tmp/test_$$ /tmp/actual_out_$$
+                rm -f "$TEST_TMP/test" "$TEST_TMP/actual_out"
                 continue
             fi
         fi
 
         pass "programs/$name"
-        rm -f /tmp/test_$$ /tmp/actual_out_$$
+        rm -f "$TEST_TMP/test" "$TEST_TMP/actual_out"
     done
 }
 
@@ -227,19 +229,19 @@ run_ast_tests() {
         fi
 
         # Get AST dump
-        "$BCC" "$f" --dump-ast > /tmp/actual_ast_$$ 2>&1
+        "$BCC" "$f" --dump-ast > "$TEST_TMP/actual_ast" 2>&1
 
-        if ! diff -q "$golden" /tmp/actual_ast_$$ >/dev/null 2>&1; then
+        if ! diff -q "$golden" "$TEST_TMP/actual_ast" >/dev/null 2>&1; then
             fail "ast/$name" "AST mismatch"
             if [[ $VERBOSE -eq 1 ]]; then
-                diff "$golden" /tmp/actual_ast_$$ | head -20
+                diff "$golden" "$TEST_TMP/actual_ast" | head -20
             fi
-            rm -f /tmp/actual_ast_$$
+            rm -f "$TEST_TMP/actual_ast"
             continue
         fi
 
         pass "ast/$name"
-        rm -f /tmp/actual_ast_$$
+        rm -f "$TEST_TMP/actual_ast"
     done
 }
 
@@ -265,18 +267,18 @@ run_multifile_tests() {
         input_file="$dir/input.in"
 
         # Compile all files
-        if ! "$BCC" "${files[@]}" -o /tmp/test_$$ 2>/tmp/compile_err_$$; then
-            fail "multifile/$name" "Compilation failed: $(head -1 /tmp/compile_err_$$)"
-            rm -f /tmp/compile_err_$$
+        if ! "$BCC" "${files[@]}" -o "$TEST_TMP/test" 2>"$TEST_TMP/compile_err"; then
+            fail "multifile/$name" "Compilation failed: $(head -1 "$TEST_TMP/compile_err")"
+            rm -f "$TEST_TMP/compile_err"
             continue
         fi
-        rm -f /tmp/compile_err_$$
+        rm -f "$TEST_TMP/compile_err"
 
         # Run
         if [[ -f "$input_file" ]]; then
-            timeout 5 /tmp/test_$$ < "$input_file" > /tmp/actual_out_$$ 2>&1
+            timeout 5 "$TEST_TMP/test" < "$input_file" > "$TEST_TMP/actual_out" 2>&1
         else
-            timeout 5 /tmp/test_$$ > /tmp/actual_out_$$ 2>&1
+            timeout 5 "$TEST_TMP/test" > "$TEST_TMP/actual_out" 2>&1
         fi
         actual_exit=$?
 
@@ -285,22 +287,22 @@ run_multifile_tests() {
             expected_exit_code=$(cat "$expected_exit")
             if [[ "$actual_exit" -ne "$expected_exit_code" ]]; then
                 fail "multifile/$name" "Exit code: expected $expected_exit_code, got $actual_exit"
-                rm -f /tmp/test_$$ /tmp/actual_out_$$
+                rm -f "$TEST_TMP/test" "$TEST_TMP/actual_out"
                 continue
             fi
         fi
 
         # Check output
         if [[ -f "$expected_out" ]]; then
-            if ! diff -q "$expected_out" /tmp/actual_out_$$ >/dev/null 2>&1; then
+            if ! diff -q "$expected_out" "$TEST_TMP/actual_out" >/dev/null 2>&1; then
                 fail "multifile/$name" "Output mismatch"
-                rm -f /tmp/test_$$ /tmp/actual_out_$$
+                rm -f "$TEST_TMP/test" "$TEST_TMP/actual_out"
                 continue
             fi
         fi
 
         pass "multifile/$name"
-        rm -f /tmp/test_$$ /tmp/actual_out_$$
+        rm -f "$TEST_TMP/test" "$TEST_TMP/actual_out"
     done
 }
 

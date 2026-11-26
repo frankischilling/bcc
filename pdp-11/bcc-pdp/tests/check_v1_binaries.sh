@@ -1,5 +1,5 @@
 #!/bin/sh
-# Verify installed V1 compiler binaries fit in 16 KB user space.
+# Verify native compiler images and their minimum stack reserves.
 #
 # Checks:
 #   - magic == 0407
@@ -8,20 +8,25 @@
 
 set -eu
 cd "$(dirname "$0")/.."
+HERE=$(pwd)
+. "$HERE/tools/native-lock.sh"
 
 make >/dev/null
-tools/install_v1.sh >/dev/null
 
 python3 - <<'PY'
 import pathlib
 import struct
 import sys
 
-LIMIT = 16384
+sys.path.insert(0, 'tools')
+from compile_native import validate_image
+
 fail = 0
 for name in ("b00", "b01", "b1", "b"):
-    path = pathlib.Path("../unix-v1/fs/root/bin") / name
-    if not path.exists():
+    path = pathlib.Path("build") / name
+    if not path.is_file() or path.stat().st_size < 16:
+        print(f"FAIL {path}: missing or truncated binary")
+        fail = 1
         continue
     magic, text, data, bss = struct.unpack("<4H", path.read_bytes()[:8])
     td = text + data
@@ -30,13 +35,13 @@ for name in ("b00", "b01", "b1", "b"):
         f"{path}: magic={magic:04o} text={text} data={data} "
         f"bss={bss} t+d={td} t+d+b={tdb}"
     )
+    reserve = 512 if name == "b00" else 256
     bad = []
-    if magic != 0o407:
-        bad.append("magic!=0407")
-    if td > LIMIT:
-        bad.append("t+d>16K")
-    if tdb > LIMIT:
-        bad.append("t+d+b>16K")
+    try:
+        validate_image(path.read_bytes(), reserve)
+    except ValueError as error:
+        bad.append(str(error))
+    msg += f" reserve={reserve}"
     if bad:
         print(f"FAIL {msg}  [{','.join(bad)}]")
         fail = 1

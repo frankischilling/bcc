@@ -16,9 +16,10 @@ getln(buf, max) char buf[]; {
 	char b[2];
 	int i, n;
 	i = 0;
-	while (i < max - 1) {
+	while (1) {
 		n = read(icfd, b, 1);
-		if (n <= 0) {
+		if (n < 0) fatal("cannot read IC");
+		if (n == 0) {
 			buf[i] = 0;
 			if (i == 0) return (0);
 			return (1);
@@ -27,6 +28,7 @@ getln(buf, max) char buf[]; {
 			buf[i] = 0;
 			return (1);
 		}
+		if (i >= max - 1) fatal("IC line too long");
 		buf[i] = b[0];
 		i = i + 1;
 	}
@@ -55,22 +57,29 @@ skpws(buf) char buf[]; {
 	return (buf[bcur]);
 }
 
-/* Parse decimal int from buf at bcur.  Advance bcur past it. */
+/* Parse a signed 16-bit decimal field without wrapping malformed input. */
 nxti(buf) char buf[]; {
 	extern bcur;
 	int bcur;
-	int v, neg;
+	int v, neg, digit, last;
 	skpws(buf);
 	neg = 0;
 	if (buf[bcur] == '-') { neg = 1; bcur = bcur + 1; }
+	if (buf[bcur] < '0' | buf[bcur] > '9') fatal("bad IC integer");
+	last = 7;
+	if (neg) last = 8;
 	v = 0;
 	while (buf[bcur] >= '0') if (buf[bcur] <= '9') {
-		v = v * 10 + (buf[bcur] - '0');
+		digit = buf[bcur] - '0';
+		if (v < -3276) fatal("IC integer out of range");
+		if (v == -3276) if (digit > last) fatal("IC integer out of range");
+		v = v * 10 - digit;
 		bcur = bcur + 1;
 		continue;
 	} else break;
-	if (neg) v = -v;
-	return (v);
+	if (buf[bcur] != 0) if (buf[bcur] != ' ') fatal("bad IC integer");
+	if (neg) return (v);
+	return (-v);
 }
 
 /* Copy next whitespace-delimited token into name (8 chars + NUL). */

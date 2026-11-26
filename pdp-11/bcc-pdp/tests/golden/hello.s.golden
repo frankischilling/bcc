@@ -2,35 +2,59 @@
 .text
 	.globl	_main
 _main:
+	.+2
 	mov	r5, -(sp)
 	mov	sp, r5
+	sub	$L30000f, sp
+	mov	_putchar, r0
+	10046
 	mov	$104., r0
-	mov	r0, -(sp)
-	jsr	pc, _putchar
-	tst	(sp)+
+	10046
+	mov	2.(sp), r0
+	jsr	pc, (r0)
+	add	$4., sp
+	mov	_putchar, r0
+	10046
 	mov	$101., r0
-	mov	r0, -(sp)
-	jsr	pc, _putchar
-	tst	(sp)+
+	10046
+	mov	2.(sp), r0
+	jsr	pc, (r0)
+	add	$4., sp
+	mov	_putchar, r0
+	10046
 	mov	$108., r0
-	mov	r0, -(sp)
-	jsr	pc, _putchar
-	tst	(sp)+
+	10046
+	mov	2.(sp), r0
+	jsr	pc, (r0)
+	add	$4., sp
+	mov	_putchar, r0
+	10046
 	mov	$108., r0
-	mov	r0, -(sp)
-	jsr	pc, _putchar
-	tst	(sp)+
+	10046
+	mov	2.(sp), r0
+	jsr	pc, (r0)
+	add	$4., sp
+	mov	_putchar, r0
+	10046
 	mov	$111., r0
-	mov	r0, -(sp)
-	jsr	pc, _putchar
-	tst	(sp)+
+	10046
+	mov	2.(sp), r0
+	jsr	pc, (r0)
+	add	$4., sp
+	mov	_putchar, r0
+	10046
 	mov	$10., r0
-	mov	r0, -(sp)
-	jsr	pc, _putchar
-	tst	(sp)+
+	10046
+	mov	2.(sp), r0
+	jsr	pc, (r0)
+	add	$4., sp
 	mov	$0., r0
 	jmp	L30000
 L30000:
 	mov	r5, sp
 	mov	(sp)+, r5
 	rts	pc
+L30000f = 0.
+
+.globl .bend
+.bend:

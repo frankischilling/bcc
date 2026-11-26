@@ -1,134 +1,36 @@
 
 .text
-	.globl	_LIM
-_LIM:
+	.globl	K0
+K0:
 	100.
 	.even
 
 .text
 	.globl	_flags
 _flags:
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
-	0.
+	[.+2-start+40014]\/2
+	.=.+200.
 	.even
 
 .text
 	.globl	_main
 _main:
+	.+2
 	mov	r5, -(sp)
 	mov	sp, r5
-	sub	$6., sp
+	sub	$L30000f, sp
 	mov	r5, r0
 	sub	$2., r0
-	mov	r0, -(sp)
+	asr	r0
+	10046
 	mov	$0., r0
 	mov	(sp)+, r1
+	asl	r1
 	mov	r0, (r1)
 L0:
-	mov	r5, r0
-	sub	$2., r0
-	mov	(r0), r0
-	mov	r0, -(sp)
-	mov	$_LIM, r0
-	mov	(r0), r0
+	mov	-2.(r5), r0
+	10046
+	mov	K0, r0
 	cmp	(sp)+, r0
 	bge	L2
 	mov	$1, r0
@@ -140,65 +42,62 @@ L3:
 	bne	1f
 	jmp	L1
 1:
-	mov	$_flags, r0
-	mov	r0, -(sp)
-	mov	r5, r0
-	sub	$2., r0
-	mov	(r0), r0
-	asl	r0
+	mov	_flags, r0
+	10046
+	mov	-2.(r5), r0
 	mov	(sp)+, r1
 	add	r1, r0
-	mov	r0, -(sp)
+	10046
 	mov	$1., r0
 	mov	(sp)+, r1
+	asl	r1
 	mov	r0, (r1)
 	mov	r5, r0
 	sub	$2., r0
-	mov	r0, -(sp)
-	mov	r5, r0
-	sub	$2., r0
-	mov	(r0), r0
-	mov	r0, -(sp)
+	asr	r0
+	10046
+	mov	-2.(r5), r0
+	10046
 	mov	$1., r0
 	mov	(sp)+, r1
 	add	r1, r0
 	mov	(sp)+, r1
+	asl	r1
 	mov	r0, (r1)
 	jmp	L0
 L1:
-	mov	$_flags, r0
-	mov	r0, -(sp)
+	mov	_flags, r0
+	10046
 	mov	$0., r0
-	asl	r0
 	mov	(sp)+, r1
 	add	r1, r0
-	mov	r0, -(sp)
+	10046
 	mov	$0., r0
 	mov	(sp)+, r1
+	asl	r1
 	mov	r0, (r1)
-	mov	$_flags, r0
-	mov	r0, -(sp)
+	mov	_flags, r0
+	10046
 	mov	$1., r0
-	asl	r0
 	mov	(sp)+, r1
 	add	r1, r0
-	mov	r0, -(sp)
+	10046
 	mov	$0., r0
 	mov	(sp)+, r1
+	asl	r1
 	mov	r0, (r1)
 	mov	r5, r0
 	sub	$2., r0
-	mov	r0, -(sp)
+	asr	r0
+	10046
 	mov	$2., r0
 	mov	(sp)+, r1
+	asl	r1
 	mov	r0, (r1)
 L4:
-	mov	r5, r0
-	sub	$2., r0
-	mov	(r0), r0
-	mov	r0, -(sp)
-	mov	$_LIM, r0
-	mov	(r0), r0
+	mov	-2.(r5), r0
+	10046
+	mov	K0, r0
 	cmp	(sp)+, r0
 	bge	L6
 	mov	$1, r0
@@ -210,14 +109,12 @@ L7:
 	bne	1f
 	jmp	L5
 1:
-	mov	$_flags, r0
-	mov	r0, -(sp)
-	mov	r5, r0
-	sub	$2., r0
-	mov	(r0), r0
-	asl	r0
+	mov	_flags, r0
+	10046
+	mov	-2.(r5), r0
 	mov	(sp)+, r1
 	add	r1, r0
+	asl	r0
 	mov	(r0), r0
 	tst	r0
 	bne	1f
@@ -225,25 +122,20 @@ L7:
 1:
 	mov	r5, r0
 	sub	$4., r0
-	mov	r0, -(sp)
-	mov	r5, r0
-	sub	$2., r0
-	mov	(r0), r0
-	mov	r0, -(sp)
-	mov	r5, r0
-	sub	$2., r0
-	mov	(r0), r0
+	asr	r0
+	10046
+	mov	-2.(r5), r0
+	10046
+	mov	-2.(r5), r0
 	mov	(sp)+, r1
 	add	r1, r0
 	mov	(sp)+, r1
+	asl	r1
 	mov	r0, (r1)
 L9:
-	mov	r5, r0
-	sub	$4., r0
-	mov	(r0), r0
-	mov	r0, -(sp)
-	mov	$_LIM, r0
-	mov	(r0), r0
+	mov	-4.(r5), r0
+	10046
+	mov	K0, r0
 	cmp	(sp)+, r0
 	bge	L11
 	mov	$1, r0
@@ -255,68 +147,65 @@ L12:
 	bne	1f
 	jmp	L10
 1:
-	mov	$_flags, r0
-	mov	r0, -(sp)
-	mov	r5, r0
-	sub	$4., r0
-	mov	(r0), r0
-	asl	r0
+	mov	_flags, r0
+	10046
+	mov	-4.(r5), r0
 	mov	(sp)+, r1
 	add	r1, r0
-	mov	r0, -(sp)
+	10046
 	mov	$0., r0
 	mov	(sp)+, r1
+	asl	r1
 	mov	r0, (r1)
 	mov	r5, r0
 	sub	$4., r0
-	mov	r0, -(sp)
-	mov	r5, r0
-	sub	$4., r0
-	mov	(r0), r0
-	mov	r0, -(sp)
-	mov	r5, r0
-	sub	$2., r0
-	mov	(r0), r0
+	asr	r0
+	10046
+	mov	-4.(r5), r0
+	10046
+	mov	-2.(r5), r0
 	mov	(sp)+, r1
 	add	r1, r0
 	mov	(sp)+, r1
+	asl	r1
 	mov	r0, (r1)
 	jmp	L9
 L10:
 L8:
 	mov	r5, r0
 	sub	$2., r0
-	mov	r0, -(sp)
-	mov	r5, r0
-	sub	$2., r0
-	mov	(r0), r0
-	mov	r0, -(sp)
+	asr	r0
+	10046
+	mov	-2.(r5), r0
+	10046
 	mov	$1., r0
 	mov	(sp)+, r1
 	add	r1, r0
 	mov	(sp)+, r1
+	asl	r1
 	mov	r0, (r1)
 	jmp	L4
 L5:
 	mov	r5, r0
 	sub	$6., r0
-	mov	r0, -(sp)
+	asr	r0
+	10046
 	mov	$1., r0
 	mov	(sp)+, r1
+	asl	r1
 	mov	r0, (r1)
 	mov	r5, r0
 	sub	$2., r0
-	mov	r0, -(sp)
+	asr	r0
+	10046
 	mov	$2., r0
 	mov	(sp)+, r1
+	asl	r1
 	mov	r0, (r1)
 L13:
-	mov	r5, r0
-	sub	$2., r0
-	mov	(r0), r0
-	mov	r0, -(sp)
-	mov	$_LIM, r0
-	mov	(r0), r0
+	mov	-2.(r5), r0
+	10046
+	mov	K0, r0
 	cmp	(sp)+, r0
 	bge	L15
 	mov	$1, r0
@@ -328,23 +217,19 @@ L16:
 	bne	1f
 	jmp	L14
 1:
-	mov	$_flags, r0
-	mov	r0, -(sp)
-	mov	r5, r0
-	sub	$2., r0
-	mov	(r0), r0
-	asl	r0
+	mov	_flags, r0
+	10046
+	mov	-2.(r5), r0
 	mov	(sp)+, r1
 	add	r1, r0
+	asl	r0
 	mov	(r0), r0
 	tst	r0
 	bne	1f
 	jmp	L17
 1:
-	mov	r5, r0
-	sub	$6., r0
-	mov	(r0), r0
-	mov	r0, -(sp)
+	mov	-6.(r5), r0
+	10046
 	mov	$0., r0
 	cmp	(sp)+, r0
 	bne	L18
@@ -357,49 +242,62 @@ L19:
 	bne	1f
 	jmp	L20
 1:
+	mov	_putchar, r0
+	10046
 	mov	$32., r0
-	mov	r0, -(sp)
-	jsr	pc, _putchar
-	tst	(sp)+
+	10046
+	mov	2.(sp), r0
+	jsr	pc, (r0)
+	add	$4., sp
 L20:
 	mov	r5, r0
 	sub	$6., r0
-	mov	r0, -(sp)
+	asr	r0
+	10046
 	mov	$0., r0
 	mov	(sp)+, r1
+	asl	r1
 	mov	r0, (r1)
-	mov	r5, r0
-	sub	$2., r0
-	mov	(r0), r0
-	mov	r0, -(sp)
+	mov	_printn, r0
+	10046
+	mov	-2.(r5), r0
+	10046
 	mov	$10., r0
-	mov	r0, -(sp)
+	10046
 	mov	0.(sp), r0
 	mov	2.(sp), r1
 	mov	r0, 2.(sp)
 	mov	r1, 0.(sp)
-	jsr	pc, _printn
-	add	$4., sp
+	mov	4.(sp), r0
+	jsr	pc, (r0)
+	add	$6., sp
 L17:
 	mov	r5, r0
 	sub	$2., r0
-	mov	r0, -(sp)
-	mov	r5, r0
-	sub	$2., r0
-	mov	(r0), r0
-	mov	r0, -(sp)
+	asr	r0
+	10046
+	mov	-2.(r5), r0
+	10046
 	mov	$1., r0
 	mov	(sp)+, r1
 	add	r1, r0
 	mov	(sp)+, r1
+	asl	r1
 	mov	r0, (r1)
 	jmp	L13
 L14:
+	mov	_putchar, r0
+	10046
 	mov	$10., r0
-	mov	r0, -(sp)
-	jsr	pc, _putchar
-	tst	(sp)+
+	10046
+	mov	2.(sp), r0
+	jsr	pc, (r0)
+	add	$4., sp
 L30000:
 	mov	r5, sp
 	mov	(sp)+, r5
 	rts	pc
+L30000f = 6.
+
+.globl .bend
+.bend:

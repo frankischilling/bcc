@@ -6,4 +6,5 @@ main() {
 	putchar(v[0]);
 	putchar(v[1]);
 	putchar(v[2]);
+	return(0);
 }

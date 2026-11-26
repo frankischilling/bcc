@@ -1,5 +1,5 @@
 main() {
-    auto a[3], p;
+    auto a 3, p;
     a[0] = 3;
     a[1] = 4;
     p = &a[0];

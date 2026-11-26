@@ -4,6 +4,35 @@
 #include <libgen.h>  /* For dirname() */
 #include <sys/stat.h>  /* For stat() */
 
+/* A buffered write failure may surface during close. */
+static void close_output(FILE *stream, const char *path) {
+    int failed = ferror(stream);
+    if (fclose(stream) == EOF) failed = 1;
+    if (failed) dief("cannot write '%s'", path);
+}
+
+/* Object names come from source names, not temporary C filenames. */
+static char *object_name(const char *source) {
+    const char *base = strrchr(source, '/');
+    base = base ? base + 1 : source;
+    const char *dot = strrchr(base, '.');
+    size_t length = dot && dot != base ? (size_t)(dot - base) : strlen(base);
+    char *result = xmalloc(length + 3);
+    memcpy(result, base, length);
+    memcpy(result + length, ".o", 3);
+    return result;
+}
+
+static void protect_input(const char *output, Vec *inputs) {
+    struct stat destination, source;
+    if (stat(output, &destination) != 0) return;
+    for (size_t i = 0; i < inputs->len; ++i) {
+        if (stat(inputs->data[i], &source) == 0 &&
+            source.st_dev == destination.st_dev && source.st_ino == destination.st_ino)
+            dief("output '%s' would overwrite input '%s'", output, (char*)inputs->data[i]);
+    }
+}
+
 /* Path to libb installation - derived from executable location */
 static char g_libb_dir[4096] = {0};
 
@@ -58,12 +87,13 @@ static int vec_contains_string(Vec *v, const char *s) {
     return 0;
 }
 
-static void collect_known_functions_from_file(const char *path) {
+static void collect_known_symbols_from_file(const char *path, int word_bits) {
     size_t len = 0;
     char *src = read_file_all(path, &len);
 
     Parser P;
     memset(&P, 0, sizeof(P));
+    P.word_bits = word_bits;
     P.L.src = src;
     P.L.len = len;
     P.L.i = 0;
@@ -81,74 +111,31 @@ static void collect_known_functions_from_file(const char *path) {
         Top *t = (Top*)prog->tops.data[i];
         if (t->kind == TOP_FUNC) {
             const char *name = t->as.fn->name;
-            if (!vec_contains_string(&g_known_functions, name)) {
-                vec_push(&g_known_functions, sdup(name));
-            }
+            if (vec_contains_string(&g_known_variables, name))
+                dief("conflicting external definition '%s'", name);
+            if (vec_contains_string(&g_known_functions, name))
+                dief("duplicate external function '%s'", name);
+            vec_push(&g_known_functions, sdup(name));
+        } else if (t->kind == TOP_EXTERN_DEF) {
+            const char *name = t->as.ext_def->name;
+            if (vec_contains_string(&g_known_functions, name))
+                dief("conflicting external definition '%s'", name);
+            if (vec_contains_string(&g_known_variables, name))
+                dief("duplicate external variable '%s'", name);
+            vec_push(&g_known_variables, sdup(name));
         }
     }
 
     free(src);
 }
 
-/* Compile libb.c to libb.o if needed, returns path to libb.o */
-static char *compile_libb(int verbose, int byteptr, int word_bits) {
-    static char libb_o_path[4096];
-    char libb_c_path[4096];
-    
-    snprintf(libb_c_path, sizeof(libb_c_path), "%s/libb.c", g_libb_dir);
-    snprintf(libb_o_path, sizeof(libb_o_path), "/tmp/bcc_libb_%d_%d.o", byteptr, word_bits);
-    
-    /* Check if libb.c exists */
-    if (access(libb_c_path, R_OK) != 0) {
-        dief("libb.c not found at %s", libb_c_path);
-    }
-    
-    /* Check if we need to recompile (simple timestamp check) */
-    struct stat src_stat, obj_stat;
-    int need_compile = 1;
-    if (stat(libb_c_path, &src_stat) == 0 && stat(libb_o_path, &obj_stat) == 0) {
-        if (obj_stat.st_mtime >= src_stat.st_mtime) {
-            need_compile = 0;
-        }
-    }
-    
-    if (need_compile) {
-        if (verbose) fprintf(stderr, "Compiling runtime library...\n");
-        
-        char include_flag[4096];
-        char byteptr_flag[64];
-        char wordbits_flag[64];
-        
-        snprintf(include_flag, sizeof(include_flag), "-I%s", g_libb_dir);
-        snprintf(byteptr_flag, sizeof(byteptr_flag), "-DB_BYTEPTR=%d", byteptr ? 1 : 0);
-        snprintf(wordbits_flag, sizeof(wordbits_flag), "-DWORD_BITS=%d", word_bits);
-        
-        const char *argv[] = {
-            "gcc", "-std=c99", "-O2", "-c",
-            include_flag, byteptr_flag, wordbits_flag,
-            libb_c_path, "-o", libb_o_path, NULL
-        };
-        
-        pid_t pid = fork();
-        if (pid < 0) dief("fork failed");
-        if (pid == 0) { execvp("gcc", (char *const*)argv); _exit(127); }
-        
-        int st = 0;
-        if (waitpid(pid, &st, 0) < 0 || !WIFEXITED(st) || WEXITSTATUS(st) != 0) {
-            dief("Failed to compile libb.c");
-        }
-    }
-    
-    return libb_o_path;
-}
-
 /* Run gcc with multiple C files for linking */
 int run_gcc_multi(Vec *cfiles, const char *out_exe, int compile_only, int debug, int wall, int wextra, int werror, Vec *extra_args, int use_libb, int byteptr, int word_bits, int verbose) {
     char *libb_o = NULL;
-    char include_flag[4096];
+    char include_flag[sizeof(g_libb_dir) + 3];
     
     if (use_libb && !compile_only) {
-        libb_o = compile_libb(verbose, byteptr, word_bits);
+        libb_o = compile_libb(g_libb_dir, verbose, byteptr, word_bits);
     }
     
     snprintf(include_flag, sizeof(include_flag), "-I%s", g_libb_dir);
@@ -172,12 +159,9 @@ int run_gcc_multi(Vec *cfiles, const char *out_exe, int compile_only, int debug,
         argv[n++] = include_flag;
     }
 
-    if (compile_only) {
-        argv[n++] = "-c";
-    } else {
-        argv[n++] = "-o";
-        argv[n++] = out_exe;
-    }
+    if (compile_only) argv[n++] = "-c";
+    argv[n++] = "-o";
+    argv[n++] = out_exe;
 
     /* Add all C files */
     for (size_t i = 0; i < cfiles->len; i++) {
@@ -226,6 +210,7 @@ char *compile_b_to_c(const char *in_path, int byteptr, int no_line, int verbose,
 
     Parser P;
     memset(&P, 0, sizeof(P));
+    P.word_bits = word_bits;
     P.L.src = src;
     P.L.len = len;
     P.L.i = 0;
@@ -283,30 +268,30 @@ char *compile_b_to_c(const char *in_path, int byteptr, int no_line, int verbose,
         cfile = (char*)malloc(strlen(tmpc_tmpl) + 3);
         if (!cfile) dief("out of memory");
         sprintf(cfile, "%s.c", tmpc_tmpl);
-        fclose(out);
+        close_output(out, tmpc_tmpl);
         if (rename(tmpc_tmpl, cfile) != 0) dief("rename temp failed: %s", strerror(errno));
         out = fopen(cfile, "w");
         if (!out) dief("cannot reopen '%s': %s", cfile, strerror(errno));
     }
 
     emit_program_c_ext(out, prog, in_path, byteptr, no_line, word_bits, use_libb);
-    fclose(out);
+    close_output(out, cfile);
 
     if (dump_c) {
         /* Also dump to stdout if requested */
         FILE *f = fopen(cfile, "r");
-        if (f) {
-            int ch;
-            while ((ch = fgetc(f)) != EOF) putchar(ch);
-            fclose(f);
-        }
+        if (!f) dief("cannot open '%s': %s", cfile, strerror(errno));
+        int ch;
+        while ((ch = fgetc(f)) != EOF) putchar(ch);
+        if (ferror(f)) dief("cannot read '%s'", cfile);
+        fclose(f);
     }
 
     free(src);
     return cfile;
 }
 
-int main(int argc, char **argv) {
+static int run_main(int argc, char **argv) {
     int emit_c_only = 0;
     int emit_asm_only = 0; /* assembly output flag */
     int compile_only = 0;  /* -c flag */
@@ -317,7 +302,8 @@ int main(int argc, char **argv) {
     int wall = 1;          /* -Wall (default on) */
     int wextra = 1;        /* -Wextra (default on) */
     int werror = 0;        /* -Werror */
-    int byteptr = 1;       /* byte pointer flag (default on for byte-addressed programs) */
+    int byteptr = 1;       /* Compatibility mode uses byte addresses. */
+    int pointer_mode_explicit = 0;
     int dump_tokens = 0;   /* token dump flag */
     int dump_ast = 0;      /* AST dump flag */
     int dump_c = 0;        /* C dump flag */
@@ -332,6 +318,7 @@ int main(int argc, char **argv) {
 
     /* Initialize libb path based on executable location */
     init_libb_path(argv[0]);
+    g_libb_path = g_libb_dir;
 
     /* Initialize compilation arena */
     g_compilation_arena = arena_new();
@@ -340,6 +327,7 @@ int main(int argc, char **argv) {
     memset(&extra_gcc_args, 0, sizeof(extra_gcc_args));
     memset(&in_paths, 0, sizeof(in_paths));
     memset(&g_known_functions, 0, sizeof(g_known_functions));
+    memset(&g_known_variables, 0, sizeof(g_known_variables));
 
     /* Parse arguments */
     for (int i = 1; i < argc; i++) {
@@ -370,6 +358,10 @@ int main(int argc, char **argv) {
             werror = 1;
         } else if (strcmp(argv[i], "--byteptr") == 0) {
             byteptr = 1;
+            pointer_mode_explicit = 1;
+        } else if (strcmp(argv[i], "--wordptr") == 0) {
+            byteptr = 0;
+            pointer_mode_explicit = 1;
         } else if (strncmp(argv[i], "--word=", 7) == 0) {
             const char *val = argv[i] + 7;
             if (strcmp(val, "16") == 0) {
@@ -406,6 +398,9 @@ int main(int argc, char **argv) {
         } else if (strcmp(argv[i], "-l") == 0) {
             if (i + 1 >= argc) dief("missing value after -l");
             const char *lib_name = argv[++i];
+            if (strcmp(lib_name, "ncurses") == 0 || strcmp(lib_name, "ncursesw") == 0 ||
+                strcmp(lib_name, "curses") == 0 || strcmp(lib_name, "panel") == 0 ||
+                strcmp(lib_name, "panelw") == 0) g_use_curses = 1;
             size_t len = strlen(lib_name) + 3;
             char *lib_arg = (char*)malloc(len);
             if (!lib_arg) dief("out of memory");
@@ -421,6 +416,8 @@ int main(int argc, char **argv) {
             vec_push(&in_paths, argv[i]);
         }
     }
+
+    if (!pointer_mode_explicit && (g_strict || word_bits == 16)) byteptr = 0;
 
     /* Set developer flags */
     g_no_line = no_line;
@@ -449,13 +446,14 @@ int main(int argc, char **argv) {
         fprintf(stderr, "  -Wno-extra  disable extra warnings\n");
         fprintf(stderr, "  -Werror     treat warnings as errors\n");
         fprintf(stderr, "  --byteptr   use byte-addressed pointers\n");
+        fprintf(stderr, "  --wordptr   use word-addressed pointers (strict/16-bit default)\n");
         fprintf(stderr, "  --word=N    word size: 16, 32, or host (default: host)\n");
-        fprintf(stderr, "              16-bit mode wraps arithmetic like PDP-11\n");
+        fprintf(stderr, "              16-bit mode uses translated B addresses and packed words\n");
         fprintf(stderr, "  -v          verbose compilation output\n");
         fprintf(stderr, "  --inline-runtime  embed runtime in each C file (old behavior)\n");
         fprintf(stderr, "\n");
         fprintf(stderr, "Strictness:\n");
-        fprintf(stderr, "  --strict        strict B72 mode: disable all modern extensions\n");
+        fprintf(stderr, "  --strict        select the Thompson PDP-11 B72 dialect checks\n");
         fprintf(stderr, "  --pedantic      error on any non-standard syntax (use with --strict)\n");
         fprintf(stderr, "\n");
         fprintf(stderr, "Extensions disabled by --strict:\n");
@@ -463,6 +461,8 @@ int main(int argc, char **argv) {
         fprintf(stderr, "  - Line comments (//)         use /* */ instead\n");
         fprintf(stderr, "  - Backslash escapes (\\n)     use *n instead\n");
         fprintf(stderr, "  - C-style compound (+=)      use =+ instead\n");
+        fprintf(stderr, "  - Bracketed auto vectors      use auto v 3; instead\n");
+        fprintf(stderr, "  - break/continue/default      ordinary identifiers in B72\n");
         fprintf(stderr, "  - Logical OR (||)            use | or ?: instead\n");
         fprintf(stderr, "  - Long char constants        use one or two chars\n");
         fprintf(stderr, "\n");
@@ -477,19 +477,53 @@ int main(int argc, char **argv) {
         return 2;
     }
 
+    int named_output = out_path != NULL;
+    Vec object_paths = {0};
+    if (compile_only) {
+        if (named_output && in_paths.len != 1)
+            dief("-c with -o requires exactly one input");
+        for (size_t i = 0; i < in_paths.len; ++i) {
+            char *path = named_output ? sdup(out_path) : object_name(in_paths.data[i]);
+            for (size_t j = 0; j < object_paths.len; ++j)
+                if (!strcmp(path, object_paths.data[j]))
+                    dief("inputs produce the same object path '%s'; compile them separately with -o", path);
+            protect_input(path, &in_paths);
+            vec_push(&object_paths, path);
+        }
+    }
     /* Default output path */
     if (!out_path) {
         out_path = "a.out";
     }
+    if (!compile_only) protect_input(out_path, &in_paths);
 
     if (in_paths.len > 1 && !dump_tokens && !(dump_ast && !dump_c)) {
         for (size_t i = 0; i < in_paths.len; i++) {
-            collect_known_functions_from_file((const char*)in_paths.data[i]);
+            collect_known_symbols_from_file((const char*)in_paths.data[i], word_bits);
         }
     }
 
-    /* Single-file special modes that emit to stdout */
-    if (emit_c_only || emit_asm_only) {
+    /* Lower the same complete C representation used by executable builds.
+       The former assembly path silently omitted most expressions and data. */
+    if (emit_asm_only) {
+        if (in_paths.len != 1) dief("--asm only works with a single input file");
+        char *cfile = compile_b_to_c((const char*)in_paths.data[0], byteptr, no_line,
+                                    verbose, 0, 0, 0, 0, NULL, word_bits, 0);
+        Vec files = {0};
+        vec_push(&files, cfile);
+        vec_push(&extra_gcc_args, sdup("-S"));
+        int status = run_gcc_multi(&files, "-", 0, debug, wall, wextra, werror,
+                                   &extra_gcc_args, 0, byteptr, word_bits, verbose);
+        if (keep_c || status) fprintf(stderr, "Generated C: %s\n", cfile);
+        else unlink(cfile);
+        free(cfile);
+        arena_free(g_compilation_arena);
+        g_compilation_arena = NULL;
+        return status;
+    }
+
+    /* Single-file C output to stdout. */
+    if (emit_c_only) {
         if (in_paths.len > 1) {
             dief("-S and --asm only work with a single input file");
         }
@@ -500,6 +534,7 @@ int main(int argc, char **argv) {
 
         Parser P;
         memset(&P, 0, sizeof(P));
+        P.word_bits = word_bits;
         P.L.src = src;
         P.L.len = len;
         P.L.i = 0;
@@ -514,11 +549,7 @@ int main(int argc, char **argv) {
         tok_free(&P.cur);
         sem_check_program(prog, in_path);
 
-        if (emit_c_only) {
-            emit_program_c(stdout, prog, in_path, byteptr, no_line, word_bits);
-        } else {
-            emit_program_asm(stdout, prog);
-        }
+        emit_program_c(stdout, prog, in_path, byteptr, no_line, word_bits);
 
         free(src);
         arena_free(g_compilation_arena);
@@ -538,6 +569,7 @@ int main(int argc, char **argv) {
 
         Parser P;
         memset(&P, 0, sizeof(P));
+        P.word_bits = word_bits;
         P.L.src = src;
         P.L.len = len;
         P.L.i = 0;
@@ -555,7 +587,7 @@ int main(int argc, char **argv) {
         FILE *out = fopen(out_path, "w");
         if (!out) dief("cannot open '%s': %s", out_path, strerror(errno));
         emit_program_c(out, prog, in_path, byteptr, no_line, word_bits);
-        fclose(out);
+        close_output(out, out_path);
 
         free(src);
         arena_free(g_compilation_arena);
@@ -578,6 +610,7 @@ int main(int argc, char **argv) {
             emit_c_path = (char*)malloc(plen + 3);
             if (!emit_c_path) dief("out of memory");
             sprintf(emit_c_path, "%s.c", in_path);
+            protect_input(emit_c_path, &in_paths);
         }
 
         char *cfile = compile_b_to_c(in_path, byteptr, no_line, verbose,
@@ -600,7 +633,17 @@ int main(int argc, char **argv) {
     /* Link all C files with gcc */
     if (verbose) fprintf(stderr, "Linking %zu file(s)...\n", cfiles.len);
 
-    int rc = run_gcc_multi(&cfiles, out_path, compile_only, debug, wall, wextra, werror, &extra_gcc_args, use_libb, byteptr, word_bits, verbose);
+    int rc = 0;
+    if (compile_only) {
+        for (size_t i = 0; i < cfiles.len; ++i) {
+            Vec unit = {0};
+            unit.data = &cfiles.data[i]; unit.len = unit.cap = 1;
+            rc = run_gcc_multi(&unit, object_paths.data[i], 1, debug, wall, wextra,
+                               werror, &extra_gcc_args, use_libb, byteptr, word_bits, verbose);
+            if (rc) break;
+        }
+    } else rc = run_gcc_multi(&cfiles, out_path, 0, debug, wall, wextra, werror,
+                              &extra_gcc_args, use_libb, byteptr, word_bits, verbose);
 
     if (rc != 0) {
         fprintf(stderr, "gcc failed (exit %d)\n", rc);
@@ -630,4 +673,12 @@ int main(int argc, char **argv) {
     arena_free(g_compilation_arena);
     g_compilation_arena = NULL;
     return 0;
+}
+
+int main(int argc, char **argv) {
+    int status = run_main(argc, argv);
+    int failed = ferror(stdout);
+    if (fflush(stdout) == EOF) failed = 1;
+    if (failed) dief("cannot write standard output");
+    return status;
 }

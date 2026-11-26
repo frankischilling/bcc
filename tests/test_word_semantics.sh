@@ -7,6 +7,8 @@
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 BCC="${SCRIPT_DIR}/../bcc"
+TEST_TMP="$(mktemp -d "${TMPDIR:-/tmp}/bcc-tests.XXXXXX")" || exit 1
+trap 'rm -rf -- "$TEST_TMP"' EXIT
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -41,8 +43,7 @@ echo "========================="
 echo ""
 
 # Create a temporary test file for edge cases
-TEST_B=$(mktemp --suffix=.b)
-trap "rm -f $TEST_B /tmp/word_test_*" EXIT
+TEST_B="$TEST_TMP/case.b"
 
 # Test 1: Large shift counts in 16-bit mode
 echo "=== 16-bit Mode Tests ==="
@@ -58,8 +59,8 @@ main() {
 }
 EOF
 
-if "$BCC" --word=16 "$TEST_B" -o /tmp/word_test_1 2>/dev/null; then
-    result=$(/tmp/word_test_1 2>&1; echo $?)
+if "$BCC" --word=16 "$TEST_B" -o "$TEST_TMP/word_test_1" 2>/dev/null; then
+    result=$("$TEST_TMP/word_test_1" 2>&1; echo $?)
     exit_code=$(echo "$result" | tail -1)
     if [[ "$exit_code" == "0" ]]; then
         pass "16-bit: large shift count (20) masked to valid range"
@@ -80,8 +81,8 @@ main() {
 }
 EOF
 
-if "$BCC" --word=16 "$TEST_B" -o /tmp/word_test_2 2>/dev/null; then
-    result=$(/tmp/word_test_2 2>&1; echo $?)
+if "$BCC" --word=16 "$TEST_B" -o "$TEST_TMP/word_test_2" 2>/dev/null; then
+    result=$("$TEST_TMP/word_test_2" 2>&1; echo $?)
     exit_code=$(echo "$result" | tail -1)
     if [[ "$exit_code" == "0" ]]; then
         pass "16-bit: 1 << 15 == -32768"
@@ -103,8 +104,8 @@ main() {
 }
 EOF
 
-if "$BCC" --word=16 "$TEST_B" -o /tmp/word_test_3 2>/dev/null; then
-    result=$(/tmp/word_test_3 2>&1; echo $?)
+if "$BCC" --word=16 "$TEST_B" -o "$TEST_TMP/word_test_3" 2>/dev/null; then
+    result=$("$TEST_TMP/word_test_3" 2>&1; echo $?)
     exit_code=$(echo "$result" | tail -1)
     if [[ "$exit_code" == "0" ]]; then
         pass "16-bit: -1 >> 1 == 32767 (logical shift)"
@@ -125,8 +126,8 @@ main() {
 }
 EOF
 
-if "$BCC" --word=16 "$TEST_B" -o /tmp/word_test_4 2>/dev/null; then
-    result=$(/tmp/word_test_4 2>&1; echo $?)
+if "$BCC" --word=16 "$TEST_B" -o "$TEST_TMP/word_test_4" 2>/dev/null; then
+    result=$("$TEST_TMP/word_test_4" 2>&1; echo $?)
     exit_code=$(echo "$result" | tail -1)
     if [[ "$exit_code" == "0" ]]; then
         pass "16-bit: 32767 + 1 == -32768 (overflow wrap)"
@@ -147,8 +148,8 @@ main() {
 }
 EOF
 
-if "$BCC" --word=16 "$TEST_B" -o /tmp/word_test_5 2>/dev/null; then
-    result=$(/tmp/word_test_5 2>&1; echo $?)
+if "$BCC" --word=16 "$TEST_B" -o "$TEST_TMP/word_test_5" 2>/dev/null; then
+    result=$("$TEST_TMP/word_test_5" 2>&1; echo $?)
     exit_code=$(echo "$result" | tail -1)
     if [[ "$exit_code" == "0" ]]; then
         pass "16-bit: -(-32768) == -32768 (negation edge case)"
@@ -174,8 +175,8 @@ main() {
 }
 EOF
 
-if "$BCC" --word=32 "$TEST_B" -o /tmp/word_test_6 2>/dev/null; then
-    result=$(/tmp/word_test_6 2>&1; echo $?)
+if "$BCC" --word=32 "$TEST_B" -o "$TEST_TMP/word_test_6" 2>/dev/null; then
+    result=$("$TEST_TMP/word_test_6" 2>&1; echo $?)
     exit_code=$(echo "$result" | tail -1)
     if [[ "$exit_code" == "0" ]]; then
         pass "32-bit: large shift count (40) masked to valid range"
@@ -196,8 +197,8 @@ main() {
 }
 EOF
 
-if "$BCC" --word=32 "$TEST_B" -o /tmp/word_test_7 2>/dev/null; then
-    result=$(/tmp/word_test_7 2>&1; echo $?)
+if "$BCC" --word=32 "$TEST_B" -o "$TEST_TMP/word_test_7" 2>/dev/null; then
+    result=$("$TEST_TMP/word_test_7" 2>&1; echo $?)
     exit_code=$(echo "$result" | tail -1)
     if [[ "$exit_code" == "0" ]]; then
         pass "32-bit: 1 << 31 == -2147483648"
@@ -223,8 +224,8 @@ main() {
 }
 EOF
 
-if "$BCC" --word=host "$TEST_B" -o /tmp/word_test_8 2>/dev/null; then
-    result=$(/tmp/word_test_8 2>&1; echo $?)
+if "$BCC" --word=host "$TEST_B" -o "$TEST_TMP/word_test_8" 2>/dev/null; then
+    result=$("$TEST_TMP/word_test_8" 2>&1; echo $?)
     exit_code=$(echo "$result" | tail -1)
     if [[ "$exit_code" == "0" ]]; then
         pass "host: basic arithmetic"
@@ -247,8 +248,8 @@ main() {
 }
 EOF
 
-if "$BCC" "$TEST_B" -o /tmp/word_test_9 2>/dev/null; then
-    result=$(/tmp/word_test_9 2>&1; echo $?)
+if "$BCC" "$TEST_B" -o "$TEST_TMP/word_test_9" 2>/dev/null; then
+    result=$("$TEST_TMP/word_test_9" 2>&1; echo $?)
     exit_code=$(echo "$result" | tail -1)
     if [[ "$exit_code" == "0" ]]; then
         pass "compound shift assignments"
@@ -273,8 +274,8 @@ main() {
 }
 EOF
 
-if "$BCC" "$TEST_B" -o /tmp/word_test_10 2>/dev/null; then
-    result=$(/tmp/word_test_10 2>&1; echo $?)
+if "$BCC" "$TEST_B" -o "$TEST_TMP/word_test_10" 2>/dev/null; then
+    result=$("$TEST_TMP/word_test_10" 2>&1; echo $?)
     exit_code=$(echo "$result" | tail -1)
     if [[ "$exit_code" == "0" ]]; then
         pass "bitwise AND/OR"
