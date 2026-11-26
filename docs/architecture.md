@@ -2,17 +2,17 @@
 
 ## Host compiler
 
-`src/main.c` handles arguments, input files, runtime lookup, generated files,
+`bcc-c/main.c` handles arguments, input files, runtime lookup, generated files,
 and host-toolchain subprocesses. It collects function and external-data names across input files before
 compiling individual units. C-keyword mappings are deterministic across files,
 so names such as `int` and `b_int` remain distinct.
 
-`src/lexer.c` reads B tokens and escapes. `src/parser.c` builds the syntax
-tree. `src/sem.c` resolves declarations, function/label scope, and strict-mode
-checks. `src/emitter.c` lowers the checked tree to C. `src/arena.c` owns
-compiler allocations; `src/util.c` contains shared helpers and diagnostics.
+`bcc-c/lexer.c` reads B tokens and escapes. `bcc-c/parser.c` builds the syntax
+tree. `bcc-c/sem.c` resolves declarations, function/label scope, and strict-mode
+checks. `bcc-c/emitter.c` lowers the checked tree to C. `bcc-c/arena.c` owns
+compiler allocations; `bcc-c/util.c` contains shared helpers and diagnostics.
 
-`src/runtime_cache.c` builds and reuses host runtime objects. The default
+`bcc-c/runtime_cache.c` builds and reuses host runtime objects. The default
 cache is `/tmp/bcc-libb-<effective-user-id>`; `BCC_CACHE_DIR` selects another
 location under directories you control. The cache directory must belong to the current effective user, have mode
 0700, and not be a symbolic link. Reused objects must be nonempty regular
@@ -105,7 +105,7 @@ B modules should call `__b_setargs` and `__b_init` before using their data.
 ## Other compiler builds
 
 The assembly-source build contains GNU assembler snapshots of the host
-compiler. `asm/regenerate.py` refreshes them and records hashes. Its tests
+compiler. `bccasm/regenerate.py` refreshes them and records hashes. Its tests
 use the same host suite, including generated-assembly execution.
 
 The bootstrap compiler is written in B and emits C. Its label prepass uses

@@ -28,7 +28,7 @@ independent toolchain.
   read failures separately from end of file. `lexini` discards cached bytes
   when selecting an input; seek explicitly before restarting the same descriptor.
 - `frontend/word16.b` keeps literal normalization at 16 bits. The experimental
-  [wide frontend](../../../bootstrap/native/frontend/README.md) selects separate
+  [wide frontend](../../../native-b/frontend/README.md) selects separate
   numeric helpers without changing this target.
 - `src/ic.b` reads bounded records in 128-byte input blocks and checks signed
   16-bit decimal fields. Selecting a new input discards unread buffered bytes.

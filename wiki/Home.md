@@ -12,6 +12,7 @@ Its historical language baseline is Thompson's January 7, 1972 PDP-11
 - [Compiler options](../docs/cli.md).
 - [Historical sources and remaining differences](HISTORICAL_CONFORMANCE.md).
 - [Source-by-source review and reference inventory](SOURCE_REVIEW.md).
+- [Historical document archive](../historical-docs/README.md).
 
 ## Language and library
 
@@ -30,8 +31,9 @@ Its historical language baseline is Thompson's January 7, 1972 PDP-11
 - [Examples](WIKI_EXAMPLES.md), including [runnable strict programs](../examples/b72/README.md).
 - [Tests](WIKI_TESTS.md) and [all backend test commands](../docs/testing.md).
 - [Architecture](../docs/architecture.md).
-- [Assembly-source build](../asm/README.md).
-- [B-written bootstrap](../bootstrap/README.md).
+- [Assembly-source build](../bccasm/README.md).
+- [B-written bootstrap](../bcc-b/README.md).
+- [Native B tools](../native-b/README.md).
 - [B-native bootstrap goals and verification](BOOTSTRAP.md).
 - [Native PDP-11 build](../pdp-11/bcc-pdp/README.md).
 

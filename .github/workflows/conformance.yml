@@ -42,11 +42,11 @@ jobs:
       - name: Build the seed compiler
         run: make CC=${{ matrix.cc }}
       - name: Check the B-written bootstrap
-        run: make -C bootstrap test
+        run: make -C bcc-b test
       - name: Reject delayed bootstrap output failures
         run: |
           for stage in 1 2 3; do
-            python3 tests/test_output_errors.py --bootstrap --compiler bootstrap/build/stage$stage/bbc --close-faults
+            python3 tests/test_output_errors.py --bootstrap --compiler bcc-b/build/stage$stage/bbc --close-faults
           done
   b_native:
     name: B native construction (${{ matrix.cc }}, ${{ matrix.stage }})
@@ -62,15 +62,15 @@ jobs:
         run: make CC=${{ matrix.cc }}
       - name: Build the selected B bootstrap stage
         if: matrix.stage != 'host'
-        run: make -C bootstrap stage${{ matrix.stage }}
+        run: make -C bcc-b stage${{ matrix.stage }}
       - name: Check B-written host-native construction
         run: |
           if [ "${{ matrix.stage }}" = host ]; then
-            make -C bootstrap native-stage-test NATIVE_COMPILER=../bcc
-            python3 bootstrap/native/test_elfimage.py --close-faults
-            python3 bootstrap/native/test_x64.py --close-faults
+            make -C native-b native-stage-test NATIVE_COMPILER=../bcc
+            python3 native-b/test_elfimage.py --close-faults
+            python3 native-b/test_x64.py --close-faults
           else
-            make -C bootstrap native-stage-test NATIVE_COMPILER=build/stage${{ matrix.stage }}/bbc NATIVE_FLAGS=--bootstrap
+            make -C native-b native-stage-test NATIVE_COMPILER=../bcc-b/build/stage${{ matrix.stage }}/bbc NATIVE_FLAGS=--bootstrap
           fi
   b_native_rebuild:
     name: B native rebuild (${{ matrix.cc }})
@@ -84,7 +84,7 @@ jobs:
       - name: Build the seed compiler
         run: make CC=${{ matrix.cc }}
       - name: Rebuild the native tools without the seed toolchain
-        run: make -C bootstrap native-rebuild-test
+        run: make -C native-b rebuild-test
   b_bootstrap:
     name: B bootstrap (${{ matrix.cc }})
     needs: [b_bootstrap_checks, b_native, b_native_rebuild]
@@ -112,10 +112,10 @@ jobs:
         include:
           - mode: normal
             target: check
-            compiler: asm/bccasm
+            compiler: bccasm/bccasm
           - mode: staged
             target: bootstrap
-            compiler: asm/bootstrap/stage1/bccasm
+            compiler: bccasm/bootstrap/stage1/bccasm
     steps:
       - uses: actions/checkout@v4
       - name: Build the comparison compiler
@@ -123,23 +123,23 @@ jobs:
       - name: Check assembly-source build and runtime
         run: |
           python3 tests/test_staged_runtime.py
-          BCC_TEST_JOBS=4 make -C asm "${{ matrix.target }}"
+          BCC_TEST_JOBS=4 make -C bccasm "${{ matrix.target }}"
       - name: Check B-written native construction through this build
         run: |
-          python3 bootstrap/native/test_elfimage.py --compiler "${{ matrix.compiler }}" --close-faults
-          python3 bootstrap/native/test_x64.py --compiler "${{ matrix.compiler }}" --close-faults
-          python3 bootstrap/native/test_labels.py --compiler "${{ matrix.compiler }}"
-          python3 bootstrap/native/test_ops.py --compiler "${{ matrix.compiler }}"
-          python3 bootstrap/native/test_frontend.py --compiler "${{ matrix.compiler }}"
-          python3 bootstrap/native/test_arity.py --compiler "${{ matrix.compiler }}"
-          python3 bootstrap/native/test_scalar.py --compiler "${{ matrix.compiler }}"
-          python3 bootstrap/native/test_memory.py --compiler "${{ matrix.compiler }}"
-          python3 bootstrap/native/test_control.py --compiler "${{ matrix.compiler }}"
-          python3 bootstrap/native/test_calls.py --compiler "${{ matrix.compiler }}"
-          python3 bootstrap/native/test_data.py --compiler "${{ matrix.compiler }}"
-          python3 bootstrap/native/test_resolver.py --compiler "${{ matrix.compiler }}"
-          python3 bootstrap/native/test_runtime.py --compiler "${{ matrix.compiler }}"
-          python3 bootstrap/native/test_argv.py --compiler "${{ matrix.compiler }}"
+          python3 native-b/test_elfimage.py --compiler "${{ matrix.compiler }}" --close-faults
+          python3 native-b/test_x64.py --compiler "${{ matrix.compiler }}" --close-faults
+          python3 native-b/test_labels.py --compiler "${{ matrix.compiler }}"
+          python3 native-b/test_ops.py --compiler "${{ matrix.compiler }}"
+          python3 native-b/test_frontend.py --compiler "${{ matrix.compiler }}"
+          python3 native-b/test_arity.py --compiler "${{ matrix.compiler }}"
+          python3 native-b/test_scalar.py --compiler "${{ matrix.compiler }}"
+          python3 native-b/test_memory.py --compiler "${{ matrix.compiler }}"
+          python3 native-b/test_control.py --compiler "${{ matrix.compiler }}"
+          python3 native-b/test_calls.py --compiler "${{ matrix.compiler }}"
+          python3 native-b/test_data.py --compiler "${{ matrix.compiler }}"
+          python3 native-b/test_resolver.py --compiler "${{ matrix.compiler }}"
+          python3 native-b/test_runtime.py --compiler "${{ matrix.compiler }}"
+          python3 native-b/test_argv.py --compiler "${{ matrix.compiler }}"
           python3 pdp-11/bcc-pdp/bootstrap/test_source_reader.py --compiler "${{ matrix.compiler }}"
   host:
     name: host (${{ matrix.cc }})
@@ -194,19 +194,19 @@ jobs:
           python3 tests/test_library_bindings.py --compiler "$RUNNER_TEMP/bcc-instrumented"
           python3 tests/test_identifier_bytes.py --compiler "$RUNNER_TEMP/bcc-instrumented"
           python3 tests/test_open_runtime.py --compiler "$RUNNER_TEMP/bcc-instrumented"
-          python3 bootstrap/native/test_x64.py --compiler "$RUNNER_TEMP/bcc-instrumented"
-          python3 bootstrap/native/test_labels.py --compiler "$RUNNER_TEMP/bcc-instrumented"
-          python3 bootstrap/native/test_ops.py --compiler "$RUNNER_TEMP/bcc-instrumented"
-          python3 bootstrap/native/test_frontend.py --compiler "$RUNNER_TEMP/bcc-instrumented"
-          python3 bootstrap/native/test_arity.py --compiler "$RUNNER_TEMP/bcc-instrumented"
-          python3 bootstrap/native/test_scalar.py --compiler "$RUNNER_TEMP/bcc-instrumented"
-          python3 bootstrap/native/test_memory.py --compiler "$RUNNER_TEMP/bcc-instrumented"
-          python3 bootstrap/native/test_control.py --compiler "$RUNNER_TEMP/bcc-instrumented"
-          python3 bootstrap/native/test_calls.py --compiler "$RUNNER_TEMP/bcc-instrumented"
-          python3 bootstrap/native/test_data.py --compiler "$RUNNER_TEMP/bcc-instrumented"
-          python3 bootstrap/native/test_resolver.py --compiler "$RUNNER_TEMP/bcc-instrumented"
-          python3 bootstrap/native/test_runtime.py --compiler "$RUNNER_TEMP/bcc-instrumented"
-          python3 bootstrap/native/test_argv.py --compiler "$RUNNER_TEMP/bcc-instrumented"
+          python3 native-b/test_x64.py --compiler "$RUNNER_TEMP/bcc-instrumented"
+          python3 native-b/test_labels.py --compiler "$RUNNER_TEMP/bcc-instrumented"
+          python3 native-b/test_ops.py --compiler "$RUNNER_TEMP/bcc-instrumented"
+          python3 native-b/test_frontend.py --compiler "$RUNNER_TEMP/bcc-instrumented"
+          python3 native-b/test_arity.py --compiler "$RUNNER_TEMP/bcc-instrumented"
+          python3 native-b/test_scalar.py --compiler "$RUNNER_TEMP/bcc-instrumented"
+          python3 native-b/test_memory.py --compiler "$RUNNER_TEMP/bcc-instrumented"
+          python3 native-b/test_control.py --compiler "$RUNNER_TEMP/bcc-instrumented"
+          python3 native-b/test_calls.py --compiler "$RUNNER_TEMP/bcc-instrumented"
+          python3 native-b/test_data.py --compiler "$RUNNER_TEMP/bcc-instrumented"
+          python3 native-b/test_resolver.py --compiler "$RUNNER_TEMP/bcc-instrumented"
+          python3 native-b/test_runtime.py --compiler "$RUNNER_TEMP/bcc-instrumented"
+          python3 native-b/test_argv.py --compiler "$RUNNER_TEMP/bcc-instrumented"
           python3 pdp-11/bcc-pdp/bootstrap/test_source_reader.py --compiler "$RUNNER_TEMP/bcc-instrumented"
   sanitizers:
     name: sanitizers

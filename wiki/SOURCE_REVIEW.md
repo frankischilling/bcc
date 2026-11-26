@@ -1206,7 +1206,7 @@ would miss this if they exercised only stdout and never closed an output file.
 
 ### The assembler boundary in a B-only rebuild
 
-The [first-edition assembler entry](../pdp-11/unix-v1-docs/unix-commands-p1.md#asi)
+The [first-edition assembler entry](../historical-docs/unix-v1-docs/unix-commands-p1.md#asi)
 describes differences from PAL-11R, not GNU assembler syntax. Indirection uses
 `*`, immediate operands use `$`, and semicolons separate statements. Expressions
 use square brackets for grouping. The `^` operator copies the right operand's
@@ -1296,7 +1296,7 @@ come from the [ELF header](https://gabi.xinuos.com/elf/02-eheader.html) and
 [program-loading specification](https://gabi.xinuos.com/elf/07-pheader.html), not
 from the historical B manuals.
 
-The [B-written host image writer](../bootstrap/native/README.md) applies those
+The [B-written host image writer](../native-b/README.md) applies those
 rules to fixed-address Linux x86-64 images with separate executable and writable
 segments. The [Linux ELF interface](https://github.com/torvalds/linux/blob/master/include/uapi/linux/elf.h)
 defines the target machine identifier and non-executable-stack header used here.

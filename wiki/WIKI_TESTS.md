@@ -9,8 +9,8 @@ script as the entire test matrix.
 
 ```sh
 python3 tests/test_docs_examples.py
-python3 tests/test_docs_examples.py --compiler asm/bccasm
-python3 tests/test_docs_examples.py --bootstrap --compiler bootstrap/build/stage3/bbc
+python3 tests/test_docs_examples.py --compiler bccasm/bccasm
+python3 tests/test_docs_examples.py --bootstrap --compiler bcc-b/build/stage3/bbc
 python3 tests/test_docs_examples.py --native
 ```
 

@@ -6,7 +6,7 @@ separate historical `libb.a`. Native PDP-11 programs use assembly syscall
 wrappers and a B-written library under `pdp-11/bcc-pdp/runtime/`.
 
 The experimental Linux x86-64 B-native tools have a separate, smaller
-[library](../bootstrap/native/lib/README.md). Its B-source providers include
+[library](../native-b/lib/README.md). Its B-source providers include
 formatting, character/string I/O, counted `execv`, `chdir`, `link`, `getuid`, `stat`, `fstat`, `time`, and `ctime`.
 They use the native syscall bridge rather than a linked C runtime. This is not
 yet the full interface map below.
@@ -34,7 +34,7 @@ function-style `argv(i)`, `print`, `putnum`, `flush`,
 `openr`, `openw`, `reread`, and `callf`. Do not assume the native compiler
 implements every host helper. The host ABI declarations are in
 [`libb.h`](../lib/libb.h), and source-name binding is in
-[`src/emitter.c`](../src/emitter.c).
+[`bcc-c/emitter.c`](../bcc-c/emitter.c).
 
 ## Writable library bindings
 

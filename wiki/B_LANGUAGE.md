@@ -40,7 +40,7 @@ than setting a scalar to three.
 - [Examples](WIKI_EXAMPLES.md) and [tests](WIKI_TESTS.md).
 
 The [CLI guide](../docs/cli.md) covers host options. The
-[B-written bootstrap](../bootstrap/README.md) and
+[B-written bootstrap](../bcc-b/README.md) and
 [native PDP-11 compiler](../pdp-11/bcc-pdp/README.md) have their own interfaces.
 Do not assume a host flag is accepted by the native driver.
 
