@@ -1,4 +1,4 @@
-# BCC
+# BCC (B Compiler Collection)
 
 BCC implements B using Ken Thompson's January 7, 1972 PDP-11
 *Users' Reference to B* as its language baseline. The maintained host
