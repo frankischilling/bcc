@@ -173,7 +173,8 @@ def main():
         work = Path(directory)
         env = dict(os.environ, PATH=str(work / 'no-external-tools'))
         library = ''.join((ROOT / name).read_text() for name in ('x64.b', 'labels.b', 'ops.b'))
-        numbers = ','.join('(-9223372036854775807-1)' if x == -(1 << 63) else str(x) for x in VALUES)
+        # Spell the minimum word as a single literal, as strict B requires.
+        numbers = ','.join(str(1 << 63) if x == -(1 << 63) else str(x) for x in VALUES)
         source = work / 'emitter.b'
         source.write_text(library + '\nvals[] ' + numbers + ';\n' + HARNESS)
         emitter = work / 'emitter'

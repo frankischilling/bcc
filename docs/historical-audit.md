@@ -13,6 +13,7 @@ extensions and from operating-system behavior.
 | Malformed source | Compatibility hexadecimal constants require a digit after the prefix. Host and bootstrap parsers diagnose excessive recursion and expression nesting. The 512-depth guards are implementation limits; they are not specified by the historical manual. |
 | Runtime | Host argument indexing checks the full word before indexing. Host and native Linux file operations reject invalid descriptors and counts before narrowing or accessing buffers. Zero-count I/O remains valid with a null buffer. The host redirection extension preserves full pathnames and closes retired nonstandard descriptors. |
 | Assembly snapshots | A manifest with missing assembly entries could pass the old check. The verifier now requires all expected files, matching source hashes and generation flags. It can also reproduce the recorded assembly with the matching compiler. |
+| Build support | Removed an obsolete parser extraction script (Python stored as a C file, with a missing input) and an unused emitter backup. The native arithmetic fixture now spells the minimum signed word as a single constant, preserving the full range of values checked under strict B. |
 
 Primary references are in [the archive](../historical-docs/README.md). The
 [Thompson transcription](https://cm-bell-labs.github.io/who/dmr/kbman.html)
