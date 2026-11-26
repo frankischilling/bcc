@@ -1,0 +1,68 @@
+[
+  {
+    "path": "pdp-11/PDP-11_Handbook_Second_Edition_1970.pdf",
+    "url": "https://bitsavers.trailing-edge.com/pdf/dec/pdp11/1120/PDP-11_Handbook_Second_Edition_1970.pdf",
+    "sha256": "2bfae0f0215286adf5497dc074ea8afea35cc4668a289db75358831b57929275",
+    "title": "PDP-11 Handbook, second edition (1970)"
+  },
+  {
+    "path": "pdp-11/KA11_ProcessorMan_Sep1970.pdf",
+    "url": "https://bitsavers.trailing-edge.com/pdf/dec/pdp11/1120/KA11_ProcessorMan_Sep1970.pdf",
+    "sha256": "1df7dceb9c6315902a9f83e1bc28806e0643a1fe7526afd550dbf78999cc96dd",
+    "title": "KA11 Processor Manual (September 1970)"
+  },
+  {
+    "path": "pdp-11/KA11_ProcessorMan.pdf",
+    "url": "https://bitsavers.trailing-edge.com/pdf/dec/pdp11/1120/KA11_ProcessorMan.pdf",
+    "sha256": "2cc9a6e8dc2969573c218b0f715bc7f009034a7a933eeacfedb610596b2076be",
+    "title": "KA11 Processor Manual, fifth printing (May 1972)"
+  },
+  {
+    "path": "pdp-11/1120_SystemManual.pdf",
+    "url": "https://bitsavers.trailing-edge.com/pdf/dec/pdp11/1120/1120_SystemManual.pdf",
+    "sha256": "060a3ff7651e6dddf0a87171c48db64765676d03c99e57848834b0ebaa09a47d",
+    "title": "PDP-11/20 System Manual (May 1973)"
+  },
+  {
+    "path": "pdp-11/KE11-A_ExtendedArithElem.pdf",
+    "url": "https://bitsavers.trailing-edge.com/pdf/dec/pdp11/1120/KE11-A_ExtendedArithElem.pdf",
+    "sha256": "3761662bb0b71f9a82c939e11f3621dde02e0b5fd3d4be478f164a23ee85fb22",
+    "title": "KE11-A Extended Arithmetic Element (1971)"
+  },
+  {
+    "path": "pdp-11/KY11A_ConsoleManual_Sep1970.pdf",
+    "url": "https://bitsavers.trailing-edge.com/pdf/dec/pdp11/1120/KY11A_ConsoleManual_Sep1970.pdf",
+    "sha256": "ac2b92bbd03c86e1b37929c5391e80e441b664d4d8fc37339d9ba366ad989487",
+    "title": "KY11-A Programmer’s Console Manual (September 1970)"
+  },
+  {
+    "path": "pdp-11/PDP-1120_Handbook_1972.pdf",
+    "url": "https://bitsavers.trailing-edge.com/pdf/dec/pdp11/handbooks/PDP-1120_Handbook_1972.pdf",
+    "sha256": "3b4327a4e033b1a91c248d7c5e7c0277be50bad4a298f3a7905b2d36e2ec31c2",
+    "title": "PDP-11/20 Processor Handbook (1972)"
+  },
+  {
+    "path": "pdp-11/PDP-11_PeripheralsHbk_1972.pdf",
+    "url": "https://bitsavers.trailing-edge.com/pdf/dec/pdp11/handbooks/PDP-11_PeripheralsHbk_1972.pdf",
+    "sha256": "85afde880dc3464756b964a098348244ed6c8209430008da817fd5249c30c2c3",
+    "title": "PDP-11 Peripherals Handbook (1972)"
+  },
+  {
+    "path": "pdp-11/DEC-11-HR6A-D_PDP-11_Conventions_197009.pdf",
+    "url": "https://bitsavers.trailing-edge.com/pdf/dec/pdp11/handbooks/DEC-11-HR6A-D_PDP-11_Conventions_197009.pdf",
+    "sha256": "3fb7702e8b65d1d81e5554e11a80b247c000c3ad0a498b84dd35fe9bd6d3771e",
+    "title": "PDP-11 Conventions Manual (September 1970)"
+  },
+  {
+    "path": "pdp-11/DEC-11-ASDB-D_PAL-11R_Assembler_Programmers_Manual_May71.pdf",
+    "url": "https://bitsavers.trailing-edge.com/pdf/dec/pdp11/dos-batch/DEC-11-ASDB-D_PAL-11R_Assembler_Programmers_Manual_May71.pdf",
+    "sha256": "c7500303cbb49947f187768ee634915c0820076e3229d9dd8cc5c4adb8190f5f",
+    "title": "PAL-11R Assembler Programmer’s Manual (May 1971)"
+  },
+  {
+    "path": "pdp-11/dec.pdp-11.a_new_architecture_for_mini-computers-the_dec_pdp-11.1970.102630380.pdf",
+    "url": "https://archive.computerhistory.org/resources/text/DEC/pdp-11/dec.pdp-11.a_new_architecture_for_mini-computers-the_dec_pdp-11.1970.102630380.pdf",
+    "sha256": "2242b3db5998f4b848690cf5ea749816faf13f23932ca175a7ef6ce2974bc040",
+    "title": "A New Architecture for Mini-Computers: The DEC PDP-11 (1970)"
+  }
+]

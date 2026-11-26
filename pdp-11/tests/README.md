@@ -1,8 +1,9 @@
-Placeholder for PDP-11 target tests.
+# PDP-11 tests
 
-Suggested tests (to add later):
-- Hello world via write syscall.
-- getchar/putchar echo loop.
-- file read/write using open/creat/seek/close.
-- fork/exec/wait sanity check.
-- simple B program exercising arrays/loops and exit status.
+The active test suite is in [`bcc-pdp/tests/`](../bcc-pdp/tests/).
+It covers B expressions and statements, word addressing, runtime calls,
+file and process operations, and compiler errors. The Unix V1 tests run
+against the restored kernel; the fast runner uses an application emulator.
+
+See the [test commands](../../docs/testing.md) and
+[conformance notes](../bcc-pdp/CONFORMANCE.md) for coverage and limits.

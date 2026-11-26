@@ -12,7 +12,7 @@ FILES = ('libb.c', 'libb.h', 'btarget.h', 'binit.h', 'bcall.h', 'bunix.h',
 def main():
     with tempfile.TemporaryDirectory(prefix='bcc-staged-runtime-') as directory:
         stage = Path(directory) / 'stage'
-        command = ['make', '-C', str(ROOT / 'asm/bootstrap'),
+        command = ['make', '-C', str(ROOT / 'bccasm/bootstrap'),
                    'STAGE=' + str(stage), 'runtime']
 
         def refresh():

@@ -1,20 +1,14 @@
 # BCC
 
-BCC's default compiler translates B through a C backend with GNU extensions
-and the GNU toolchain. Its language baseline is Ken Thompson's January 7, 1972 PDP-11 *Users' Reference
-to B*. The repository also contains an x86-64 assembly-source build, a
-B-written bootstrap compiler, and a separate native PDP-11 compiler.
+BCC implements B using Ken Thompson's January 7, 1972 PDP-11
+*Users' Reference to B* as its language baseline. The maintained host
+compiler emits C. Separate builds use x86-64 assembly, B source, or the
+restored Unix V1 toolchain on the PDP-11.
 
-The [native bootstrap work](wiki/BOOTSTRAP.md) includes B-written instruction
-emission, executable construction, and initial Linux runtime primitives.
-The five experimental tools, including a B-written command driver, pass a
-native fixed-point rebuild. They are not yet a replacement for every feature
-of the installed compiler.
-
-Historical compatibility is a work in progress. Syntax, word arithmetic,
-runtime interfaces, and the original Unix process image are different
-parts of that work. The [conformance notes](wiki/HISTORICAL_CONFORMANCE.md)
-record the sources, tested behavior, and remaining differences.
+The long-term goal is a compiler, runtime and executable-building toolchain
+maintained in B. See the [bootstrap status](wiki/BOOTSTRAP.md) and
+[historical conformance notes](wiki/HISTORICAL_CONFORMANCE.md) for what has
+been implemented, tested, and what remains.
 
 ## Build and run
 
@@ -60,18 +54,18 @@ installed compiler can find both runtime layouts.
 
 ## Choose a build
 
-- **`bcc`** is the maintained C-source host compiler. It supports shared or
+- **[`bcc`](bcc-c/README.md)** is the maintained C-source host compiler. It supports shared or
   inline runtimes, multiple input files, and host/16/32-bit word modes. B
   library names have writable cells, so programs can replace a function
   and later restore its saved value.
-- **[`bccasm`](asm/README.md)** builds the same compiler from checked-in
+- **[`bccasm`](bccasm/README.md)** builds the same compiler from checked-in
   x86-64 GNU assembler snapshots. Source and output hashes catch stale
   snapshots. Generated B programs use the same runtime as `bcc`.
-- **[`bootstrap/`](bootstrap/README.md)** contains a compiler written in B.
+- **[`bcc-b/`](bcc-b/README.md)** contains a compiler written in B.
   Its three-stage test compares generated C and runs conformance programs
   through every stage. It currently targets host-sized storage.
-- **[Native B tools](bootstrap/native/README.md#try-the-verified-native-tools)**
-  are an experimental self-rebuilding Linux x86-64 compiler pipeline maintained
+- **[`native-b`](native-b/README.md#try-the-verified-native-tools)**
+  is an experimental self-rebuilding Linux x86-64 compiler pipeline maintained
   in B. Its driver can create executable files after seeding without a C
   compiler, assembler, linker, shell, or external permission-setting command.
   It does not yet cover every installed `bcc` option, word model, or runtime API.
@@ -82,46 +76,20 @@ installed compiler can find both runtime layouts.
   tests and full Unix V1 system tests.
 
 ```sh
-make -C asm check
-make -C asm bootstrap
-make -C bootstrap test
+make -C bccasm check
+make -C bccasm bootstrap
+make -C bcc-b test
+make -C native-b test
+make -C native-b rebuild-test
 ```
 
-These are different checks. Assembling a staged `bccasm` is not B
-self-hosting, and rebuilding the native C-written compiler inside Unix V1
-is not the same as the B-written bootstrap's fixed-point test.
-
-The [long-term bootstrap goal](wiki/BOOTSTRAP.md) is a B-maintained compiler,
-runtime, and executable-building toolchain on both the host and PDP-11,
-without an external C compiler or assembler after the seed stage. The
-current build paths still have those dependencies. An experimental
-[B-written execution engine](pdp-11/bcc-pdp/bootstrap/vm/README.md) now runs
-the B-written resolver inside Unix V1 with exact output checks. Experimental
-[B compiler passes](pdp-11/bcc-pdp/bootstrap/README.md#frontend-and-code-generators)
-also run through that engine. A [B-written native image writer](pdp-11/bcc-pdp/bootstrap/image/README.md)
-can construct supported PDP-11 executables without an external assembler or
-image converter. An experimental [B build driver](pdp-11/bcc-pdp/bootstrap/driver/README.md)
-now runs the passes and regenerates the target runtime files from B-maintained
-sources after its seed. It is not installed as the normal compiler. Complete
-in-guest source bootstrapping and a host native-output backend remain separate
-work; the existing host builds still depend on C. An experimental
-[B-written ELF image writer](bootstrap/native/README.md) can package x86-64
-instruction bytes. B-written instruction and label encoders can construct
-calls, loops, branches, and integer operations for those images. A shared
-64-bit record frontend and [scalar lowerer](bootstrap/native/README.md#scalar-record-lowering)
-connect arithmetic expressions to those encoders. A
-[local-memory lowerer](bootstrap/native/README.md#local-storage-and-pointer-records)
-adds local variables, vectors, pointers, and assignments.
-[Structured control-flow lowering](bootstrap/native/README.md#structured-control-flow)
-handles if/else, while loops, conditional expressions, and returns.
-[Call construction](bootstrap/native/README.md#native-function-calls) adds
-argument blocks and function entries; the integration tests compile restricted
-multi-function programs. [Static data construction](bootstrap/native/README.md#static-data)
-adds globals, vectors, address initializers, and writable strings.
-[Switch and computed-goto lowering](bootstrap/native/README.md#switch-dispatch-and-computed-goto)
-also supports mutable label cells, initial runtime imports, and the predefined
-argument vector. Normal startup and the full runtime remain unfinished. This is not yet a general
-B-to-native compiler.
+The [B-written host compiler](bcc-b/README.md) checks generated C across
+three stages. The [native Linux tools](native-b/README.md) also check that
+their five components rebuild to identical executables after seeding.
+The [PDP-11 B pipeline](pdp-11/bcc-pdp/bootstrap/README.md) has its own
+compiler passes, execution engine, image writer and driver. Both native
+pipelines remain experimental; see their guides for supported programs
+and remaining dependencies.
 
 ## Dialect and word modes
 
@@ -224,22 +192,24 @@ explains the layouts and string terminators.
 
 ## Documentation and source layout
 
-- [Testing and validation](docs/testing.md)
-- [Command-line options](docs/cli.md)
-- [Compiler architecture](docs/architecture.md)
-- [Historical conformance and source hierarchy](wiki/HISTORICAL_CONFORMANCE.md)
-- [B language guide](wiki/B_LANGUAGE.md)
-- [Historical source review](wiki/SOURCE_REVIEW.md)
-- [Runtime guide](wiki/WIKI_RUNTIME_LIBRARY.md)
-- [Native compiler status](pdp-11/bcc-pdp/CONFORMANCE.md)
+| Directory | Contents |
+| --- | --- |
+| [`bcc-c/`](bcc-c/README.md) | Maintained host compiler; builds `./bcc` |
+| [`bccasm/`](bccasm/README.md) | x86-64 GNU assembler snapshots and staged assembly build |
+| [`bcc-b/`](bcc-b/README.md) | B-written host compiler and three-stage tests |
+| [`native-b/`](native-b/README.md) | B-written Linux x86-64 compiler tools and tests |
+| [`pdp-11/`](pdp-11/README.md) | Native PDP-11 compiler and pinned Unix V1 environment |
+| [`lib/`](lib/README.md) | Shared host runtime |
+| [`tests/`](tests/) | Host regression suite shared by the host builds |
+| [`examples/`](examples/) | B example programs |
+| [`docs/`](docs/README.md) | Architecture, CLI and testing guides |
+| [`wiki/`](wiki/Home.md) | Language, runtime and conformance documentation |
+| [`historical-docs/`](historical-docs/README.md) | Original manuals, source catalogs and historical reference material |
+| [`scripts/`](scripts/) | Project maintenance scripts |
 
 Rebuild B object files made with earlier versions. External data now uses
 contiguous cell storage rather than the old pointer-based representation
 of multiword simple globals.
-
-The host compiler is in `src/`, with its runtime in `lib/`. Regression tests
-are in `tests/`; example programs are in `examples/`. Variant-specific build
-and test code stays under `asm/`, `bootstrap/`, and `pdp-11/bcc-pdp/`.
 
 Known gaps include host filesystem/terminal emulation
 limits, native cross-file symbol linkage, and 16-bit bootstrap storage.
@@ -248,14 +218,12 @@ is bug-free or fully equivalent to the original implementation.
 
 ## References
 
-- [Thompson's PDP-11 B manual](https://www.nokia.com/bell-labs/about/dennis-m-ritchie/kbman.html)
-  and [original scan](https://www.nokia.com/bell-labs/about/dennis-m-ritchie/kbman.pdf)
-- [Kernighan's B tutorial](https://www.nokia.com/bell-labs/about/dennis-m-ritchie/btut.pdf)
-- [November 1971 Unix manual, section VII excerpt](https://www.nokia.com/bell-labs/about/dennis-m-ritchie/man71.pdf)
-- [Setting Up UNIX](https://www.tuhs.org/Archive/Applications/Dennis_Tapes/Gao_Analysis/v4_dist/setup.pdf)
-- [Unix Heritage Society](https://www.tuhs.org/)
-- [aap/b reconstruction](https://github.com/aap/b)
-- [Mike Taylor's libb.a analysis](https://www.miketaylor.org.uk/tech/libb-a.html)
+The [historical archive](historical-docs/README.md) indexes the original B,
+PDP-11 and Unix manuals and their download sources. The
+[source review](wiki/SOURCE_REVIEW.md) records how those sources apply to BCC.
+The [aap/b reconstruction](https://github.com/aap/b) and
+[Mike Taylor's libb.a analysis](https://www.miketaylor.org.uk/tech/libb-a.html)
+are comparison material for the original B implementation.
 
 Maintained by [frankischilling](https://github.com/frankischilling).
 See [LICENSE](LICENSE) for BCC's GPLv3 license. Historical materials and

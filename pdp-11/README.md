@@ -8,7 +8,7 @@ not a `--pdp11-v1` mode of the host C99 compiler.
 Three early-C passes parse B, resolve names, and emit assembler input.
 The native driver assembles that output with BCC's bundled startup and
 runtime. It does not link against the original threaded B `libb.a`.
-See [runtime notes](NOTES_RUNTIME.md), [assembly notes](NOTES_ASSEMBLY.md),
+See [runtime notes](../historical-docs/pdp-11/project-notes/NOTES_RUNTIME.md), [assembly notes](../historical-docs/pdp-11/project-notes/NOTES_ASSEMBLY.md),
 and the [conformance matrix](bcc-pdp/CONFORMANCE.md).
 
 ## Build and check
@@ -34,12 +34,12 @@ of the runtime. It does not rebuild a compiler written in B.
 The next bootstrap goal is a native B-written compiler that runs and rebuilds
 on the PDP-11. That requires a native B implementation, its runtime, and an
 executable-output path independent of the seed C compiler. It is separate
-from the host `bcc`, `bccasm`, and `bootstrap/` work. Neither goal is complete
+from the host `bcc`, `bccasm`, and `bcc-b/` work. Neither goal is complete
 merely because generated C or assembler text reaches a fixed point.
 
 ## Historical sources
 
 The [source review](../wiki/SOURCE_REVIEW.md) distinguishes January 1972
 PDP-11 B, November 1971 Unix, later Unix editions, and reconstructed systems.
-The files in [`unix-v1-docs/`](unix-v1-docs/README.md) include scans and
+The files in [`historical-docs/unix-v1-docs/`](../historical-docs/unix-v1-docs/README.md) include scans and
 working transcriptions; they are not all verified primary-source text.

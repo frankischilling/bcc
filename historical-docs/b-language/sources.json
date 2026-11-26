@@ -1,0 +1,74 @@
+[
+  {
+    "path": "b-language/thompson-users-reference-to-b-1972.pdf",
+    "url": "https://cm-bell-labs.github.io/who/dmr/kbman.pdf",
+    "title": "Ken Thompson, Users' Reference to B (1972)",
+    "sha256": "69a07bac59df60a714c861475273d61c6173a50638ecb29044849170b5afce88"
+  },
+  {
+    "path": "b-language/johnson-b-mh-tss-cstr8-1973-scan.pdf",
+    "url": "https://minnie.tuhs.org/Mirrors/Dennis/bref.pdf",
+    "title": "S. C. Johnson, Users' Reference to B on MH-TSS (1973)",
+    "sha256": "60338e2f64151938b0c08f3c8f1e41ae53f69bc96b3e91c4cf66ab3579017a80"
+  },
+  {
+    "path": "b-language/kernighan-b-tutorial-cstr8-1973-scan.pdf",
+    "url": "https://minnie.tuhs.org/Mirrors/Dennis/btut.pdf",
+    "title": "B. W. Kernighan, A Tutorial Introduction to the Language B (1973)",
+    "sha256": "8de24e4fc4f4b0c2cbc46fe177b2a600837a84e749b72cb0b507b9954434df77"
+  },
+  {
+    "path": "b-language/richards-bcpl-m352-1967-kleine.pdf",
+    "url": "https://softwarepreservation.computerhistory.org/BCPL/project_mac/Richards-BCPL-ReferenceManual.pdf",
+    "title": "Martin Richards, BCPL Reference Manual M-352 (1967), Kleine scan",
+    "sha256": "e49e3e2e866bbac9d5e152987618704b3e7ed724952807184146b9db577985c0"
+  },
+  {
+    "path": "b-language/richards-bcpl-m352-1967-neumann.tif",
+    "url": "https://cm-bell-labs.github.io/who/dmr/bcpl.tif",
+    "title": "Martin Richards, BCPL Reference Manual M-352 (1967), Neumann scan",
+    "sha256": "e3b74dd7c6852293a7f9907149ae2b24dfac666294e345294c3654a909720c8c"
+  },
+  {
+    "path": "b-language/waterloo-cs-75-29.pdf",
+    "url": "https://cs.uwaterloo.ca/research/tr/1975/CS-75-29.pdf",
+    "title": "University of Waterloo, CS-75-29 (1975)",
+    "sha256": "cd1b990cdc9c760848323ecb2cd8b2788b5467d9dceaddb6763aa63db6efff82"
+  },
+  {
+    "path": "b-language/braga-eh-reference-1976.pdf",
+    "url": "https://cs.uwaterloo.ca/research/tr/1976/CS-76-45.pdf",
+    "title": "Eh Reference Manual (1976)",
+    "sha256": "3745a883c2aada7b8a0ab1ffe17106bce20052178340fe47846634dff57fff80"
+  },
+  {
+    "path": "b-language/waterloo-b-reference-1978.pdf",
+    "url": "https://archive.org/download/b-reference-manual/B%20Reference%20Manual.pdf",
+    "title": "Waterloo B Reference Manual (1978)",
+    "sha256": "58690fc3fd77142a322d8050fe3fa8d2f52e2254b25e00a45214353b767b8473"
+  },
+  {
+    "path": "b-language/waterloo-b-reference-v4-1979.pdf",
+    "url": "https://archive.org/download/b-reference-manual/User%27s%20Reference%20to%20B%20V4.0.pdf",
+    "title": "User's Reference to B, version 4.0 (1979)",
+    "sha256": "ca5ec80e5d429a6e9f5e5b4d6082d8c7286ebbc77fdbc60aba2e6dc1a448ad51"
+  },
+  {
+    "path": "b-language/thinkage-gcos8-b-reference-1998.html",
+    "url": "https://www.thinkage.ca/gcos/expl/b/manu/manu.html",
+    "title": "Thinkage GCOS8 B Language Reference Manual",
+    "sha256": "de65f0c39a839185b63c7dd00e2c994648f6cc82002a1b65d00c57cb4ac7feb2"
+  },
+  {
+    "path": "b-language/thinkage-gcos8-b-tutorial.html",
+    "url": "https://www.thinkage.ca/gcos/expl/b/tuto/tuto.html",
+    "title": "Thinkage GCOS8 B Tutorial Guide",
+    "sha256": "daa1141f86da1a82da26c7c434de66aa5ba65fd108f84da35e01c3a553f6a621"
+  },
+  {
+    "path": "b-language/ritchie-development-of-c-1993.html",
+    "url": "https://cm-bell-labs.github.io/who/dmr/chist.html",
+    "title": "Dennis Ritchie, The Development of the C Language (1993)",
+    "sha256": "b2b1579c3ee71a0690c49fe0cf69d7ab3fc8174c814207260ca98ceb39f2a99d"
+  }
+]

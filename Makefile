@@ -3,7 +3,7 @@
 CC = gcc
 CFLAGS = -std=c99 -Wall -Wextra -O2
 TARGET = bcc
-SOURCES = src/util.c src/lexer.c src/parser.c src/sem.c src/arena.c src/emitter.c src/runtime_cache.c src/main.c
+SOURCES = bcc-c/util.c bcc-c/lexer.c bcc-c/parser.c bcc-c/sem.c bcc-c/arena.c bcc-c/emitter.c bcc-c/runtime_cache.c bcc-c/main.c
 OBJECTS = $(SOURCES:.c=.o)
 PREFIX ?= /usr/local
 BINDIR ?= $(PREFIX)/bin
@@ -21,7 +21,7 @@ test: $(TARGET)
 $(TARGET): $(OBJECTS)
 	$(CC) $(CFLAGS) -o $(TARGET) $(OBJECTS) -lm
 
-%.o: %.c src/bcc.h
+%.o: %.c bcc-c/bcc.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
 # Test that libb compiles (for development)
@@ -32,7 +32,7 @@ test-libb: $(LIBB_SRC) $(LIBB_HDR)
 	@echo "libb compiles successfully"
 
 clean:
-	rm -f $(TARGET) $(OBJECTS) src/*.o parser_part.c emitter_part.c main_part.c
+	rm -f $(TARGET) $(OBJECTS) bcc-c/*.o parser_part.c emitter_part.c main_part.c
 
 install: $(TARGET)
 	install -d "$(DESTDIR)$(BINDIR)" "$(DESTDIR)$(BINDIR)/lib"

@@ -137,8 +137,8 @@ def main():
         foreign = work / 'foreign-cache'
         foreign.mkdir(mode=0o700)
         probe = work / 'owner-probe'
-        subprocess.run(['gcc', '-std=c99', '-I', str(ROOT / 'src'),
-                        str(ROOT / 'src/runtime_cache.c'),
+        subprocess.run(['gcc', '-std=c99', '-I', str(ROOT / 'bcc-c'),
+                        str(ROOT / 'bcc-c/runtime_cache.c'),
                         str(ROOT / 'tests/fixtures/runtime_cache_owner.c'), '-o', str(probe)],
                        check=True, timeout=30)
         run = subprocess.run([str(probe), str(tool / 'lib')],

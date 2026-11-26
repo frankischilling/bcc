@@ -1,0 +1,98 @@
+[
+  {
+    "path": "unix/UNIX_ProgrammersManual_Nov71.pdf",
+    "url": "https://www.tuhs.org/Archive/Distributions/Research/Dennis_v1/UNIX_ProgrammersManual_Nov71.pdf",
+    "sha256": "61f23fbf8dec78ae0d3cd901b072ed8293b15947b4d8fb36591600732deec202",
+    "title": "UNIX Programmer’s Manual, first edition (November 3, 1971)"
+  },
+  {
+    "path": "unix/Unix_2nd_Edition_Manual_Jun72.pdf",
+    "url": "https://bitsavers.trailing-edge.com/pdf/att/unix/Early_UNIX/Unix_2nd_Edition_Manual_Jun72.pdf",
+    "sha256": "d20042daf44fb9420d65ec89742eaf9d18a3aee7e4aafc0b632e138f5eb9f1f7",
+    "title": "UNIX Programmer’s Manual, second edition (June 12, 1972)"
+  },
+  {
+    "path": "unix/Kernel_Subroutine_Descriptions_Mar72.pdf",
+    "url": "https://www.tuhs.org/Archive/Distributions/Research/Dennis_v1/Kernel_Subroutine_Descriptions_Mar72.pdf",
+    "sha256": "4a42c3779ec59d274a704e618a86caf08ade285e33f6fbd0156d3a8ad440e48d",
+    "title": "Kernel Subroutine Descriptions (March 1972)"
+  },
+  {
+    "path": "unix/PreliminaryUnixImplementationDocument_Jun72.pdf",
+    "url": "https://www.tuhs.org/Archive/Distributions/Research/Dennis_v1/PreliminaryUnixImplementationDocument_Jun72.pdf",
+    "sha256": "d685058ecbf9a18dc8ba344ed01d6d2d9fe4b7771c949c9880589369213ed3e9",
+    "title": "Preliminary Release of Unix Implementation (June 1972)"
+  },
+  {
+    "path": "unix/Unix_Users_Talk_Notes_Jan73.pdf",
+    "url": "https://bitsavers.trailing-edge.com/pdf/att/unix/Early_UNIX/Unix_Users_Talk_Notes_Jan73.pdf",
+    "sha256": "03eb0980bb7ac43afdfdb52b38022c24592c9c2baa5ad9d89ee5fa28344c0bb9",
+    "title": "Unix Users Talk Notes (January 1973)"
+  },
+  {
+    "path": "unix/cman74.pdf",
+    "url": "https://cm-bell-labs.github.io/who/dmr/cman74.pdf",
+    "sha256": "c1dc352545000908311ae25a7e494f3e7078546cec9720dd9cf2f57f10170e23",
+    "title": "The C Reference Manual (January 15, 1974)"
+  },
+  {
+    "path": "unix/102659317-05-01-acc.pdf",
+    "url": "https://archive.computerhistory.org/resources/access/text/2024/10/102659317-05-01-acc.pdf",
+    "sha256": "55c6b1b97350e09c1cec965ee26258b20bfaacd186bc7e23dfe48e7074dc1030",
+    "title": "Documents for Use with the UNIX Time-Sharing System, sixth edition (1975)"
+  },
+  {
+    "path": "unix/Caldera-license.pdf",
+    "url": "https://www.tuhs.org/Archive/Caldera-license.pdf",
+    "sha256": "16514a4d9ea6426b85a9c4baea883dce2d71e5342eea0ebb6a32a40efc7035e3",
+    "title": "Caldera ancient Unix source license (January 23, 2002)"
+  },
+  {
+    "path": "unix/UNIX_Programmers_Manual_Third_Edition_Feb73.pdf",
+    "url": "https://bitsavers.trailing-edge.com/pdf/att/unix/3rd_Edition/UNIX_Programmers_Manual_Third_Edition_Feb73.pdf",
+    "sha256": "0b8947bdde968d1132924a7371558042096c26380640c051a3d28ff3e08bcc05",
+    "title": "UNIX Programmer’s Manual, third edition (February 1973)"
+  },
+  {
+    "path": "unix/v4man.tar.gz",
+    "url": "https://www.tuhs.org/Archive/Distributions/Research/Dennis_v4/v4man.tar.gz",
+    "sha256": "8ecf22a48de0d1bda63060b1ad9386c699c98e78ecb4471def2ae37af39e0adf",
+    "title": "UNIX Programmer’s Manual, fourth edition (November 1973), recovered manual source archive"
+  },
+  {
+    "path": "unix/v5man.pdf",
+    "url": "https://www.tuhs.org/Archive/Distributions/Research/Dennis_v5/v5man.pdf",
+    "sha256": "dd792cba23dc0229b417ef3148eb8db91516d7528ad12c36f29bb93435a2c6a1",
+    "title": "UNIX Programmer’s Manual, fifth edition (June 1974)"
+  },
+  {
+    "path": "unix/ritchie74.pdf",
+    "url": "https://www.cs.cmu.edu/~15712/papers/ritchie74.pdf",
+    "sha256": "1f70b086220a8cc91019d8eabf2094024564c992647a0fdd46d55b52765b6b10",
+    "title": "The UNIX Time-Sharing System, Communications of the ACM (July 1974)"
+  },
+  {
+    "path": "unix/primevalC.html",
+    "url": "https://cm-bell-labs.github.io/who/dmr/primevalC.html",
+    "sha256": "7a8c8fdea2550bce38338f4730f845bdb1463747ad2e4e9a1312abecbdfc1783",
+    "title": "Dennis Ritchie, Very early C compilers and language (author’s retrospective commentary)"
+  },
+  {
+    "path": "unix/tmg.pdf",
+    "url": "https://www.tuhs.org/Archive/Distributions/Research/1972_stuff/tmg.pdf",
+    "sha256": "f9b574ad45efd83b3035fe91ae1de91cf03c97efe5df74e1d39642de142ca5e9",
+    "title": "PDP-11 TMG Manual (1972)"
+  },
+  {
+    "path": "unix/as.pdf",
+    "url": "https://www.tom-yam.or.jp/2238/ref/as.pdf",
+    "sha256": "82bbf7b03e1732e1ec6298d911f32e82a0c31cd654563dd50efdf4b248e04fc2",
+    "title": "UNIX Assembler Reference Manual, D. M. Ritchie (stand-alone rendition)"
+  },
+  {
+    "path": "unix/UnixEditionZero.txt",
+    "url": "https://www.tuhs.org/Archive/Distributions/Research/McIlroy_v0/UnixEditionZero.txt",
+    "sha256": "9eea9724b8a86d5cde645f0a475cc10a400f35c3ba721320b870637eb1194c55",
+    "title": "The UNIX Time-Sharing System, early draft (transcription)"
+  }
+]

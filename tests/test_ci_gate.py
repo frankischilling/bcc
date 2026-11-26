@@ -48,15 +48,15 @@ class Gate(unittest.TestCase):
         self.assertIn('cc: [gcc, clang]', lane)
         self.assertIn('stage: [host, 1, 2, 3]', lane)
         self.assertIn('NATIVE_COMPILER=../bcc', lane)
-        self.assertIn('NATIVE_COMPILER=build/stage${{ matrix.stage }}/bbc NATIVE_FLAGS=--bootstrap', lane)
+        self.assertIn('NATIVE_COMPILER=../bcc-b/build/stage${{ matrix.stage }}/bbc NATIVE_FLAGS=--bootstrap', lane)
         self.assertIn('test_elfimage.py --close-faults', lane)
         self.assertIn('test_x64.py --close-faults', lane)
-        makefile = (GATE.parents[2] / 'bootstrap/Makefile').read_text()
+        makefile = (GATE.parents[2] / 'native-b/Makefile').read_text()
         tests = makefile.split('NATIVE_TESTS :=', 1)[1].split('native-stage-test:', 1)[0]
         expected = ('elfimage', 'x64', 'labels', 'ops', 'calls', 'data', 'resolver',
                     'runtime', 'argv', 'control', 'memory', 'scalar', 'arity', 'frontend')
         for name in expected:
-            self.assertEqual(tests.count('native/test_' + name + '.py'), 1)
+            self.assertEqual(tests.count('test_' + name + '.py'), 1)
         self.assertIn('../pdp-11/bcc-pdp/bootstrap/test_source_reader.py', tests)
 
     def test_unix_v1_gate_covers_all_lanes(self):
@@ -91,7 +91,7 @@ class Gate(unittest.TestCase):
     def test_host_suite_concurrency_is_explicit(self):
         workflow = (GATE.parents[1] / 'workflows/conformance.yml').read_text()
         self.assertEqual(workflow.count('BCC_TEST_JOBS=4 make test\n'), 2)
-        self.assertIn('BCC_TEST_JOBS=4 make -C asm "${{ matrix.target }}"', workflow)
+        self.assertIn('BCC_TEST_JOBS=4 make -C bccasm "${{ matrix.target }}"', workflow)
         runner = GATE.parents[2] / 'tests/run_suite.py'
         self.assertIn("os.environ.get('BCC_TEST_JOBS', '1')", runner.read_text())
 

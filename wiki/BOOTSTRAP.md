@@ -12,12 +12,12 @@ things, and their names should not obscure the remaining dependencies.
 
 ## What works now
 
-- The [host compiler](../src/) is written in C and emits C. Both building it
+- The [host compiler](../bcc-c/) is written in C and emits C. Both building it
   and compiling B programs use a host C toolchain.
-- [bccasm](../asm/README.md) assembles checked-in x86-64 GNU assembler
+- [bccasm](../bccasm/README.md) assembles checked-in x86-64 GNU assembler
   snapshots of that C compiler. It still uses host assembler/linker tools
   and the C-output backend. A staged assembly build is not B self-hosting.
-- The [B-written bootstrap](../bootstrap/README.md) builds three compiler
+- The [B-written bootstrap](../bcc-b/README.md) builds three compiler
   stages and compares their generated C. Its source uses the host
   compatibility surface and runtime helpers. It still emits C and invokes
   a C compiler to make executables.
@@ -34,7 +34,7 @@ separate trust question.
 
 ## Experimental native fixed point
 
-The [native rebuild test](../bootstrap/native/README.md#native-tool-fixed-point)
+The [native rebuild test](../native-b/README.md#native-tool-fixed-point)
 now seeds the native passes and rebuilds five B-maintained tools twice:
 frontend, resolver, code constructor, ELF image writer, and command driver. The
 native stages match in raw and resolved records, code, data, and complete
@@ -80,7 +80,7 @@ A self-contained host path needs:
    is a generated assembly form of the B compiler, assembled by the B-written
    toolchain. It remains a design to implement and test, not an existing path.
 
-A [B-written ELF image writer](../bootstrap/native/README.md) now packages
+A [B-written ELF image writer](../native-b/README.md) now packages
 already-generated x86-64 instruction and data bytes without invoking an
 assembler or linker. A B-written encoding library also emits selected integer,
 branch, memory, and syscall instructions directly. Its separate two-pass label
@@ -92,41 +92,41 @@ on Linux x86-64. Building these components still uses the C-output toolchain.
 Full runtime coverage and installed-command parity remain necessary; the
 experimental native driver and rebuild are described above.
 
-The [wide record frontend](../bootstrap/native/frontend/README.md) shares the
+The [wide record frontend](../native-b/frontend/README.md) shares the
 B parser while selecting 64-bit numeric helpers. The PDP-11 configuration
 continues to normalize literals to 16 bits. The wide configuration still has
 eight-character identifiers and bounded parser storage, so it is not a drop-in
 replacement for the existing host frontend. It emits records rather than an
 executable.
 
-The [parameter metadata reader](../bootstrap/native/README.md#function-parameter-metadata)
+The [parameter metadata reader](../native-b/README.md#function-parameter-metadata)
 collects declared argument counts before resolution discards unused parameter
 declarations. It checks record boundaries and indices; call lowering and the
 native host runtime are separate components.
 
-The [scalar record lowerer](../bootstrap/native/README.md#scalar-record-lowering)
+The [scalar record lowerer](../native-b/README.md#scalar-record-lowering)
 turns straight-line arithmetic records into x86-64 instructions, with checked
 operand-stack balance and division-fault branches. Calls and control flow use
 separate modules. A
-[local-memory lowerer](../bootstrap/native/README.md#local-storage-and-pointer-records)
+[local-memory lowerer](../native-b/README.md#local-storage-and-pointer-records)
 adds local cells, automatic vectors, word-addressed pointers, and assignments.
-A [control-flow lowerer](../bootstrap/native/README.md#structured-control-flow)
+A [control-flow lowerer](../native-b/README.md#structured-control-flow)
 adds statement branches, loops, conditional expressions, and early returns.
-The [call builder](../bootstrap/native/README.md#native-function-calls) supplies
+The [call builder](../native-b/README.md#native-function-calls) supplies
 argument blocks and function entries. Integration fixtures now construct
 native images from restricted multi-function source programs, including
-recursion and writable function cells. [Static data construction](../bootstrap/native/README.md#static-data)
+recursion and writable function cells. [Static data construction](../native-b/README.md#static-data)
 adds global cells, vectors, named-address initializers, and separate writable
-storage for each string occurrence. [Switch dispatch and computed goto](../bootstrap/native/README.md#switch-dispatch-and-computed-goto)
+storage for each string occurrence. [Switch dispatch and computed goto](../native-b/README.md#switch-dispatch-and-computed-goto)
 add nested cases and mutable label cells. Normal startup remains separate work.
 The result-reporting test constructor is not a general source compiler.
 
-[Native runtime primitives](../bootstrap/native/README.md#native-runtime-primitives)
+[Native runtime primitives](../native-b/README.md#native-runtime-primitives)
 now generate direct Linux x86-64 implementations of packed-byte access, basic
 file I/O, path operations, and process exit. They use the B call frame and
 need no linked C runtime in the resulting image. The whole-program test constructor now binds these imports only when the
 source does not define the name, preserving writable function cells and
-user-defined replacements. An [entry argument packer](../bootstrap/native/README.md#entry-argument-vector)
+user-defined replacements. An [entry argument packer](../native-b/README.md#entry-argument-vector)
 now initializes the predefined `argv` vector from Linux process arguments,
 with separate aligned copies of the NUL-terminated strings. The constructor can also exit with `main`'s return value for native tool
 rebuilds. The experimental B-written driver now chains the passes and supplies
@@ -136,7 +136,7 @@ missing. B-written character/string I/O and strict formatting now use the same
 provider selection, preserving source definitions and mutable callbacks. These primitives do not
 change the normal compiler's C-toolchain dependency.
 
-A separate [host resolver storage module](../bootstrap/native/README.md#host-resolver-storage)
+A separate [host resolver storage module](../native-b/README.md#host-resolver-storage)
 raises its symbol capacity to 1,024 and its buffered initializer records to
 8,191 bytes. The PDP-11 configuration retains its smaller limits. The expanded
 constructor can now resolve its own source, but cannot yet compile itself to

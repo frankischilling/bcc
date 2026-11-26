@@ -10,9 +10,9 @@ development package and `-l ncurses`.
 make
 make test
 make test-install
-make -C asm check
-make -C asm bootstrap
-make -C bootstrap test
+make -C bccasm check
+make -C bccasm bootstrap
+make -C bcc-b test
 ```
 
 The host runner checks suite exit status and reported failures, and rejects
@@ -32,7 +32,7 @@ false-green reports. Runtime-cache tests cover old shared objects, directory
 ownership and permissions, symbolic and hard links, empty objects, failed
 publication, concurrent compiles, alternate word sizes, and temporary-object
 cleanup. Run them separately with `python3 tests/test_runtime_cache.py`; use
-`--compiler asm/bccasm` to check the assembly-source executable.
+`--compiler bccasm/bccasm` to check the assembly-source executable.
 
 `bccasm` runs the same host suite. The B-written compiler runs lexical and
 expression cases at each of its three stages, separately from the generated-C
@@ -455,8 +455,8 @@ from executable program results. They include cyclic address initializers,
 function-cell addresses, empty and enlarged vectors, distinct writable strings,
 wide integer boundaries, storage limits, and buffered output failures. The
 call-construction fixtures also execute source programs using those objects.
-Run them with `python3 bootstrap/native/test_data.py` and
-`python3 bootstrap/native/test_calls.py`, or as part of `make -C bootstrap native-test`.
+Run them with `python3 native-b/test_data.py` and
+`python3 native-b/test_calls.py`, or as part of `make -C native-b test`.
 
 
 Switch regressions include repeated constants, wide values, case and label
