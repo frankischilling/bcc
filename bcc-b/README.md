@@ -39,6 +39,13 @@ compiling. Strict mode rejects names longer than eight characters; ordinary
 compatibility mode keeps long names. `--strict --pedantic` selects the
 bootstrap compiler's stricter syntax checks. Token and AST dumps are not implemented here.
 
+Strict definitions follow the January 1972 grammar: external initializers
+are literals or names, vector extents are single numeric or character
+constants, and `extrn` appears in statements. Negative literal initializers
+remain supported. Braced initializers and comma expressions are compatibility
+extensions. Argument and unbraced initializer lists reject trailing commas.
+Hexadecimal literals in compatibility mode require at least one digit.
+
 Strict external declarations are checked per function and must precede use.
 Top-level definitions no longer bypass `extrn`, and declarations cannot turn
 a parameter, automatic variable, or label into an external. The compiler
@@ -91,6 +98,9 @@ simple definition with several initializers is accessible through `&name`.
 Checked limits are 1,024 functions and 2,048 external data names per project,
 256 input files, and 256 extra compiler options. Exceeding them produces a
 diagnostic before a table write. The tests exercise each limit's rejection.
+Recursive parsing and individual expression operator chains also have a
+512-level guard so deeply nested input fails with a diagnostic rather than
+exhausting the stack or emitting excessively nested C expressions.
 
 ## Remaining differences
 

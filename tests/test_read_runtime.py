@@ -2,14 +2,19 @@
 """Check that short, zero-length, failed, and EOF reads preserve untouched bytes."""
 import argparse
 from pathlib import Path
+import struct
 import subprocess
 import tempfile
 
 SOURCE = """
 main() {
-    extrn read, char, lchar;
+    extrn read, write, close, char, lchar;
     auto buf 2, i;
     i=0; while(i<4) { lchar(buf,i,'Z'); i=+1; }
+    if(read(0,0,0)!=0 | write(1,0,0)!=0)return(9);
+    if(read(0,0,1)!=-1 | write(1,0,1)!=-1)return(10);
+    if(read(0,buf,-1)!=-1 | write(1,buf,-1)!=-1)return(11);
+    WIDE_CHECKS
     if(read(0,buf,0)!=0) return(1);
     i=0; while(i<4) { if(char(buf,i)!='Z')return(2); i=+1; }
     if(read(0,buf,1)!=1 | char(buf,0)!='A')return(3);
@@ -34,8 +39,15 @@ def main():
     with tempfile.TemporaryDirectory(prefix='bcc-read-') as directory:
         root = Path(directory)
         source = root / 'case.b'
-        source.write_text(SOURCE)
         for mode, inline in modes:
+            wide = mode == 'host' and struct.calcsize('P') > struct.calcsize('i')
+            checks = """
+    if(read(4294967296,buf,1)!=-1)return(12);
+    if(write(4294967297,buf,1)!=-1)return(13);
+    if(close(4294967296)!=-1)return(14);
+    if(read(-4294967296,buf,1)!=-1)return(15);
+""" if wide else ''
+            source.write_text(SOURCE.replace('WIDE_CHECKS', checks))
             command = [str(args.compiler.resolve()), '--strict', '--pedantic']
             if not args.bootstrap: command += [f'--word={mode}']
             if inline: command += ['--inline-runtime']

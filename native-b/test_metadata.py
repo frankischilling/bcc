@@ -104,7 +104,13 @@ def run_checks(tools, work):
     case = Path(work) / 'missing-arguments'
     case.mkdir()
     execute(build, case, 'main(){extrn stat,fstat;return(stat()==-1 & stat("file")==-1 & fstat()==-1 & fstat(0)==-1?0:1);}')
-    print(f'{len(CASES) + 5} native file-status checks passed', flush=True)
+    case = Path(work) / 'wide-descriptor'
+    case.mkdir()
+    (case / 'file').write_bytes(b'x')
+    execute(build, case, 'main(){extrn open,close,fstat;auto fd,out 17;fd=open("file",0);'
+            'if(fd<0 | fstat(fd,out)!=0)return(1);out[0]=123;'
+            'if(fstat(fd+4294967296,out)!=-1 | out[0]!=123)return(2);return(close(fd)!=0);}')
+    print(f'{len(CASES) + 6} native file-status checks passed', flush=True)
 
 
 def main():

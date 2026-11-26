@@ -2,6 +2,7 @@
 """Absolute 16-bit file offsets are unsigned; relative displacements are signed."""
 import argparse
 from pathlib import Path
+import struct
 import subprocess
 import tempfile
 
@@ -44,6 +45,19 @@ def main():
                 run = subprocess.run([str(work / 'case')], cwd=work, capture_output=True, timeout=5) if build.returncode == 0 else build
                 ok = build.returncode == 0 and run.returncode == 0 and not run.stdout and not run.stderr
                 print(f'{"PASS" if ok else "FAIL"}: seek/{word}/{inline}/{byteptr}/{name}', flush=True)
+                if not ok:
+                    print(run.returncode, repr(run.stdout), repr(run.stderr))
+                passed += ok
+                failed += not ok
+            if word == 'host' and struct.calcsize('P') > struct.calcsize('i'):
+                (work / 'case.b').write_text(PREFIX +
+                    "if(seek(fd+4294967296,1,0)!=-1 | seek(fd,1,4294967296)!=-1)return(2);"
+                    "if(read(fd,b,1)!=1 | char(b,0)!='A')return(3);" + SUFFIX)
+                build = subprocess.run([str(args.compiler.resolve()), *flags, str(work / 'case.b'),
+                                        '-o', str(work / 'case')], capture_output=True, timeout=30)
+                run = subprocess.run([str(work / 'case')], cwd=work, capture_output=True, timeout=5) if build.returncode == 0 else build
+                ok = build.returncode == 0 and run.returncode == 0 and not run.stdout and not run.stderr
+                print(f'{"PASS" if ok else "FAIL"}: seek/{word}/{inline}/{byteptr}/wide-arguments', flush=True)
                 if not ok:
                     print(run.returncode, repr(run.stdout), repr(run.stderr))
                 passed += ok

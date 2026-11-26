@@ -8,6 +8,7 @@
 SRC; SRCLEN; POS; LINE; COL; STRICT; WANT_NCURSES;
 TOK; TNUM; TTEXT; TTEXTLEN;
 SWCUR; SWNEXT;
+PARDEPTH;
 HOIST; OUT; FUNS; NFUNS; MAIN_NARGS; HAS_MAIN; GLOBS; NGLOBS;
 ALLFUNS; NALLFUNS; ALLGLOBS; NALLGLOBS;
 EXTERNS[2048]; NEXTERNS; CURFUNC;
@@ -473,6 +474,7 @@ next() {
                 getc1();
                 base = 16;
                 v = 0;
+                if (!is_xdigit(peekc())) fatal("expected hexadecimal digit");
             } else {
                 base = 8;
             }
@@ -629,8 +631,16 @@ expect(t) {
     next();
 }
 
+/* Bound recursive parsing and the depth of expressions emitted as C. */
+parse_guard(depth) {
+    if (depth > 512) fatal("syntax nesting limit exceeded");
+}
+
 prec(op) {
-    if (op == 36) return(1);
+    if (op == 36) {
+        if (STRICT) return(0);
+        return(1);
+    }
     if ((op >= 70) & (op <= 85)) return(2);
     if (op == 50) return(3);
     if (op == 46) return(4);
@@ -649,6 +659,7 @@ right_assoc(op) {
 }
 
 c_op(op) {
+    if (op == 36) return(",");
     if (op == 40) return("+");
     if (op == 41) return("-");
     if (op == 42) return("**");
@@ -1082,9 +1093,11 @@ library_call(name, arguments, count) {
 }
 
 postfix() {
-    auto lhs, b, first, name, cname, idx, arg, narg, fmt, wcstr, target, raw, library;
+    auto lhs, b, first, name, cname, idx, arg, narg, fmt, wcstr, target, raw, library, chain;
     lhs = primary();
+    chain = 0;
     while (1) {
+        if ((TOK == 30) | (TOK == 34) | (TOK == 51) | (TOK == 52)) parse_guard(++chain);
         if (TOK == 30) {
             name = lhs;
             cname = call_name(name);
@@ -1096,6 +1109,7 @@ postfix() {
                     buf_str(b,expr(2));narg++;
                     if(TOK!=36)break;
                     next();
+                    if(TOK==31)fatal("expected argument after comma");
                 }
                 expect(31);
                 lhs=source_call(target,buf_take(b),narg);
@@ -1136,6 +1150,7 @@ postfix() {
                 narg = narg + 1;
                 if (TOK == 36) {
                     next();
+                    if (TOK == 31) fatal("expected argument after comma");
                 } else {
                     break;
                 }
@@ -1172,6 +1187,14 @@ postfix() {
 }
 
 unary() {
+    auto value;
+    parse_guard(++PARDEPTH);
+    value = unary_body();
+    PARDEPTH--;
+    return(value);
+}
+
+unary_body() {
     auto op, e, b;
     if ((TOK == 41) | (TOK == 47) | (TOK == 42) | (TOK == 45) | (TOK == 51) | (TOK == 52)) {
         op = TOK;
@@ -1210,10 +1233,20 @@ unary() {
 }
 
 expr(minp) {
-    auto lhs, op, p, rhs, b, rel;
+    auto value;
+    parse_guard(++PARDEPTH);
+    value = expr_body(minp);
+    PARDEPTH--;
+    return(value);
+}
+
+expr_body(minp) {
+    auto lhs, op, p, rhs, b, rel, chain;
     lhs = unary();
+    chain = 0;
     while (1) {
         if ((TOK == 39) & (minp <= 3)) {
+            parse_guard(++chain);
             next();
             rhs = expr(1);
             expect(38);
@@ -1223,7 +1256,7 @@ expr(minp) {
             buf_str(b, " ? ");
             buf_str(b, rhs);
             buf_str(b, " : ");
-            buf_str(b, expr(1));
+            buf_str(b, expr(2));
             buf_ch(b, ')');
             lhs = buf_take(b);
             continue;
@@ -1231,6 +1264,7 @@ expr(minp) {
         op = TOK;
         p = prec(op);
         if (p < minp) return(lhs);
+        parse_guard(++chain);
         next();
         if (right_assoc(op)) rhs = expr(p);
         else rhs = expr(p + 1);
@@ -1406,6 +1440,13 @@ swstmt(value) {
 }
 
 stmt() {
+    parse_guard(++PARDEPTH);
+    stmt_body();
+    PARDEPTH--;
+    return(0);
+}
+
+stmt_body() {
     auto e, name, psave, lsave, csave, i, scope;
     if (TOK == 32) {
         block();
@@ -1494,13 +1535,7 @@ stmt() {
     }
     if (TOK == 17) {
         next();
-        if (TOK == 30) {
-            next();
-            e = expr(1);
-            expect(31);
-        } else {
-            e = expr(1);
-        }
+        e = expr(1);
         if (STRICT) {swstmt(e);return(0);}
         emit("switch ((word)(");
         emit(e);
@@ -1602,7 +1637,10 @@ scan_functions() {
     OUT = buf_new(1024);
     next();
     while (TOK != 0) {
-        if (TOK == 11) { extrn_stmt(); }
+        if (TOK == 11) {
+            if (STRICT) fatal("top-level extrn is not strict B");
+            extrn_stmt();
+        }
         else if (TOK == 10) {
             fatal("top-level auto not supported");
         } else {
@@ -1660,8 +1698,18 @@ emit_prototypes() {
 
 /* A bare external initializer names a cell's address, not its value. */
 global_ival() {
-    auto name;
-    if (TOK != 1) return(expr(2));
+    auto name, b;
+    if (TOK != 1) {
+        if (!STRICT) return(expr(2));
+        if (TOK == 2 | TOK == 3 | TOK == 4) return(primary());
+        if (TOK == 41) {
+            next();
+            if (TOK != 2 & TOK != 4) fatal("expected constant initializer");
+            b=buf_new(128);buf_str(b,"WNEG(");buf_str(b,primary());buf_ch(b,')');
+            return(buf_take(b));
+        }
+        fatal("expected constant or name initializer");
+    }
     name = TTEXT;
     next();
     if (streq(name, "argv") & !has_global(name) & !has_function(name))
@@ -1824,13 +1872,26 @@ global_or_func() {
         braced = 1; next();
         if (TOK != 35) {
             if (TOK == 1) fatal("vector size must be constant");
-            size = expr(1);
+            if (STRICT) {
+                if (TOK == 41) {
+                    next();
+                    if (TOK != 2 & TOK != 4) fatal("vector size must be constant");
+                    TNUM = -TNUM;
+                }
+                if (TOK != 2 & TOK != 4) fatal("vector size must be constant");
+                if (TNUM < 0) fatal("negative vector size");
+                size = itoa(TNUM); next();
+                if (TOK != 35) fatal("vector size must be constant");
+            } else size = expr(1);
         }
         expect(35);
     }
     init = buf_new(128); n = 0;
     first = TOK == 32;
-    if (first) next();
+    if (first) {
+        if (STRICT) fatal("braced initializer is not strict B");
+        next();
+    }
     while (TOK != 37) {
         if (first & (TOK == 33)) break;
         p = global_ival();
@@ -1838,6 +1899,7 @@ global_or_func() {
         buf_str(init, p); n = n + 1;
         if (TOK != 36) break;
         next();
+        if (TOK == 37) fatal("expected initializer after comma");
     }
     if (first) expect(33);
     emit_global_storage(name, size, buf_take(init), n, braced);
@@ -1848,6 +1910,7 @@ parse_program() {
     next();
     while (TOK != 0) {
         if (TOK == 11) {
+            if (STRICT) fatal("top-level extrn is not strict B");
             extrn_stmt();
         } else if (TOK == 10) {
             fatal("top-level auto not supported");

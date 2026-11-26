@@ -102,6 +102,10 @@ def main():
             enqueue(command, name)
         enqueue([sys.executable, str(root / 'tests/test_b72_conformance.py'),
                           '--bcc', str(compiler)], 'B72 conformance')
+        enqueue([sys.executable, str(root / 'tests/test_parser_robustness.py'),
+                          '--compiler', str(compiler)], 'parser robustness')
+        enqueue([sys.executable, str(root / 'tests/test_assembly_snapshots.py')],
+                         'assembly snapshots')
         enqueue([sys.executable, str(root / 'tests/test_label_token_limits.py')],
                          'label token limits')
         enqueue([sys.executable, str(root / 'tests/test_intr_runtime.py'),

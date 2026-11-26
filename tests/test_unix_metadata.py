@@ -4,6 +4,7 @@ import argparse
 import os
 from pathlib import Path
 import stat
+import struct
 import subprocess
 import tempfile
 
@@ -76,6 +77,9 @@ def main():
                 stamp = EPOCH_NS - 500_000_000 if case == 'wrapped-time' else EPOCH_NS + 1_500_000_000
                 os.utime(file, ns=(stamp, stamp))
                 source = ERRORS if case == 'errors' else MODES if case == 'permissions' else status_source('file', status_words(file.stat()), word)
+                if case == 'errors' and word == 'host' and struct.calcsize('P') > struct.calcsize('i'):
+                    source = source.replace('i=0;while(i<22){if(a[i]!=123)',
+                        'if(fstat(4294967296,a+1)!=-1)return(4);i=0;while(i<22){if(a[i]!=123)')
                 path = work/'case.b'; path.write_text(source)
                 command = [str(compiler), '--strict', '--pedantic']
                 if not args.bootstrap: command += [f'--word={word}']

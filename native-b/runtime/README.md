@@ -30,6 +30,10 @@ File operations return -1 on a syscall error; `seek` returns zero on success,
 not the resulting position. Short reads and writes are returned to the caller
 without an automatic retry. `open` selects read access for mode zero and write
 access otherwise, matching the existing host compatibility interface.
+File descriptors and seek origins outside the nonnegative signed 32-bit
+range return -1 before a syscall, rather than aliasing truncated arguments.
+Reads and writes reject negative counts and null buffers with nonzero counts;
+a null buffer with zero count is allowed.
 
 Pathnames accept EOT or NUL. Each call copies at most 4,095 pathname bytes
 into its own stack buffer, leaving the caller's string unchanged. Null and

@@ -46,6 +46,17 @@ is printed in whole-suite groups as suites finish. A failed or crashed suite
 does not skip the others. The quick option still omits only the word-semantics
 shell suite.
 
+The parser robustness suite checks moderate and excessive nesting, long
+flat blocks and a fixed-seed set of malformed-source mutations. Run
+`python3 tests/test_parser_robustness.py --compiler ./bcc` against a host
+or assembly-source compiler. The B-written compiler runs its own parser
+depth and grammar cases at all three stages.
+
+Use `python3 bccasm/regenerate.py --check` to validate every assembly
+snapshot and its source hashes. With the exact compiler version named in
+the manifest, `python3 bccasm/regenerate.py --verify` additionally checks
+that regenerating the files produces identical bytes.
+
 ## CI scheduling
 
 The conformance workflow runs for pull requests, pushes to `main`, tags, and

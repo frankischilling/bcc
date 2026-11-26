@@ -2,8 +2,43 @@
 #ifndef BCC_BUNIX_H
 #define BCC_BUNIX_H
 
+#include <limits.h>
+
+static inline int __bcc_unix_fd_valid(word fd) {
+    if (fd < 0 || fd > INT_MAX) {
+        errno = EBADF;
+        return 0;
+    }
+    return 1;
+}
+
+/* Keep the previous redirection until the new descriptor is ready. */
+static inline word __bcc_unix_redirect(word fd, const char *path, int flags,
+                                      int standard, int *current, word *unit) {
+    if (fd > INT_MAX) { errno = EBADF; return -1; }
+    if (fd < 0 || !*path) {
+        if (*current > 2) close(*current);
+        *current = standard;
+        *unit = -1;
+        return standard;
+    }
+    int target = (int)fd;
+    int newfd = open(path, flags, 0666);
+    if (newfd < 0) return -1;
+    if (newfd != target) {
+        if (dup2(newfd, target) < 0) { close(newfd); return -1; }
+        close(newfd);
+    }
+    if (*current > 2 && *current != target && *current != newfd) close(*current);
+    *current = target;
+    *unit = fd;
+    return fd;
+}
+
 /* V1 absolute offsets use all 16 bits; relative displacements are signed. */
 static inline word __bcc_unix_seek(word fd, word offset, word origin) {
+    if (!__bcc_unix_fd_valid(fd)) return -1;
+    if (origin < 0 || origin > INT_MAX) { errno = EINVAL; return -1; }
     off_t position = (off_t)offset;
 #if WORD_BITS == 16
     if (origin == SEEK_SET) position = (off_t)(uint16_t)offset;

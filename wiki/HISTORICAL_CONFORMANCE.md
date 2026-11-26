@@ -25,6 +25,11 @@ undefined. Keep implementation choices for those cases separate from
 conformance requirements. Section 4.1 leaves function argument evaluation
 order unspecified.
 
+Section 4.1.8 also describes evaluating arguments before the function
+designator. The recovered and reconstructed evidence does not yet settle
+that order; the current implementations capture the function value before
+arguments. See the [audit's source comparison](../docs/historical-audit.md#outstanding-questions).
+
 BCC captures an assignment destination once, before evaluating its right-hand
 side. Its C-output builds make that sequence explicit rather than relying on
 C argument or assignment evaluation order. This matches the native record

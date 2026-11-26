@@ -39,6 +39,7 @@ HOST_COMPAT_CASES = {
 REJECTS = {
     'negative-extent': (['data[-1]; main(){return(0);}'], 'negative'),
     'dynamic-extent': (['size 3; data[size]; main(){return(0);}'], 'constant'),
+    'expression-extent': (['data[1+2]; main(){return(0);}'], 'constant'),
     'duplicate-variable': (['data 1;', 'data 2; main(){return(0);}'], 'duplicate'),
     'duplicate-function': (['f(){return(1);}', 'f(){return(2);} main(){return(0);}'], 'duplicate'),
     'conflicting-definition': (['data 1;', 'data(){return(2);} main(){return(0);}'], 'conflicting'),

@@ -22,8 +22,8 @@ static void __b_sync_rd(void) {
     if (b_rd_unit < 0) {
         if (b_rd_fd != 0 && b_rd_fd > 2) close(b_rd_fd);
         b_rd_fd = 0;
-    } else if (b_rd_fd != (int)b_rd_unit) {
-        b_rd_fd = (int)b_rd_unit;
+    } else {
+        b_rd_fd = __bcc_unix_fd_valid(b_rd_unit) ? (int)b_rd_unit : -1;
     }
 }
 
@@ -31,8 +31,8 @@ static void __b_sync_wr(void) {
     if (b_wr_unit < 0) {
         if (b_wr_fd != 1 && b_wr_fd > 2) close(b_wr_fd);
         b_wr_fd = 1;
-    } else if (b_wr_fd != (int)b_wr_unit) {
-        b_wr_fd = (int)b_wr_unit;
+    } else {
+        b_wr_fd = __bcc_unix_fd_valid(b_wr_unit) ? (int)b_wr_unit : -1;
     }
 }
 
@@ -348,9 +348,8 @@ word b_argc(void) {
 }
 
 word b_argv(word i) {
-    int idx = (int)i;
-    if (idx < 0 || idx >= __b_argc) return 0;
-    return __b_argvb[idx];
+    if (i < 0 || i >= __b_argc) return 0;
+    return __b_argvb[i];
 }
 
 word b_reread(void) {
@@ -394,58 +393,31 @@ word b_open(word name, word mode) {
 }
 
 word b_openr(word fd, word name) {
-    char buf[512];
-    __b_bstr_to_cstr(name, buf, sizeof(buf));
-    int target = (int)fd;
-    if (target < 0 || buf[0] == '\0') {
-        b_rd_fd = 0; b_rd_unit = -1; return 0;
-    }
-    int newfd = open(buf, O_RDONLY);
-    if (b_rd_fd != 0 && b_rd_fd != target) close(b_rd_fd);
-    if (newfd < 0) { b_rd_fd = -1; b_rd_unit = (word)target; return -1; }
-    if (newfd != target) {
-        if (dup2(newfd, target) < 0) { close(newfd); return -1; }
-        close(newfd);
-        newfd = target;
-    }
-    b_rd_fd = newfd;
-    b_rd_unit = (word)target;
-    return (word)newfd;
+    return __bcc_unix_redirect(fd, fd < 0 ? "" : __b_cstr(name), O_RDONLY,
+                               0, &b_rd_fd, &b_rd_unit);
 }
 
 word b_openw(word fd, word name) {
-    char buf[512];
-    __b_bstr_to_cstr(name, buf, sizeof(buf));
-    int target = (int)fd;
-    if (target < 0 || buf[0] == '\0') {
-        b_wr_fd = 1; b_wr_unit = -1; return 1;
-    }
-    int newfd = open(buf, O_WRONLY | O_CREAT | O_TRUNC, 0666);
-    if (newfd < 0) return -1;
-    if (b_wr_fd != 1 && b_wr_fd != target && b_wr_fd != newfd) close(b_wr_fd);
-    if (newfd != target) {
-        if (dup2(newfd, target) < 0) { close(newfd); return -1; }
-        close(newfd);
-        newfd = target;
-    }
-    b_wr_fd = newfd;
-    b_wr_unit = (word)target;
-    return (word)newfd;
+    return __bcc_unix_redirect(fd, fd < 0 ? "" : __b_cstr(name),
+                               O_WRONLY | O_CREAT | O_TRUNC, 1, &b_wr_fd, &b_wr_unit);
 }
 
 word b_close(word fd) {
+    if (!__bcc_unix_fd_valid(fd)) return -1;
     int cfd = (int)fd;
     word r = (word)close(cfd);
     if (r == 0) {
-        if (cfd == b_rd_fd || cfd == (int)b_rd_unit) { b_rd_fd = 0; b_rd_unit = -1; }
-        if (cfd == b_wr_fd || cfd == (int)b_wr_unit) { b_wr_fd = 1; b_wr_unit = -1; }
+        if (cfd == b_rd_fd || cfd == b_rd_unit) { b_rd_fd = 0; b_rd_unit = -1; }
+        if (cfd == b_wr_fd || cfd == b_wr_unit) { b_wr_fd = 1; b_wr_unit = -1; }
     }
     return r;
 }
 
 word b_read(word fd, word buf, word n) {
+    if (!__bcc_unix_fd_valid(fd)) return -1;
+    if (n < 0) { errno = EINVAL; return -1; }
+    if (n && !buf) { errno = EFAULT; return -1; }
 #if WORD_BITS == 16
-    if (n < 0) return -1;
     unsigned char *bytes = malloc(n ? (size_t)n : 1);
     if (!bytes) return -1;
     ssize_t count = read((int)fd, bytes, (size_t)n);
@@ -459,8 +431,10 @@ word b_read(word fd, word buf, word n) {
 }
 
 word b_write(word fd, word buf, word n) {
+    if (!__bcc_unix_fd_valid(fd)) return -1;
+    if (n < 0) { errno = EINVAL; return -1; }
+    if (n && !buf) { errno = EFAULT; return -1; }
 #if WORD_BITS == 16
-    if (n < 0) return -1;
     unsigned char *bytes = malloc(n ? (size_t)n : 1);
     if (!bytes) return -1;
     for (word i = 0; i < n; i++) bytes[i] = (unsigned char)b_char(buf, i);
@@ -681,6 +655,7 @@ word b_stat(word path, word bufp) {
 }
 
 word b_fstat(word fd, word bufp) {
+    if (!__bcc_unix_fd_valid(fd)) return -1;
     if (!bufp) { errno = EFAULT; return -1; }
     struct stat st;
     if (fstat((int)fd, &st) != 0) return -1;
@@ -698,6 +673,7 @@ word b_mkdir(word path, word mode) { return b_makdir(path, mode); }
 /* Terminal I/O */
 
 word b_gtty(word fd, word ttstat) {
+    if (!__bcc_unix_fd_valid(fd)) return -1;
     if (!ttstat) { errno = EFAULT; return -1; }
     struct termios t;
     if (tcgetattr((int)fd, &t) < 0) return -1;
@@ -710,6 +686,7 @@ word b_gtty(word fd, word ttstat) {
 }
 
 word b_stty(word fd, word ttstat) {
+    if (!__bcc_unix_fd_valid(fd)) return -1;
     if (!ttstat) { errno = EFAULT; return -1; }
     struct termios t;
     if (tcgetattr((int)fd, &t) < 0) return -1;
