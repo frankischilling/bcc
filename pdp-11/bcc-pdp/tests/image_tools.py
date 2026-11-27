@@ -82,6 +82,17 @@ class ImageSafety(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'truncated'):
             native_image(struct.pack('<8H', 0o407, 8, 0, 0, 0, 0, 0, 0) + bytes(4))
 
+    def test_native_checks_relocation_before_stripping(self):
+        header = struct.pack('<8H', 0o407, 4, 0, 0, 0, 0, 0, 0)
+        for relocation in (0o10, 0o31, 0o177770):
+            with self.subTest(relocation=relocation), self.assertRaisesRegex(ValueError, 'unresolved'):
+                native_image(header + b'code' + struct.pack('<2H', 0, relocation))
+        with self.assertRaisesRegex(ValueError, 'truncated assembler relocation'):
+            native_image(header + b'code' + bytes(2))
+        with self.assertRaisesRegex(ValueError, 'missing assembler relocation'):
+            native_image(header[:-2] + b'\x01\x00' + b'code')
+        self.assertEqual(native_image(header + b'code' + struct.pack('<2H', 2, 3))[12:], b'code')
+
     def test_native_rejects_large_or_odd_text(self):
         for length, diagnostic in ((16374, '16 KB'), (3, 'odd')):
             with self.assertRaisesRegex(ValueError, diagnostic):

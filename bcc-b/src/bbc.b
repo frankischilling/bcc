@@ -6,7 +6,7 @@
  */
 
 SRC; SRCLEN; POS; LINE; COL; STRICT; WANT_NCURSES;
-TOK; TNUM; TTEXT; TTEXTLEN;
+TOK; TNUM; TTEXT; TTEXTLEN; ISLV;
 SWCUR; SWNEXT;
 PARDEPTH;
 HOIST; OUT; FUNS; NFUNS; MAIN_NARGS; HAS_MAIN; GLOBS; NGLOBS;
@@ -359,6 +359,17 @@ read_escape() {
     return(c);
 }
 
+read_backslash() {
+    auto c;
+    c=getc1();
+    if(c=='0')return(0);
+    if(c=='n')return(10);
+    if(c=='t')return(9);
+    if(c=='r')return(13);
+    if(c==92 | c==39 | c=='"')return(c);
+    fatal("unknown backslash escape");
+}
+
 is_star_escape(c) {
     if ((c == '(') | (c == ')') | (c == 39)) return(1);
     if (c == 'n') return(1);
@@ -377,8 +388,8 @@ scan_string() {
         c = getc1();
         if (c == 0) fatal("unterminated string");
         if (c == '"') break;
-        if ((c == 92) & !STRICT) c = read_escape();
-        if ((c == 42) & is_star_escape(peekc())) c = read_escape();
+        if ((c == 92) & !STRICT) c = read_backslash();
+        else if ((c == 42) & is_star_escape(peekc())) c = read_escape();
         buf_ch(b, c);
     }
     TTEXTLEN = b[1];
@@ -394,8 +405,8 @@ scan_char() {
         c = getc1();
         if (c == 0) fatal("unterminated char constant");
         if (c == 39) break;
-        if ((c == 92) & !STRICT) c = read_escape();
-        if ((c == 42) & is_star_escape(peekc())) {
+        if ((c == 92) & !STRICT) c = read_backslash();
+        else if ((c == 42) & is_star_escape(peekc())) {
             if ((peekc() != 39) | (char(SRC, POS + 1) == 39)) c = read_escape();
         }
         v = (v << 8) | c;
@@ -998,6 +1009,7 @@ fmt_arg_is_s(fmt, want) {
 
 primary() {
     auto b, s, name, arg, narg, i;
+    ISLV = 0;
     b = buf_new(128);
     if (TOK == 2) {
         buf_str(b, "((word)");
@@ -1030,6 +1042,7 @@ primary() {
     if (TOK == 1) {
         name = TTEXT;
         next();
+        ISLV = 1;
         if (STRICT & !LABELPASS & (CURFUNC != 0)) {
             if ((TOK == 30) & !has_local(name) & !label_id(name)) add_extern(name);
             if (!has_local(name) & !label_id(name) & !has_extern(name))
@@ -1113,6 +1126,7 @@ postfix() {
                 }
                 expect(31);
                 lhs=source_call(target,buf_take(b),narg);
+                ISLV=0;
                 continue;
             }
             library=0;
@@ -1161,6 +1175,7 @@ postfix() {
             if (wrap_malloc(name)) buf_ch(b, ')');
             lhs = buf_take(b);
             if(library)lhs=library_call(name,buf_take(raw),narg);
+            ISLV=0;
         } else if (TOK == 34) {
             next();
             idx = expr(1);
@@ -1172,7 +1187,9 @@ postfix() {
             buf_str(b, idx);
             buf_ch(b, ')');
             lhs = buf_take(b);
+            ISLV=1;
         } else if ((TOK == 51) | (TOK == 52)) {
+            if(!ISLV)fatal("postfix increment or decrement requires an lvalue");
             b = buf_new(128);
             if (TOK == 51) buf_str(b, "b_postinc(&(");
             else buf_str(b, "b_postdec(&(");
@@ -1180,6 +1197,7 @@ postfix() {
             buf_str(b, "))");
             next();
             lhs = buf_take(b);
+            ISLV=0;
         } else {
             return(lhs);
         }
@@ -1200,6 +1218,9 @@ unary_body() {
         op = TOK;
         next();
         e = unary();
+        if ((op == 45 | op == 51 | op == 52) & !ISLV)
+            fatal("prefix operator requires an lvalue");
+        ISLV = op == 42;
         b = buf_new(128);
         if (op == 42) {
             buf_str(b, "B_DEREF(");
@@ -1259,11 +1280,14 @@ expr_body(minp) {
             buf_str(b, expr(2));
             buf_ch(b, ')');
             lhs = buf_take(b);
+            ISLV=0;
             continue;
         }
         op = TOK;
         p = prec(op);
         if (p < minp) return(lhs);
+        if ((op >= 70 & op <= 85) & !ISLV)
+            fatal("assignment requires an lvalue");
         parse_guard(++chain);
         next();
         if (right_assoc(op)) rhs = expr(p);
@@ -1312,6 +1336,7 @@ expr_body(minp) {
             buf_ch(b, ')');
         }
         lhs = buf_take(b);
+        ISLV=0;
     }
 }
 
@@ -1337,6 +1362,7 @@ auto_decl() {
             if (STRICT) fatal("bracketed auto vector is not strict B");
             next(); size = expr(1); expect(35);
         } else if ((TOK == 2) | (TOK == 4)) {
+            if(STRICT & (TNUM<0))fatal("negative vector size");
             size = itoa(TNUM); next();
         }
         saved = OUT;
@@ -1397,6 +1423,59 @@ caseval() {
     e=primary();if(!neg)return(e);
     b=buf_new(128);buf_str(b,"WNEG(");buf_str(b,e);buf_ch(b,')');
     return(buf_take(b));
+}
+
+/* Fold compatibility case expressions with B word operations, before C emission. */
+case_calc(op,a,b) {
+    if(op==40)return(a+b);
+    if(op==41)return(a-b);
+    if(op==42)return(a*b);
+    if(op==43){if(!b)fatal("division by zero in case constant");return(a/b);}
+    if(op==44){if(!b)fatal("mod by zero in case constant");return(a%b);}
+    if(op==45)return(a&b);
+    if(op==46)return(a|b);
+    if(op==48)return(a<<b);
+    if(op==49)return(a>>b);
+    if(op==50)return((a!=0)|(b!=0));
+    if(op==58)return(a<b);
+    if(op==59)return(a==b);
+    if(op==60)return(a<=b);
+    if(op==61)return(a!=b);
+    if(op==62)return(a>b);
+    if(op==63)return(a>=b);
+    fatal("non-constant case expression");
+}
+
+case_const(minp,active) {
+    auto a,b,op,p,chain,yes,no;
+    /* Parse unevaluated operands normally; GNU C previously accepted them
+       even when they contain calls, variables or a division by zero. */
+    if(!active){expr(minp);return(0);}
+    parse_guard(++PARDEPTH);
+    if(TOK==41 | TOK==47){
+        op=TOK;next();a=case_const(11,1);
+        if(op==41)a= -a;else a= !a;
+    }else if(TOK==30){
+        next();a=case_const(1,1);expect(31);
+    }else{
+        if(TOK!=2 & TOK!=4)fatal("expected integer case constant");
+        a=TNUM;next();
+    }
+    chain=0;
+    while(1){
+        if((TOK==39) & (minp<=3)){
+            parse_guard(++chain);next();
+            yes=case_const(1,a!=0);expect(38);
+            no=case_const(2,a==0);
+            if(a)a=yes;else a=no;
+            continue;
+        }
+        op=TOK;p=prec(op);
+        if(p<minp){PARDEPTH--;return(a);}
+        if(p<=2)fatal("non-constant case expression");
+        parse_guard(++chain);next();
+        b=case_const(p+1,op!=50 | !a);a=case_calc(op,a,b);
+    }
 }
 
 /* Strict B cases may repeat; their comparison order is unspecified by B72. */
@@ -1545,7 +1624,7 @@ stmt_body() {
     }
     if (TOK == 18) {
         next();
-        if (STRICT) e=caseval(); else e=expr(1);
+        if (STRICT) e=caseval(); else e=itoa(case_const(1,1));
         expect(38);
         if (STRICT) {swcase(e);return(0);}
         emit("case (word)(");
@@ -1873,11 +1952,7 @@ global_or_func() {
         if (TOK != 35) {
             if (TOK == 1) fatal("vector size must be constant");
             if (STRICT) {
-                if (TOK == 41) {
-                    next();
-                    if (TOK != 2 & TOK != 4) fatal("vector size must be constant");
-                    TNUM = -TNUM;
-                }
+                if (TOK == 41) fatal("negative vector size");
                 if (TOK != 2 & TOK != 4) fatal("vector size must be constant");
                 if (TNUM < 0) fatal("negative vector size");
                 size = itoa(TNUM); next();

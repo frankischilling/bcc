@@ -76,6 +76,14 @@ class ConsoleProtocol(unittest.TestCase):
         self.assertFalse(protocol.compile_failure(b'echo b: program exceeds 16 KB\n', False))
         self.assertFalse(protocol.compile_failure(b'b: program exceeds 16 KB extra\n', False))
 
+    def test_unresolved_relocation_failure(self):
+        for diagnostic in ('unresolved assembler relocation', 'missing assembler relocation',
+                           'truncated assembler relocation'):
+            output = b'I\nII\n' + f'b: {diagnostic}\n'.encode()
+            self.assertTrue(protocol.compile_failure(output, False, diagnostic))
+            self.assertFalse(protocol.compile_failure(output, True, diagnostic))
+            self.assertFalse(protocol.compile_failure(output, False, 'different error'))
+
     def test_stage_chunks(self):
         raw = b'command echo\r\nBCC_STAGE templates\r\nBCC_STAGE library\n'
         for split in range(len(raw) + 1):

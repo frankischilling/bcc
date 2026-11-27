@@ -451,6 +451,7 @@ jobs:
           bash pdp-11/bcc-pdp/tools/v1-run.sh pdp-11/bcc-pdp/tests/run/t68_global_literal_pool.b
           bash pdp-11/bcc-pdp/tools/v1-run.sh pdp-11/bcc-pdp/tests/run/t78_duplicate_local.b --expect-compile-error
           bash pdp-11/bcc-pdp/tools/v1-run.sh pdp-11/bcc-pdp/tests/run/t31_program_size.b --expect-compile-error
+          bash pdp-11/bcc-pdp/tools/v1-run.sh pdp-11/bcc-pdp/tests/run/t120_missing_main.b --expect-compile-error --expect-diagnostic 'unresolved assembler relocation'
 
 
   unix_v1_bootstrap:

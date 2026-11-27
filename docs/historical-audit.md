@@ -14,6 +14,11 @@ extensions and from operating-system behavior.
 | Runtime | Host argument indexing checks the full word before indexing. Host and native Linux file operations reject invalid descriptors and counts before narrowing or accessing buffers. Zero-count I/O remains valid with a null buffer. The host redirection extension preserves full pathnames and closes retired nonstandard descriptors. |
 | Assembly snapshots | A manifest with missing assembly entries could pass the old check. The verifier now requires all expected files, matching source hashes and generation flags. It can also reproduce the recorded assembly with the matching compiler. |
 | Build support | Removed an obsolete parser extraction script (Python stored as a C file, with a missing input) and an unused emitter backup. The native arithmetic fixture now spells the minimum signed word as a single constant, preserving the full range of values checked under strict B. |
+| Constant folding | Thompson §4.5 specifies logical shifts, including a count equal to the word width. The host and B-written C-output compilers now fold shifts in compatibility-mode case expressions using the same word operations as their runtime. Conditional constants retain selected-branch evaluation (§4.10). Strict B72 case labels remain literals; masked larger and negative counts are BCC extensions. |
+| Bootstrap expressions | Thompson §§3–4 distinguish lvalues and rvalues. The B-written C-output frontend now diagnoses assignments, address expressions and increments that require an lvalue but have an rvalue operand, before emitting C. Compatibility backslash escapes follow the host lexer; strict B star escapes are unchanged. |
+| Host buffer translation | The 16-bit address map is not contiguous host storage. File I/O, status, time, terminal operations and counted `execv` vectors check the mapped word range before accessing it. Status, time, terminal and argument-vector accesses use translated B indices. Host redirection checks the descriptor limit before creating or truncating a file. These are host adapter checks, not a claim about the V1 kernel's invalid-address behavior. |
+| PDP-11 executable conversion | The November 1971 [as(I)](../historical-docs/unix-v1-docs/unix-commands-p1.md) and [a.out(V)](../historical-docs/unix-v1-docs/unix-file-formats.md) require resolved external references for an executable. The pinned restoration's later assembler can emit I/II with external relocation bit 010 still set. Both V2-to-V1 converters now require the relocation records and reject unresolved externals before installing a stripped executable. |
+| Intermediate records | The C seed and both B readers reject embedded NUL bytes rather than parsing a truncated ASCII record. The native Linux control-flow pass rejects a return record without a value; the frontend emits a zero value for a bare source return. These are internal record-format checks. |
 
 Primary references are in [the archive](../historical-docs/README.md). The
 [Thompson transcription](https://cm-bell-labs.github.io/who/dmr/kbman.html)
@@ -51,6 +56,14 @@ Unix V1 under SIMH, rebuilt all four compiler binaries and the library
 assembly, and checked the results against the disk image. Both new
 initializer rejection cases also ran under Unix V1.
 
+The executable conversion regression additionally booted the pinned restored
+Unix V1 kernel under SIMH, rejected a source without `main` with an unresolved
+relocation diagnostic and no `a.out`, and compiled and executed the hello-world
+fixture. The four rebuilt compiler binaries fit their configured guest memory
+reserves. The host shift regression compares the runtime expression against
+the expected value and the folded switch label for 16-bit, 32-bit and host
+word models, in both single- and multiple-file builds.
+
 ## Outstanding questions
 
 Thompson §4.1.8 describes evaluation of arguments before the function
@@ -63,6 +76,16 @@ The reconstruction's own README describes missing and reconstructed
 material; the pinned Unix V1 tree does not supply an independently
 recovered original B compiler and runtime. Preserve the current behavior
 until additional evidence resolves the disagreement.
+
+Compatibility case expressions are not part of the B72 grammar. The C-output
+bootstrap retains its existing acceptance of arbitrary expressions in an
+unselected conditional branch; the host folder requires syntactically constant
+operands even when not evaluated. The shared arithmetic and selected-branch
+behavior is tested, but the compatibility-only acceptance rules still differ.
+
+The host adapter can validate the translated 16-bit map, but it cannot infer
+allocation bounds for arbitrary raw native host addresses. Packed strings and
+other runtime routines still need a separate invalid-address review.
 
 Passing the tests establishes the cases exercised by the tests. It does
 not establish that every source path has been audited, that arbitrary

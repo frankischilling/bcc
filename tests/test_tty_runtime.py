@@ -33,7 +33,11 @@ def main():
         with tempfile.TemporaryDirectory(prefix='bcc-private-tty-') as directory:
             work = Path(directory)
             for word, inline in modes:
-                for name, body in cases.items():
+                selected = dict(cases)
+                if word == '16':
+                    selected['gtty-unmapped'] = f'return(gtty({slave},-1)!=-1);'
+                    selected['stty-unmapped'] = f'return(stty({slave},-1)!=-1);'
+                for name, body in selected.items():
                     source = work/'case.b'
                     source.write_text('main(){extrn gtty,stty;'+body+'}\n')
                     command = [str(args.compiler.resolve()), '--strict', '--pedantic']

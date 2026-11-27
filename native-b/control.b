@@ -63,7 +63,7 @@ xcfline(buf) {
         xbin(6,0,0);xcond(4,xrfault);xjump(1,0);xrvalid=0;return(1);
     }
     if(tageq(tag,"rt")) {
-        xrend(buf);if(xrdepth) xrfail();xbranch(1,xcret);xrvalid=0;return(1);
+        xrend(buf);if(!xrvalid | xrdepth) xrfail();xbranch(1,xcret);xrvalid=0;return(1);
     }
     if(tageq(tag,"lb") | tageq(tag,"jm") | tageq(tag,"bf")) {
         a=nxti(buf);xrend(buf);a=xcfmap(a,1,0);if(xrdepth) xrfail();

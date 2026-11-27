@@ -12,6 +12,7 @@ getln(buf,max) {
         }
         if(ilen==0) {lchar(buf,i,0);return(i!=0);}
         c=char(ibuf,ipos++);
+        if(c==0) fatal("NUL in IC");
         if(c=='*n') {lchar(buf,i,0);return(1);}
         if(i>=max-1) fatal("IC line too long");
         lchar(buf,i++,c);

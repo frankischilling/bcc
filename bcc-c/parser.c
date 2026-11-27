@@ -498,7 +498,8 @@ static int64_t const_word(uint64_t value, int bits) {
     return (int64_t)value;
 }
 
-static int64_t eval_const_expr(Expr *e, int bits) {
+/* Validate even unselected branches, but do not evaluate their operations. */
+static int64_t eval_const_expr(Expr *e, int bits, int evaluate) {
     if (!e) dief("internal: null const expr");
 
     switch (e->kind) {
@@ -506,7 +507,7 @@ static int64_t eval_const_expr(Expr *e, int bits) {
         return const_word((uint64_t)e->as.num, bits);
 
     case EX_UNARY: {
-        int64_t v = eval_const_expr(e->as.unary.rhs, bits);
+        int64_t v = eval_const_expr(e->as.unary.rhs, bits, evaluate);
         switch (e->as.unary.op) {
         case TK_MINUS: return const_word(UINT64_C(0) - (uint64_t)v, bits);
         case TK_BANG:  return !v;
@@ -517,21 +518,34 @@ static int64_t eval_const_expr(Expr *e, int bits) {
     }
 
     case EX_BINARY: {
-        int64_t a = eval_const_expr(e->as.bin.lhs, bits);
-        int64_t b = eval_const_expr(e->as.bin.rhs, bits);
+        int64_t a = eval_const_expr(e->as.bin.lhs, bits, evaluate);
+        int64_t b = eval_const_expr(e->as.bin.rhs, bits,
+                                    evaluate && !(e->as.bin.op == TK_BARBAR && a));
 
         switch (e->as.bin.op) {
         case TK_PLUS: return const_word((uint64_t)a + (uint64_t)b, bits);
         case TK_MINUS: return const_word((uint64_t)a - (uint64_t)b, bits);
         case TK_STAR: return const_word((uint64_t)a * (uint64_t)b, bits);
         case TK_SLASH:
+            if (!evaluate) return 0;
             if (b == 0) dief("division by zero in const expr at %d:%d", e->line, e->col);
             if (a == INT64_MIN && b == -1) return INT64_MIN;
             return const_word((uint64_t)(a / b), bits);
         case TK_PERCENT:
+            if (!evaluate) return 0;
             if (b == 0) dief("mod by zero in const expr at %d:%d", e->line, e->col);
             if (a == INT64_MIN && b == -1) return 0;
             return const_word((uint64_t)(a % b), bits);
+        case TK_LSHIFT:
+        case TK_RSHIFT: {
+            /* Match the runtime: logical shifts, with a full-width count
+               producing zero and other counts masked to the word width. */
+            if (b == bits) return 0;
+            unsigned shift = (unsigned)((uint64_t)b & (unsigned)(bits - 1));
+            uint64_t value = (uint64_t)a;
+            if (bits < 64) value &= (UINT64_C(1) << bits) - 1;
+            return const_word(e->as.bin.op == TK_LSHIFT ? value << shift : value >> shift, bits);
+        }
 
         case TK_AMP: return a & b;
         case TK_BAR: return a | b;
@@ -548,6 +562,13 @@ static int64_t eval_const_expr(Expr *e, int bits) {
             dief("non-constant binary op in const expr at %d:%d", e->line, e->col);
             /* fallthrough */
         }
+    }
+
+    case EX_TERNARY: {
+        int64_t condition = eval_const_expr(e->as.ternary.cond, bits, evaluate);
+        int64_t yes = eval_const_expr(e->as.ternary.true_expr, bits, evaluate && condition);
+        int64_t no = eval_const_expr(e->as.ternary.false_expr, bits, evaluate && !condition);
+        return condition ? yes : no;
     }
 
     default:
@@ -626,7 +647,7 @@ Stmt *parse_case(Parser *P) {
     } else a = parse_expr(P);
     int bits = P->word_bits ? P->word_bits : (int)(sizeof(intptr_t) * 8);
     if (bits != 16 && bits != 32 && bits != 64) dief("invalid constant word width");
-    int64_t val = eval_const_expr(a, bits);
+    int64_t val = eval_const_expr(a, bits, 1);
 
     expect(P, TK_COLON);
 

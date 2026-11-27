@@ -415,8 +415,7 @@ word b_close(word fd) {
 
 word b_read(word fd, word buf, word n) {
     if (!__bcc_unix_fd_valid(fd)) return -1;
-    if (n < 0) { errno = EINVAL; return -1; }
-    if (n && !buf) { errno = EFAULT; return -1; }
+    if (!__bcc_unix_io_buffer_valid(buf, n)) return -1;
 #if WORD_BITS == 16
     unsigned char *bytes = malloc(n ? (size_t)n : 1);
     if (!bytes) return -1;
@@ -432,8 +431,7 @@ word b_read(word fd, word buf, word n) {
 
 word b_write(word fd, word buf, word n) {
     if (!__bcc_unix_fd_valid(fd)) return -1;
-    if (n < 0) { errno = EINVAL; return -1; }
-    if (n && !buf) { errno = EFAULT; return -1; }
+    if (!__bcc_unix_io_buffer_valid(buf, n)) return -1;
 #if WORD_BITS == 16
     unsigned char *bytes = malloc(n ? (size_t)n : 1);
     if (!bytes) return -1;
@@ -472,15 +470,15 @@ word b_wait(void) {
 
 /* B72 section 8 passes exactly count argument strings, including arg0. */
 word b_execv(word path, word argv, word count) {
-    if (count < 0 || count > 255 || (count && !argv)) return -1;
+    if (count < 0 || count > 255 || !__bcc_unix_words_valid(argv, (size_t)count)) return -1;
     char *name = __b_dup_bstr(path);
     if (!name) return -1;
     char *arguments[256];
-    word *values = count ? (word*)B_CPTR(argv) : NULL;
     size_t n = (size_t)count, i = 0;
     for (; i < n; i++) {
-        if (!values[i]) break;
-        arguments[i] = __b_dup_bstr(values[i]);
+        word value = B_INDEX(argv, i);
+        if (!value) break;
+        arguments[i] = __b_dup_bstr(value);
         if (!arguments[i]) break;
     }
     if (i == n) {
@@ -570,23 +568,23 @@ word b_usleep(word usec) {
 
 /* Unix V1 counts 60 Hz ticks since 1971, high word first (time(II)). */
 word b_time(word tvp) {
+    if (tvp && !__bcc_unix_words_valid(tvp, 2)) return -1;
     struct timespec now;
     if (clock_gettime(CLOCK_REALTIME, &now) != 0) return -1;
     if (tvp) {
         uint64_t elapsed = (uint64_t)now.tv_sec - UINT64_C(31536000);
         uint32_t ticks = (uint32_t)(elapsed * 60 + (uint64_t)now.tv_nsec * 60 / 1000000000);
-        word *tv = (word*)B_CPTR(tvp);
-        tv[0] = WVAL(ticks >> 16);
-        tv[1] = WVAL(ticks & 65535);
+        B_INDEX(tvp, 0) = WVAL(ticks >> 16);
+        B_INDEX(tvp, 1) = WVAL(ticks & 65535);
     }
     return 0;
 }
 
 /* B72 section 8 specifies a caller-owned, 16-byte date buffer. */
 word b_ctime(word tvp, word date) {
-    if (!tvp || !date) return -1;
-    word *tv = (word*)B_CPTR(tvp);
-    uint32_t ticks = ((uint32_t)(uint16_t)tv[0] << 16) | (uint16_t)tv[1];
+    if (!__bcc_unix_words_valid(tvp, 2) ||
+        !__bcc_unix_words_valid(date, (16 + B_WORD_BYTES - 1) / B_WORD_BYTES)) return -1;
+    uint32_t ticks = ((uint32_t)(uint16_t)B_INDEX(tvp, 0) << 16) | (uint16_t)B_INDEX(tvp, 1);
     unsigned days = ticks / 5184000U;
     unsigned seconds = ticks / 60U % 86400U;
     unsigned year = 1971, month = 0;
@@ -646,20 +644,20 @@ word b_unlink(word path) {
 }
 
 word b_stat(word path, word bufp) {
-    if (!bufp) { errno = EFAULT; return -1; }
+    if (!__bcc_unix_words_valid(bufp, 17)) return -1;
     const char *p = __b_cstr(path);
     struct stat st;
     if (stat(p, &st) != 0) return -1;
-    __bcc_unix_stat((word*)B_CPTR(bufp), &st);
+    __bcc_unix_stat(bufp, &st);
     return 0;
 }
 
 word b_fstat(word fd, word bufp) {
     if (!__bcc_unix_fd_valid(fd)) return -1;
-    if (!bufp) { errno = EFAULT; return -1; }
+    if (!__bcc_unix_words_valid(bufp, 17)) return -1;
     struct stat st;
     if (fstat((int)fd, &st) != 0) return -1;
-    __bcc_unix_stat((word*)B_CPTR(bufp), &st);
+    __bcc_unix_stat(bufp, &st);
     return 0;
 }
 
@@ -674,27 +672,25 @@ word b_mkdir(word path, word mode) { return b_makdir(path, mode); }
 
 word b_gtty(word fd, word ttstat) {
     if (!__bcc_unix_fd_valid(fd)) return -1;
-    if (!ttstat) { errno = EFAULT; return -1; }
+    if (!__bcc_unix_words_valid(ttstat, 3)) return -1;
     struct termios t;
     if (tcgetattr((int)fd, &t) < 0) return -1;
 
-    word *vec = (word*)B_CPTR(ttstat);
-    vec[0] = (word)t.c_iflag;
-    vec[1] = (word)t.c_oflag;
-    vec[2] = (word)t.c_lflag;
+    B_INDEX(ttstat, 0) = (word)t.c_iflag;
+    B_INDEX(ttstat, 1) = (word)t.c_oflag;
+    B_INDEX(ttstat, 2) = (word)t.c_lflag;
     return 0;
 }
 
 word b_stty(word fd, word ttstat) {
     if (!__bcc_unix_fd_valid(fd)) return -1;
-    if (!ttstat) { errno = EFAULT; return -1; }
+    if (!__bcc_unix_words_valid(ttstat, 3)) return -1;
     struct termios t;
     if (tcgetattr((int)fd, &t) < 0) return -1;
 
-    word *vec = (word*)B_CPTR(ttstat);
-    t.c_iflag = (tcflag_t)vec[0];
-    t.c_oflag = (tcflag_t)vec[1];
-    t.c_lflag = (tcflag_t)vec[2];
+    t.c_iflag = (tcflag_t)B_INDEX(ttstat, 0);
+    t.c_oflag = (tcflag_t)B_INDEX(ttstat, 1);
+    t.c_lflag = (tcflag_t)B_INDEX(ttstat, 2);
     return (word)tcsetattr((int)fd, TCSANOW, &t);
 }
 

@@ -3,6 +3,7 @@
 #define BCC_BUNIX_H
 
 #include <limits.h>
+#include <sys/resource.h>
 
 static inline int __bcc_unix_fd_valid(word fd) {
     if (fd < 0 || fd > INT_MAX) {
@@ -23,6 +24,11 @@ static inline word __bcc_unix_redirect(word fd, const char *path, int flags,
         return standard;
     }
     int target = (int)fd;
+    /* dup2 rejects targets outside the descriptor limit. Check before open
+       can create or truncate the output file. */
+    struct rlimit limit;
+    if (getrlimit(RLIMIT_NOFILE, &limit) != 0) return -1;
+    if ((rlim_t)target >= limit.rlim_cur) { errno = EBADF; return -1; }
     int newfd = open(path, flags, 0666);
     if (newfd < 0) return -1;
     if (newfd != target) {
@@ -33,6 +39,20 @@ static inline word __bcc_unix_redirect(word fd, const char *path, int flags,
     *current = target;
     *unit = fd;
     return fd;
+}
+
+static inline int __bcc_unix_words_valid(word buffer, size_t words) {
+    if (words && !buffer) { errno = EFAULT; return 0; }
+#if WORD_BITS == 16
+    if (!__b_target_words_mapped(buffer, words)) { errno = EFAULT; return 0; }
+#endif
+    return 1;
+}
+
+static inline int __bcc_unix_io_buffer_valid(word buffer, word count) {
+    if (count < 0) { errno = EINVAL; return 0; }
+    return __bcc_unix_words_valid(buffer, (size_t)count / B_WORD_BYTES +
+                                  ((size_t)count % B_WORD_BYTES != 0));
 }
 
 /* V1 absolute offsets use all 16 bits; relative displacements are signed. */
@@ -78,9 +98,9 @@ static inline uint32_t __bcc_unix_ticks(time_t seconds, long nanoseconds) {
     return (uint32_t)(elapsed * 60 + (uint64_t)nanoseconds * 60 / 1000000000);
 }
 
-static inline void __bcc_unix_stat(word *buffer, const struct stat *st) {
+static inline void __bcc_unix_stat(word destination, const struct stat *st) {
     /* stat(II) writes 34 bytes on the PDP-11, not the full 20-word allowance. */
-    for (unsigned i = 0; i < 17; ++i) buffer[i] = 0;
+    word buffer[17] = {0};
     buffer[0] = WVAL((uint16_t)st->st_ino);
     buffer[1] = WVAL(__bcc_unix_flags(st));
     buffer[2] = WVAL(((uint16_t)(st->st_uid & 255) << 8) | (st->st_nlink & 255));
@@ -98,6 +118,7 @@ static inline void __bcc_unix_stat(word *buffer, const struct stat *st) {
     buffer[13] = WVAL(created & 65535);
     buffer[14] = WVAL(modified >> 16);
     buffer[15] = WVAL(modified & 65535);
+    for (unsigned i = 0; i < 17; ++i) B_INDEX(destination, i) = buffer[i];
 }
 
 #endif

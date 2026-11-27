@@ -23,6 +23,15 @@ def values(bits):
         (f'{mask}==-1', 1), (f'{maximum}!={minimum}', 1),
         (f'{minimum}<={maximum}', 1), (f'{mask}>=0', 0),
         (f'{maximum}>{minimum}', 1),
+        ('1<<2', 4), ('16>>2', 4),
+        (f'1<<{bits-1}', minimum), (f'{minimum}>>{bits-1}', 1),
+        ('-1>>1', maximum), (f'-1>>{bits}', 0),
+        (f'-1<<{bits}', 0), (f'1<<{bits+1}', 2),
+        (f'-1>>{bits+1}', maximum), ('1<<-1', minimum),
+        ('-1>>-1', 1), ('1<<2+1', 8),
+        ('1?4:5', 4), ('0?4:5', 5), ('0?1/0:7', 7),
+        ('1?7:1/0', 7), ('0?1:1?6:7', 6),
+        ('1||(1/0)', 1), ('0||2', 1), ('0||0', 0),
     ]
 
 
@@ -38,7 +47,7 @@ def main():
             functions = []
             for i, (expression, expected) in enumerate(cases):
                 other = (expected + 1 + (1 << (bits-1))) % (1 << bits) - (1 << (bits-1))
-                functions.append(f'f{i}(){{auto x;x=0;switch ({expected}) {{case ({expression}):x=1;}}'
+                functions.append(f'f{i}(){{auto x;x=0;if(({expression})!=({expected}))return(1);switch ({expected}) {{case ({expression}):x=1;}}'
                                  f'if(x!=1)return(1);switch ({other}) {{case ({expression}):return(1);}}return(0);}}')
             entry = 'main(){'+''.join(f'if(f{i}())return({i+1});' for i in range(len(cases)))+'return(0);}'
             (work/'all.b').write_text('\n'.join(functions)+entry)
@@ -67,6 +76,11 @@ def main():
                 result = subprocess.run([*base, '-S', 'bad.b'], cwd=work, capture_output=True, timeout=30)
                 assert result.returncode > 0 and diagnostic in result.stderr, (mode, result)
                 assert b'runtime error:' not in result.stderr and b'Sanitizer' not in result.stderr, result
+                passed += 1
+            for expression in ('1?x:0', '1||x', '0?x:1'):
+                (work/'bad.b').write_text(f'main(){{auto x;switch 0 {{case ({expression}):return(0);}}return(0);}}')
+                result = subprocess.run([*base, '-S', 'bad.b'], cwd=work, capture_output=True, timeout=30)
+                assert result.returncode > 0 and b'non-constant' in result.stderr, (mode, result)
                 passed += 1
     print(f'Results: {passed} passed, 0 failed')
 

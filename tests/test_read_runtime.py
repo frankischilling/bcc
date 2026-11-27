@@ -47,6 +47,13 @@ def main():
     if(close(4294967296)!=-1)return(14);
     if(read(-4294967296,buf,1)!=-1)return(15);
 """ if wide else ''
+            if mode == '16':
+                checks += """
+    if(read(0,-1,1)!=-1)return(16);
+    if(write(1,-1,1)!=-1)return(17);
+    if(read(0,buf,32767)!=-1)return(18);
+    if(write(1,buf,32767)!=-1)return(19);
+"""
             source.write_text(SOURCE.replace('WIDE_CHECKS', checks))
             command = [str(args.compiler.resolve()), '--strict', '--pedantic']
             if not args.bootstrap: command += [f'--word={mode}']

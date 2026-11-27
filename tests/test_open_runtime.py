@@ -2,6 +2,7 @@
 """Check the historical zero/read, nonzero/write contract using the full B word."""
 import argparse
 from pathlib import Path
+import resource
 import struct
 import subprocess
 import tempfile
@@ -34,6 +35,8 @@ REDIRECT = '''main(){
     if(openr(-1,"")!=0 | read(9,buf,1)!=-1)return(4);
     if(openw(9,"PATH")!=9)return(5);
     if(openw(10,"missing/output")!=-1)return(6);
+    if(openw(64,"untouched")!=-1)return(8);
+    if(openw(64,"not-created")!=-1)return(9);
     putchar('Z');
     if(openw(-1,"")!=1 | write(9,"X",1)!=-1)return(7);
     putchar('Q');
@@ -97,6 +100,7 @@ def main():
             assert len(str(prefix)) == 511
             (work / prefix).write_bytes(b'KEEP')
             (work / target).write_bytes(b'ABC')
+            (work / 'untouched').write_bytes(b'KEEP')
             source = work / 'case.b'
             source.write_text(REDIRECT.replace('PATH', str(target)))
             command = [str(compiler), '--strict', '--pedantic']
@@ -108,11 +112,17 @@ def main():
                 result = subprocess.run([*command, str(source), '-o', str(work/'case')],
                                         capture_output=True, timeout=30)
                 if result.returncode == 0:
+                    def limit_descriptors():
+                        _, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
+                        resource.setrlimit(resource.RLIMIT_NOFILE, (64, hard))
                     result = subprocess.run([str(work/'case')], cwd=work,
-                                            capture_output=True, timeout=10)
+                                            capture_output=True, timeout=10,
+                                            preexec_fn=limit_descriptors)
                 ok = (result.returncode == 0 and result.stdout == b'Q'
                       and (work / prefix).read_bytes() == b'KEEP'
-                      and (work / target).read_bytes() == b'Z')
+                      and (work / target).read_bytes() == b'Z'
+                      and (work / 'untouched').read_bytes() == b'KEEP'
+                      and not (work / 'not-created').exists())
                 detail = repr((result.returncode, result.stdout, result.stderr[-1500:]))
             except (OSError, subprocess.TimeoutExpired) as error:
                 ok, detail = False, str(error)

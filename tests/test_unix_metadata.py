@@ -77,6 +77,10 @@ def main():
                 stamp = EPOCH_NS - 500_000_000 if case == 'wrapped-time' else EPOCH_NS + 1_500_000_000
                 os.utime(file, ns=(stamp, stamp))
                 source = ERRORS if case == 'errors' else MODES if case == 'permissions' else status_source('file', status_words(file.stat()), word)
+                if case == 'errors' and word == '16':
+                    source = source.replace('i=0;while(i<22){if(a[i]!=123)',
+                        'if(stat("file",-1)!=-1 | fstat(0,-1)!=-1)return(5);'
+                        'i=0;while(i<22){if(a[i]!=123)')
                 if case == 'errors' and word == 'host' and struct.calcsize('P') > struct.calcsize('i'):
                     source = source.replace('i=0;while(i<22){if(a[i]!=123)',
                         'if(fstat(4294967296,a+1)!=-1)return(4);i=0;while(i<22){if(a[i]!=123)')

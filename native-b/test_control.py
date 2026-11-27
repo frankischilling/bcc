@@ -162,7 +162,7 @@ def main():
         maximum=b''.join(f'lb {i}\n'.encode() for i in range(4093))
         check('label-capacity',maximum+b'n 11\nrt\n',value=11)
         check('label-overflow',maximum+b'lb 4093\nn 11\nrt\n',error=True)
-        invalid=[b'jm 1\n',b'lb 1\nlb 1\n',b'lb -1\n',b'lb 32768\n',b'lb 1 2\n',
+        invalid=[b'rt\n',b'n 1\nrt\nrt\n',b'jm 1\n',b'lb 1\nlb 1\n',b'lb -1\n',b'lb 32768\n',b'lb 1 2\n',
                  b'jm 1 2\nlb 1\n',b'bf 1\nlb 1\n',b'n 1\nbf 1 2\nlb 1\n',
                  b'n 1\nps\njm 1\nlb 1\n',b'n 1\nps\nlb 1\n',b'n 1\nps\nrt\n',
                  b'rt 1\n',b'n 1\ntq 1\n',b'tq 1\n',b'n 1\ntc 1 2\n',

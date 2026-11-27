@@ -24,6 +24,17 @@ GRAMMAR_CASES = {
     'grammar_expression_extent': ('v[1+2];main(){return(0);}', None),
     'grammar_top_extrn': ('extrn x;main(){return(0);}', None),
     'grammar_comma_expression': ('main(){return(1,2);}', None),
+    'grammar_lvalue_assignment': ('main(){1=2;return(0);}', None),
+    'grammar_lvalue_compound': ('main(){(1+2)=+1;return(0);}', None),
+    'grammar_lvalue_address': ('main(){return(&(1+2));}', None),
+    'grammar_lvalue_prefix': ('main(){return(++1);}', None),
+    'grammar_lvalue_postfix': ('main(){return(1++);}', None),
+    'grammar_lvalue_call': ('f(){return(1);}main(){f()=2;return(0);}', None),
+    'grammar_lvalue_conditional': ('main(){auto x,y;(1?x:y)=2;return(0);}', None),
+    'grammar_lvalue_assignment_result': ('main(){auto x;(x=1)=2;return(0);}', None),
+    'grammar_lvalue_valid': ('main(){auto a 2,p,x;p= &a[0];((x))=1;*p=x++;a[1]=0;++(a[1]);return(*p!=1 | x!=2 | a[1]!=1);}', 0),
+    'grammar_negative_extent': ('v[-0];main(){return(0);}', None),
+    'grammar_negative_auto_extent': ('main(){auto v 9223372036854775808;return(0);}', None),
     'grammar_switch_expression': ('main(){switch (1)+1 {case 2:return(0);}return(1);}', 0),
     'grammar_conditional_argument': ('f(a,b){return(a*10+b);}main(){return(f(1?2:3,4)!=24);}', 0),
     'grammar_global_constants': ("v[3] -1,'AB',\"x\";main(){extrn v;return(v[0]!=-1 | v[1]!='AB' | char(v[2],0)!='x');}", 0),
@@ -37,6 +48,36 @@ COMPAT_CASES = {
     'grammar_compat_conditional_argument': GRAMMAR_CASES['grammar_conditional_argument'],
     'grammar_compat_comma_expression': ('main(){auto a;return((a=1,a+41)!=42);}', 0),
     'grammar_compat_initializers': ('v[1+2] {1+2,4,5};main(){return(v[0]+v[1]+v[2]!=12);}', 0),
+    'grammar_compat_case_constants': (
+        'main(){auto x;x=0;'
+        'switch 8 {case 1<<2+1:x++;}'
+        'switch 9223372036854775807 {case -1>>1:x++;}'
+        'switch 0 {case -1<<64:x++;}'
+        'switch 2 {case 1<<65:x++;}'
+        'switch 1 {case -1>>-1:x++;}'
+        'switch -9223372036854775808 {case 9223372036854775807+1:x++;}'
+        'switch -9223372036854775808 {case -9223372036854775808/-1:x++;}'
+        'switch 0 {case -9223372036854775808%-1:x++;}'
+        'switch 1 {case !(3-3)|(2<1):x++;}'
+        'return(x!=9);}', 0),
+    'grammar_compat_case_divzero': ('main(){switch 1 {case 1/0:return(0);}return(1);}', None),
+    'grammar_compat_case_modzero': ('main(){switch 1 {case 1%0:return(0);}return(1);}', None),
+    'grammar_compat_case_nonconstant': ('main(){auto x;switch 1 {case x:return(0);}return(1);}', None),
+    'grammar_compat_case_assignment': ('main(){auto x;switch 1 {case x=1:return(0);}return(1);}', None),
+    'grammar_compat_case_conditional': (
+        'f(){return(99);}main(){auto x,n;x=8;n=0;'
+        'switch 4 {case (1?4:5):n++;}'
+        'switch 4 {case 1?4:x:n++;}'
+        'switch 4 {case 0?f():1?4:5:n++;}'
+        'switch 4 {case 1?4:(1/0):n++;}'
+        'switch 4 {case 1?4:(2,3):n++;}'
+        'switch 1 {case 1||(1/0):n++;}'
+        'return(n!=6);}', 0),
+    'grammar_compat_case_selected_divzero': ('main(){switch 1 {case 1?1/0:1:return(0);}return(1);}', None),
+    'grammar_compat_case_selected_nonconstant': ('main(){auto x;switch 1 {case 1?x:1:return(0);}return(1);}', None),
+    'grammar_compat_escape_valid': (r'''main(){auto p;p="\r\n\t\0\\**";return('\r'!=13 | char(p,0)!=13 | char(p,1)!=10 | char(p,2)!=9 | char(p,3)!=0 | char(p,4)!=92 | char(p,5)!=42 | char(p,6)!=4);}''', 0),
+    'grammar_compat_escape_unknown_string': (r'''main(){return("\q");}''', None),
+    'grammar_compat_escape_unknown_character': (r"main(){return('\e');}", None),
 }
 
 DEPTH_CASES = {
