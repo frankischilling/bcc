@@ -32,7 +32,7 @@ test-libb: $(LIBB_SRC) $(LIBB_HDR)
 	@echo "libb compiles successfully"
 
 clean:
-	rm -f $(TARGET) $(OBJECTS) bcc-c/*.o parser_part.c emitter_part.c main_part.c
+	rm -f $(TARGET) $(OBJECTS)
 
 install: $(TARGET)
 	install -d "$(DESTDIR)$(BINDIR)" "$(DESTDIR)$(BINDIR)/lib"
@@ -42,8 +42,4 @@ install: $(TARGET)
 test-install: $(TARGET)
 	$(PYTHON) tests/test_install.py
 
-.PHONY: all clean test-libb install test
-
-.PHONY: all clean test-libb
-
-.PHONY: test-install
+.PHONY: all clean test-libb install test test-install

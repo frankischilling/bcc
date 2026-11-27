@@ -111,9 +111,10 @@ gival() {
 gdef(name) char name[]; {
 	extern tok, tval;
 	int tok, tval;
-	int n, ninit;
+	int n, ninit, vec;
 
-	if (tok == '[') {
+	vec = tok == '[';
+	if (vec) {
 		gettok();
 		n = 0;                          /* kbman §7.2: missing size -> 0 */
 		if (tok == 2 | tok == 4) {
@@ -125,38 +126,26 @@ gdef(name) char name[]; {
 
 		cgagvec(name);
 		cggvp(name, n);
-		ninit = 0;
-		while (tok != ';') {
-			if (tok == 0) fatal("unexpected EOF in global vector");
-			if (ninit >= 128) fatal("too many vector initializers");
-			gival();
-			ninit = ninit + 1;
-			if (tok == ',') {
-				gettok();
-				continue;
-			}
-			if (tok != ';') fatal("expected , or ; in global vector");
-		}
-		cggve();
-		gettok();
-		return;
+	} else {
+		/* Simple defn: name {ival,...} ;  -- no '=' (kbman §7.1) */
+		cggvb(name, 0);
 	}
 
-	/* Simple defn: name {ival,...} ;  -- no '=' (kbman §7.1) */
-	cggvb(name, 0);
 	ninit = 0;
-	while (tok != ';') {
+	if (tok != ';') {
+	  again:
 		if (tok == 0) fatal("unexpected EOF in global");
 		if (ninit >= 128) fatal("too many global initializers");
 		gival();
 		ninit = ninit + 1;
 		if (tok == ',') {
 			gettok();
-			continue;
+			if (tok == ';') fatal("expected initializer after ,");
+			goto again;
 		}
 		if (tok != ';') fatal("expected , or ; in global");
 	}
-	if (ninit == 0) cggvc(0);
+	if (!vec) if (ninit == 0) cggvc(0);
 	cggve();
 	gettok();
 }

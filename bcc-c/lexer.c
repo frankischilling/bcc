@@ -204,6 +204,9 @@ Token lx_next(Lexer *L) {
                 lx_get(L); /* x / X */
                 base = 16;
                 is_hex = 1;
+                if (!isxdigit(lx_peek(L)))
+                    error_at_location(L->filename, line, col, ERR_EXPR_SYNTAX,
+                                      "expected hexadecimal digit after prefix");
                 while (isxdigit(lx_peek(L))) lx_get(L);
             } else {
                 lx_get(L); /* leading '0' */

@@ -112,6 +112,10 @@ def main():
                             check(f'length-{length}-{newline}/chunk-{chunk}', data, chunk=chunk)
                     check(f'blank-lines/{chunk}', b'\n\nalpha\n\nomega', chunk=chunk)
                     check(f'byte-values/{chunk}', bytes(range(128, 256)) + b'\n', chunk=chunk)
+                    check(f'nul-record/{chunk}', b'n 1\0ignored\n', chunk=chunk,
+                          diagnostic=b'NUL in IC', expected=b'')
+                    check(f'nul-after-boundary/{chunk}', b'x' * 128 + b'\0', chunk=chunk,
+                          diagnostic=b'NUL in IC', expected=b'')
                 check('read-ahead-count', b'a\n' * 1024, reads=17)
                 check('reopen-discards-buffer', b'old\nstale\n', second=b'new\nlast',
                       expected=records(b'old\nnew\nlast'))

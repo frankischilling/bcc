@@ -117,6 +117,9 @@ A name initializer emits the word address of the named external cell. String ini
 of writable, B-terminated byte storage. Empty strings and embedded NULs
 are preserved. Tests interleave strings with numeric cells and definitions
 with function bodies, so literal emission cannot break contiguous storage.
+Both frontends require an initializer after each comma, as specified by the
+canonical grammar in §2. Scalar and vector definitions reject trailing commas;
+definitions without initializers still reserve zero-filled storage.
 
 Function names are mutable cells initialized to code addresses. Taking `&f`
 addresses the cell; reading `f` obtains its current function value. This also

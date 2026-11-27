@@ -28,7 +28,8 @@ def program_output(raw, line, marker):
 def compile_failure(output, produced, diagnostic=None):
     """Require a driver failure, no executable, and any requested message."""
     failed = re.search(
-        rb'(?:^|[\r\n])b: (?:pass failed|assembler failed|program exceeds 16 KB)[\r\n]',
+        rb'(?:^|[\r\n])b: (?:pass failed|assembler failed|program exceeds 16 KB|'
+        rb'(?:unresolved|missing|truncated) assembler relocation)[\r\n]',
         output) is not None
     requested = diagnostic is None or diagnostic.encode('utf-8') in output
     return not produced and failed and requested

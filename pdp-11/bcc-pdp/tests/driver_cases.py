@@ -29,16 +29,19 @@ def main():
         (work / 'good.b').write_text("main(){putchar('O');putchar('K');putchar('*n');return(0);}\n")
         (work / 'large.b').write_text('first[5000];second[5000];main(){return(0); }\n')
         (work / 'undef.b').write_text('main(){extrn missing; missing();return(0); }\n')
+        shutil.copyfile(root / 'tests/run/t120_missing_main.b', work / 'nomain.b')
         (work / 'bad.b').write_text('main(){auto ; this is not B}\n')
         shutil.copyfile(root / 'tests/run/t24_ctime.b', work / 'clock.b')
         for case in ('t67_global_string_limits','t92_source_library','t93_source_printf','t94_source_library_data'):
             shutil.copyfile(root/'tests/run'/f'{case}.b', work/f'{case}.b')
-        cases = [('long-string', 't67_global_string_limits.b', b'OK\n'), ('source-data','t94_source_library_data.b',b'OK\n'), ('source-library','t92_source_library.b',b'OK\n'), ('source-printf','t93_source_printf.b',b'custom\n'), ('valid', 'good.b', b'OK\n'), ('large-clock', 'clock.b', (root / 'tests/run/t24_ctime.out').read_bytes()), ('syntax-error', 'bad.b', None), ('missing-input', 'missing.b', None), ('unresolved-symbol', 'undef.b', None), ('oversized-program', 'large.b', None)]
+        cases = [('long-string', 't67_global_string_limits.b', b'OK\n'), ('source-data','t94_source_library_data.b',b'OK\n'), ('source-library','t92_source_library.b',b'OK\n'), ('source-printf','t93_source_printf.b',b'custom\n'), ('valid', 'good.b', b'OK\n'), ('large-clock', 'clock.b', (root / 'tests/run/t24_ctime.out').read_bytes()), ('syntax-error', 'bad.b', None), ('missing-input', 'missing.b', None), ('unresolved-symbol', 'undef.b', None), ('missing-main', 'nomain.b', None), ('oversized-program', 'large.b', None)]
         for name, source, expected in cases:
             result = subprocess.run([str(apout), str(work/'bin/b'), source], cwd=work, env=env, capture_output=True, timeout=30)
             ok = (result.returncode == 0) == (expected is not None)
             if name == 'unresolved-symbol':
                 ok = ok and not (work/'a.out').exists()
+            if name == 'missing-main':
+                ok = ok and b'unresolved assembler relocation' in result.stdout + result.stderr and not (work/'a.out').exists()
             if name == 'oversized-program':
                 ok = ok and b'program exceeds 16 KB' in result.stdout + result.stderr and not (work/'a.out').exists()
             if ok and expected is not None:

@@ -23,6 +23,9 @@ old=argv; v[0]=42; argv=v; if(argv[0]!=42)return(1);
                    '''check(){extrn argv,argc,char; return(argv[0]!=3 | argc()!=3 | char(argv[2],0)!='a' | char(argv(2),0)!='b');}'''],
     'initializer': ['''ref argv; main(){extrn ref,argv; return(*ref!=argv | argv[0]!=3);}'''],
 }
+HOST_CASES = {
+    'wide-index': ['''main(){extrn argv; return(argv(4294967296)!=0 | argv(-4294967296)!=0 | argv(4294967297)!=0);}'''],
+}
 
 
 def main():
@@ -35,7 +38,8 @@ def main():
     with tempfile.TemporaryDirectory(prefix='bcc-argv-') as directory:
         root = Path(directory)
         for mode, inline in modes:
-            for name, sources in CASES.items():
+            cases = {**CASES, **HOST_CASES} if mode == 'host' else CASES
+            for name, sources in cases.items():
                 paths = []
                 for index, text in enumerate(sources):
                     path = root/f'part{index}.b'; path.write_text(text+'\n'); paths.append(str(path))

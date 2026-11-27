@@ -28,6 +28,7 @@ getln(buf, max) char buf[]; {
 			buf[i] = 0;
 			return (1);
 		}
+		if (b[0] == 0) fatal("NUL in IC");
 		if (i >= max - 1) fatal("IC line too long");
 		buf[i] = b[0];
 		i = i + 1;

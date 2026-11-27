@@ -68,14 +68,19 @@ def main():
         check('char-negative-offset',0,['p8',-1],bytes(range(16)),7)
         check('read-negative-count',2,[0,'p0',-1],b'abcdefgh',-1)
         check('read-zero',2,[0,0,0],b'',0)
+        check('read-null',2,[0,0,1],expected=-1)
+        check('read-wide-fd',2,[4294967296,'p0',1],b'abcdefgh',-1,stdin=b'Z')
         check('read-failed',2,[-1,'p0',8],b'abcdefgh',-1)
         check('stdout-write',3,[1,'p0',6],b'hello\n',6,prefix=b'hello\n')
         check('stderr-write',3,[2,'p0',6],b'hello\n',6,stderr=b'hello\n')
         check('write-failed',3,[-1,'p0',6],b'hello\n',-1)
         check('write-negative-count',3,[1,'p0',-1],b'hello',-1)
         check('write-zero',3,[1,0,0],expected=0)
+        check('write-null',3,[1,0,1],expected=-1)
+        check('write-wide-fd',3,[4294967297,'p0',1],b'hello\n',-1)
         check('close',4,[0],expected=0)
         check('close-failed',4,[-1],expected=-1)
+        check('close-wide-fd',4,[4294967296],expected=-1)
         check('seek-failed',5,[-1,0,0],expected=-1)
         check('exit-empty',6,[],expected=None,status=0)
         check('exit-status',6,[42],expected=None,status=42)
@@ -111,6 +116,10 @@ def main():
                 check('seek-position',5,[descriptor,3,0],expected=0,fds=(descriptor,))
                 assert os.lseek(descriptor,0,os.SEEK_CUR)==3
                 check('seek-bad-origin',5,[descriptor,0,77],expected=-1,fds=(descriptor,))
+                assert os.lseek(descriptor,0,os.SEEK_CUR)==3
+                check('seek-wide-origin',5,[descriptor,0,4294967296],expected=-1,fds=(descriptor,))
+                assert os.lseek(descriptor,0,os.SEEK_CUR)==3
+                check('seek-wide-fd',5,[descriptor+4294967296,0,0],expected=-1,fds=(descriptor,))
                 assert os.lseek(descriptor,0,os.SEEK_CUR)==3
                 check('seek-negative',5,[descriptor,-1,0],expected=-1,fds=(descriptor,))
                 assert os.lseek(descriptor,0,os.SEEK_CUR)==3

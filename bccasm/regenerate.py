@@ -20,23 +20,45 @@ def hashes():
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--check', action='store_true')
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument('--check', action='store_true', help='check all source and assembly hashes')
+    mode.add_argument('--verify', action='store_true', help='also reproduce assembly with the recorded compiler')
     parser.add_argument('--cc', default=os.environ.get('CC', 'gcc'))
     args = parser.parse_args()
     manifest = ROOT / 'bccasm/generated/manifest.json'
     current = hashes()
-    if args.check:
-        saved = json.loads(manifest.read_text())
-        if saved['sources'] != current:
+    if args.check or args.verify:
+        try:
+            saved = json.loads(manifest.read_text())
+        except (OSError, ValueError) as error:
+            parser.error(f'cannot read assembly manifest: {error}')
+        if not isinstance(saved, dict) or saved.get('flags') != FLAGS:
+            parser.error('invalid assembly manifest or compiler flags')
+        if saved.get('sources') != current:
             parser.error('assembly snapshots are stale; run make -C bccasm regenerate')
-        for name, digest in saved['assembly'].items():
-            if hashlib.sha256((ROOT / 'bccasm/generated' / name).read_bytes()).hexdigest() != digest:
+        expected_names = {name + '.s' for name in SOURCES}
+        assembly = saved.get('assembly')
+        if not isinstance(assembly, dict) or set(assembly) != expected_names:
+            parser.error('assembly manifest must list every generated source exactly once')
+        for name, digest in assembly.items():
+            path = ROOT / 'bccasm/generated' / name
+            if not path.is_file() or hashlib.sha256(path.read_bytes()).hexdigest() != digest:
                 parser.error(f'assembly snapshot changed: {name}; regenerate it')
-        return
+        if not args.verify:
+            return
+        version = subprocess.check_output([args.cc, '--version'], text=True).splitlines()[0]
+        if version != saved.get('compiler'):
+            parser.error(f'compiler version differs from manifest: {version!r} != {saved.get("compiler")!r}')
     with tempfile.TemporaryDirectory(prefix='bcc-assembly-') as directory:
         tmp = Path(directory)
         for name in SOURCES:
             subprocess.run([args.cc, *FLAGS, f'bcc-c/{name}.c', '-o', str(tmp / (name + '.s'))], cwd=ROOT, check=True)
+        if args.verify:
+            for name in SOURCES:
+                path = tmp / (name + '.s')
+                if hashlib.sha256(path.read_bytes()).hexdigest() != assembly[path.name]:
+                    parser.error(f'assembly snapshot is not reproducible: {path.name}')
+            return
         assembly = {}
         for name in SOURCES:
             data = (tmp / (name + '.s')).read_bytes()

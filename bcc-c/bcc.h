@@ -160,6 +160,7 @@ typedef enum {
 struct Expr {
     ExprKind kind;
     int line, col;
+    unsigned depth;
     int function_value; /* This name denotes a function rvalue. */
     int builtin_argv;   /* The predefined argv vector, not argv(i). */
     int global_value;   /* 1: B storage cell; 2: external or host macro. */
@@ -328,6 +329,7 @@ typedef struct {
 typedef struct {
     Lexer L;
     Token cur;
+    unsigned depth;
     const char *source;  // source code for error reporting
     int word_bits;     /* 0 selects the host word width. */
     int loop_depth;
@@ -336,10 +338,10 @@ typedef struct {
 
 // Utility Functions
 
-void dief(const char *fmt, ...);
-void error_at(Token *tok, const char *src, const char *fmt, ...);
-void error_at_code(Token *tok, const char *src, ErrorCode code, const char *extra_info);
-void error_at_location(const char *filename, int line, int col, ErrorCode code, const char *extra_info);
+void dief(const char *fmt, ...) __attribute__((noreturn, format(printf, 1, 2)));
+void error_at(Token *tok, const char *src, const char *fmt, ...) __attribute__((noreturn, format(printf, 3, 4)));
+void error_at_code(Token *tok, const char *src, ErrorCode code, const char *extra_info) __attribute__((noreturn));
+void error_at_location(const char *filename, int line, int col, ErrorCode code, const char *extra_info) __attribute__((noreturn));
 char *xstrdup_range(const char *s, size_t a, size_t b);
 char *sdup(const char *s);
 Vec *vec_new();

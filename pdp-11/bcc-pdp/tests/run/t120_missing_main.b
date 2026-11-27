@@ -1,0 +1,1 @@
+other(){return(0);}

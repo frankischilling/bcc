@@ -19,7 +19,7 @@ def native_image(assembled):
     """Strip a fixed-origin 0407 text image into the six-word V1 layout."""
     if len(assembled) < 16:
         raise ValueError('short assembler header')
-    magic, text, data, bss, *_ = struct.unpack_from('<8H', assembled)
+    magic, text, data, bss, _, _, _, stripped = struct.unpack_from('<8H', assembled)
     if magic != 0o407:
         raise ValueError('bad assembler magic')
     if data or bss:
@@ -30,6 +30,14 @@ def native_image(assembled):
         raise ValueError('odd assembler text size')
     if len(assembled) < 16 + text:
         raise ValueError('truncated assembler text')
+    if stripped:
+        raise ValueError('missing assembler relocation')
+    if len(assembled) < 16 + 2 * text:
+        raise ValueError('truncated assembler relocation')
+    # The pinned assembler emits a relocation word per text word. Bit 3
+    # marks an external symbol reference, even when assembly prints I/II.
+    if any(word & 0o10 for (word,) in struct.iter_unpack('<H', assembled[16+text:16+2*text])):
+        raise ValueError('unresolved assembler relocation')
     # V1 words 2, 3, and 4 describe symbols, relocation bytes, and zero-fill
     # storage. V2 metadata has a different format, so omit it entirely.
     return struct.pack('<6H', 0o405, text + 12, 0, 0, 0, 0) + assembled[16:16+text]

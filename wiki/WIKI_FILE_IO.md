@@ -66,7 +66,10 @@ apply to host programs.
 `openr(unit,name)` and `openw(unit,name)` redirect the host character-input
 and character-output helpers using descriptor duplication. They are host
 compatibility facilities, not a claim that every historical B environment
-used this interface. Opening output truncates the named file. `flush()`
+used this interface. Opening output truncates the named file. A failed
+redirection leaves the previous unit selected. A negative unit or empty
+name selects standard input or output and closes the previous unit if it
+was above descriptor 2. `flush()`
 requests output synchronization. See the runtime source for error handling;
 these helpers are not interchangeable with buffered C `FILE` streams.
 

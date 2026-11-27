@@ -31,6 +31,8 @@ def main():
              ('b1', 'swe 1 2 3 33\n', b'bad tag'),
              ('b1', 'swe 1 2 3 -1\n', b'bad tag'),
              ('b1', 'x'*1040+'\n', b'IC line too long'),
+             ('b1', 'n 1\0ignored\n', b'NUL in IC'),
+             ('b01', 'Adef main\0ignored\n', b'NUL in IC'),
              ('b01', 'x'*1040+'\n', b'IC line too long')]
     for record in ('swb -1', 'swc -1 2 3 4', 'swc 1 -2 3 4', 'swc 1 2 3 -4', 'swx -1 2', 'swx 1 -2'):
         cases.append(('b1', record + '\n', b'bad switch label'))

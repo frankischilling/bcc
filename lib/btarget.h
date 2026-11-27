@@ -73,6 +73,34 @@ static inline void *__b_target_cptr(word pointer) {
     return __b_addresses[address];
 }
 
+/* Check the entire translated word range before a system call touches it. */
+static inline int __b_target_words_mapped(word pointer, size_t words) {
+    const unsigned units = B_BYTEPTR ? 2 : 1;
+    unsigned address = (uint16_t)pointer;
+    if (!words) return 1;
+    if (!address || words > (65536U - address) / units) return 0;
+    while (words) {
+        size_t available = 0;
+        for (size_t i = 0; i < __b_region_count; i++) {
+            const b_target_region *r = &__b_regions[i];
+            if (!r->words || address < r->base) continue;
+            unsigned offset = address - r->base;
+            if (offset / units >= r->words) continue;
+            if (offset % units) return 0;
+            /* A function registration or partial host cell is not a data word. */
+            size_t complete = r->bytes / sizeof(word);
+            if (offset / units >= complete) return 0;
+            available = complete - offset / units;
+            break;
+        }
+        if (!available) return 0;
+        if (words <= available) return 1;
+        words -= available;
+        address += (unsigned)available * units;
+    }
+    return 1;
+}
+
 static inline void __b_target_forget(void *pointer) {
     const unsigned units = B_BYTEPTR ? 2 : 1;
     for (size_t i = 0; i < __b_region_count; i++) {

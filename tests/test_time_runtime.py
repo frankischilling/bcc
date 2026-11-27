@@ -39,7 +39,13 @@ def main():
         clock_source = 'main(){auto t 2; extrn time,putchar; if(time(t)<0)return(1); putchar((t[0]>>8)&255); putchar(t[0]&255); putchar((t[1]>>8)&255); putchar(t[1]&255); return(0);}'
         for inline in (False, True):
             for mode in ('host', '16'):
-                for name, source in [('ctime', date_source), ('time', clock_source)]:
+                cases = [('ctime', date_source), ('time', clock_source)]
+                if mode == '16':
+                    cases.append(('invalid-buffer', 'main(){auto t 2,date 9;extrn time,ctime;'
+                                  't[0]=0;t[1]=0;date[0]=123;'
+                                  'if(time(-1)!=-1 | ctime(-1,date)!=-1 | ctime(t,-1)!=-1)return(1);'
+                                  'return(date[0]!=123);}'))
+                for name, source in cases:
                     path = root / 'case.b'
                     path.write_text(source)
                     command = [str(args.compiler.resolve()), '--strict', '--pedantic', f'--word={mode}']
@@ -50,9 +56,11 @@ def main():
                     after = ((time.time_ns() - 31536000 * 1000000000) * 60 // 1000000000) & 0xffffffff
                     ok = run.returncode == 0
                     if name == 'ctime': ok = ok and run.stdout == expected
-                    else:
+                    elif name == 'time':
                         ticks = int.from_bytes(run.stdout, 'big')
                         ok = ok and len(run.stdout) == 4 and ((ticks-before)&0xffffffff) <= ((after-before)&0xffffffff)
+                    else:
+                        ok = ok and not run.stdout and not run.stderr
                     print(f'{"PASS" if ok else "FAIL"}: {"inline" if inline else "shared"}/{mode}/{name}')
                     if not ok: print(run.returncode, repr(run.stdout), repr(run.stderr))
                     passed += ok

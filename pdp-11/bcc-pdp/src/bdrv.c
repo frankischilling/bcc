@@ -134,8 +134,8 @@ main(argc, argv) int argv[]; {
 /* Emit a stripped V1 executable. V2 symbol/relocation records are not V1
  * records; they must not be copied or reported as zero-fill data. */
 fixout(name) char name[]; {
-	int fdin, fdout, hdr[8], nhdr[6], n, left;
-	char buf[512];
+	int fdin, fdout, hdr[8], nhdr[6], n, left, i, bits;
+	int buf[256];
 	fdin = open(name, 0);
 	if (fdin < 0) badout("b: no assembler output\n");
 	n = read(fdin, hdr, 16);
@@ -147,6 +147,7 @@ fixout(name) char name[]; {
     if (n != 0) badout("b: odd text size\n");
     if (hdr[2] != 0) badout("b: unsupported data segment\n");
     if (hdr[3] != 0) badout("b: unsupported bss segment\n");
+    if (hdr[7] != 0) badout("b: missing assembler relocation\n");
 	nhdr[0] = 0405;
 	nhdr[1] = 12 + hdr[1];
 	nhdr[2] = 0;
@@ -165,6 +166,21 @@ fixout(name) char name[]; {
         if (write(fdout, buf, n) != n) badout("b: output write failed\n");
         left = left - n;
     }
+	/* The V2 assembler can return I/II for unresolved global symbols.
+	 * Check every relocation word before discarding the metadata. */
+	left = hdr[1];
+	while (left > 0) {
+		n = left;
+		if (n > 512) n = 512;
+		if (read(fdin, buf, n) != n) badout("b: truncated assembler relocation\n");
+		i = 0;
+		while (i < n / 2) {
+			bits = buf[i] & 010;
+			if (bits) badout("b: unresolved assembler relocation\n");
+			i = i + 1;
+		}
+		left = left - n;
+	}
 	close(fdin);
 	if (close(fdout)) badout("b: output close failed\n");
 	if (unlink(name) < 0) badout("b: cannot replace output\n");

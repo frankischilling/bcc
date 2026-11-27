@@ -2,6 +2,21 @@
 
 #include "bcc.h"
 
+/* Bound both recursive parsing and the trees traversed by later passes. */
+#define MAX_PARSE_DEPTH 512
+
+static void enter_parse(Parser *P) {
+    if (P->depth >= MAX_PARSE_DEPTH)
+        dief("syntax nesting limit exceeded at %d:%d", P->cur.line, P->cur.col);
+    ++P->depth;
+}
+
+static void add_expr_child(Expr *parent, const Expr *child) {
+    if (child->depth >= MAX_PARSE_DEPTH)
+        dief("expression nesting limit exceeded at %d:%d", parent->line, parent->col);
+    if (parent->depth <= child->depth) parent->depth = child->depth + 1;
+}
+
 void next(Parser *P) {
     tok_free(&P->cur);
     P->cur = lx_next(&P->L);
@@ -24,6 +39,7 @@ Expr *new_expr(ExprKind k, int line, int col) {
     Expr *e = (Expr*)xmalloc(sizeof(*e));
     memset(e, 0, sizeof(*e));
     e->kind = k; e->line = line; e->col = col;
+    e->depth = 1;
     return e;
 }
 
@@ -154,6 +170,7 @@ Program *parse_program_ast(Parser *P) {
         Top *t = (Top*)xmalloc(sizeof(*t));
 
         if (P->cur.kind == TK_EXTRN) {
+            if (g_strict) error_at(&P->cur, P->source, "top-level external declaration is outside Thompson B72");
             t->kind = TOP_EXTERN_DECL;
             t->as.ext_decl = parse_extern_decl(P);
         } else if (P->cur.kind == TK_AUTO) {
@@ -272,7 +289,15 @@ ExternItem *parse_extern_var_def(Parser *P){
         if (accept(P, TK_RBRACK)) {
             it->as.var.has_empty = 1;   // []
         } else {
-            it->as.var.bound = parse_expr(P);  // later: require const-foldable
+            if (g_strict) {
+                if (P->cur.kind == TK_MINUS)
+                    dief("negative vector bound at %d:%d", P->cur.line, P->cur.col);
+                if (P->cur.kind != TK_NUM && P->cur.kind != TK_CHR)
+                    dief("expected literal vector bound constant at %d:%d", P->cur.line, P->cur.col);
+                it->as.var.bound = parse_primary(P);
+                if (P->cur.kind != TK_RBRACK)
+                    dief("expected literal vector bound constant at %d:%d", P->cur.line, P->cur.col);
+            } else it->as.var.bound = parse_expr(P);
             expect(P, TK_RBRACK);
         }
 
@@ -473,7 +498,8 @@ static int64_t const_word(uint64_t value, int bits) {
     return (int64_t)value;
 }
 
-static int64_t eval_const_expr(Expr *e, int bits) {
+/* Validate even unselected branches, but do not evaluate their operations. */
+static int64_t eval_const_expr(Expr *e, int bits, int evaluate) {
     if (!e) dief("internal: null const expr");
 
     switch (e->kind) {
@@ -481,7 +507,7 @@ static int64_t eval_const_expr(Expr *e, int bits) {
         return const_word((uint64_t)e->as.num, bits);
 
     case EX_UNARY: {
-        int64_t v = eval_const_expr(e->as.unary.rhs, bits);
+        int64_t v = eval_const_expr(e->as.unary.rhs, bits, evaluate);
         switch (e->as.unary.op) {
         case TK_MINUS: return const_word(UINT64_C(0) - (uint64_t)v, bits);
         case TK_BANG:  return !v;
@@ -492,21 +518,34 @@ static int64_t eval_const_expr(Expr *e, int bits) {
     }
 
     case EX_BINARY: {
-        int64_t a = eval_const_expr(e->as.bin.lhs, bits);
-        int64_t b = eval_const_expr(e->as.bin.rhs, bits);
+        int64_t a = eval_const_expr(e->as.bin.lhs, bits, evaluate);
+        int64_t b = eval_const_expr(e->as.bin.rhs, bits,
+                                    evaluate && !(e->as.bin.op == TK_BARBAR && a));
 
         switch (e->as.bin.op) {
         case TK_PLUS: return const_word((uint64_t)a + (uint64_t)b, bits);
         case TK_MINUS: return const_word((uint64_t)a - (uint64_t)b, bits);
         case TK_STAR: return const_word((uint64_t)a * (uint64_t)b, bits);
         case TK_SLASH:
+            if (!evaluate) return 0;
             if (b == 0) dief("division by zero in const expr at %d:%d", e->line, e->col);
             if (a == INT64_MIN && b == -1) return INT64_MIN;
             return const_word((uint64_t)(a / b), bits);
         case TK_PERCENT:
+            if (!evaluate) return 0;
             if (b == 0) dief("mod by zero in const expr at %d:%d", e->line, e->col);
             if (a == INT64_MIN && b == -1) return 0;
             return const_word((uint64_t)(a % b), bits);
+        case TK_LSHIFT:
+        case TK_RSHIFT: {
+            /* Match the runtime: logical shifts, with a full-width count
+               producing zero and other counts masked to the word width. */
+            if (b == bits) return 0;
+            unsigned shift = (unsigned)((uint64_t)b & (unsigned)(bits - 1));
+            uint64_t value = (uint64_t)a;
+            if (bits < 64) value &= (UINT64_C(1) << bits) - 1;
+            return const_word(e->as.bin.op == TK_LSHIFT ? value << shift : value >> shift, bits);
+        }
 
         case TK_AMP: return a & b;
         case TK_BAR: return a | b;
@@ -523,6 +562,13 @@ static int64_t eval_const_expr(Expr *e, int bits) {
             dief("non-constant binary op in const expr at %d:%d", e->line, e->col);
             /* fallthrough */
         }
+    }
+
+    case EX_TERNARY: {
+        int64_t condition = eval_const_expr(e->as.ternary.cond, bits, evaluate);
+        int64_t yes = eval_const_expr(e->as.ternary.true_expr, bits, evaluate && condition);
+        int64_t no = eval_const_expr(e->as.ternary.false_expr, bits, evaluate && !condition);
+        return condition ? yes : no;
     }
 
     default:
@@ -571,18 +617,6 @@ static Stmt *parse_goto(Parser *P) {
 
 
 
-static Expr *parse_paren_or_bare_expr(Parser *P) {
-    if (accept(P, TK_LPAREN)) {
-        Expr *e = parse_expr(P);
-        expect(P, TK_RPAREN);
-        return e;
-    }
-    return parse_expr(P);
-}
-
-
-
-
 static Stmt *parse_case_body(Parser *P) {
     if (!g_strict && P->cur.kind == TK_RBRACE)
         return new_stmt(ST_EMPTY, P->cur.line, P->cur.col);
@@ -613,7 +647,7 @@ Stmt *parse_case(Parser *P) {
     } else a = parse_expr(P);
     int bits = P->word_bits ? P->word_bits : (int)(sizeof(intptr_t) * 8);
     if (bits != 16 && bits != 32 && bits != 64) dief("invalid constant word width");
-    int64_t val = eval_const_expr(a, bits);
+    int64_t val = eval_const_expr(a, bits, 1);
 
     expect(P, TK_COLON);
 
@@ -649,7 +683,7 @@ static Stmt *parse_switch(Parser *P) {
     int line = P->cur.line, col = P->cur.col;
     expect(P, TK_SWITCH);
 
-    Expr *val = parse_paren_or_bare_expr(P);
+    Expr *val = parse_expr(P);
 
     P->switch_depth++;
     Stmt *body = parse_stmt(P);
@@ -661,7 +695,7 @@ static Stmt *parse_switch(Parser *P) {
     return s;
 }
 
-Stmt *parse_stmt(Parser *P) {
+static Stmt *parse_stmt_inner(Parser *P) {
     // label: ID ':' stmt
     if (P->cur.kind == TK_ID && peek_next_kind(P) == TK_COLON) {
         return parse_label(P);
@@ -719,9 +753,18 @@ Stmt *parse_stmt(Parser *P) {
     s->as.expr.e = e;
     return s;
 }
+
+Stmt *parse_stmt(Parser *P) {
+    enter_parse(P);
+    Stmt *s = parse_stmt_inner(P);
+    --P->depth;
+    return s;
+}
 Init *parse_init_elem(Parser *P);
 
 Init *parse_init_list(Parser *P){
+    enter_parse(P);
+    if (g_strict) error_at(&P->cur, P->source, "braced external initializer is outside Thompson B72");
     int line=P->cur.line, col=P->cur.col;
     expect(P, TK_LBRACE);
 
@@ -737,6 +780,7 @@ Init *parse_init_list(Parser *P){
             break;
         }
     }
+    --P->depth;
     return in;
 }
 
@@ -746,8 +790,21 @@ Init *parse_init_elem(Parser *P){
     int line=P->cur.line, col=P->cur.col;
     Init *in = new_init(INIT_EXPR, line, col);
 
-    // IMPORTANT: initializer element is ASSIGNMENT-expr, not comma-expr
-    in->as.expr = parse_assignment(P);
+    if (g_strict) {
+        int negative = accept(P, TK_MINUS);
+        if (P->cur.kind != TK_NUM && P->cur.kind != TK_CHR &&
+            (negative || (P->cur.kind != TK_STR && P->cur.kind != TK_ID)))
+            error_at(&P->cur, P->source, "expected initializer constant or name");
+        in->as.expr = parse_primary(P);
+        if (negative) {
+            Expr *e = new_expr(EX_UNARY, line, col);
+            e->as.unary.op = TK_MINUS;
+            e->as.unary.rhs = in->as.expr;
+            in->as.expr = e;
+        }
+        if (P->cur.kind != TK_COMMA && P->cur.kind != TK_SEMI)
+            error_at(&P->cur, P->source, "expected initializer constant or name");
+    } else in->as.expr = parse_assignment(P);
     return in;
 }
 
@@ -813,6 +870,7 @@ Expr *parse_postfix(Parser *P) {
         if (accept(P, TK_LPAREN)) {
             Expr *c = new_expr(EX_CALL, e->line, e->col);
             c->as.call.callee = e;
+            add_expr_child(c, e);
             c->as.call.args.data = NULL; c->as.call.args.len = 0; c->as.call.args.cap = 0;
 
             if (!accept(P, TK_RPAREN)) {
@@ -820,6 +878,7 @@ Expr *parse_postfix(Parser *P) {
                     // IMPORTANT: argument is ASSIGNMENT-expr (no comma operator as separator)
                     Expr *arg = parse_assignment(P);
                     vec_push(&c->as.call.args, arg);
+                    add_expr_child(c, arg);
 
                     if (accept(P, TK_COMMA)) continue;
                     expect(P, TK_RPAREN);
@@ -838,6 +897,8 @@ Expr *parse_postfix(Parser *P) {
             Expr *ix = new_expr(EX_INDEX, e->line, e->col);
             ix->as.index.base = e;
             ix->as.index.idx = idx;
+            add_expr_child(ix, e);
+            add_expr_child(ix, idx);
             e = ix;
             continue;
         }
@@ -854,6 +915,7 @@ Expr *parse_postfix(Parser *P) {
             Expr *p = new_expr(EX_POST, e->line, e->col);
             p->as.post.op = op;
             p->as.post.lhs = e;
+            add_expr_child(p, e);
             e = p;
             continue;
         }
@@ -863,7 +925,7 @@ Expr *parse_postfix(Parser *P) {
 
     return e;
 }
-Expr *parse_unary(Parser *P) {
+static Expr *parse_unary_inner(Parser *P) {
     int line = P->cur.line, col = P->cur.col;
 
     if (is_unary(P->cur.kind)) {
@@ -884,10 +946,18 @@ Expr *parse_unary(Parser *P) {
         Expr *e = new_expr(EX_UNARY, line, col);
         e->as.unary.op = op;
         e->as.unary.rhs = rhs;
+        add_expr_child(e, rhs);
         return e;
     }
 
     return parse_postfix(P);
+}
+
+Expr *parse_unary(Parser *P) {
+    enter_parse(P);
+    Expr *e = parse_unary_inner(P);
+    --P->depth;
+    return e;
 }
 Expr *parse_bin_rhs(Parser *P, int min_prec, Expr *lhs) {
     for (;;) {
@@ -908,12 +978,14 @@ Expr *parse_bin_rhs(Parser *P, int min_prec, Expr *lhs) {
         b->as.bin.op = op;
         b->as.bin.lhs = lhs;
         b->as.bin.rhs = rhs;
+        add_expr_child(b, lhs);
+        add_expr_child(b, rhs);
         lhs = b;
     }
 }
 static Expr *parse_conditional(Parser *P);
 
-Expr *parse_assignment(Parser *P) {
+static Expr *parse_assignment_inner(Parser *P) {
     Expr *lhs = parse_conditional(P);
 
     if (is_assign_op(P->cur.kind)) {
@@ -930,10 +1002,19 @@ Expr *parse_assignment(Parser *P) {
         a->as.assign.op = op;
         a->as.assign.lhs = lhs;
         a->as.assign.rhs = rhs;
+        add_expr_child(a, lhs);
+        add_expr_child(a, rhs);
         return a;
     }
 
     return lhs;
+}
+
+Expr *parse_assignment(Parser *P) {
+    enter_parse(P);
+    Expr *e = parse_assignment_inner(P);
+    --P->depth;
+    return e;
 }
 
 static Expr *parse_conditional(Parser *P) {
@@ -950,6 +1031,9 @@ static Expr *parse_conditional(Parser *P) {
         ternary->as.ternary.cond = e;
         ternary->as.ternary.true_expr = true_expr;
         ternary->as.ternary.false_expr = false_expr;
+        add_expr_child(ternary, e);
+        add_expr_child(ternary, true_expr);
+        add_expr_child(ternary, false_expr);
         e = ternary;
     }
 
@@ -959,11 +1043,15 @@ static Expr *parse_conditional(Parser *P) {
 Expr *parse_expr(Parser *P) {
     Expr *e = parse_assignment(P);
 
+    if (g_strict && P->cur.kind == TK_COMMA)
+        error_at(&P->cur, P->source, "comma expression is outside Thompson B72");
     while (accept(P, TK_COMMA)) {
         Expr *rhs = parse_assignment(P);
         Expr *c = new_expr(EX_COMMA, e->line, e->col);
         c->as.comma.lhs = e;
         c->as.comma.rhs = rhs;
+        add_expr_child(c, e);
+        add_expr_child(c, rhs);
         e = c;
     }
 

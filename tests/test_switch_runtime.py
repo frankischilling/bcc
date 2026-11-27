@@ -42,6 +42,7 @@ def main():
         ('case-inside-if', 'x=0;switch 1 if(0) case 1:x=7;else x=9;if(x!=7)return(1);'),
         ('case-inside-while', 'x=0;switch 1 while(0) case 1:{x=7;goto done;}done:if(x!=7)return(1);'),
         ('case-selector-once', 'x=0;switch x++ {case 0:x=+7;case 0:x=+2;}if(x!=10)return(1);'),
+        ('parenthesized-selector-expression', 'x=0;switch (1)+1 {case 2:x=7;}if(x!=7)return(1);'),
         ('nested-unbraced', 'x=0;switch 1 case 1:switch 2 case 2:x=7;if(x!=7)return(1);'),
     ]
     for name, body in checks:

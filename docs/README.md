@@ -10,6 +10,7 @@ original language and system manuals, start in [historical-docs](../historical-d
 | [Testing](testing.md) | Host, assembly, B-stage, native and Unix V1 test commands |
 | [B language](../wiki/B_LANGUAGE.md) | Language syntax and examples |
 | [Historical conformance](../wiki/HISTORICAL_CONFORMANCE.md) | Dialect differences and outstanding compatibility work |
+| [Historical audit](historical-audit.md) | Audit findings, verification and unresolved source questions |
 | [Bootstrap goals](../wiki/BOOTSTRAP.md) | Progress toward a compiler and toolchain written in B |
 
 The [wiki home](../wiki/Home.md) indexes the rest of the language and library

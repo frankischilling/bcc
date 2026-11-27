@@ -23,7 +23,10 @@ def main():
         root = Path(directory)
         for inline in (False, True):
             for mode in ('host', '16'):
-                for name, (source, expected) in CASES.items():
+                cases = dict(CASES)
+                if mode == '16':
+                    cases['unmapped-vector'] = ('main(){extrn execv;return(execv("/no/such/program",-1,1)!=-1);}', b'')
+                for name, (source, expected) in cases.items():
                     path = root / 'case.b'
                     path.write_text(source + '\n')
                     command = [str(args.compiler.resolve()), '--strict', '--pedantic', f'--word={mode}']
